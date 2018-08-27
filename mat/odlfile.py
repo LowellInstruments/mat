@@ -1,3 +1,6 @@
+# GPLv3 License
+# Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
+
 """
 This module provides basic access to a lid/lis file
 This includes:

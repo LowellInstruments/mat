@@ -1,3 +1,6 @@
+# GPLv3 License
+# Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
+
 """
 Convert raw odl data to si values
 hoststorage is a hoststorage object
