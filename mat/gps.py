@@ -25,6 +25,9 @@ def read_serial():
             latitude = convert_lat(fields[2], fields[3])
             longitude = convert_lon(fields[4], fields[5])
             utc = convert_time(fields[1])
+
+            print('{}, {}, {}'.format(utc, latitude, longitude))
+
         time.sleep(0.1)
 
 

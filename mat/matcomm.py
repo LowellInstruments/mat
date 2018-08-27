@@ -18,11 +18,14 @@ import datetime
 
 class Logger(object):
     def __init__(self):
+        self.printTx = False
+        self.printRx = False
         self.__connected = False
         self.__port = None
         self.timeout = 6
         self.com_port = None
         self.__callback = {}
+        self.printIO = False
         self.logger_info = {}
         self.hoststorage = None  # an object that holds the host storage values and performs sensor conversion
         self.converter = None
@@ -64,6 +67,14 @@ class Logger(object):
         # port_poller.start()
         return self.__connected
 
+    # def __port_watcher(self):
+    #     while self.__connected:
+    #         if self.com_port not in self.check_ports():
+    #             self.close()
+    #             print 'Logger Disconnected'
+    #             raise RuntimeError('Logger disconnected.')
+    #         time.sleep(0.5)
+
     def auto_connect(self):
         ports = self.check_ports()
         if ports:
@@ -103,6 +114,12 @@ class Logger(object):
                 tag_waiting = tag
 
             while tag_waiting:
+                # time.sleep(0.005)
+                # if time.time() - last_tx > self.timeout:
+                #     print 'Logger timeout. Waiting for: ' + tag_waiting
+                #     self.close()
+                #     break
+
                 # flush out the nl and cr chars that inevitably end up coming first...
 
                 inchar = self.__port.read(1).decode('IBM437')
@@ -123,6 +140,8 @@ class Logger(object):
                         'Incorrect data length. Expecting ' + str(length) + ' received ' + str(len(data)))
 
                 if tag == tag_waiting:
+                    if self.printIO:
+                        print('RX: ' + tag + ' ' + inline[4:6] + data)
                     tag_waiting = ''
                     if 'rx' in self.__callback:
                         self.__callback['rx'](tag + ' ' + inline[4:6] + data)
@@ -134,6 +153,7 @@ class Logger(object):
                     return None
 
         except serial.SerialException:
+            print('Serial Exception')
             self.close()
             return None
 
@@ -158,6 +178,7 @@ class Logger(object):
             if in_str:
                 hs_string += in_str
             else:
+                print('Logger returned empty string during HS read')
                 break
 
         self.hoststorage = hoststorage.load_from_string((hs_string))
@@ -356,6 +377,7 @@ class Logger(object):
             pressure = 0
 
         if temp_raw == 0:  # if the sensor doesn't report immediately after power up, causing a math error below
+            print('Temperature sensor powerup error')
             temp_raw = 1
 
         temp = self.converter.temperature(temp_raw)

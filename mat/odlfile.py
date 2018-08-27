@@ -81,7 +81,10 @@ class OdlFile(ABC):
         self.is_light = self.page_sequence == 'L'
         self.is_accel = self.page_sequence == 'A'
         self.is_mag = self.page_sequence == 'M'
+
         self.end_time = self._end_time()
+        print('Last sample: {:0.2f}'.format(float(self.end_time)))
+
         self._cached_page = None
         self._cached_page_n = None
 
@@ -436,3 +439,8 @@ class LisFile(OdlFile):
 
 class LidError(Exception):
     pass
+
+def info(filepath):
+    with open(filepath, 'rb') as fid:
+        odl = load_file(fid)
+        print(odl.header.is_accelerometer)
