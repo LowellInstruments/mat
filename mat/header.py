@@ -1,3 +1,6 @@
+# GPLv3 License
+# Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
+
 """
 Parse and make human readable the information from a .lid/.lis file header
 """

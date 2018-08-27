@@ -1,3 +1,6 @@
+# GPLv3 License
+# Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
+
 import serial
 import serial.tools.list_ports
 import numpy as np
