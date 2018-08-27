@@ -8,5 +8,5 @@ setup(name='lowell-mat',
       description='Shared package for Lowell Instruments software',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',
-      author_email='info@lowellinstruments.com',
+      author_email='software@lowellinstruments.com',
       packages=['mat'])
