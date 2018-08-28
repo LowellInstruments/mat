@@ -9,4 +9,4 @@ setup(name='lowell-mat',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
-      packages=['mat'])
+      packages=['mat', 'numpy'])
