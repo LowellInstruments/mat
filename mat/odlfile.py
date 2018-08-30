@@ -32,6 +32,7 @@ from mat import header
 import numpy as np
 import datetime
 from abc import ABC, abstractmethod
+from math import floor
 
 
 def load_file(file_obj):
@@ -87,9 +88,17 @@ class OdlFile(ABC):
         self.is_light = self.page_sequence == 'L'
         self.is_accel = self.page_sequence == 'A'
         self.is_mag = self.page_sequence == 'M'
+
+
+
         self.end_time = 0
         self._cached_page = None
         self._cached_page_n = None
+
+    ################################
+
+
+
 
     def pressure(self):
         """ pressure values from the current page """
@@ -110,9 +119,9 @@ class OdlFile(ABC):
     def magnetometer(self):
         mag_index = self.is_mag[:len(self._cached_page)]
         magnetometer = self._cached_page[mag_index]
-        # if this is the last page, ckeck logging wasn't interrupted mid burst
-        full_burst_end = (int(np.floor(len(magnetometer) /
-                          (self.header.orientation_burst_count * 3))))
+        # if this is the last page, check logging wasn't interrupted mid burst
+        full_burst_end = int(np.floor(len(magnetometer) /
+                             (self.header.orientation_burst_count * 3)))
         full_burst_end *= self.header.orientation_burst_count * 3
         magnetometer = magnetometer[:full_burst_end]
         magnetometer = np.reshape(magnetometer, (3, -1), order='F')
@@ -125,6 +134,9 @@ class OdlFile(ABC):
     def light(self):
         light = self._cached_page[self.is_light[:len(self._cached_page)]]
         return light.astype('uint16')
+
+    ################################
+
 
     def _build_sequence(self):
         """
@@ -144,6 +156,15 @@ class OdlFile(ABC):
 
         time_offset is measured in microseconds
         """
+
+        burst_length = self.header.orientation_burst_count
+        self.pressure = MultiChannelSensorFilter(self.is_pres)
+        self.accelerometer = MultiChannelSensorFilter(self.is_accel, 3,
+                                                      burst_length)
+        self.magnetometer = MultiChannelSensorFilter(self.is_mag, 3,
+                                                     burst_length)
+        self.temperature = SensorFilter(self.is_temp, data_type='uint16')
+        self.light = SensorFilter(self.is_light, data_type='uint16')
 
         h = self.header  # shorten things for the sake of easier reading
         major_interval_seconds = max(h.temperature_interval,
@@ -413,6 +434,8 @@ class LisFile(OdlFile):
     def _n_maj_intervals_per_page(self):
         return int(np.ceil((self.file_size-self.data_start) /
                            self.maj_interval_bytes))
+
+
 
 
 class LidError(Exception):

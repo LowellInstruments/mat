@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 
 class Accelerometer(ABC):
     @staticmethod
-    def accelerometer_factory(hoststorage):
+    def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
         if {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'} <= set(hs_dict):
             return NewAccelerometer(hs_dict)
@@ -54,7 +54,7 @@ class NewAccelerometer(Accelerometer):
 
 class Magnetometer(ABC):
     @staticmethod
-    def magnetometer_factory(hoststorage):
+    def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
         if {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
             'AXC', 'AYC', 'AZC', 'TMX', 'TMY', 'TMZ', 'MRF'} <= set(hs_dict):
@@ -120,7 +120,7 @@ class TempCompensatedMagnetometer(NewMagnetometer):
 
 class Pressure:
     @staticmethod
-    def pressure_factory(hoststorage):
+    def factory(hoststorage):
         """ Pressure currently only has one implementation. This is for future expansion. """
         hs_dict = hoststorage.hs_dict
         if {'PRA', 'PRB'} <= set(hs_dict):
@@ -138,7 +138,7 @@ class Pressure:
 
 class Temperature:
     @staticmethod
-    def temperature_factory(hoststorage):
+    def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
         if {'TMA', 'TMB', 'TMC', 'TMR'} <= set(hs_dict):
             return Temperature(hs_dict)
@@ -159,7 +159,7 @@ class Temperature:
 
 class Light:
     @staticmethod
-    def light_factory(hoststorage):
+    def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
         if {'PDA', 'PDB'} <= set(hs_dict):
             return Light(hs_dict)
@@ -175,38 +175,3 @@ class Light:
         light_val = raw_light * self.pdb + self.pda
         light_val[is_bad_val] = -1
         return light_val
-
-
-class Converter:
-    def __init__(self, hoststorage):
-        self.temperature_converter = Temperature.temperature_factory(hoststorage)
-        self.accelerometer_converter = Accelerometer.accelerometer_factory(hoststorage)
-        self.magnetometer_converter = Magnetometer.magnetometer_factory(hoststorage)
-        self.pressure_converter = Pressure.pressure_factory(hoststorage)
-        self.light_converter = Light.light_factory(hoststorage)
-
-    def temperature(self, raw_temperature):
-        if self.temperature_converter is None:
-            return None
-        return self.temperature_converter.convert(raw_temperature)
-
-    def accelerometer(self, raw_accelerometer, temperature=None):
-        if self.accelerometer_converter is None:
-            return None
-        return self.accelerometer_converter.convert(raw_accelerometer, temperature)
-
-    def magnetometer(self, raw_magnetometer, temperature=None):
-        if self.magnetometer_converter is None:
-            return None
-        return self.magnetometer_converter.convert(raw_magnetometer, temperature)
-
-    def pressure(self, raw_pressure):
-        if self.pressure_converter is None:
-            return None
-        return self.pressure_converter.convert(raw_pressure)
-
-    def light(self, raw_light):
-        if self.light_converter is None:
-            return None
-        return self.light_converter.convert(raw_light)
-
