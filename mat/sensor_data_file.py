@@ -7,7 +7,7 @@ import numpy as np
 import datetime
 from abc import ABC, abstractmethod
 from math import floor
-from converter.data_file_registry import DataFileRegistry
+from mat.data_file_registry import DataFileRegistry
 
 
 class SensorDataFile(ABC):
@@ -19,33 +19,48 @@ class SensorDataFile(ABC):
     def create(cls, file_path):
         try:
             extension = file_path[-4:]
-            return DataFileRegistry.registry[extension]()
+            return DataFileRegistry.registry[extension](file_path)
         except KeyError:
-            raise Exception('Invalid Filename')
+            raise ValueError('Invalid Filename')
 
-    def __init__(self, file_obj):
-        self.file_obj = file_obj
+    def __init__(self, file_path):
+        self._file_path = file_path
+        self._file = None
         self._n_pages = None
         self._sensors = None
 
+    def __del__(self):
+        if self._file:
+            self.close()
+
+    def close(self):
+        if self._file:
+            self._file.close()
+        self._file = None
+
     def validate(self):
         # Figure out if this file is reasonable or raise an error
-        return self
+        pass
+
+    def file(self):
+        if self._file is None:
+            self._file = open(self._file_path, "rb")
+        return self._file
 
     def n_pages(self):
         if self._n_pages is None:
-            self._n_pages = self.calc_n_pages()
+            self._n_pages = self._calc_n_pages()
         return self._n_pages
 
     def sensors(self):
         if self._sensors is None:
-            self._sensors = self.create_sensors()
+            self._sensors = self._create_sensors()
         return self._sensors
 
-    def calc_n_pages(self):
-        return 0
+    def _calc_n_pages(self):
+        return 1
 
-    def create_sensors(self):
+    def _create_sensors(self):
         return []
 
     def load_page(self, i):
