@@ -26,14 +26,16 @@ def verify_string(string):
 
 
 def convert_lat(lat_str, ns):
-    return convert_coordinate(lat_str[2:9], lat_str[0:2], ns == 'S')
+    return _convert_coordinate(lat_str, 2, 9, ns == 'S')
 
 
 def convert_lon(lon_str, ew):
-    return convert_coordinate(lon_str[3:10], lon_str[0:3], ew == 'W')
+    return _convert_coordinate(lon_str, 3, 10, ew == 'W')
 
 
-def convert_coordinate(minutes, remainder, negative):
+def _convert_coordinate(coord_str, split, end, negative):
+    minutes = coord_str[split:end]
+    remainder = coord_str[0:split]
     raw = float(remainder) + float(minutes)/60
     if negative:
         return -raw
