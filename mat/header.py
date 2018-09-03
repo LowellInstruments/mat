@@ -1,9 +1,15 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-"""
-Parse and make human readable the information from a .lid/.lis file header
-"""
+
+def get_header(file_path):
+    with open(file_path, 'rb') as fid:
+        header = Header(fid).get_header()
+    return header
+
+
+def cut_out(string, start_cut, end_cut):
+    return string[:start_cut] + string[end_cut:]
 
 
 class Header:
@@ -11,96 +17,60 @@ class Header:
     type_bool = ['ACL', 'LED', 'MGN', 'TMP', 'PRS', 'PHD']
 
     def __init__(self, file_obj):
-        file_pos = file_obj.tell()
-        assert file_obj.mode == 'rb', 'File must be open for binary reading'
-        self._raw_header_string = self.read_header(file_obj)
-        self._header = self.parse_tags(self._raw_header_string)
-        file_obj.seek(file_pos)
+        self._file_obj = file_obj
+        self.header = None
 
-    def read_header(self, file_obj):
-        file_obj.seek(0, 0)
-        first_500 = file_obj.read(500).decode('IBM437')
-        assert first_500.startswith('HDS'), 'Header must start with HDS'
-        mhe_index = first_500.find('MHE')
-        return first_500[:mhe_index+3]
+    def get_header(self):
+        header_block = self._read_header_block()
+        header_string = self._crop_header_block(header_block)
+        header_string = self._remove_logger_info(header_string)
+        header_string = self._remove_header_tags(header_string)
+        self.header = self._parse_tags(header_string)
+        return self.header
 
-    def parse_tags(self, raw_string):
-        # get rid of the logger info section (LIE to LIS tags)
-        lis_index = raw_string.find('LIS')
-        lie_index = raw_string.find('LIE')
-        if lis_index > -1 and lie_index > -1:
-            raw_string = raw_string[:lis_index] + raw_string[lie_index + 5:]
+    def _read_header_block(self):
+        original_file_position = self._file_obj.tell()
+        self._file_obj.seek(0, 0)
+        header_string = self._file_obj.read(500).decode('IBM437')
+        self._file_obj.seek(original_file_position)
+        return header_string
 
-        # get rid of the HDS and HDE tags
-        raw_string = raw_string[5:-5]
-        header_tag_value_list = raw_string.split('\r\n')
+    def _crop_header_block(self, header_block):
+        self._validate_header_block(header_block)
+        mhe_index = header_block.find('HDE')
+        return header_block[:mhe_index+5]
 
+    def _remove_logger_info(self, header_string):
+        lis = header_string.find('LIS')
+        lie = header_string.find('LIE')
+        return cut_out(header_string, lis, lie+5)
+
+    def _remove_header_tags(self, header_string):
+        for tag_to_remove in ['HDS', 'HDE', 'MHS', 'MHE']:
+            index = header_string.find(tag_to_remove)
+            header_string = cut_out(header_string, index, index+5)
+        return header_string
+
+    def _parse_tags(self, header_string):
+        header_lines = header_string.split('\r\n')[:-1]
         header = {}
-        for tag_value in header_tag_value_list:
-            if tag_value.startswith('MHS') or tag_value.startswith('MHE'):
-                continue
-            tag, value = tag_value.split(' ', 1)
-            if tag in self.type_bool:
-                header[tag] = True if value == '1' else False
-            elif tag in self.type_int:
-                header[tag] = int(value)
-            else:
-                header[tag] = value
-
+        for tag_and_value in header_lines:
+            print(tag_and_value)
+            tag, value = tag_and_value.split(' ', 1)
+            header[tag] = self._set_type(tag, value)
         return header
 
-    @property
-    def orientation_burst_rate(self):
-        return self._header['BMR']
+    def _validate_header_block(self, header_string):
+        if not header_string.startswith('HDS'):
+            raise ValueError('Header must start with HDS')
+        mandatory_tags = ['HDE', 'MHS', 'MHE']
+        for tag in mandatory_tags:
+            if 'HDE' not in header_string:
+                raise ValueError(tag + ' tag missing in header')
 
-    @property
-    def orientation_burst_count(self):
-        return self._header['BMN']
-
-    @property
-    def orientation_interval(self):
-        return self._header['ORI']
-
-    @property
-    def temperature_interval(self):
-        return self._header['TRI']
-
-    @property
-    def pressure_burst_rate(self):
-        return self._header['PRR'] if 'PRR' in self._header.keys() else None
-
-    @property
-    def pressure_burst_count(self):
-        return self._header['PRN'] if 'PRN' in self._header.keys() else None
-
-    @property
-    def is_temperature(self):
-        return self._header['TMP']
-
-    @property
-    def is_accelerometer(self):
-        return self._header['ACL']
-
-    @property
-    def is_magnetometer(self):
-        return self._header['MGN']
-
-    @property
-    def is_led(self):
-        return self._header['LED']
-
-    @property
-    def is_pressure(self):
-        return self._header['PRS'] if 'PRS' in self._header.keys() else False
-
-    @property
-    def is_photo_diode(self):
-        return self._header['PHD'] if 'PHD' in self._header.keys() else False
-
-    @property
-    def start_time(self):
-        return self._header['CLK']
-
-    @property
-    def is_orient(self):
-        return self.is_accelerometer or self.is_magnetometer
+    def _set_type(self, tag, value):
+        if tag in self.type_bool:
+            value = True if value == '1' else False
+        elif tag in self.type_int:
+            value = int(value)
+        return value
