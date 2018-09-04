@@ -2,9 +2,10 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 
-def parse_header(file_path):
+def header_factory(file_path):
     with open(file_path, 'rb') as fid:
-        return Header(fid).parse_header()
+        header_string = fid.read(500).decode('IBM437')
+    return Header(header_string)
 
 
 def cut_out(string, start_cut, end_cut):
@@ -15,23 +16,15 @@ class Header:
     type_int = ['BMN', 'BMR', 'DPL', 'STS', 'ORI', 'TRI', 'PRR', 'PRN']
     type_bool = ['ACL', 'LED', 'MGN', 'TMP', 'PRS', 'PHD']
 
-    def __init__(self, file_obj):
-        self._file_obj = file_obj
+    def __init__(self, header_string):
+        self.header_string = header_string
 
     def parse_header(self):
-        header_string = self._read_header_block()
-        header_string = self._crop_header_block(header_string)
+        header_string = self._crop_header_block(self.header_string)
         header_string = self._remove_logger_info(header_string)
         header_string = self._remove_header_tags(header_string)
         header = self._parse_tags(header_string)
         return header
-
-    def _read_header_block(self):
-        original_file_position = self._file_obj.tell()
-        self._file_obj.seek(0, 0)
-        header_string = self._file_obj.read(500).decode('IBM437')
-        self._file_obj.seek(original_file_position)
-        return header_string
 
     def _crop_header_block(self, header_block):
         self._validate_header_block(header_block)
@@ -67,8 +60,9 @@ class Header:
 
     def _convert_to_type(self, tag, value):
         if tag in self.type_bool:
-            return True if value == '1' else False
+            converted_value = True if value == '1' else False
         elif tag in self.type_int:
-            return int(value)
+            converted_value = int(value)
         else:
-            return value
+            converted_value = value
+        return converted_value

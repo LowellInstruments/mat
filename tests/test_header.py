@@ -29,13 +29,15 @@ class TestHeader(TestCase):
             'TMP': True,
             'TRI': 10,
         }
-        h = header.parse_header(reference_file('test.lid'))
-        assert h == expected_dict
+        h = header.header_factory(reference_file('test.lid'))
+        assert h.parse_header() == expected_dict
 
     def test_bad_header(self):
         with self.assertRaises(ValueError):
-            h = header.parse_header(reference_file('bad_header.lid'))
+            h = header.header_factory(reference_file('bad_header.lid'))
+            h.parse_header()
 
     def test_missing_hds(self):
         with self.assertRaises(ValueError):
-            h = header.parse_header(reference_file('missing_hds_header.lid'))
+            h = header.header_factory(reference_file('missing_hds_header.lid'))
+            h.parse_header()
