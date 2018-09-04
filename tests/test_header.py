@@ -1,6 +1,6 @@
-import os
 from unittest import TestCase
 from mat import header
+from tests.utils import reference_file
 
 
 class TestHeader(TestCase):
@@ -39,11 +39,3 @@ class TestHeader(TestCase):
     def test_missing_hds(self):
         with self.assertRaises(ValueError):
             h = header.parse_header(reference_file('missing_hds_header.lid'))
-
-
-
-def reference_file(file_name):
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        "files",
-        file_name)

@@ -1,8 +1,8 @@
-import os
 from unittest import TestCase
 from mat.lid_data_file import LidDataFile
 from mat.lis_data_file import LisDataFile
 from mat.sensor_data_file import SensorDataFile
+from tests.utils import reference_file
 
 
 LidDataFile.register()
@@ -46,10 +46,3 @@ class TestSensorDataFile(TestCase):
     def test_load_page(self):
         data_file = SensorDataFile.create(reference_file("test.lid"))
         assert data_file.load_page(1) == ""
-
-
-def reference_file(file_name):
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        "files",
-        file_name)
