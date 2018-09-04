@@ -5,14 +5,30 @@ from mat import header
 
 class TestHeader(TestCase):
     def test_header(self):
-        expected_dict = {'SER': '1805225', 'FWV': '1.8.32.5', 'DPL': 2,
-                         'DFS': '0x8000', 'STM': '1970-01-01 00:00:00',
-                         'ETM': '4096-01-01 00:00:00', 'LED': True,
-                         'CLK': '2018-05-25 08:27:07', 'TMP': True,
-                         'ACL': True, 'MGN': True, 'TRI': 10, 'ORI': 10,
-                         'BMR': 8, 'BMN': 8, 'BAT': '0e5e', 'PWC': '0001',
-                         'STS': 1, 'PRS': False, 'PHD': False, 'PRR': 4,
-                         'PRN': 4}
+        expected_dict = {
+            'ACL': True,
+            'BAT': '0e5e',
+            'BMN': 8,
+            'BMR': 8,
+            'CLK': '2018-05-25 08:27:07',
+            'DFS': '0x8000',
+            'DPL': 2,
+            'ETM': '4096-01-01 00:00:00',
+            'FWV': '1.8.32.5',
+            'LED': True,
+            'MGN': True,
+            'ORI': 10,
+            'PHD': False,
+            'PRN': 4,
+            'PRR': 4,
+            'PRS': False,
+            'PWC': '0001',
+            'SER': '1805225',
+            'STM': '1970-01-01 00:00:00',
+            'STS': 1,
+            'TMP': True,
+            'TRI': 10,
+        }
         h = header.parse_header(reference_file('test.lid'))
         assert h == expected_dict
 
