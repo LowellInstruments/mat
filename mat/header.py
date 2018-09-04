@@ -2,10 +2,9 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 
-def get_header(file_path):
+def parse_header(file_path):
     with open(file_path, 'rb') as fid:
-        header = Header(fid).get_header()
-    return header
+        return Header(fid).parse_header()
 
 
 def cut_out(string, start_cut, end_cut):
@@ -18,15 +17,14 @@ class Header:
 
     def __init__(self, file_obj):
         self._file_obj = file_obj
-        self.header = None
 
-    def get_header(self):
-        header_block = self._read_header_block()
-        header_string = self._crop_header_block(header_block)
+    def parse_header(self):
+        header_string = self._read_header_block()
+        header_string = self._crop_header_block(header_string)
         header_string = self._remove_logger_info(header_string)
         header_string = self._remove_header_tags(header_string)
-        self.header = self._parse_tags(header_string)
-        return self.header
+        header = self._parse_tags(header_string)
+        return header
 
     def _read_header_block(self):
         original_file_position = self._file_obj.tell()
@@ -55,22 +53,22 @@ class Header:
         header_lines = header_string.split('\r\n')[:-1]
         header = {}
         for tag_and_value in header_lines:
-            print(tag_and_value)
             tag, value = tag_and_value.split(' ', 1)
-            header[tag] = self._set_type(tag, value)
+            header[tag] = self._convert_to_type(tag, value)
         return header
 
     def _validate_header_block(self, header_string):
         if not header_string.startswith('HDS'):
             raise ValueError('Header must start with HDS')
-        mandatory_tags = ['HDE', 'MHS', 'MHE']
+        mandatory_tags = ['HDE', 'MHS', 'MHE', 'LIS', 'LIE']
         for tag in mandatory_tags:
-            if 'HDE' not in header_string:
+            if tag not in header_string:
                 raise ValueError(tag + ' tag missing in header')
 
-    def _set_type(self, tag, value):
+    def _convert_to_type(self, tag, value):
         if tag in self.type_bool:
-            value = True if value == '1' else False
+            return True if value == '1' else False
         elif tag in self.type_int:
-            value = int(value)
-        return value
+            return int(value)
+        else:
+            return value
