@@ -181,7 +181,6 @@ class V2Calibration(Calibration):
 
     @staticmethod
     def _generate_tag_value_pairs(calibration_string):
-        tag = None
         calibration_string = _trim_start(calibration_string, 3)
         while True:
             tag = calibration_string[0:3]
@@ -197,11 +196,11 @@ class V2Calibration(Calibration):
         This generator function formats the host storage dict for writing
         to the logger.
         """
-        yield 'RVN12'  # Prior to V3, RVN didn't need to be first, but what the heck...
+        yield 'RVN12'
         for key in self.coefficients:
             if key == 'RVN':
                 continue
-            # TODO this may need to be changed to a number of decimal points. e.g. %0.3f
+            # TODO this may need to be changed to a number of decimal
             value = str(self.coefficients[key])
             length_hex = '%x' % len(value)
             yield key + length_hex + value
@@ -230,7 +229,8 @@ class V3Calibration(Calibration):
 
     def make_serial_string(self):
         """
-        This generator function formats the host storage dict for writing to the logger.
+        This generator function formats the host storage dict for writing
+        to the logger.
         """
         yield 'RVN13'
         for key in self.coefficients:
