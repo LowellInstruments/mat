@@ -60,9 +60,7 @@ class Header:
 
     def _convert_to_type(self, tag, value):
         if tag in self.type_bool:
-            converted_value = True if value == '1' else False
-        elif tag in self.type_int:
-            converted_value = int(value)
-        else:
-            converted_value = value
-        return converted_value
+            return value == '1'
+        if tag in self.type_int:
+            return int(value)
+        return value
