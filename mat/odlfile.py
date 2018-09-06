@@ -27,7 +27,7 @@ start time and the time offset vectors
 # TODO make sure methods that move the file cursor position return it after
 # they are done
 
-from mat import hoststorage
+from mat import calibration
 from mat import header
 import numpy as np
 import datetime
@@ -58,7 +58,7 @@ class OdlFile(ABC):
         self._file = file_obj
         self.file_size = self._file_size()
         self.header = header.Header(self._file)
-        self.hoststorage = hoststorage.load_from_datafile(self._file)
+        self.hoststorage = calibration.make_from_datafile(self._file)
         self.mini_header_length = self._mini_header_length()
         self.n_pages = self._n_pages()
         self.page_start_times = self._page_start_times()

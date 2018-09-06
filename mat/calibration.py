@@ -60,6 +60,7 @@ def _remove_comments(line):
         return line[:inline_comment_ind].strip()
     return line
 
+
 def _split_tag_value(line):
     tag_value = line.split(' ')
     if len(tag_value) != 2:

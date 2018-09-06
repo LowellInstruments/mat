@@ -1,7 +1,7 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-from mat import hoststorage
+from mat import calibration
 from mat import header
 import numpy as np
 import datetime
