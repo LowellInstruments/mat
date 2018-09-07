@@ -18,13 +18,13 @@ class Header:
 
     def __init__(self, header_string):
         self.header_string = header_string
+        self._header = {}
 
     def parse_header(self):
         header_string = self._crop_header_block(self.header_string)
         header_string = self._remove_logger_info(header_string)
         header_string = self._remove_header_tags(header_string)
-        header = self._parse_tags(header_string)
-        return header
+        self._header = self._parse_tags(header_string)
 
     def _crop_header_block(self, header_block):
         self._validate_header_block(header_block)
@@ -64,3 +64,59 @@ class Header:
         if tag in self.type_int:
             return int(value)
         return value
+
+    @property
+    def orientation_burst_rate(self):
+        return self._header['BMR']
+
+    @property
+    def orientation_burst_count(self):
+        return self._header['BMN']
+
+    @property
+    def orientation_interval(self):
+        return self._header['ORI']
+
+    @property
+    def temperature_interval(self):
+        return self._header['TRI']
+
+    @property
+    def pressure_burst_rate(self):
+        return self._header['PRR'] if 'PRR' in self._header.keys() else None
+
+    @property
+    def pressure_burst_count(self):
+        return self._header['PRN'] if 'PRN' in self._header.keys() else None
+
+    @property
+    def is_temperature(self):
+        return self._header['TMP']
+
+    @property
+    def is_accelerometer(self):
+        return self._header['ACL']
+
+    @property
+    def is_magnetometer(self):
+        return self._header['MGN']
+
+    @property
+    def is_led(self):
+        return self._header['LED']
+
+    @property
+    def is_pressure(self):
+        return self._header['PRS'] if 'PRS' in self._header.keys() else False
+
+    @property
+    def is_photo_diode(self):
+        return self._header['PHD'] if 'PHD' in self._header.keys() else False
+
+    @property
+    def start_time(self):
+        return self._header['CLK']
+
+    @property
+    def is_orient(self):
+        return self.is_accelerometer or self.is_magnetometer

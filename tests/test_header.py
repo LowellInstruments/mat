@@ -30,7 +30,8 @@ class TestHeader(TestCase):
             'TRI': 10,
         }
         h = header.header_factory(reference_file('test.lid'))
-        assert h.parse_header() == expected_dict
+        h.parse_header()
+        assert h._header == expected_dict
 
     def test_bad_header(self):
         with self.assertRaises(ValueError):
