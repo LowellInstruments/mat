@@ -94,7 +94,7 @@ class LoggerAdmin(Logger):
         self.command('WHS', '0000HSS')  # write the opening HSS tag
 
         address = 3
-        for formatted_tag_val in hs_file.format_for_write():  # format_for_write is a generator
+        for formatted_tag_val in hs_file.make_serial_string():  # format_for_write is a generator
             hex_address = '%04X' % address
             hex_address = hex_address[2:4] + hex_address[0:2]
             self.command('WHS', hex_address + formatted_tag_val)

@@ -3,7 +3,7 @@
 
 """
 Convert raw odl data to si values
-hoststorage is a hoststorage object
+calibration is a calibration object
 """
 
 import numpy as np
@@ -12,12 +12,12 @@ from abc import ABC, abstractmethod
 
 class Accelerometer(ABC):
     @staticmethod
-    def accelerometer_factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'} <= set(hs_dict):
-            return NewAccelerometer(hs_dict)
-        elif {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'} <= set(hs_dict):
-            return OldAccelerometer(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'} <= set(coefficients):
+            return NewAccelerometer(coefficients)
+        elif {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'} <= set(coefficients):
+            return OldAccelerometer(coefficients)
         else:
             return None
 
@@ -54,16 +54,16 @@ class NewAccelerometer(Accelerometer):
 
 class Magnetometer(ABC):
     @staticmethod
-    def magnetometer_factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
+    def factory(calibration):
+        coefficients = calibration.coefficients
         if {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-            'AXC', 'AYC', 'AZC', 'TMX', 'TMY', 'TMZ', 'MRF'} <= set(hs_dict):
-            return TempCompensatedMagnetometer(hs_dict)
+            'AXC', 'AYC', 'AZC', 'TMX', 'TMY', 'TMZ', 'MRF'} <= set(coefficients):
+            return TempCompensatedMagnetometer(coefficients)
         elif {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-              'AXC', 'AYC', 'AZC'} <= set(hs_dict):
-            return NewMagnetometer(hs_dict)
-        elif {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'} <= set(hs_dict):
-            return OldMagnetometer(hs_dict)
+              'AXC', 'AYC', 'AZC'} <= set(coefficients):
+            return NewMagnetometer(coefficients)
+        elif {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'} <= set(coefficients):
+            return OldMagnetometer(coefficients)
         else:
             return None
 
@@ -120,11 +120,11 @@ class TempCompensatedMagnetometer(NewMagnetometer):
 
 class Pressure:
     @staticmethod
-    def pressure_factory(hoststorage):
+    def factory(calibration):
         """ Pressure currently only has one implementation. This is for future expansion. """
-        hs_dict = hoststorage.hs_dict
-        if {'PRA', 'PRB'} <= set(hs_dict):
-            return Pressure(hs_dict)
+        coefficients = calibration.coefficients
+        if {'PRA', 'PRB'} <= set(coefficients):
+            return Pressure(coefficients)
         else:
             return Pressure({'PRA': 3, 'PRB': 0.0016})
 
@@ -138,10 +138,10 @@ class Pressure:
 
 class Temperature:
     @staticmethod
-    def temperature_factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'TMA', 'TMB', 'TMC', 'TMR'} <= set(hs_dict):
-            return Temperature(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'TMA', 'TMB', 'TMC', 'TMR'} <= set(coefficients):
+            return Temperature(coefficients)
         else:
             return None
 
@@ -159,10 +159,10 @@ class Temperature:
 
 class Light:
     @staticmethod
-    def light_factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'PDA', 'PDB'} <= set(hs_dict):
-            return Light(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'PDA', 'PDB'} <= set(coefficients):
+            return Light(coefficients)
         else:
             return Light({'PDA': 100., 'PDB': -100/4096})
 
@@ -178,12 +178,12 @@ class Light:
 
 
 class Converter:
-    def __init__(self, hoststorage):
-        self.temperature_converter = Temperature.temperature_factory(hoststorage)
-        self.accelerometer_converter = Accelerometer.accelerometer_factory(hoststorage)
-        self.magnetometer_converter = Magnetometer.magnetometer_factory(hoststorage)
-        self.pressure_converter = Pressure.pressure_factory(hoststorage)
-        self.light_converter = Light.light_factory(hoststorage)
+    def __init__(self, calibration):
+        self.temperature_converter = Temperature.factory(calibration)
+        self.accelerometer_converter = Accelerometer.factory(calibration)
+        self.magnetometer_converter = Magnetometer.factory(calibration)
+        self.pressure_converter = Pressure.factory(calibration)
+        self.light_converter = Light.factory(calibration)
 
     def temperature(self, raw_temperature):
         if self.temperature_converter is None:

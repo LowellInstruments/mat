@@ -7,7 +7,7 @@ import numpy as np
 import re
 import time
 import os
-from mat import hoststorage, converter
+from mat import calibration, converter
 import datetime
 
 
@@ -160,7 +160,7 @@ class Logger(object):
             else:
                 break
 
-        self.hoststorage = hoststorage.load_from_string((hs_string))
+        self.hoststorage = calibration.make_from_string((hs_string))
         self.converter = converter.Converter(self.hoststorage)
 
     def load_logger_info(self):
