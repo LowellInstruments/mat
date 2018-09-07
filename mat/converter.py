@@ -12,10 +12,6 @@ from abc import ABC, abstractmethod
 
 NEW_ACC_KEYS = {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'}
 OLD_ACC_KEYS = {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'}
-ACC_KEYS_FOR_CLASS = [
-    (NEW_ACC_KEYS, NewAccelerometer),
-    (OLD_ACC_KEYS, OldAccelerometer),
-]
 
 
 def obj_from_coefficients(coefficients, keys_for_classes):
@@ -79,17 +75,13 @@ NEW_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
                 'AXV', 'AYV', 'AZV',
                 'AXC', 'AYC', 'AZC'}
 OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
-MAG_KEYS_FOR_CLASS = [
-    (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
-    (NEW_MAG_KEYS, NewMagnetometer),
-    
 
 
 class Magnetometer(ABC):
     @staticmethod
     def factory(calibration):
-        return class_from_coefficients(set(calibration.coefficients),
-                                       MAG_KEYS_FOR_CLASS)
+        return obj_from_coefficients(calibration.coefficients,
+                                     MAG_KEYS_FOR_CLASS)
 
     @abstractmethod
     def __init__(self, hs):
@@ -221,12 +213,14 @@ class Converter:
     def accelerometer(self, raw_accelerometer, temperature=None):
         if self.accelerometer_converter is None:
             return None
-        return self.accelerometer_converter.convert(raw_accelerometer, temperature)
+        return self.accelerometer_converter.convert(raw_accelerometer,
+                                                    temperature)
 
     def magnetometer(self, raw_magnetometer, temperature=None):
         if self.magnetometer_converter is None:
             return None
-        return self.magnetometer_converter.convert(raw_magnetometer, temperature)
+        return self.magnetometer_converter.convert(raw_magnetometer,
+                                                   temperature)
 
     def pressure(self, raw_pressure):
         if self.pressure_converter is None:
@@ -238,3 +232,12 @@ class Converter:
             return None
         return self.light_converter.convert(raw_light)
 
+
+ACC_KEYS_FOR_CLASS = [
+    (NEW_ACC_KEYS, NewAccelerometer),
+    (OLD_ACC_KEYS, OldAccelerometer),
+]
+MAG_KEYS_FOR_CLASS = [
+    (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
+    (NEW_MAG_KEYS, NewMagnetometer),
+]
