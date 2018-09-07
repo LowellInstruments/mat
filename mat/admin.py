@@ -29,7 +29,7 @@ class LoggerAdmin(Logger):
             if tag == 'CA':
                 value = round(float(value)*256)
                 if value < 0:
-                    # if it's less than zeros subtract (add negative) from 65536
+                    # convert to negative
                     value = 65536 + value
                 value = '%04x' % value
                 value = value[2:4] + value[0:2]
@@ -39,7 +39,8 @@ class LoggerAdmin(Logger):
 
             if tag == 'SN':
                 if len(value) == 8:
-                    raise RuntimeError('Serial number cannot be 8 characters long')
+                    raise RuntimeError(
+                        'Serial number cannot be 8 characters long')
 
             hex_address = '%04x' % address
             hex_address = hex_address[2:4] + hex_address[0:2]
@@ -94,7 +95,7 @@ class LoggerAdmin(Logger):
         self.command('WHS', '0000HSS')  # write the opening HSS tag
 
         address = 3
-        for formatted_tag_val in hs_file.make_serial_string():  # format_for_write is a generator
+        for formatted_tag_val in hs_file.make_serial_string():
             hex_address = '%04X' % address
             hex_address = hex_address[2:4] + hex_address[0:2]
             self.command('WHS', hex_address + formatted_tag_val)

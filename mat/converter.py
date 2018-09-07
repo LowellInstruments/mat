@@ -10,13 +10,17 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
+NEW_ACC_KEYS = {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'}
+OLD_ACC_KEYS = {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'}
+
+
 class Accelerometer(ABC):
     @staticmethod
     def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
-        if {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'} <= set(hs_dict):
+        if NEW_ACC_KEYS <= set(hs_dict):
             return NewAccelerometer(hs_dict)
-        elif {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'} <= set(hs_dict):
+        elif OLD_ACC_KEYS <= set(hs_dict):
             return OldAccelerometer(hs_dict)
         else:
             return None
@@ -32,7 +36,9 @@ class Accelerometer(ABC):
 
 class OldAccelerometer(Accelerometer):
     def __init__(self, hs):
-        self.slope = np.array([[1 / hs['AXB']], [1 / hs['AYB']], [1 / hs['AZB']]])
+        self.slope = np.array([[1 / hs['AXB']],
+                               [1 / hs['AYB']],
+                               [1 / hs['AZB']]])
         self.offset = np.array([[hs['AXA']], [hs['AYA']], [hs['AZA']]])
 
     def convert(self, raw_accelerometer, temperature=None):
@@ -49,20 +55,34 @@ class NewAccelerometer(Accelerometer):
 
     def convert(self, raw_accelerometer, temperature=None):
         raw_accelerometer = raw_accelerometer / 1024.
-        return np.dot(self.gain, raw_accelerometer) + self.offset + self.cubic * raw_accelerometer ** 3
+        return (np.dot(self.gain, raw_accelerometer) +
+                self.offset +
+                self.cubic * raw_accelerometer ** 3)
+
+
+TEMP_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
+                 'MYX', 'MYY', 'MYZ',
+                 'MZX', 'MZY', 'MZZ',
+                 'AXV', 'AYV', 'AZV',
+                 'AXC', 'AYC', 'AZC',
+                 'TMX', 'TMY', 'TMZ', 'MRF'}
+NEW_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
+                'MYX', 'MYY', 'MYZ',
+                'MZX', 'MZY', 'MZZ',
+                'AXV', 'AYV', 'AZV',
+                'AXC', 'AYC', 'AZC'}
+OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
 
 
 class Magnetometer(ABC):
     @staticmethod
     def factory(hoststorage):
         hs_dict = hoststorage.hs_dict
-        if {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-            'AXC', 'AYC', 'AZC', 'TMX', 'TMY', 'TMZ', 'MRF'} <= set(hs_dict):
+        if TEMP_MAG_KEYS <= set(hs_dict):
             return TempCompensatedMagnetometer(hs_dict)
-        elif {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-              'AXC', 'AYC', 'AZC'} <= set(hs_dict):
+        elif NEW_MAG_KEYS <= set(hs_dict):
             return NewMagnetometer(hs_dict)
-        elif {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'} <= set(hs_dict):
+        elif OLD_MAG_KEYS <= set(hs_dict):
             return OldMagnetometer(hs_dict)
         else:
             return None
@@ -99,7 +119,9 @@ class NewMagnetometer(Magnetometer):
 class TempCompensatedMagnetometer(NewMagnetometer):
     def __init__(self, hs):
         super().__init__(hs)
-        self.temperature_slope = np.array([[hs['TMX'], hs['TMY'], hs['TMZ']]]).T
+        self.temperature_slope = np.array([[hs['TMX'],
+                                            hs['TMY'],
+                                            hs['TMZ']]]).T
         self.temp_reference = np.array([hs['MRF']])
 
     def convert(self, raw_magnetometer, temperature=None):
@@ -114,14 +136,14 @@ class TempCompensatedMagnetometer(NewMagnetometer):
         temperature[temperature > temp_range[1]] = temp_range[1]
         assert temperature.shape == (raw_magnetometer.shape[1],)
         temperature_delta = np.tile(temperature, (3, 1)) - self.temp_reference
-        magnetometer = magnetometer + temperature_delta * self.temperature_slope
+        magnetometer = (magnetometer +
+                        temperature_delta * self.temperature_slope)
         return magnetometer
 
 
 class Pressure:
     @staticmethod
     def factory(hoststorage):
-        """ Pressure currently only has one implementation. This is for future expansion. """
         hs_dict = hoststorage.hs_dict
         if {'PRA', 'PRB'} <= set(hs_dict):
             return Pressure(hs_dict)
@@ -153,7 +175,9 @@ class Temperature:
 
     def convert(self, raw_temperature):
         temperature = (raw_temperature * self.tmr) / (65535 - raw_temperature)
-        temperature = 1 / (self.tma + self.tmb * np.log(temperature) + self.tmc * (np.log(temperature)) ** 3) - 273.15
+        temperature = 1 / (self.tma +
+                           self.tmb * np.log(temperature) +
+                           self.tmc * (np.log(temperature)) ** 3) - 273.15
         return temperature
 
 
