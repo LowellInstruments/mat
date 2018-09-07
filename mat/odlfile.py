@@ -28,7 +28,20 @@ start time and the time offset vectors
 # they are done
 
 from mat import calibration
-from mat import header
+from mat.header import (
+    Header,
+    IS_ACCELEROMETER,
+    IS_MAGNETOMETER,
+    IS_PHOTO_DIODE,
+    IS_PRESSURE,
+    IS_TEMPERATURE,
+    ORIENTATION_BURST_COUNT,
+    ORIENTATION_BURST_RATE,
+    ORIENTATION_INTERVAL,
+    PRESSURE_BURST_COUNT,
+    PRESSURE_BURST_RATE,
+    TEMPERATURE_INTERVAL,
+)
 import numpy as np
 import datetime
 from abc import ABC, abstractmethod
@@ -57,7 +70,7 @@ class OdlFile(ABC):
         self._file = file_obj
         self.file_size = self._file_size()
         header_str = file_obj.read(500).decode('IBM437')
-        self.header = header.Header(header_str)
+        self.header = Header(header_str)
         self.header.parse_header()
         self.calibration = calibration.make_from_datafile(self._file)
         self.mini_header_length = self._mini_header_length()
@@ -148,8 +161,8 @@ class OdlFile(ABC):
         """
 
         h = self.header  # shorten things for the sake of easier reading
-        major_interval_seconds = max(h.temperature_interval,
-                                     h.orientation_interval)
+        major_interval_seconds = max(h.tag(TEMPERATURE_INTERVAL),
+                                     h.tag(ORIENTATION_INTERVAL))
 
         # arrays to store the index values where samples begin
         sequence = []
@@ -162,38 +175,40 @@ class OdlFile(ABC):
             # If TRI is the major interval, there will be multiple ORI
             # intervals within the major
             # and the counters will need resetting
-            if (h.orientation_interval and n %
-                    (h.orientation_interval * 64) == 0):
-                accel_remaining = h.orientation_burst_count if \
-                    h.is_accelerometer else 0
-                mag_remaining = h.orientation_burst_count if \
-                    h.is_magnetometer else 0
-                pres_remaining = h.pressure_burst_count
+            if (h.tag(ORIENTATION_INTERVAL) and n %
+                    (h.tag(ORIENTATION_INTERVAL) * 64) == 0):
+                accel_remaining = h.tag(ORIENTATION_BURST_COUNT) if \
+                    h.tag(IS_ACCELEROMETER) else 0
+                mag_remaining = h.tag(ORIENTATION_BURST_COUNT) if \
+                    h.tag(IS_MAGNETOMETER) else 0
+                pres_remaining = h.tag(PRESSURE_BURST_COUNT)
 
-            if h.is_temperature and n % (h.temperature_interval * 64) == 0:
+            if h.tag(IS_TEMPERATURE) and n % (h.tag(TEMPERATURE_INTERVAL) *
+                                              64) == 0:
                 sequence.append('T')
                 time_offset.append(n)
 
-            if h.is_photo_diode and n % (h.temperature_interval * 64) == 0:
+            if h.tag(IS_PHOTO_DIODE) and n % (h.tag(TEMPERATURE_INTERVAL) *
+                                              64) == 0:
                 sequence.append('L')
                 time_offset.append(n)
 
             # if pressure is enabled AND there are still samples in this burst
             # AND the time is right THEN
-            if h.is_pressure and pres_remaining and n % \
-                    (64 / h.pressure_burst_rate) == 0:
+            if h.tag(IS_PRESSURE) and pres_remaining and n % \
+                    (64 / h.tag(PRESSURE_BURST_RATE)) == 0:
                 sequence.append('P')
                 pres_remaining -= 1
                 time_offset.append(n)
 
-            if h.is_accelerometer and accel_remaining and n % \
-                    (64 / h.orientation_burst_rate) == 0:
+            if h.tag(IS_ACCELEROMETER) and accel_remaining and n % \
+                    (64 / h.tag(ORIENTATION_BURST_RATE)) == 0:
                 sequence.extend(['A', 'A', 'A'])
                 accel_remaining -= 1
                 time_offset.extend([n, n, n])
 
-            if h.is_magnetometer and mag_remaining and n % \
-                    (64 / h.orientation_burst_rate) == 0:
+            if h.tag(IS_MAGNETOMETER) and mag_remaining and n % \
+                    (64 / h.tag(ORIENTATION_BURST_RATE)) == 0:
                 sequence.extend(['M', 'M', 'M'])
                 mag_remaining -= 1
                 time_offset.extend([n, n, n])

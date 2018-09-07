@@ -12,13 +12,47 @@ def cut_out(string, start_cut, end_cut):
     return string[:start_cut] + string[end_cut:]
 
 
+IS_ACCELEROMETER = 'ACL'
+IS_LED = 'LED'
+IS_MAGNETOMETER = 'MGN'
+IS_PHOTO_DIODE = 'PHD'
+IS_PRESSURE = 'PRS'
+IS_TEMPERATURE = 'TMP'
+ORIENTATION_BURST_COUNT = 'BMN'
+ORIENTATION_BURST_RATE = 'BMR'
+ORIENTATION_INTERVAL = 'ORI'
+PRESSURE_BURST_COUNT = 'PRN'
+PRESSURE_BURST_RATE = 'PRR'
+START_TIME = 'CLK'
+TEMPERATURE_INTERVAL = 'TRI'
+
+
 class Header:
-    type_int = ['BMN', 'BMR', 'DPL', 'STS', 'ORI', 'TRI', 'PRR', 'PRN']
-    type_bool = ['ACL', 'LED', 'MGN', 'TMP', 'PRS', 'PHD']
+    type_int = [
+        ORIENTATION_BURST_COUNT,
+        ORIENTATION_BURST_RATE,
+        'DPL',
+        'STS',
+        ORIENTATION_INTERVAL,
+        TEMPERATURE_INTERVAL,
+        PRESSURE_BURST_RATE,
+        PRESSURE_BURST_COUNT,
+    ]
+    type_bool = [
+        IS_ACCELEROMETER,
+        IS_LED,
+        IS_MAGNETOMETER,
+        IS_TEMPERATURE,
+        IS_PRESSURE,
+        IS_PHOTO_DIODE,
+    ]
 
     def __init__(self, header_string):
         self.header_string = header_string
         self._header = {}
+
+    def tag(self, tag):
+        return self._header.get(tag)
 
     def parse_header(self):
         header_string = self._crop_header_block(self.header_string)
