@@ -74,8 +74,10 @@ class OdlFile(ABC):
 
         self.page_sequence = np.tile(sequence, self.n_maj_intervals_per_page)
 
-        self.page_time_offset = np.arange(self.n_maj_intervals_per_page) * self.major_interval_seconds
-        self.page_time_offset = np.tile(self.page_time_offset, (len(interval_time_offset), 1))
+        self.page_time_offset = (np.arange(self.n_maj_intervals_per_page) *
+                                 self.major_interval_seconds)
+        self.page_time_offset = np.tile(self.page_time_offset,
+                                        (len(interval_time_offset), 1))
         self.page_time_offset = self.page_time_offset.T + interval_time_offset
         self.page_time_offset = np.reshape(self.page_time_offset, (-1,))
 
