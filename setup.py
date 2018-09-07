@@ -9,7 +9,7 @@ setup(name='lowell-mat',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
-      packages=['mat', 'numpy'],
+      packages=['mat'],
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",
