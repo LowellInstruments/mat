@@ -1,3 +1,7 @@
+from mat.v2_calibration import V2Calibration
+from mat.v3_calibration import V3Calibration
+
+
 EMPTY_CHAR = bytes([255]).decode('IBM437')
 
 
@@ -64,31 +68,3 @@ def _validate_string(calibration_string):
         raise ValueError('Host storage string must contain HSE tag')
 
 
-def make_from_datafile(file_obj):
-    """
-    Create a calibration object from a data file (.lid/.lis)
-    file_obj is an open .lid/.lis file in binary mode
-    """
-    _check_binary_mode(file_obj)
-    saved_file_pos = file_obj.tell()
-    file_obj.seek(0)
-    full_header = file_obj.read(1000).decode('IBM437')
-    file_obj.seek(saved_file_pos)
-    calibration_string = _extract_calibration_string(full_header)
-    return make_from_string(calibration_string)
-
-
-def _check_binary_mode(file_obj):
-    if file_obj.mode != 'rb':
-        raise ValueError('File is not open for binary reading')
-
-
-def _extract_calibration_string(full_header):
-    calibration_start = full_header.find('HDE\r\n')
-    if calibration_start == -1:
-        raise ValueError('HDE tag missing from header')
-    return full_header[calibration_start+5:calibration_start+385]
-
-
-def _trim_start(string, n_chars_to_trim):
-    return string[n_chars_to_trim:]

@@ -21,11 +21,9 @@ eg. AXX61.1201 -- AXX is the tag, 6 is the data length, 1.1201 is the value
 V3 Calibration is stored in the data file in the following way:
 3 letter tag, 5 byte ascii-85 encoded single precision float
 eg. AXX^3r#p -- AXX is the tag, and "^3r#p" is -0.247291 encoded in ascii85
-The format is
 """
 
 from abc import ABC, abstractclassmethod, abstractmethod
-from mat import ascii85
 
 
 class Calibration(ABC):

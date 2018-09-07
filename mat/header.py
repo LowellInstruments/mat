@@ -34,7 +34,10 @@ class Header:
     def _remove_logger_info(self, header_string):
         lis = header_string.find('LIS')
         lie = header_string.find('LIE')
-        return cut_out(header_string, lis, lie+5)
+        if lis > -1 and lie > -1:
+            return cut_out(header_string, lis, lie+5)
+        else:
+            return header_string
 
     def _remove_header_tags(self, header_string):
         for tag_to_remove in ['HDS', 'HDE', 'MHS', 'MHE']:
@@ -53,7 +56,7 @@ class Header:
     def _validate_header_block(self, header_string):
         if not header_string.startswith('HDS'):
             raise ValueError('Header must start with HDS')
-        mandatory_tags = ['HDE', 'MHS', 'MHE', 'LIS', 'LIE']
+        mandatory_tags = ['HDE', 'MHS', 'MHE']
         for tag in mandatory_tags:
             if tag not in header_string:
                 raise ValueError(tag + ' tag missing in header')
