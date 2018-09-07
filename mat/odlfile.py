@@ -79,8 +79,9 @@ class OdlFile(ABC):
 
         self.page_sequence = np.tile(sequence, self.n_maj_intervals_per_page)
 
-        self.page_time_offset = (np.arange(self.n_maj_intervals_per_page)
-                                 * self.major_interval_seconds)
+        self.page_time_offset = (np.arange(self.n_maj_intervals_per_page) *
+                                 self.major_interval_seconds)
+
         self.page_time_offset = np.tile(self.page_time_offset,
                                         (len(interval_time_offset), 1))
         self.page_time_offset = self.page_time_offset.T + interval_time_offset
@@ -343,7 +344,8 @@ class LidFile(OdlFile):
                 this_line = this_line.strip()
                 tag, value = this_line[:3], this_line[4:]
                 if tag == 'HSE':
-                    raise LidError('CLK tag missing on page {}.'.format(page_n))
+                    raise LidError(
+                        'CLK tag missing on page {}.'.format(page_n))
                 if tag == 'CLK':
                     page_time = (datetime.datetime.strptime(
                         value, '%Y-%m-%d %H:%M:%S') - epoch).total_seconds()

@@ -1,19 +1,22 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-import serial
-import serial.tools.list_ports
+from serial import (
+    Serial,
+    SerialException,
+)
+from serial.tools.list_ports import grep
 import numpy as np
 import re
-import time
 import os
 from mat import calibration, converter
 import datetime
 
 
-# TODO the "command" method is in DIRE shape! Please, please fix it!
-# TODO currently the logger class is blocking. It needs to be rewritten in a non-block manner
-# TODO if host storage isn't loaded, gsr crashes. A default value needs to be loaded.
+# TODO: the "command" method is in DIRE shape! Please, please fix it!
+# TODO: currently the logger class is blocking. Needs to be rewritten
+# TODO: if host storage isn't loaded, gsr crashes.
+# TODO: A default value needs to be loaded.
 
 
 class Logger(object):
@@ -24,11 +27,11 @@ class Logger(object):
         self.com_port = None
         self.__callback = {}
         self.logger_info = {}
-        self.hoststorage = None  # an object that holds the host storage values and performs sensor conversion
+        self.hoststorage = None
         self.converter = None
 
     def check_ports(self):
-        port_info = serial.tools.list_ports.grep('2047:08[AEae]+')
+        port_info = grep('2047:08[AEae]+')
         com_ports = []
         for this_port in port_info:
             for field in this_port:
@@ -46,17 +49,17 @@ class Logger(object):
 
     def open_port(self, com_port):
         try:
-            if isinstance(self.__port, serial.Serial):
+            if isinstance(self.__port, Serial):
                 self.__port.close()
             if os.name == 'posix':
-                self.__port = serial.Serial('/dev/' + com_port, 9600)
+                self.__port = Serial('/dev/' + com_port, 9600)
             elif os.name == 'nt':
-                self.__port = serial.Serial('COM' + str(com_port))
+                self.__port = Serial('COM' + str(com_port))
 
             self.__port.timeout = 5
             self.__connected = True
             self.com_port = com_port
-        except:
+        except SerialException:
             self.__connected = False
             self.close()
 
@@ -73,7 +76,6 @@ class Logger(object):
         return state
 
     def command(self, *args):
-        return_val = None
         tag = args[0]
         data = ''
         if len(args) == 2:
@@ -88,7 +90,6 @@ class Logger(object):
             else:
                 out_str = tag + ' ' + length + data + chr(13)
 
-            last_tx = time.time()
             self.__port.reset_input_buffer()
 
             self.__port.write(out_str.encode('IBM437'))
@@ -96,22 +97,23 @@ class Logger(object):
             if 'tx' in self.__callback:
                 self.__callback['tx'](out_str[:-1])
 
-            # RST, BSL and sleep don't return tags. This will allow the tx below to run and fail
+            # RST, BSL and sleep don't return tags.
+            # This will allow the tx below to run and fail
             if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
                 tag_waiting = ''
             else:
                 tag_waiting = tag
 
             while tag_waiting:
-                # flush out the nl and cr chars that inevitably end up coming first...
-
+                # flush out the nl and cr chars that inevitably end up
+                # coming first...
                 inchar = self.__port.read(1).decode('IBM437')
                 while ord(inchar) in [10, 13]:
                     inchar = self.__port.read(1).decode('IBM437')
 
                 inline = inchar + self.__port.read(5).decode('IBM437')
 
-                #TODO consider returning data as bytes type??? I don't know what is better...
+                # TODO: consider returning data as bytes type???
 
                 tag = inline[0:3]
                 length = int(inline[4:6], 16)
@@ -120,7 +122,10 @@ class Logger(object):
 
                 if length != len(data):
                     raise RuntimeError(
-                        'Incorrect data length. Expecting ' + str(length) + ' received ' + str(len(data)))
+                        'Incorrect data length. Expecting ' +
+                        str(length) +
+                        ' received ' +
+                        str(len(data)))
 
                 if tag == tag_waiting:
                     tag_waiting = ''
@@ -133,7 +138,7 @@ class Logger(object):
                         self.__callback['rx'](tag + ' ' + inline[4:6] + data)
                     return None
 
-        except serial.SerialException:
+        except SerialException:
             self.close()
             return None
 
@@ -174,8 +179,8 @@ class Logger(object):
             command_str = read_address + read_length
             li_string += self.command('RLI', command_str)
 
-        # make sure a string was returned, and that all the characters weren't 255
-        if li_string and not all([c == 255 for c in bytes(li_string, encoding='IBM437')]):
+        if li_string and not all([c == 255 for c in
+                                  bytes(li_string, encoding='IBM437')]):
             self.logger_info = self.__parse_li(li_string)
 
     def get_time(self):
@@ -185,7 +190,8 @@ class Logger(object):
         """ Return posix timestamp """
         date_string = self.command('GTM')
         epoch = datetime.datetime(1970, 1, 1)  # naive datetime format
-        logger_time = datetime.datetime.strptime(date_string, '%Y/%m/%d %H:%M:%S')
+        logger_time = datetime.datetime.strptime(date_string,
+                                                 '%Y/%m/%d %H:%M:%S')
         return (logger_time-epoch).total_seconds()
 
     def get_serial_number(self):
@@ -238,10 +244,11 @@ class Logger(object):
         logger_settings['BMN'] = bmn_int
 
         if len(gls_string) == 30:
-            logger_settings['PRS'] = True if gls_string[20:22] == '01' else False
-            logger_settings['PHD'] = True if gls_string[22:24] == '01' else False
+            logger_settings['PRS'] = gls_string[20:22] == '01'
+            logger_settings['PHD'] = gls_string[22:24] == '01'
             logger_settings['PRR'] = int(gls_string[24:26], 16)
-            logger_settings['PRN'] = int(gls_string[28:30] + gls_string[26:28], 16)
+            logger_settings['PRN'] = int(gls_string[28:30] + gls_string[26:28],
+                                         16)
 
         return logger_settings
 
@@ -318,7 +325,7 @@ class Logger(object):
                 logger_info[tag] = value
                 li_string = li_string[3 + length:]
                 tag = li_string[0:2]
-        except:
+        except (IndexError, ValueError):
             logger_info = {'error': True}
         return logger_info
 
@@ -332,7 +339,7 @@ class Logger(object):
             dataHex = data[i * 4:i * 4 + 4]
             dataHex = dataHex[2:4] + dataHex[0:2]
             dataInt = int(dataHex, 16)
-            # For all channels other than temperature and pressure, convert to negative number if necessary
+            # Convert to negative unless temperature or pressure
             if i not in [0, 8]:
                 if dataInt > 32768:
                     dataInt -= 65536
@@ -355,13 +362,12 @@ class Logger(object):
             pressure_raw = 0
             pressure = 0
 
-        if temp_raw == 0:  # if the sensor doesn't report immediately after power up, causing a math error below
+        if temp_raw == 0:  # Avoid 0 right after power up
             temp_raw = 1
 
         temp = self.converter.temperature(temp_raw)
         accel = self.converter.accelerometer(accel_raw)
         mag = self.converter.magnetometer(mag_raw, np.array([temp]))
-
 
         sensors = {}
         sensors['temp_raw'] = temp_raw
@@ -403,5 +409,3 @@ class Logger(object):
 
     def __del__(self):
         self.close()
-
-
