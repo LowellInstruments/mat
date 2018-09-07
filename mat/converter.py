@@ -12,18 +12,25 @@ from abc import ABC, abstractmethod
 
 NEW_ACC_KEYS = {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'}
 OLD_ACC_KEYS = {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'}
+ACC_KEYS_FOR_CLASS = [
+    (NEW_ACC_KEYS, NewAccelerometer),
+    (OLD_ACC_KEYS, OldAccelerometer),
+]
+
+
+def obj_from_coefficients(coefficients, keys_for_classes):
+    coefficient_set = set(coefficients)
+    for keys, klass in keys_for_classes:
+        if keys <= coefficient_set:
+            return klass(coefficients)
+    return None
 
 
 class Accelerometer(ABC):
     @staticmethod
     def factory(calibration):
-        coefficients = calibration.coefficients
-        if NEW_ACC_KEYS <= set(coefficients):
-            return NewAccelerometer(coefficients)
-        elif OLD_ACC_KEYS <= set(coefficients):
-            return OldAccelerometer(coefficients)
-        else:
-            return None
+        return obj_from_coefficients(calibration.coefficients,
+                                     ACC_KEYS_FOR_CLASS)
 
     @abstractmethod
     def __init__(self, hs):
@@ -72,21 +79,17 @@ NEW_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
                 'AXV', 'AYV', 'AZV',
                 'AXC', 'AYC', 'AZC'}
 OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
+MAG_KEYS_FOR_CLASS = [
+    (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
+    (NEW_MAG_KEYS, NewMagnetometer),
+    
 
 
 class Magnetometer(ABC):
     @staticmethod
-
     def factory(calibration):
-        coefficients = calibration.coefficients
-        if TEMP_MAG_KEYS <= set(coefficients):
-            return TempCompensatedMagnetometer(coefficients)
-        elif NEW_MAG_KEYS <= set(coefficients):
-            return NewMagnetometer(coefficients)
-        elif OLD_MAG_KEYS <= set(coefficients):
-            return OldMagnetometer(coefficients)
-        else:
-            return None
+        return class_from_coefficients(set(calibration.coefficients),
+                                       MAG_KEYS_FOR_CLASS)
 
     @abstractmethod
     def __init__(self, hs):
