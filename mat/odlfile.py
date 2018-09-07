@@ -32,7 +32,6 @@ from mat import header
 import numpy as np
 import datetime
 from abc import ABC, abstractmethod
-from math import floor
 
 
 def load_file(file_obj):
@@ -329,7 +328,8 @@ class LidFile(OdlFile):
                 this_line = this_line.strip()
                 tag, value = this_line[:3], this_line[4:]
                 if tag == 'HSE':
-                    raise LidError('CLK tag missing on page {}.'.format(page_n))
+                    raise LidError(
+                        'CLK tag missing on page {}.'.format(page_n))
                 if tag == 'CLK':
                     page_time = (datetime.datetime.strptime(
                         value, '%Y-%m-%d %H:%M:%S') - epoch).total_seconds()

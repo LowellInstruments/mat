@@ -10,16 +10,27 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
+NEW_ACC_KEYS = {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'}
+OLD_ACC_KEYS = {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'}
+ACC_KEYS_FOR_CLASS = [
+    (NEW_ACC_KEYS, NewAccelerometer),
+    (OLD_ACC_KEYS, OldAccelerometer),
+]
+
+
+def obj_from_coefficients(coefficients, keys_for_classes):
+    coefficient_set = set(coefficients)
+    for keys, klass in keys_for_classes:
+        if keys <= coefficient_set:
+            return klass(coefficients)
+    return None
+
+
 class Accelerometer(ABC):
     @staticmethod
     def factory(calibration):
-        coefficients = calibration.coefficients
-        if {'AXX', 'AXY', 'AXZ', 'AYX', 'AYY', 'AYZ', 'AZX', 'AZY', 'AZZ'} <= set(coefficients):
-            return NewAccelerometer(coefficients)
-        elif {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'} <= set(coefficients):
-            return OldAccelerometer(coefficients)
-        else:
-            return None
+        return obj_from_coefficients(calibration.coefficients,
+                                     ACC_KEYS_FOR_CLASS)
 
     @abstractmethod
     def __init__(self, hs):
@@ -32,7 +43,9 @@ class Accelerometer(ABC):
 
 class OldAccelerometer(Accelerometer):
     def __init__(self, hs):
-        self.slope = np.array([[1 / hs['AXB']], [1 / hs['AYB']], [1 / hs['AZB']]])
+        self.slope = np.array([[1 / hs['AXB']],
+                               [1 / hs['AYB']],
+                               [1 / hs['AZB']]])
         self.offset = np.array([[hs['AXA']], [hs['AYA']], [hs['AZA']]])
 
     def convert(self, raw_accelerometer, temperature=None):
@@ -49,23 +62,34 @@ class NewAccelerometer(Accelerometer):
 
     def convert(self, raw_accelerometer, temperature=None):
         raw_accelerometer = raw_accelerometer / 1024.
-        return np.dot(self.gain, raw_accelerometer) + self.offset + self.cubic * raw_accelerometer ** 3
+        return (np.dot(self.gain, raw_accelerometer) +
+                self.offset +
+                self.cubic * raw_accelerometer ** 3)
+
+
+TEMP_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
+                 'MYX', 'MYY', 'MYZ',
+                 'MZX', 'MZY', 'MZZ',
+                 'AXV', 'AYV', 'AZV',
+                 'AXC', 'AYC', 'AZC',
+                 'TMX', 'TMY', 'TMZ', 'MRF'}
+NEW_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
+                'MYX', 'MYY', 'MYZ',
+                'MZX', 'MZY', 'MZZ',
+                'AXV', 'AYV', 'AZV',
+                'AXC', 'AYC', 'AZC'}
+OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
+MAG_KEYS_FOR_CLASS = [
+    (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
+    (NEW_MAG_KEYS, NewMagnetometer),
+    
 
 
 class Magnetometer(ABC):
     @staticmethod
     def factory(calibration):
-        coefficients = calibration.coefficients
-        if {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-            'AXC', 'AYC', 'AZC', 'TMX', 'TMY', 'TMZ', 'MRF'} <= set(coefficients):
-            return TempCompensatedMagnetometer(coefficients)
-        elif {'MXX', 'MXY', 'MXZ', 'MYX', 'MYY', 'MYZ', 'MZX', 'MZY', 'MZZ', 'AXV', 'AYV', 'AZV',
-              'AXC', 'AYC', 'AZC'} <= set(coefficients):
-            return NewMagnetometer(coefficients)
-        elif {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'} <= set(coefficients):
-            return OldMagnetometer(coefficients)
-        else:
-            return None
+        return class_from_coefficients(set(calibration.coefficients),
+                                       MAG_KEYS_FOR_CLASS)
 
     @abstractmethod
     def __init__(self, hs):
@@ -99,7 +123,9 @@ class NewMagnetometer(Magnetometer):
 class TempCompensatedMagnetometer(NewMagnetometer):
     def __init__(self, hs):
         super().__init__(hs)
-        self.temperature_slope = np.array([[hs['TMX'], hs['TMY'], hs['TMZ']]]).T
+        self.temperature_slope = np.array([[hs['TMX'],
+                                            hs['TMY'],
+                                            hs['TMZ']]]).T
         self.temp_reference = np.array([hs['MRF']])
 
     def convert(self, raw_magnetometer, temperature=None):
@@ -114,14 +140,14 @@ class TempCompensatedMagnetometer(NewMagnetometer):
         temperature[temperature > temp_range[1]] = temp_range[1]
         assert temperature.shape == (raw_magnetometer.shape[1],)
         temperature_delta = np.tile(temperature, (3, 1)) - self.temp_reference
-        magnetometer = magnetometer + temperature_delta * self.temperature_slope
+        magnetometer = (magnetometer +
+                        temperature_delta * self.temperature_slope)
         return magnetometer
 
 
 class Pressure:
     @staticmethod
     def factory(calibration):
-        """ Pressure currently only has one implementation. This is for future expansion. """
         coefficients = calibration.coefficients
         if {'PRA', 'PRB'} <= set(coefficients):
             return Pressure(coefficients)
@@ -153,7 +179,9 @@ class Temperature:
 
     def convert(self, raw_temperature):
         temperature = (raw_temperature * self.tmr) / (65535 - raw_temperature)
-        temperature = 1 / (self.tma + self.tmb * np.log(temperature) + self.tmc * (np.log(temperature)) ** 3) - 273.15
+        temperature = 1 / (self.tma +
+                           self.tmb * np.log(temperature) +
+                           self.tmc * (np.log(temperature)) ** 3) - 273.15
         return temperature
 
 
