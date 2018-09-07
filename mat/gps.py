@@ -14,7 +14,7 @@ def verify_string(string):
     The checksum is calculated by xor'ing each byte between the $ and *
     The checksum is the two digit value after the * (and is in hex)
     """
-    regexp = re.search('^\$(GP[A-Z]{3}.+)\*([0-9A-F]{2})', string)
+    regexp = re.search(r'^\$(GP[A-Z]{3}.+)\*([0-9A-F]{2})', string)
     if not regexp:
         return False
     checksum = int(regexp.group(2), 16)

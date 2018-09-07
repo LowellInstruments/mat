@@ -56,8 +56,10 @@ class OdlFile(ABC):
     def __init__(self, file_obj):
         self._file = file_obj
         self.file_size = self._file_size()
-        self.header = header.Header(self._file)
-        self.hoststorage = calibration.make_from_datafile(self._file)
+        header_str = file_obj.read(500).decode('IBM437')
+        self.header = header.Header(header_str)
+        self.header.parse_header()
+        self.calibration = calibration.make_from_datafile(self._file)
         self.mini_header_length = self._mini_header_length()
         self.n_pages = self._n_pages()
         self.page_start_times = self._page_start_times()
@@ -72,10 +74,8 @@ class OdlFile(ABC):
 
         self.page_sequence = np.tile(sequence, self.n_maj_intervals_per_page)
 
-        self.page_time_offset = np.arange(self.n_maj_intervals_per_page *
-                                          self.major_interval_seconds)
-        self.page_time_offset = np.tile(self.page_time_offset,
-                                        (len(interval_time_offset), 1))
+        self.page_time_offset = np.arange(self.n_maj_intervals_per_page) * self.major_interval_seconds
+        self.page_time_offset = np.tile(self.page_time_offset, (len(interval_time_offset), 1))
         self.page_time_offset = self.page_time_offset.T + interval_time_offset
         self.page_time_offset = np.reshape(self.page_time_offset, (-1,))
 
@@ -87,12 +87,9 @@ class OdlFile(ABC):
         self.is_light = self.page_sequence == 'L'
         self.is_accel = self.page_sequence == 'A'
         self.is_mag = self.page_sequence == 'M'
-
         self.end_time = 0
         self._cached_page = None
         self._cached_page_n = None
-
-    ################################
 
     def pressure(self):
         """ pressure values from the current page """
@@ -113,9 +110,9 @@ class OdlFile(ABC):
     def magnetometer(self):
         mag_index = self.is_mag[:len(self._cached_page)]
         magnetometer = self._cached_page[mag_index]
-        # if this is the last page, check logging wasn't interrupted mid burst
-        full_burst_end = int(np.floor(len(magnetometer) /
-                             (self.header.orientation_burst_count * 3)))
+        # if this is the last page, ckeck logging wasn't interrupted mid burst
+        full_burst_end = (int(np.floor(len(magnetometer) /
+                          (self.header.orientation_burst_count * 3))))
         full_burst_end *= self.header.orientation_burst_count * 3
         magnetometer = magnetometer[:full_burst_end]
         magnetometer = np.reshape(magnetometer, (3, -1), order='F')
@@ -128,8 +125,6 @@ class OdlFile(ABC):
     def light(self):
         light = self._cached_page[self.is_light[:len(self._cached_page)]]
         return light.astype('uint16')
-
-    ################################
 
     def _build_sequence(self):
         """
@@ -149,16 +144,6 @@ class OdlFile(ABC):
 
         time_offset is measured in microseconds
         """
-
-        # TODO: Unfinished refactoring
-        # burst_length = self.header.orientation_burst_count
-        # self.pressure = MultiChannelSensorFilter(self.is_pres)
-        # self.accelerometer = MultiChannelSensorFilter(self.is_accel, 3,
-        #                                               burst_length)
-        # self.magnetometer = MultiChannelSensorFilter(self.is_mag, 3,
-        #                                              burst_length)
-        # self.temperature = SensorFilter(self.is_temp, data_type='uint16')
-        # self.light = SensorFilter(self.is_light, data_type='uint16')
 
         h = self.header  # shorten things for the sake of easier reading
         major_interval_seconds = max(h.temperature_interval,

@@ -3,7 +3,7 @@
 
 """
 Convert raw odl data to si values
-hoststorage is a hoststorage object
+calibration is a calibration object
 """
 
 import numpy as np
@@ -16,12 +16,12 @@ OLD_ACC_KEYS = {'AXA', 'AXB', 'AYA', 'AYB', 'AZA', 'AZB'}
 
 class Accelerometer(ABC):
     @staticmethod
-    def factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if NEW_ACC_KEYS <= set(hs_dict):
-            return NewAccelerometer(hs_dict)
-        elif OLD_ACC_KEYS <= set(hs_dict):
-            return OldAccelerometer(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if NEW_ACC_KEYS <= set(coefficients):
+            return NewAccelerometer(coefficients)
+        elif OLD_ACC_KEYS <= set(coefficients):
+            return OldAccelerometer(coefficients)
         else:
             return None
 
@@ -76,14 +76,15 @@ OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
 
 class Magnetometer(ABC):
     @staticmethod
-    def factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if TEMP_MAG_KEYS <= set(hs_dict):
-            return TempCompensatedMagnetometer(hs_dict)
-        elif NEW_MAG_KEYS <= set(hs_dict):
-            return NewMagnetometer(hs_dict)
-        elif OLD_MAG_KEYS <= set(hs_dict):
-            return OldMagnetometer(hs_dict)
+
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if TEMP_MAG_KEYS <= set(coefficients):
+            return TempCompensatedMagnetometer(coefficients)
+        elif NEW_MAG_KEYS <= set(coefficients):
+            return NewMagnetometer(coefficients)
+        elif OLD_MAG_KEYS <= set(coefficients):
+            return OldMagnetometer(coefficients)
         else:
             return None
 
@@ -143,10 +144,10 @@ class TempCompensatedMagnetometer(NewMagnetometer):
 
 class Pressure:
     @staticmethod
-    def factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'PRA', 'PRB'} <= set(hs_dict):
-            return Pressure(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'PRA', 'PRB'} <= set(coefficients):
+            return Pressure(coefficients)
         else:
             return Pressure({'PRA': 3, 'PRB': 0.0016})
 
@@ -160,10 +161,10 @@ class Pressure:
 
 class Temperature:
     @staticmethod
-    def factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'TMA', 'TMB', 'TMC', 'TMR'} <= set(hs_dict):
-            return Temperature(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'TMA', 'TMB', 'TMC', 'TMR'} <= set(coefficients):
+            return Temperature(coefficients)
         else:
             return None
 
@@ -183,10 +184,10 @@ class Temperature:
 
 class Light:
     @staticmethod
-    def factory(hoststorage):
-        hs_dict = hoststorage.hs_dict
-        if {'PDA', 'PDB'} <= set(hs_dict):
-            return Light(hs_dict)
+    def factory(calibration):
+        coefficients = calibration.coefficients
+        if {'PDA', 'PDB'} <= set(coefficients):
+            return Light(coefficients)
         else:
             return Light({'PDA': 100., 'PDB': -100/4096})
 
@@ -199,3 +200,38 @@ class Light:
         light_val = raw_light * self.pdb + self.pda
         light_val[is_bad_val] = -1
         return light_val
+
+
+class Converter:
+    def __init__(self, calibration):
+        self.temperature_converter = Temperature.factory(calibration)
+        self.accelerometer_converter = Accelerometer.factory(calibration)
+        self.magnetometer_converter = Magnetometer.factory(calibration)
+        self.pressure_converter = Pressure.factory(calibration)
+        self.light_converter = Light.factory(calibration)
+
+    def temperature(self, raw_temperature):
+        if self.temperature_converter is None:
+            return None
+        return self.temperature_converter.convert(raw_temperature)
+
+    def accelerometer(self, raw_accelerometer, temperature=None):
+        if self.accelerometer_converter is None:
+            return None
+        return self.accelerometer_converter.convert(raw_accelerometer, temperature)
+
+    def magnetometer(self, raw_magnetometer, temperature=None):
+        if self.magnetometer_converter is None:
+            return None
+        return self.magnetometer_converter.convert(raw_magnetometer, temperature)
+
+    def pressure(self, raw_pressure):
+        if self.pressure_converter is None:
+            return None
+        return self.pressure_converter.convert(raw_pressure)
+
+    def light(self, raw_light):
+        if self.light_converter is None:
+            return None
+        return self.light_converter.convert(raw_light)
+
