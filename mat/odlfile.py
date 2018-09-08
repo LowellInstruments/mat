@@ -59,6 +59,7 @@ class OdlFile(ABC):
 
     def __init__(self, file_obj):
         self._file = file_obj
+        self._file.seek(0)
         self.file_size = self._file_size()
         full_header = file_obj.read(FULL_HEADER_LENGTH).decode('IBM437')
         self.header = header.Header(full_header)
