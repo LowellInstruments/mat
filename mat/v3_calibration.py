@@ -1,36 +1,42 @@
-from mat import ascii85
+from mat.ascii85 import ascii85_to_num, num_to_ascii85
 from mat.calibration import Calibration
+from mat.utils import _trim_start
 
 
 class V3Calibration(Calibration):
     def __init__(self, coefficients):
+        self.coefficients = {}
         for tag in coefficients:
-            if 'RVN' in tag:
-                coefficients[tag] = float(coefficients[tag])
+            if tag == 'RVN':
+                # RVN isn't encoded in ascii85 for backward compatibility
+                self.coefficients['RVN'] = 3
                 continue
-            coefficients[tag] = ascii85.ascii85_to_num(coefficients[tag])
-        super().__init__(coefficients)
+            self.coefficients[tag] = ascii85_to_num(coefficients[tag])
 
-    @classmethod
-    def load_from_string(cls, calibration_string):
-        coefficients = {'RVN': 3}
-        calibration_string = calibration_string[8:]
-        tag = calibration_string[:3]
-        while tag != 'HSE':
+    @staticmethod
+    def _parse_tag_value_pairs(calibration_string):
+        """
+        calibration_string has the following repeating format:
+        3 character tag, 5 character value encoded as ascii85
+        eg: The AXX, AXY and AXZ tags: AXX^3r#pAXY3o"WbAXZ]$(%<
+        """
+
+        # Manually remove RVN13 from start of calibration_string because it
+        # follows a different format for backward compatibility
+        calibration_string = _trim_start(calibration_string, 5)
+        yield 'RVN', 3
+        while True:
+            tag = calibration_string[:3]
+            if tag == 'HSE':
+                break
             value = calibration_string[3:8]
-            coefficients[tag] = value
-            calibration_string = calibration_string[8:]
-            tag = calibration_string[0:3]
-        return cls(coefficients)
+            calibration_string = _trim_start(calibration_string, 8)
+            yield tag, value
 
     def make_serial_string(self):
-        """
-        This generator function formats the host storage dict for writing
-        to the logger.
-        """
         yield 'RVN13'
         for key in self.coefficients:
             if key == 'RVN':
                 continue
-            value = ascii85.num_to_ascii85(self.coefficients[key])
+            value = num_to_ascii85(self.coefficients[key])
             yield key + value

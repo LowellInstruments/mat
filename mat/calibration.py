@@ -23,51 +23,57 @@ V3 Calibration is stored in the data file in the following way:
 eg. AXX^3r#p -- AXX is the tag, and "^3r#p" is -0.247291 encoded in ascii85
 """
 
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
+from mat.utils import _trim_start
+EMPTY_CHAR = bytes([255]).decode('IBM437')
 
 
 class Calibration(ABC):
+    @abstractmethod
     def __init__(self, coefficients):
         """
-        coefficients is passed to the subclasses with values as strings
-        The subclasses must convert the string values to numeric values and
-        pass them back to this __init__ method
+        coefficients is a dictionary passed to the subclasses with tags as keys
+        and values as strings. The subclasses must convert the string values
+        to numeric values.
         The V2 __init__ needs to convert plain text ascii to float
         The V3 __init__ needs to convert five ascii85 characters to float
         """
-        if not coefficients:
-            coefficients = self.load_generic()
-            self.is_generic = True
-        else:
-            self.is_generic = False
-
-        for tag in coefficients:
-            coefficients[tag] = float(coefficients[tag])
-        self.coefficients = coefficients
-
-    @abstractclassmethod
-    def load_from_string(self, calibration_string):
         pass  # pragma: no cover
+
+    @classmethod
+    def load_from_string(cls, calibration_string):
+        cls._check_if_empty(calibration_string)
+        cls._validate_string(calibration_string)
+        # Trim HSS (3 characters) from start of calibration string
+        calibration_string = _trim_start(calibration_string, 3)
+        coefficients = {}
+        for tag, value in cls._parse_tag_value_pairs(calibration_string):
+            coefficients[tag] = value
+        return cls(coefficients)
+
+    @staticmethod
+    @abstractmethod
+    def _parse_tag_value_pairs(calibration_string):
+        pass
 
     @abstractmethod
     def make_serial_string(self):
+        """
+        This generator function formats the host storage dict for writing
+        to the logger.
+        """
         pass  # pragma: no cover
 
-    def load_generic(self):
-        coefficients = {'AXX': 1, 'AXY': 0, 'AXZ': 0, 'AXC': 0, 'AXV': 0,
-                        'AYX': 0, 'AYY': 1, 'AYZ': 0, 'AYC': 0, 'AYV': 0,
-                        'AZX': 0, 'AZY': 0, 'AZZ': 1, 'AZC': 0, 'AZV': 0,
-                        'RVN': 2,
-                        'TMO': 0,
-                        'TMR': 10000,
-                        'TMA': 0.0011238100354,
-                        'TMB': 0.0002349457073,
-                        'TMC': 0.0000000848361,
-                        'MXX': 1, 'MXY': 0, 'MXZ': 0, 'MXV': 0,
-                        'MYX': 0, 'MYY': 1, 'MYZ': 0, 'MYV': 0,
-                        'MZX': 0, 'MZY': 0, 'MZZ': 1, 'MZV': 0,
-                        'PRA': 3,
-                        'PRB': 0.0016,
-                        'PHA': 0,
-                        'PHB': 0}
-        return coefficients
+    @staticmethod
+    def _check_if_empty(calibration_string):
+        if not calibration_string:
+            raise ValueError('Calibration string is empty')
+        if all([char == EMPTY_CHAR for char in calibration_string]):
+            raise ValueError('Calibration string contains only chr 255')
+
+    @staticmethod
+    def _validate_string(calibration_string):
+        if not calibration_string.startswith('HSS'):
+            raise ValueError('Host storage string must begin with HSS')
+        if calibration_string.find('HSE') == -1:
+            raise ValueError('Host storage string must contain HSE tag')

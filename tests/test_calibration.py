@@ -2,7 +2,7 @@ from unittest import TestCase
 from mat.calibration_factories import make_from_calibration_file
 from mat.calibration_factories import make_from_string
 from mat import odlfile
-from tests.utils import reference_file
+from utils import reference_file
 from math import isclose
 
 
@@ -121,11 +121,6 @@ class TestHeader(TestCase):
         cal = make_from_calibration_file(file)
         serial_str = ''.join(cal.make_serial_string())
         assert serial_str == expected_str
-
-    def test_missing_hss(self):
-        with self.assertRaises(ValueError):
-            with open(reference_file('missing_hss.lid'), 'rb') as fid:
-                odlfile.load_file(fid)
 
     def test_missing_hse(self):
         with self.assertRaises(ValueError):
