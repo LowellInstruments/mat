@@ -81,8 +81,10 @@ class OdlFile(ABC):
         self.n_pages = self._n_pages()
         self.page_start_times = self._page_start_times()
         self.data_start = self._data_start()
-        self.major_interval_seconds = max(self.header.temperature_interval,
-                                          self.header.orientation_interval)
+        temperature_interval = self.header.tag(TEMPERATURE_INTERVAL)
+        orientation_interval = self.header.tag(ORIENTATION_INTERVAL)
+        self.major_interval_seconds = max(temperature_interval,
+                                          orientation_interval)
 
         sequence, interval_time_offset = self._build_sequence()
 
@@ -120,8 +122,8 @@ class OdlFile(ABC):
         accelerometer = self._cached_page[accel_index]
         # if this is the last page, check logging wasn't interrupted mid burst
         full_burst_end = (int(np.floor(len(accelerometer) /
-                          (self.header.orientation_burst_count * 3))))
-        full_burst_end *= self.header.orientation_burst_count * 3
+                          (self.header.tag(ORIENTATION_BURST_COUNT) * 3))))
+        full_burst_end *= self.header.tag(ORIENTATION_BURST_COUNT) * 3
         accelerometer = accelerometer[:full_burst_end]
         accelerometer = np.reshape(accelerometer, (3, -1), order='F')
         return accelerometer
@@ -131,8 +133,8 @@ class OdlFile(ABC):
         magnetometer = self._cached_page[mag_index]
         # if this is the last page, ckeck logging wasn't interrupted mid burst
         full_burst_end = (int(np.floor(len(magnetometer) /
-                          (self.header.orientation_burst_count * 3))))
-        full_burst_end *= self.header.orientation_burst_count * 3
+                          (self.header.tag(ORIENTATION_BURST_COUNT) * 3))))
+        full_burst_end *= self.header.tag(ORIENTATION_BURST_COUNT) * 3
         magnetometer = magnetometer[:full_burst_end]
         magnetometer = np.reshape(magnetometer, (3, -1), order='F')
         return magnetometer
@@ -428,7 +430,7 @@ class LisFile(OdlFile):
         A list containing the start time of each data page
         """
         epoch = datetime.datetime(1970, 1, 1)
-        page_time = datetime.datetime.strptime(self.header.start_time,
+        page_time = datetime.datetime.strptime(self.header.tag(START_TIME),
                                                '%Y-%m-%d %H:%M:%S')
         return [(page_time - epoch).total_seconds()]
 
