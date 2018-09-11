@@ -27,7 +27,7 @@ start time and the time offset vectors
 # TODO make sure methods that move the file cursor position return it after
 # they are done
 
-from mat import calibration
+from mat.calibration_factories import make_from_string
 from mat.header import (
     Header,
     DEPLOYMENT_NUMBER,
@@ -65,6 +65,10 @@ def load_file(file_obj):
     return class_(file_obj)
 
 
+FULL_HEADER_LENGTH = 1000
+CALIBRATION_STRING_LENGTH = 380
+
+
 class OdlFile(ABC):
     """
     Abstract base class for interacting with a Lowell Instruments LID file.
@@ -72,11 +76,13 @@ class OdlFile(ABC):
 
     def __init__(self, file_obj):
         self._file = file_obj
+        self._file.seek(0)
         self.file_size = self._file_size()
-        header_str = file_obj.read(500).decode('IBM437')
-        self.header = Header(header_str)
+        full_header = file_obj.read(FULL_HEADER_LENGTH).decode('IBM437')
+        self.header = Header(full_header)
         self.header.parse_header()
-        self.calibration = calibration.make_from_datafile(self._file)
+        calibration_string = self._extract_calibration_string(full_header)
+        self.calibration = make_from_string(calibration_string)
         self.mini_header_length = self._mini_header_length()
         self.n_pages = self._n_pages()
         self.page_start_times = self._page_start_times()
@@ -111,6 +117,14 @@ class OdlFile(ABC):
         self.end_time = 0
         self._cached_page = None
         self._cached_page_n = None
+
+    def _extract_calibration_string(self, full_header):
+        calibration_start = full_header.find('HDE\r\n')
+        if calibration_start == -1:
+            raise ValueError('HDE tag missing from header')
+        start_index = calibration_start + 5
+        end_index = calibration_start + 5 + CALIBRATION_STRING_LENGTH
+        return full_header[start_index:end_index]
 
     def pressure(self):
         """ pressure values from the current page """
