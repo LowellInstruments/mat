@@ -12,6 +12,7 @@ def cut_out(string, start_cut, end_cut):
     return string[:start_cut] + string[end_cut:]
 
 
+DEPLOYMENT_NUMBER = 'DPL'
 IS_ACCELEROMETER = 'ACL'
 IS_LED = 'LED'
 IS_MAGNETOMETER = 'MGN'
@@ -24,27 +25,28 @@ ORIENTATION_INTERVAL = 'ORI'
 PRESSURE_BURST_COUNT = 'PRN'
 PRESSURE_BURST_RATE = 'PRR'
 START_TIME = 'CLK'
+STATUS = 'STS'
 TEMPERATURE_INTERVAL = 'TRI'
 
 
 class Header:
     type_int = [
+        DEPLOYMENT_NUMBER,
         ORIENTATION_BURST_COUNT,
         ORIENTATION_BURST_RATE,
-        'DPL',
-        'STS',
         ORIENTATION_INTERVAL,
-        TEMPERATURE_INTERVAL,
-        PRESSURE_BURST_RATE,
         PRESSURE_BURST_COUNT,
+        PRESSURE_BURST_RATE,
+        STATUS,
+        TEMPERATURE_INTERVAL,
     ]
     type_bool = [
         IS_ACCELEROMETER,
         IS_LED,
         IS_MAGNETOMETER,
-        IS_TEMPERATURE,
-        IS_PRESSURE,
         IS_PHOTO_DIODE,
+        IS_PRESSURE,
+        IS_TEMPERATURE,
     ]
 
     def __init__(self, header_string):
