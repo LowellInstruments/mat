@@ -1,6 +1,8 @@
 from unittest import TestCase
-from mat import calibration
-from tests.utils import reference_file
+from mat.calibration_factories import make_from_calibration_file
+from mat.calibration_factories import make_from_string
+from mat import odlfile
+from utils import reference_file
 from math import isclose
 
 
@@ -40,7 +42,7 @@ class TestHeader(TestCase):
                          'MZZ': 0.155,
                          'MZV': -287.3}
         file = reference_file('v2_calibration.txt')
-        cal = calibration.make_from_calibration_file(file)
+        cal = make_from_calibration_file(file)
         cal_is_close(cal.coefficients, expected_dict)
 
     def test_load_v3_calibration(self):
@@ -79,20 +81,20 @@ class TestHeader(TestCase):
                          'MZV': -2089.487206,
                          'MRF': 24.961058}
         file = reference_file('v3_calibration.txt')
-        cal = calibration.make_from_calibration_file(file)
+        cal = make_from_calibration_file(file)
         cal_is_close(cal.coefficients, expected_dict)
 
     def test_load_v3_from_data_file(self):
         with open(reference_file('test.lid'), 'rb') as fid:
-            calibration.make_from_datafile(fid)
+            odlfile.load_file(fid)
 
     def test_load_v2_from_data_file(self):
         with open(reference_file('v2_datafile.lid'), 'rb') as fid:
-            calibration.make_from_datafile(fid)
+            odlfile.load_file(fid)
 
     def test_empty_calibration(self):
         with open(reference_file('empty_calibration.lid'), 'rb') as fid:
-            calibration.make_from_datafile(fid)
+            odlfile.load_file(fid)
 
     def test_make_v2_serial_string(self):
         expected_str = 'RVN12TMO30.0TMR710000.0TMAd0.00112381007' \
@@ -103,7 +105,7 @@ class TestHeader(TestCase):
                        'MXZ6-0.001MXV63439.7MYX6-0.004MYY50.164MYZ6-0.008' \
                        'MYV5974.9MZX50.001MZY6-0.011MZZ50.155MZV6-287.3'
         file = reference_file('v2_calibration.txt')
-        cal = calibration.make_from_calibration_file(file)
+        cal = make_from_calibration_file(file)
         serial_str = ''.join(cal.make_serial_string())
         assert serial_str == expected_str
 
@@ -116,34 +118,24 @@ class TestHeader(TestCase):
                        'MZX]F[-YMZY47Q=5MZZ5E,?gMZV`<)CMMRF6-$2o'
 
         file = reference_file('v3_calibration.txt')
-        cal = calibration.make_from_calibration_file(file)
+        cal = make_from_calibration_file(file)
         serial_str = ''.join(cal.make_serial_string())
         assert serial_str == expected_str
-
-    def test_missing_hss(self):
-        with self.assertRaises(ValueError):
-            with open(reference_file('missing_hss.lid'), 'rb') as fid:
-                calibration.make_from_datafile(fid)
 
     def test_missing_hse(self):
         with self.assertRaises(ValueError):
             with open(reference_file('missing_hse.lid'), 'rb') as fid:
-                calibration.make_from_datafile(fid)
-
-    def test_non_binary_open(self):
-        with self.assertRaises(ValueError):
-            with open(reference_file('test.lid')) as fid:
-                calibration.make_from_datafile(fid)
+                odlfile.load_file(fid)
 
     def test_missing_hde(self):
         with self.assertRaises(ValueError):
             with open(reference_file('missing_hde.lid'), 'rb') as fid:
-                calibration.make_from_datafile(fid)
+                odlfile.load_file(fid)
 
     def test_calibration_missing_value(self):
         with self.assertRaises(ValueError):
             file = reference_file('v3_calibration_missing_value.txt')
-            calibration.make_from_calibration_file(file)
+            make_from_calibration_file(file)
 
 
 def cal_is_close(dict1, dict2):

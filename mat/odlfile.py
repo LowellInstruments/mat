@@ -27,8 +27,25 @@ start time and the time offset vectors
 # TODO make sure methods that move the file cursor position return it after
 # they are done
 
-from mat import calibration
-from mat import header
+from mat.calibration_factories import make_from_string
+from mat.header import (
+    Header,
+    DEPLOYMENT_NUMBER,
+    IS_ACCELEROMETER,
+    IS_LED,
+    IS_MAGNETOMETER,
+    IS_PHOTO_DIODE,
+    IS_PRESSURE,
+    IS_TEMPERATURE,
+    ORIENTATION_BURST_COUNT,
+    ORIENTATION_BURST_RATE,
+    ORIENTATION_INTERVAL,
+    PRESSURE_BURST_COUNT,
+    PRESSURE_BURST_RATE,
+    START_TIME,
+    STATUS,
+    TEMPERATURE_INTERVAL
+)
 import numpy as np
 import datetime
 from abc import ABC, abstractmethod
@@ -48,6 +65,10 @@ def load_file(file_obj):
     return class_(file_obj)
 
 
+FULL_HEADER_LENGTH = 1000
+CALIBRATION_STRING_LENGTH = 380
+
+
 class OdlFile(ABC):
     """
     Abstract base class for interacting with a Lowell Instruments LID file.
@@ -55,17 +76,21 @@ class OdlFile(ABC):
 
     def __init__(self, file_obj):
         self._file = file_obj
+        self._file.seek(0)
         self.file_size = self._file_size()
-        header_str = file_obj.read(500).decode('IBM437')
-        self.header = header.Header(header_str)
+        full_header = file_obj.read(FULL_HEADER_LENGTH).decode('IBM437')
+        self.header = Header(full_header)
         self.header.parse_header()
-        self.calibration = calibration.make_from_datafile(self._file)
+        calibration_string = self._extract_calibration_string(full_header)
+        self.calibration = make_from_string(calibration_string)
         self.mini_header_length = self._mini_header_length()
         self.n_pages = self._n_pages()
         self.page_start_times = self._page_start_times()
         self.data_start = self._data_start()
-        self.major_interval_seconds = max(self.header.temperature_interval,
-                                          self.header.orientation_interval)
+        temperature_interval = self.header.tag(TEMPERATURE_INTERVAL)
+        orientation_interval = self.header.tag(ORIENTATION_INTERVAL)
+        self.major_interval_seconds = max(temperature_interval,
+                                          orientation_interval)
 
         sequence, interval_time_offset = self._build_sequence()
 
@@ -93,6 +118,14 @@ class OdlFile(ABC):
         self._cached_page = None
         self._cached_page_n = None
 
+    def _extract_calibration_string(self, full_header):
+        calibration_start = full_header.find('HDE\r\n')
+        if calibration_start == -1:
+            raise ValueError('HDE tag missing from header')
+        start_index = calibration_start + 5
+        end_index = calibration_start + 5 + CALIBRATION_STRING_LENGTH
+        return full_header[start_index:end_index]
+
     def pressure(self):
         """ pressure values from the current page """
         pressure = self._cached_page[self.is_pres[:len(self._cached_page)]]
@@ -103,8 +136,8 @@ class OdlFile(ABC):
         accelerometer = self._cached_page[accel_index]
         # if this is the last page, check logging wasn't interrupted mid burst
         full_burst_end = (int(np.floor(len(accelerometer) /
-                          (self.header.orientation_burst_count * 3))))
-        full_burst_end *= self.header.orientation_burst_count * 3
+                          (self.header.tag(ORIENTATION_BURST_COUNT) * 3))))
+        full_burst_end *= self.header.tag(ORIENTATION_BURST_COUNT) * 3
         accelerometer = accelerometer[:full_burst_end]
         accelerometer = np.reshape(accelerometer, (3, -1), order='F')
         return accelerometer
@@ -114,8 +147,8 @@ class OdlFile(ABC):
         magnetometer = self._cached_page[mag_index]
         # if this is the last page, ckeck logging wasn't interrupted mid burst
         full_burst_end = (int(np.floor(len(magnetometer) /
-                          (self.header.orientation_burst_count * 3))))
-        full_burst_end *= self.header.orientation_burst_count * 3
+                          (self.header.tag(ORIENTATION_BURST_COUNT) * 3))))
+        full_burst_end *= self.header.tag(ORIENTATION_BURST_COUNT) * 3
         magnetometer = magnetometer[:full_burst_end]
         magnetometer = np.reshape(magnetometer, (3, -1), order='F')
         return magnetometer
@@ -148,8 +181,8 @@ class OdlFile(ABC):
         """
 
         h = self.header  # shorten things for the sake of easier reading
-        major_interval_seconds = max(h.temperature_interval,
-                                     h.orientation_interval)
+        major_interval_seconds = max(h.tag(TEMPERATURE_INTERVAL),
+                                     h.tag(ORIENTATION_INTERVAL))
 
         # arrays to store the index values where samples begin
         sequence = []
@@ -162,38 +195,40 @@ class OdlFile(ABC):
             # If TRI is the major interval, there will be multiple ORI
             # intervals within the major
             # and the counters will need resetting
-            if (h.orientation_interval and n %
-                    (h.orientation_interval * 64) == 0):
-                accel_remaining = h.orientation_burst_count if \
-                    h.is_accelerometer else 0
-                mag_remaining = h.orientation_burst_count if \
-                    h.is_magnetometer else 0
-                pres_remaining = h.pressure_burst_count
+            if (h.tag(ORIENTATION_INTERVAL) and n %
+                    (h.tag(ORIENTATION_INTERVAL) * 64) == 0):
+                accel_remaining = h.tag(ORIENTATION_BURST_COUNT) if \
+                    h.tag(IS_ACCELEROMETER) else 0
+                mag_remaining = h.tag(ORIENTATION_BURST_COUNT) if \
+                    h.tag(IS_MAGNETOMETER) else 0
+                pres_remaining = h.tag(PRESSURE_BURST_COUNT)
 
-            if h.is_temperature and n % (h.temperature_interval * 64) == 0:
+            if h.tag(IS_TEMPERATURE) and n % (h.tag(TEMPERATURE_INTERVAL) *
+                                              64) == 0:
                 sequence.append('T')
                 time_offset.append(n)
 
-            if h.is_photo_diode and n % (h.temperature_interval * 64) == 0:
+            if h.tag(IS_PHOTO_DIODE) and n % (h.tag(TEMPERATURE_INTERVAL) *
+                                              64) == 0:
                 sequence.append('L')
                 time_offset.append(n)
 
             # if pressure is enabled AND there are still samples in this burst
             # AND the time is right THEN
-            if h.is_pressure and pres_remaining and n % \
-                    (64 / h.pressure_burst_rate) == 0:
+            if h.tag(IS_PRESSURE) and pres_remaining and n % \
+                    (64 / h.tag(PRESSURE_BURST_RATE)) == 0:
                 sequence.append('P')
                 pres_remaining -= 1
                 time_offset.append(n)
 
-            if h.is_accelerometer and accel_remaining and n % \
-                    (64 / h.orientation_burst_rate) == 0:
+            if h.tag(IS_ACCELEROMETER) and accel_remaining and n % \
+                    (64 / h.tag(ORIENTATION_BURST_RATE)) == 0:
                 sequence.extend(['A', 'A', 'A'])
                 accel_remaining -= 1
                 time_offset.extend([n, n, n])
 
-            if h.is_magnetometer and mag_remaining and n % \
-                    (64 / h.orientation_burst_rate) == 0:
+            if h.tag(IS_MAGNETOMETER) and mag_remaining and n % \
+                    (64 / h.tag(ORIENTATION_BURST_RATE)) == 0:
                 sequence.extend(['M', 'M', 'M'])
                 mag_remaining -= 1
                 time_offset.extend([n, n, n])
@@ -409,7 +444,7 @@ class LisFile(OdlFile):
         A list containing the start time of each data page
         """
         epoch = datetime.datetime(1970, 1, 1)
-        page_time = datetime.datetime.strptime(self.header.start_time,
+        page_time = datetime.datetime.strptime(self.header.tag(START_TIME),
                                                '%Y-%m-%d %H:%M:%S')
         return [(page_time - epoch).total_seconds()]
 
