@@ -77,7 +77,8 @@ NEW_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
 OLD_MAG_KEYS = {'MXA', 'MXS', 'MYA', 'MYS', 'MZA', 'MZS'}
 MAG_KEYS_FOR_CLASS = [
     (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
-    (NEW_MAG_KEYS, NewMagnetometer),
+    (NEW_MAG_KEYS, NewMagnetometer)
+]
 
 
 class Magnetometer(ABC):
