@@ -30,9 +30,7 @@ start time and the time offset vectors
 from mat.calibration_factories import make_from_string
 from mat.header import (
     Header,
-    DEPLOYMENT_NUMBER,
     IS_ACCELEROMETER,
-    IS_LED,
     IS_MAGNETOMETER,
     IS_PHOTO_DIODE,
     IS_PRESSURE,
@@ -43,7 +41,6 @@ from mat.header import (
     PRESSURE_BURST_COUNT,
     PRESSURE_BURST_RATE,
     START_TIME,
-    STATUS,
     TEMPERATURE_INTERVAL
 )
 import numpy as np
