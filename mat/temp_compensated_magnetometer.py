@@ -2,17 +2,14 @@ from numpy import (
     array,
     tile,
 )
-from mat.cubic_magnetometer import (
-    CubicMagnetometer,
-    SHARED_KEYS,
-)
+from mat.cubic_magnetometer import CubicMagnetometer
 
 
 TEMPERATURE_KEYS = ['TMX', 'TMY', 'TMZ', 'MRF']
 
 
 class TempCompensatedMagnetometer(CubicMagnetometer):
-    REQUIRED_KEYS = set(SHARED_KEYS).union(TEMPERATURE_KEYS)
+    REQUIRED_KEYS = CubicMagnetometer.REQUIRED_KEYS.union(TEMPERATURE_KEYS)
     def __init__(self, hs):
         super().__init__(hs)
         self.temperature_slope = array([[hs['TMX'],

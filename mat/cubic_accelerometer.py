@@ -14,7 +14,10 @@ CUBIC_KEYS = ['AXC', 'AYC', 'AZC']
 
 
 class CubicAccelerometer(Meter):
-    REQUIRED_KEYS = set(X_KEYS).union(Y_KEYS).union(Z_KEYS)
+    REQUIRED_KEYS = set(CUBIC_KEYS).union(X_KEYS,
+                                          Y_KEYS,
+                                          Z_KEYS,
+                                          OFFSET_KEYS)
 
     def __init__(self, hs):
         self.gain = array_from_tags(hs, X_KEYS, Y_KEYS, Z_KEYS)
