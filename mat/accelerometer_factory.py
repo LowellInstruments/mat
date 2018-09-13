@@ -4,13 +4,9 @@ from mat.utils import obj_from_coefficients
 
 
 
-CUBIC_ACC_KEYS = {'AXX', 'AXY', 'AXZ',
-                  'AYX', 'AYY', 'AYZ',
-                  'AZX', 'AZY', 'AZZ'}
-
 ACC_KEYS_FOR_CLASS = [
-    (CubicAccelerometer.keys, CubicAccelerometer),
-    (LinearAccelerometer.keys, LinearAccelerometer),
+    (CubicAccelerometer.REQUIRED_KEYS, CubicAccelerometer),
+    (LinearAccelerometer.REQUIRED_KEYS, LinearAccelerometer),
 ]
 
 
