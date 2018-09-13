@@ -41,7 +41,7 @@ class TestConverter(TestCase):
 
     def test_calibrated_linear_accelerometer(self):
         assert Converter(
-            calibration_from_file("v3_linear_acc.txt")).accelerometer(
+            calibration_from_file("v2_linear_acc.txt")).accelerometer(
             CUBIC_IDENTITY).shape == (3, 3)
 
     def test_calibrated_cubic_accelerometer(self):
