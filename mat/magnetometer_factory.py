@@ -3,21 +3,9 @@ from mat.temp_compensated_magnetometer import TempCompensatedMagnetometer
 from mat.utils import obj_from_coefficients
 
 
-TEMP_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
-                 'MYX', 'MYY', 'MYZ',
-                 'MZX', 'MZY', 'MZZ',
-                 'AXV', 'AYV', 'AZV',
-                 'AXC', 'AYC', 'AZC',
-                 'TMX', 'TMY', 'TMZ', 'MRF'}
-CUBIC_MAG_KEYS = {'MXX', 'MXY', 'MXZ',
-                  'MYX', 'MYY', 'MYZ',
-                  'MZX', 'MZY', 'MZZ',
-                  'AXV', 'AYV', 'AZV',
-                  'AXC', 'AYC', 'AZC'}
-
 MAG_KEYS_FOR_CLASS = [
-    (TEMP_MAG_KEYS, TempCompensatedMagnetometer),
-    (CUBIC_MAG_KEYS, CubicMagnetometer),
+    (TempCompensatedMagnetometer.REQUIRED_KEYS, TempCompensatedMagnetometer),
+    (CubicMagnetometer.REQUIRED_KEYS, CubicMagnetometer),
 ]
 
 
