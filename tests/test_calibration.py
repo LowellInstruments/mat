@@ -2,7 +2,7 @@ from unittest import TestCase
 from mat.calibration_factories import make_from_calibration_file
 from mat.calibration_factories import make_from_string
 from mat import odlfile
-from utils import reference_file
+from tests.utils import reference_file
 from math import isclose
 
 

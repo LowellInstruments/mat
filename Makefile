@@ -16,18 +16,26 @@ VENV = venv
 MODULE_NAME = mat
 
 PROJECT_PYFILES = \
-  mat/matcomm.py \
-  mat/setupfile.py \
-  mat/odlfile.py \
-  mat/hoststorage.py \
-  mat/ascii85.py \
-  mat/gps.py \
-  mat/tiltcurve.py \
-  mat/appdata.py \
-  mat/converter.py \
-  mat/header.py \
   mat/admin.py \
-  setup.py \
+  mat/appdata.py \
+  mat/ascii85.py \
+  mat/calibration.py \
+  mat/calibration_factories.py \
+  mat/converter.py \
+  mat/data_file_factory.py \
+  mat/gps.py \
+  mat/header.py \
+  mat/lid_data_file.py \
+  mat/lis_data_file.py \
+  mat/matcomm.py \
+  mat/sensor.py \
+  mat/sensor_data_file.py \
+  mat/sensor_specification.py \
+  mat/setupfile.py \
+  mat/tiltcurve.py \
+  mat/utils.py \
+  mat/v2_calibration.py \
+  mat/v3_calibration.py \
 
 
 ifeq ($(OS),Windows_NT)

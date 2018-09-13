@@ -3,11 +3,11 @@ from math import floor
 
 
 class SensorFilter:
-    def __init__(self, burst_length=1, channels=1, data_type='int16'):
-        self.index = np.array([])
-        self.burst_length = burst_length
+    def __init__(self, spec, logical_array):
+        self.name = spec.name
+        self.burst_length = spec.burst
         self.channels = channels
-        self.data_type = data_type
+        self.data_type = spec.data_type
 
     def add_to_index(self, position):
         self.index = np.append(self.index, position)

@@ -1,65 +1,76 @@
-from collections import namedtuple
-
-
-SensorSpec = namedtuple('SensorSpec', [
-    'name',
-    'tag',
-    'priority',
-    'channels',
-    'interval_tag',
-    'burst_rate_tag',
-    'burst_count_tag',
-    'data_type']
-)
-
-AVAILABLE_SENSORS = [
-    SensorSpec('Temperature', 'TMP', 1, 1, 'TRI', None, None, 'uint16'),
-    SensorSpec('Pressure', 'PRS', 2, 1, 'ORI', 'PRR', 'PRN', 'uint16'),
-    SensorSpec('Light', 'PHD', 3, 1, 'TRI', None, None, 'uint16'),
-    SensorSpec('Accelerometer', 'ACL', 4, 3, 'ORI', 'BMR', 'BMN', 'int16'),
-    SensorSpec('Magnetometer', 'MGN', 5, 3, 'ORI', 'BMR', 'BMN', 'int16')
-]
+from mat.sensor_specification import AVAILABLE_SENSORS
+import numpy as np
 
 
 class SensorGroup:
     def __init__(self, header):
         self.header = header
-        self.active_sensors = []
+        self._active_sensors = None
+        self.data_page = None
 
-    def equip(self):
+    def sensors(self):
+        if self._active_sensors:
+            return self._active_sensors
+        self._active_sensors = self._equip()
+        return self._active_sensors
+
+    def _equip(self):
+        active_sensors = []
         for spec in AVAILABLE_SENSORS:
-            if self.header.tag(spec.tag):
-                self.active_sensors.append(Sensor(spec, self.header))
-        self._verify_priority()
+            if self.header.tag(spec.enabled_tag):
+                active_sensors.append(SensorTime(spec, self.header))
+        return active_sensors
 
-    def data_sequence(self, page_seconds):
-        time_priority = []
-        for sensor in self.active_sensors:
-            time_offset = sensor.time_offset(page_seconds)
-            sensor_time_priority = [(t, sensor.priority) for t in time_offset]
-            time_priority.extend(sensor_time_priority)
-        return sorted(time_priority)
+    def generate_sequence(self, seconds):
+        time_and_order = self.time_and_order(seconds)
+        for sensor in self.sensors():
+            is_sensor = [s[1] == sensor.order for s in time_and_order]
+            sensor.is_sensor = np.array(is_sensor)
 
-    def _verify_priority(self):
-        priority = [spec.priority for spec in self.active_sensors]
-        if len(priority) != len(set(priority)):
-            raise ValueError('There cannot be more than one sensor with '
-                             'the same priority')
+    def sensor_names(self):
+        return [sensor.name for sensor in self.sensors()]
+
+    def time_and_order(self, seconds):
+        """
+        Return a full time and sensor order sequence for all active sensors.
+        The output is a list of tuples sorted by time, then by sensor order.
+        """
+        time_and_order = []
+        for sensor in self.sensors():
+            sample_times = sensor.time_sequence(seconds)
+            sensor_time_order = [(t, sensor.order) for t in sample_times]
+            time_and_order.extend(sensor_time_order)
+        return sorted(time_and_order)
 
 
 class Sensor:
+    """
+    Each sensor is responsible for the following:
+    Generate a time sequence for when the sensor should sample
+    Provide a filter to extract the sensor's data from a page
+    Provide a converter to apply the calibration to raw data
+    """
+    def __init__(self):
+        pass
+
+
+class SensorTime:
     def __init__(self, spec, header):
         self.name = spec.name
-        self.priority = spec.priority
+        self.order = spec.order
         self.channels = spec.channels
         self.interval = header.tag(spec.interval_tag)
         self.burst_rate = header.tag(spec.burst_rate_tag) or 1
         self.burst_count = header.tag(spec.burst_count_tag) or 1
-        self.data_type = spec.data_type
 
-    def time_offset(self, seconds):
-        time_offset = []
+    def time_sequence(self, seconds):
+        """
+        Returns a list of all sample times that occur between 0 and 'seconds'
+        """
+        sample_times = []
         for interval_time in range(0, seconds, self.interval):
             for burst_time in range(0, self.burst_count):
-                time_offset.append(interval_time + burst_time / self.burst_rate)
-        return time_offset
+                burst = [interval_time + burst_time / self.burst_rate]
+                burst *= self.channels
+                sample_times.extend(burst)
+        return sample_times

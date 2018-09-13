@@ -1,15 +1,13 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
+from mat.utils import cut_out, parse_tags
+
 
 def header_factory(file_path):
     with open(file_path, 'rb') as fid:
         header_string = fid.read(500).decode('IBM437')
     return Header(header_string)
-
-
-def cut_out(string, start_cut, end_cut):
-    return string[:start_cut] + string[end_cut:]
 
 
 DEPLOYMENT_NUMBER = 'DPL'
@@ -60,7 +58,8 @@ class Header:
         header_string = self._crop_header_block(self.header_string)
         header_string = self._remove_logger_info(header_string)
         header_string = self._remove_header_tags(header_string)
-        self._header = self._parse_tags(header_string)
+        header_dict = parse_tags(header_string)
+        self._header = self._convert_to_type(header_dict)
 
     def _crop_header_block(self, header_block):
         self._validate_header_block(header_block)
@@ -81,14 +80,6 @@ class Header:
             header_string = cut_out(header_string, index, index+5)
         return header_string
 
-    def _parse_tags(self, header_string):
-        header_lines = header_string.split('\r\n')[:-1]
-        header = {}
-        for tag_and_value in header_lines:
-            tag, value = tag_and_value.split(' ', 1)
-            header[tag] = self._convert_to_type(tag, value)
-        return header
-
     def _validate_header_block(self, header_string):
         if not header_string.startswith('HDS'):
             raise ValueError('Header must start with HDS')
@@ -97,9 +88,10 @@ class Header:
             if tag not in header_string:
                 raise ValueError(tag + ' tag missing in header')
 
-    def _convert_to_type(self, tag, value):
-        if tag in self.type_bool:
-            return value == '1'
-        if tag in self.type_int:
-            return int(value)
-        return value
+    def _convert_to_type(self, dictionary):
+        for tag, value in dictionary.items():
+            if tag in self.type_bool:
+                dictionary[tag] = value == '1'
+            if tag in self.type_int:
+                dictionary[tag] = int(value)
+        return dictionary
