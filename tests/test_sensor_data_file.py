@@ -50,11 +50,6 @@ class TestSensorDataFile(TestCase):
         header.parse_header()
         assert type(header) == Header
 
-    def test_start_times(self):
-        file = r'C:\Users\Workstation\Desktop\Random Jobs\1806047_vibration_(0).lid'
-        data_file = data_file_factory.create(file)
-        s = data_file.seconds_per_page()
-
     def test_seconds_per_page_partial_page(self):
         data_file = data_file_factory.create(reference_file('test.lid'))
         seconds = data_file.seconds_per_page()
