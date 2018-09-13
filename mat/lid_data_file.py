@@ -34,8 +34,6 @@ class LidDataFile(SensorDataFile):
         for page_n in range(self.n_pages()):
             header_string = self._read_mini_header(page_n)
             mini_header = parse_tags(header_string)
-            if 'CLK' not in mini_header:
-                raise ValueError('CLK tag missing from mini header')
             time = mini_header['CLK']
             page_time = datetime.strptime(time, '%Y-%m-%d %H:%M:%S')
             epoch_time = epoch(page_time)

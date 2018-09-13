@@ -1,6 +1,7 @@
 from unittest import TestCase
 from mat.calibration_factories import make_from_calibration_file
 from mat.calibration_factories import make_from_string
+from mat.v3_calibration import V3Calibration
 from mat import odlfile
 from tests.utils import reference_file
 from math import isclose
@@ -136,6 +137,10 @@ class TestHeader(TestCase):
         with self.assertRaises(ValueError):
             file = reference_file('v3_calibration_missing_value.txt')
             make_from_calibration_file(file)
+
+    def test_empty_cal_string(self):
+        with self.assertRaises(ValueError):
+            V3Calibration.load_from_string('')
 
 
 def cal_is_close(dict1, dict2):
