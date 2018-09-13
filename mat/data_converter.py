@@ -11,4 +11,3 @@ write the calibrated data to an output file
 class DataConverter:
     def __init__(self, path, parameters=None):
         pass
-

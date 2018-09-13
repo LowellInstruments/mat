@@ -6,9 +6,9 @@ def parse_tags(string):
     Break a string of tag/value pairs separated by \r\n into a dictionary
     with tags as keys
     eg
-    parse_tags('ABC 123')
+    parse_tags('ABC 123\r\nDEF 456\r\n')
     would return
-    {'ABC': '123'}
+    {'ABC': '123', 'DEF': '456}
     """
     lines = string.split('\r\n')[:-1]
     dictionary = {}

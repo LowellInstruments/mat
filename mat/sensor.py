@@ -14,6 +14,9 @@ class SensorGroup:
         self._active_sensors = self._equip()
         return self._active_sensors
 
+    def samples_per_time(self, seconds):
+        return len(self.time_and_order(seconds))
+
     def _equip(self):
         active_sensors = []
         for spec in AVAILABLE_SENSORS:

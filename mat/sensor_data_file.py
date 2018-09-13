@@ -28,6 +28,26 @@ class SensorDataFile(ABC):
         self._mini_header_length = None
         self._samples_per_page = None
 
+    @abstractmethod
+    def data_start(self):
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def mini_header_length(self):
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def n_pages(self):
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def load_page(self, i):
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def page_times(self):
+        pass  # pragma: no cover
+
     def header(self):
         if self._header:
             return self._header
@@ -58,43 +78,13 @@ class SensorDataFile(ABC):
         else:
             return self._partial_page_seconds()
 
-    def _partial_page_seconds(self):
-        interval_samples = self.sensors().time_and_order(self.major_interval())
-        n_samples_per_interval = len(interval_samples)
-        data_bytes = (self.file_size()
-                      - self.data_start()
-                      - self.mini_header_length())
-        samples = floor(data_bytes/2)
-        n_intervals = floor(samples / n_samples_per_interval)
-        return n_intervals * self.major_interval()
-
     def samples_per_page(self):
         return len(self.sensors().time_and_order(self.seconds_per_page()))
-
-    @abstractmethod
-    def mini_header_length(self):
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def load_page(self, i):
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def page_times(self):
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def data_start(self):
-        pass  # pragma: no cover
 
     def file(self):
         if self._file is None:
             self._file = open(self._file_path, 'rb')
         return self._file
-
-    @abstractmethod
-    def n_pages(self):
-        pass  # pragma: no cover
 
     def sensors(self):
         if self._sensors:
@@ -110,6 +100,16 @@ class SensorDataFile(ABC):
         self._file_size = self.file().tell()
         self.file().seek(file_pos)
         return self._file_size
+
+    def _partial_page_seconds(self):
+        maj_interval = self.major_interval()
+        n_samples_per_interval = self.sensors().samples_per_time(maj_interval)
+        remaining_bytes = (self.file_size()
+                           - self.data_start()
+                           - self.mini_header_length())
+        samples = floor(remaining_bytes/2)
+        n_intervals = floor(samples / n_samples_per_interval)
+        return n_intervals * self.major_interval()
 
     def _read_full_header(self):
         file_position = self.file().tell()
