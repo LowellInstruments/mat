@@ -9,7 +9,7 @@ class Pressure:
     def __init__(self, calibration):
         coefficients = calibration.coefficients
         pra = coefficients.get('PRA', DEFAULT_PRA)
-        prb = coefficients.get('PRB', DEFAULT_PRA)
+        prb = coefficients.get('PRB', DEFAULT_PRB)
         self.pressure_slope = array([prb], dtype='float')
         self.pressure_offset = array([pra], dtype='float')
 
