@@ -24,7 +24,7 @@ eg. AXX^3r#p -- AXX is the tag, and "^3r#p" is -0.247291 encoded in ascii85
 """
 
 from abc import ABC, abstractmethod
-from mat.utils import _trim_start
+from mat.utils import trim_start
 EMPTY_CHAR = bytes([255]).decode('IBM437')
 
 
@@ -45,7 +45,7 @@ class Calibration(ABC):
         cls._check_if_empty(calibration_string)
         cls._validate_string(calibration_string)
         # Trim HSS (3 characters) from start of calibration string
-        calibration_string = _trim_start(calibration_string, 3)
+        calibration_string = trim_start(calibration_string, 3)
         coefficients = {}
         for tag, value in cls._parse_tag_value_pairs(calibration_string):
             coefficients[tag] = value

@@ -1,5 +1,5 @@
 from mat.calibration import Calibration
-from mat.utils import _trim_start
+from mat.utils import trim_start
 
 
 class V2Calibration(Calibration):
@@ -23,7 +23,7 @@ class V2Calibration(Calibration):
                 break
             length = int(calibration_string[3], 16)
             value = calibration_string[4:4 + length]
-            calibration_string = _trim_start(calibration_string, 3+1+length)
+            calibration_string = trim_start(calibration_string, 3+1+length)
             yield tag, value
 
     def make_serial_string(self):

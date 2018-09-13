@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from mat.time_sequence import TimeSequence
 from mat.sensor_filter import SensorFilter
 import mat.converter as converter
+from mat.accelerometer_factory import accelerometer_factory
+from mat.magnetometer_factory import magnetometer_factory
 
 
 class AbstractSensorFactory(ABC):
@@ -37,12 +39,12 @@ class AccelSensorFactory(AbstractSensorFactory):
         return SensorFilter(burst_length, channels, data_type)
 
     def make_calibration(self):
-        return converter.Accelerometer.factory(self.calibration)
+        return accelerometer_factory(self.calibration)
 
 
 class MagSensorFactory(AccelSensorFactory):
     def make_calibration(self):
-        return converter.Magnetometer.factory(self.calibration)
+        return magnetometer_factory(self.calibration)
 
 
 class Sensor:

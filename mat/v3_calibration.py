@@ -1,6 +1,6 @@
 from mat.ascii85 import ascii85_to_num, num_to_ascii85
 from mat.calibration import Calibration
-from mat.utils import _trim_start
+from mat.utils import trim_start
 
 
 class V3Calibration(Calibration):
@@ -23,14 +23,14 @@ class V3Calibration(Calibration):
 
         # Manually remove RVN13 from start of calibration_string because it
         # follows a different format for backward compatibility
-        calibration_string = _trim_start(calibration_string, 5)
+        calibration_string = trim_start(calibration_string, 5)
         yield 'RVN', 3
         while True:
             tag = calibration_string[:3]
             if tag == 'HSE':
                 break
             value = calibration_string[3:8]
-            calibration_string = _trim_start(calibration_string, 8)
+            calibration_string = trim_start(calibration_string, 8)
             yield tag, value
 
     def make_serial_string(self):
