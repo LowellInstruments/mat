@@ -4,9 +4,6 @@ DEFAULT_PDB = -100/4096
 
 class Light:
     def __init__(self, calibration):
-        # Note: The original code would use the default values if
-        # either of the keys were missing from the coefficients.
-        # Not clear if this is a realistic case.
         self.pda = calibration.coefficients.get("PDA", DEFAULT_PDA)
         self.pdb = calibration.coefficients.get("PDB", DEFAULT_PDB)
         
