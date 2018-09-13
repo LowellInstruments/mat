@@ -1,6 +1,7 @@
-def obj_from_coefficients(coefficients, keys_for_classes):
+def obj_from_coefficients(coefficients, classes):
     coefficient_set = set(coefficients)
-    for keys, klass in keys_for_classes:
+    for klass in classes:
+        keys = klass.REQUIRED_KEYS
         if keys <= coefficient_set:
             return klass(coefficients)
     return None
