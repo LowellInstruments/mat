@@ -18,26 +18,29 @@ CUBIC_TEMP_ARRAY = array([1, 1, 1])
 
 
 class TestConverter(TestCase):
-    def test_empty_temperature(self):
-        assert Converter(V3Calibration({})).temperature(
-            ZERO_ARRAY) is None
+    def test_empty_calibration(self):
+        with self.assertRaises(KeyError):
+            Converter(V3Calibration({}))
 
     def test_calibrated_temperature(self):
         assert Converter(
             calibration_from_file("v3_calibration.txt")).temperature(
                 TEMP_ARRAY).shape == (1, )
 
-    def test_default_pressure(self):
-        assert Converter(V3Calibration({})).pressure(
+    def test_calibrated_pressure(self):
+        assert Converter(
+            calibration_from_file("v3_calibration.txt")).pressure(
             ZERO_ARRAY) == array([DEFAULT_PRA])
 
-    def test_default_light(self):
-        assert Converter(V3Calibration({})).light(
+    def test_calibrated_light(self):
+        assert Converter(
+            calibration_from_file("v3_calibration.txt")).light(
             ZERO_ARRAY) == array([DEFAULT_PDA])
 
-    def test_empty_accelerometer(self):
-        assert Converter(V3Calibration({})).accelerometer(
-            ZERO_ARRAY) is None
+    def test_missing_accelerometer(self):
+        assert Converter(
+            calibration_from_file("v3_missing_tags.txt")).accelerometer(
+            CUBIC_IDENTITY) is None
 
     def test_calibrated_linear_accelerometer(self):
         assert Converter(
@@ -49,9 +52,10 @@ class TestConverter(TestCase):
             calibration_from_file("v3_calibration.txt")).accelerometer(
             CUBIC_IDENTITY).shape == (3, 3)
 
-    def test_empty_magnetometer(self):
-        assert Converter(V3Calibration({})).magnetometer(
-            ZERO_ARRAY) is None
+    def test_missing_magnetometer(self):
+        assert Converter(
+            calibration_from_file("v3_missing_tags.txt")).magnetometer(
+            CUBIC_IDENTITY) is None
 
     def test_calibrated_cubic_magnetometer(self):
         assert Converter(
