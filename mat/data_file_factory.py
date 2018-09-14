@@ -6,7 +6,7 @@ DATA_FILE_TYPES = {'.lid': LidDataFile,
                    '.lis': LisDataFile}
 
 
-def create(file_path):
+def create_data_file(file_path):
     extension = file_path[-4:]
     try:
         class_ = DATA_FILE_TYPES.get(extension)

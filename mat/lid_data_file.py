@@ -19,10 +19,9 @@ class LidDataFile(SensorDataFile):
 
         ind = (self.data_start() + (i * PAGE_SIZE) + self.mini_header_length())
         self._file.seek(ind)
-        self._cached_page = np.fromfile(self.file(),
-                                        dtype='<i2',
-                                        count=self.samples_per_page())
-        self._cached_page_n = i
+        return np.fromfile(self.file(),
+                           dtype='<i2',
+                           count=self.samples_per_page())
 
     def data_start(self):
         return DATA_START

@@ -51,7 +51,7 @@ class Sensor:
     Each sensor is responsible for the following:
     Generate a time sequence for when the sensor should sample
     Provide a filter to extract the sensor's data from a page
-    Provide a converter to apply the calibration to raw data
+    Provide a converter to apply the calibration to the extracted data
     """
     def __init__(self):
         pass

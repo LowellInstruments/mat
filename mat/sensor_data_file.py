@@ -33,6 +33,10 @@ class SensorDataFile(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
+    def load_page(self, i):
+        pass  # pragma: no cover
+
+    @abstractmethod
     def mini_header_length(self):
         pass  # pragma: no cover
 
@@ -41,12 +45,15 @@ class SensorDataFile(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def load_page(self, i):
-        pass  # pragma: no cover
-
-    @abstractmethod
     def page_times(self):
         pass  # pragma: no cover
+
+    def page(self, i):
+        if self._cached_page_n == i:
+            return self._cached_page
+        self._cached_page_n = i
+        self._cached_page = self.load_page(i)
+        return self._cached_page
 
     def header(self):
         if self._header:

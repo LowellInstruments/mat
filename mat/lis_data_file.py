@@ -11,7 +11,7 @@ class LisDataFile(SensorDataFile):
     def n_pages(self):
         return 1
 
-    def load_page(self, i):
+    def page(self, i):
         pass
 
     def page_times(self):
@@ -24,3 +24,6 @@ class LisDataFile(SensorDataFile):
 
     def data_start(self):
         return DATA_START
+
+    def load_page(self, i):
+        pass
