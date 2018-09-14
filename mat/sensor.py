@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from mat.time_sequence import TimeSequence
 from mat.sensor_filter import SensorFilter
-import mat.converter as converter
 from mat.accelerometer_factory import accelerometer_factory
 from mat.magnetometer_factory import magnetometer_factory
 
@@ -49,16 +48,12 @@ class MagSensorFactory(AccelSensorFactory):
 
 class Sensor:
     def __init__(self, header, calibration):
-
-
-################
-self.active_sensors = []
-if 'TMP' in self.header and self.header['TMP'] == 1:
-    pass
-
-if 'ACL' in self.header and self.header['ACL'] == 1:
-    self.active_sensors.append(AccelSensorFactory(header, calibration))
-
-if 'MGN' in self.header and self.header['MGN'] == 1:
-    self.active_sensors.append(MagSensorFactory(header, calibration))
-
+        ################
+        # self.active_sensors = []
+        # if 'TMP' in self.header and self.header['TMP'] == 1:
+        #   pass
+        # if 'ACL' in self.header and self.header['ACL'] == 1:
+        #   self.active_sensors.append(AccelSensorFactory(header, calibration))
+        # if 'MGN' in self.header and self.header['MGN'] == 1:
+        #   self.active_sensors.append(MagSensorFactory(header, calibration))
+        pass

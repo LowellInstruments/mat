@@ -1,4 +1,3 @@
-from numpy import array
 from mat.meter import Meter
 from mat.utils import array_from_tags
 
@@ -8,7 +7,7 @@ SLOPE_KEYS = ['AXB', 'AYB', 'AZB']
 
 
 class LinearAccelerometer(Meter):
-    
+
     REQUIRED_KEYS = set(OFFSET_KEYS).union(SLOPE_KEYS)
 
     def __init__(self, hs):

@@ -6,7 +6,7 @@ class Light:
     def __init__(self, calibration):
         self.pda = calibration.coefficients.get("PDA", DEFAULT_PDA)
         self.pdb = calibration.coefficients.get("PDB", DEFAULT_PDB)
-        
+
     def convert(self, raw_light):
         is_bad_val = raw_light > 4096
         light_val = raw_light * self.pdb + self.pda

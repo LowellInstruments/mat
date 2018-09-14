@@ -1,12 +1,7 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-from mat import calibration
-from mat import header
-import numpy as np
-import datetime
-from abc import ABC, abstractmethod
-from math import floor
+from abc import ABC
 from mat.data_file_registry import DataFileRegistry
 
 
