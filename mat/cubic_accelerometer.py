@@ -1,7 +1,4 @@
-from numpy import (
-    array,
-    dot,
-)
+from numpy import dot
 from mat.meter import Meter
 from mat.utils import array_from_tags
 
