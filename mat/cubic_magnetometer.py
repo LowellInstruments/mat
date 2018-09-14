@@ -20,7 +20,7 @@ class CubicMagnetometer(Meter):
         self.soft_iron = array_from_tags(hs,
                                          X_KEYS,
                                          Y_KEYS,
-                                         Z_KEYS).transpose()
+                                         Z_KEYS)
 
     def convert(self, raw_magnetometer, temperature=None):
         return dot(self.soft_iron, raw_magnetometer + self.hard_iron)
