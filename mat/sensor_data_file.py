@@ -3,7 +3,7 @@
 
 from mat.header import Header
 from mat.calibration_factories import make_from_string
-from mat.sensor import SensorGroup
+from mat.sensor import SensorFactory
 from abc import ABC, abstractmethod
 from math import floor
 from mat.header import ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
@@ -18,7 +18,6 @@ class SensorDataFile(ABC):
         self._file_path = file_path
         self._file = None
         self._n_pages = None
-        self._sensors = None
         self._header = None
         self._calibration = None
         self._page_times = None
@@ -86,7 +85,13 @@ class SensorDataFile(ABC):
             return self._partial_page_seconds()
 
     def samples_per_page(self):
-        return len(self.sensors().time_and_order(self.seconds_per_page()))
+        return self._count_samples(self.sensors())
+
+    def _count_samples(self, sensor_list):
+        samples = 0
+        for s in sensor_list:
+            samples += s.samples_per_page()
+        return samples
 
     def file(self):
         if self._file is None:
@@ -94,12 +99,9 @@ class SensorDataFile(ABC):
         return self._file
 
     def sensors(self):
-        if self._sensors:
-            return self._sensors
-        sensor_group = SensorGroup(self.header(), self.calibration())
-        sensor_group.load_sequence_into_sensors(self.seconds_per_page())
-        self._sensors = sensor_group.sensors()
-        return self._sensors
+        return SensorFactory(self.header(),
+                             self.calibration(),
+                             self.seconds_per_page()).get_sensors()
 
     def file_size(self):
         if self._file_size:
@@ -111,9 +113,16 @@ class SensorDataFile(ABC):
         return self._file_size
 
     def _partial_page_seconds(self):
-        sensors = SensorGroup(self.header(), self.calibration())  # temporary sensor group
+        # create a temporary set of sensors and tell them the page is equal
+        # to the major interval. Then query each sensor to get the total
+        # number of samples.
+
         maj_interval = self.major_interval()
-        n_samples_per_interval = sensors.samples_per_time(maj_interval)
+        sensors = SensorFactory(self.header(),
+                                self.calibration(),
+                                maj_interval).get_sensors()
+
+        n_samples_per_interval = self._count_samples(sensors)
         remaining_bytes = (self.file_size()
                            - self.data_start()
                            - self.mini_header_length())
