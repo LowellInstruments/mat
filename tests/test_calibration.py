@@ -3,7 +3,10 @@ from mat.calibration_factories import make_from_calibration_file
 from mat.calibration_factories import make_from_string
 from mat.v3_calibration import V3Calibration
 from mat import odlfile
-from tests.utils import reference_file
+from tests.utils import (
+    calibration_from_file,
+    reference_file,
+)
 from math import isclose
 
 
@@ -42,8 +45,7 @@ class TestHeader(TestCase):
                          'MZY': -0.011,
                          'MZZ': 0.155,
                          'MZV': -287.3}
-        file = reference_file('v2_calibration.txt')
-        cal = make_from_calibration_file(file)
+        cal = calibration_from_file("v2_calibration.txt")
         cal_is_close(cal.coefficients, expected_dict)
 
     def test_load_v3_calibration(self):
@@ -81,8 +83,7 @@ class TestHeader(TestCase):
                          'MZZ': 1.101313,
                          'MZV': -2089.487206,
                          'MRF': 24.961058}
-        file = reference_file('v3_calibration.txt')
-        cal = make_from_calibration_file(file)
+        cal = calibration_from_file("v3_calibration.txt")
         cal_is_close(cal.coefficients, expected_dict)
 
     def test_load_v3_from_data_file(self):
