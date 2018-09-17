@@ -3,10 +3,11 @@ import numpy as np
 
 
 class SensorGroup:
-    def __init__(self, header):
+    def __init__(self, header, calibration):
         self.header = header
         self._active_sensors = None
         self.data_page = None
+        self.calibration = calibration
 
     def sensors(self):
         if self._active_sensors:
@@ -21,7 +22,9 @@ class SensorGroup:
         active_sensors = []
         for spec in AVAILABLE_SENSORS:
             if self.header.tag(spec.enabled_tag):
-                active_sensors.append(Sensor(spec, self.header))
+                active_sensors.append(Sensor(spec,
+                                             self.header,
+                                             self.calibration))
         return active_sensors
 
     def load_sequence_into_sensors(self, seconds):
@@ -48,13 +51,15 @@ class SensorGroup:
 
 
 class Sensor:
-    def __init__(self, spec, header):
+    def __init__(self, spec, header, calibration):
         self.name = spec.name
         self.order = spec.order
         self.channels = spec.channels
         self.interval = header.tag(spec.interval_tag)
         self.burst_rate = header.tag(spec.burst_rate_tag) or 1
         self.burst_count = header.tag(spec.burst_count_tag) or 1
+        self.is_sensor = None
+        self.converter = spec.converter(calibration)
 
     def time_sequence(self, seconds):
         """
@@ -67,3 +72,9 @@ class Sensor:
                 burst *= self.channels
                 sample_times.extend(burst)
         return sample_times
+
+    def apply_calibration(self, data):
+        return self.converter.convert(data)
+
+    def parse_sensor(self, data_page):
+        return data_page[self.is_sensor]

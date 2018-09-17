@@ -3,7 +3,11 @@ This module specifies the unique qualities of each sensor.
 """
 
 from collections import namedtuple
-from mat import converter
+from mat.accelerometer_factory import accelerometer_factory
+from mat.magnetometer_factory import magnetometer_factory
+from mat.light import Light
+from mat.pressure import Pressure
+from mat.temperature import Temperature
 
 
 SensorSpec = namedtuple('SensorSpec', [
@@ -31,7 +35,7 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                channel_name='Temperature',
                channel_units='C',
-               converter=converter.Temperature),
+               converter=Temperature),
 
     SensorSpec(name='Pressure',
                enabled_tag='PRS',
@@ -43,7 +47,7 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                channel_name='Pressure',
                channel_units='psi',
-               converter=converter.Pressure),
+               converter=Pressure),
 
     SensorSpec(name='Light',
                enabled_tag='PHD',
@@ -55,7 +59,7 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                channel_name='Light',
                channel_units='%',
-               converter=converter.Light.factory),
+               converter=Light),
 
     SensorSpec(name='Accelerometer',
                enabled_tag='ACL',
@@ -67,7 +71,7 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                channel_name=['Ax', 'Ay', 'Az'],
                channel_units='g',
-               converter=converter.Accelerometer.factory),
+               converter=accelerometer_factory),
 
     SensorSpec(name='Magnetometer',
                enabled_tag='MGN',
@@ -79,5 +83,5 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                channel_name=['Mx', 'My', 'Mz'],
                channel_units='mG',
-               converter=converter.Magnetometer.factory)
+               converter=magnetometer_factory)
 ]
