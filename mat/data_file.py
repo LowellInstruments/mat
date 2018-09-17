@@ -67,35 +67,33 @@ class HdfFile(OutputObj):
     pass
 
 
-class DataProduct:
-    pass
-
-
-class DiscreteChannels(DataProduct):
-    OUTPUT_TYPE = 'discrete'
+class DiscreteChannels:
+    OUTPUT_TYPE = ''
     REQUIRED_SENSORS = []
 
     def __init__(self, sensors):
-        pass
+        self.sensors = sensors
 
-
-class Current(DataProduct):
-    OUTPUT_TYPE = 'current'
-    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
-
-    def __init__(self, sensors):
-        pass
-
-
-class Compass(DataProduct):
-    OUTPUT_TYPE = 'compass'
-    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
-
-    def __init__(self, sensors):
+    def convert_page(self):
         pass
 
 
 class AccelerometerMagnetometer(DiscreteChannels):
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
-    pass
+    def convert_page(self):
+        pass
+
+
+class Current(AccelerometerMagnetometer):
+    OUTPUT_TYPE = 'current'
+
+    def convert_page(self):
+        pass
+
+
+class Compass(AccelerometerMagnetometer):
+    OUTPUT_TYPE = 'compass'
+
+    def convert_page(self):
+        pass

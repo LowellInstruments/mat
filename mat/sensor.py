@@ -21,10 +21,10 @@ class SensorGroup:
         active_sensors = []
         for spec in AVAILABLE_SENSORS:
             if self.header.tag(spec.enabled_tag):
-                active_sensors.append(SensorTime(spec, self.header))
+                active_sensors.append(Sensor(spec, self.header))
         return active_sensors
 
-    def generate_sequence(self, seconds):
+    def load_sequence_into_sensors(self, seconds):
         time_and_order = self.time_and_order(seconds)
         for sensor in self.sensors():
             is_sensor = [s[1] == sensor.order for s in time_and_order]
@@ -36,7 +36,8 @@ class SensorGroup:
     def time_and_order(self, seconds):
         """
         Return a full time and sensor order sequence for all active sensors.
-        The output is a list of tuples sorted by time, then by sensor order.
+        The output is a list of tuples containing the sample time and order
+        sorted by time, then by order.
         """
         time_and_order = []
         for sensor in self.sensors():
@@ -47,17 +48,6 @@ class SensorGroup:
 
 
 class Sensor:
-    """
-    Each sensor is responsible for the following:
-    Generate a time sequence for when the sensor should sample
-    Provide a filter to extract the sensor's data from a page
-    Provide a converter to apply the calibration to the extracted data
-    """
-    def __init__(self):
-        pass
-
-
-class SensorTime:
     def __init__(self, spec, header):
         self.name = spec.name
         self.order = spec.order

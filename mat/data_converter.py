@@ -43,7 +43,7 @@ class DataConverter:
         #         outputters.write_sensor_data(page)
 
     def _open_outputs(self):
-        return output_factory(self.source_file().sensors().sensors(),
+        return output_factory(self.source_file().sensors(),
                               self.parameters)
 
     def __del__(self):

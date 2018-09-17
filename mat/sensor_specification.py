@@ -55,7 +55,7 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                channel_name='Light',
                channel_units='%',
-               converter=converter.Light),
+               converter=converter.Light.factory),
 
     SensorSpec(name='Accelerometer',
                enabled_tag='ACL',
@@ -67,7 +67,7 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                channel_name=['Ax', 'Ay', 'Az'],
                channel_units='g',
-               converter=converter.Accelerometer),
+               converter=converter.Accelerometer.factory),
 
     SensorSpec(name='Magnetometer',
                enabled_tag='MGN',
@@ -79,5 +79,5 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                channel_name=['Mx', 'My', 'Mz'],
                channel_units='mG',
-               converter=converter.Magnetometer)
+               converter=converter.Magnetometer.factory)
 ]

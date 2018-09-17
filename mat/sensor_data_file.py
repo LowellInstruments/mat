@@ -96,7 +96,9 @@ class SensorDataFile(ABC):
     def sensors(self):
         if self._sensors:
             return self._sensors
-        self._sensors = SensorGroup(self.header())
+        sensor_group = SensorGroup(self.header())
+        sensor_group.load_sequence_into_sensors(self.seconds_per_page())
+        self._sensors = sensor_group.sensors()
         return self._sensors
 
     def file_size(self):
@@ -109,8 +111,9 @@ class SensorDataFile(ABC):
         return self._file_size
 
     def _partial_page_seconds(self):
+        sensors = SensorGroup(self.header())  # temporary sensor group
         maj_interval = self.major_interval()
-        n_samples_per_interval = self.sensors().samples_per_time(maj_interval)
+        n_samples_per_interval = sensors.samples_per_time(maj_interval)
         remaining_bytes = (self.file_size()
                            - self.data_start()
                            - self.mini_header_length())

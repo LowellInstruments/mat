@@ -11,6 +11,7 @@ from tests.utils import (
     reference_file
 )
 from mat.data_file import _sensors_from_names
+from mat.data_file import Current
 
 
 class TestDataConverter(TestCase):
@@ -38,7 +39,7 @@ class TestDataConverter(TestCase):
     def test_sensors_from_names(self):
         full_file_path = reference_file("test.lid")
         f = create_data_file(full_file_path)
-        sensors = f.sensors().sensors()
+        sensors = f.sensors()
         accel_mag = _sensors_from_names(sensors,
                                         ['Accelerometer', 'Magnetometer'])
         assert ['Accelerometer', 'Magnetometer'] == [x.name for x in accel_mag]
@@ -48,4 +49,4 @@ class TestDataConverter(TestCase):
         full_file_path = reference_file("test.lid")
         dc = DataConverter(full_file_path, output_type='current')
         outputters = dc._open_outputs()
-        pass
+        assert isinstance(outputters[0], Current)
