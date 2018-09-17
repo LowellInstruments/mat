@@ -8,6 +8,7 @@ class SensorFilter:
         self.interval = header.tag(spec.interval_tag)
         self.burst_rate = header.tag(spec.burst_rate_tag) or 1
         self.burst_count = header.tag(spec.burst_count_tag) or 1
+        self.data_type = spec.data_type
         self.is_sensor = None
 
     def time_sequence(self, seconds):
@@ -25,6 +26,7 @@ class SensorFilter:
     def parse_data_page(self, data_page):
         index = self.is_sensor[self.is_sensor < len(data_page)]
         sensor_data = self._remove_partial_burst(data_page[index])
+        sensor_data = sensor_data.astype(self.data_type)
         return np.reshape(sensor_data, (self.channels, -1), order='F')
 
     def _remove_partial_burst(self, sensor_data):

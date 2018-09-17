@@ -1,14 +1,3 @@
-"""
-This class should work something like this
-
-open a lid file
-load a data page
-extract each sensor's data from the data page
-apply the calibration to each sensor
-write the calibrated data to an output file
-"""
-
-
 from mat.data_file_factory import create_data_file
 from mat.data_file import output_factory
 
@@ -36,11 +25,11 @@ class DataConverter:
 
     def convert(self):
         self.outputs = self._open_outputs()
-        # for i in range(data_source.n_pages()):
-        #     page = data_source.load_page(i)
-        #
-        #     for outputters in outputs:
-        #         outputters.write_sensor_data(page)
+        for i in range(self.source_file().n_pages()):
+            page = self.source_file().load_page(i)
+            pass
+            # for outputters in outputs:
+            #     outputters.write_sensor_data(page)
 
     def _open_outputs(self):
         return output_factory(self.source_file().sensors(),
