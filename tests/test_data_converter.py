@@ -2,14 +2,10 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 
-import os
 from unittest import TestCase
 from mat.data_converter import DataConverter
 from mat.data_file_factory import create_data_file
-from tests.utils import (
-    assert_compare_expected_file,
-    reference_file
-)
+from tests.utils import reference_file
 from mat.data_file import _sensors_from_names
 from mat.data_file import Current
 
@@ -32,9 +28,9 @@ class TestDataConverter(TestCase):
 
     def test_data_file_creation(self):
         full_file_path = reference_file("test.lid")
-        converter = DataConverter(full_file_path,
-                                  output_type='discrete',
-                                  output_format='csv')
+        DataConverter(full_file_path,
+                      output_type='discrete',
+                      output_format='csv')
 
     def test_sensors_from_names(self):
         full_file_path = reference_file("test.lid")
@@ -43,7 +39,6 @@ class TestDataConverter(TestCase):
         accel_mag = _sensors_from_names(sensors,
                                         ['Accelerometer', 'Magnetometer'])
         assert ['Accelerometer', 'Magnetometer'] == [x.name for x in accel_mag]
-
 
     def test_verify_outputter_current(self):
         full_file_path = reference_file("test.lid")

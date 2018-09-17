@@ -58,6 +58,7 @@ ifeq ($(OS),Windows_NT)
     tests/test_calibration.py \
     tests/test_compare_data_files.py \
     tests/test_converter.py \
+    tests/test_data_converter.py \
     tests/test_gps.py \
     tests/test_header.py \
     tests/test_sensor_data_file.py \
