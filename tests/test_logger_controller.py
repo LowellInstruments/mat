@@ -64,6 +64,10 @@ class FakeSerialShortData(FakeSerialReader):
     reads = [b'\n', b'\r', b'S', b'IT 04', b'dow']
 
 
+class FakeSerialRHS(FakeSerialReader):
+    reads = [b'\n', b'\r', b'R', b'HS 04', b'down']
+
+
 class TestLoggerController(TestCase):
     def test_create(self):
         assert LoggerController()
@@ -201,6 +205,13 @@ class TestLoggerController(TestCase):
         controller = LoggerController()
         assert controller.open_port(com_port="1")
         assert controller.command("SIT") is None
+
+    @patch('mat.logger_controller.os.name', "nt")
+    @patch('mat.logger_controller.Serial', FakeSerialRHS)
+    def test_load_host_storage(self):
+        controller = LoggerController()
+        assert controller.open_port(com_port="1")
+        assert controller.load_host_storage() is None
 
 
 def _do_nothing(*args):
