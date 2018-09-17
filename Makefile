@@ -39,8 +39,8 @@ ifeq ($(OS),Windows_NT)
     mat/light.py \
     mat/linear_accelerometer.py \
     mat/lis_data_file.py \
+    mat/logger_controller.py \
     mat/magnetometer_factory.py \
-    mat/matcomm.py \
     mat/meter.py \
     mat/odlfile.py \
     mat/pressure.py \

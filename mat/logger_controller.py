@@ -19,7 +19,7 @@ import datetime
 # TODO: A default value needs to be loaded.
 
 
-class Logger(object):
+class LoggerController(object):
     def __init__(self):
         self.__connected = False
         self.__port = None
@@ -38,7 +38,7 @@ class Logger(object):
                 if os.name == 'posix':
                     port_re = re.search('(ttyACM0)', field)
                 elif os.name == 'nt':
-                    port_re = re.search('^COM(\d+)', field)
+                    port_re = re.search(r'^COM(\d+)', field)
                 else:
                     raise RuntimeError('Unsupported operating system')
 
