@@ -52,5 +52,5 @@ class TestSensorDataFile(TestCase):
 
     def test_seconds_per_page_partial_page(self):
         data_file = create_data_file(reference_file('test.lid'))
-        seconds = data_file.seconds_per_page()
+        data_file.seconds_per_page()
         pass
