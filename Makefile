@@ -25,7 +25,6 @@ ifeq ($(OS),Windows_NT)
   virtualenv = $(shell where virtualenv.exe)
   PROJECT_PYFILES = \
     mat/accelerometer_factory.py \
-    mat/admin.py \
     mat/appdata.py \
     mat/ascii85.py \
     mat/calibration_factories.py \
