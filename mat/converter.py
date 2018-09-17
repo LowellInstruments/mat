@@ -25,19 +25,23 @@ class Converter:
         return self.temperature_converter.convert(raw_temperature)
 
     def accelerometer(self, raw_accelerometer, temperature=None):
-        if self.accelerometer_converter is None:
-            return None
-        return self.accelerometer_converter.convert(raw_accelerometer,
-                                                    temperature)
+        return _meter_convert(self.accelerometer_converter,
+                              raw_accelerometer,
+                              temperature)
 
     def magnetometer(self, raw_magnetometer, temperature=None):
-        if self.magnetometer_converter is None:
-            return None
-        return self.magnetometer_converter.convert(raw_magnetometer,
-                                                   temperature)
+        return _meter_convert(self.magnetometer_converter,
+                              raw_magnetometer,
+                              temperature)
 
     def pressure(self, raw_pressure):
         return self.pressure_converter.convert(raw_pressure)
 
     def light(self, raw_light):
         return self.light_converter.convert(raw_light)
+
+
+def _meter_convert(converter, raw_data, temperature):
+    if converter is None:
+        return None
+    return converter.convert(raw_data, temperature)
