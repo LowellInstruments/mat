@@ -1,9 +1,6 @@
 from unittest.mock import patch
 from unittest import TestCase
-from serial import (
-    Serial,
-    SerialException,
-)
+from serial import SerialException
 from mat.logger_controller import LoggerController
 
 
