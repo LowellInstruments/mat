@@ -21,8 +21,7 @@ class SensorDataFile(ABC):
     def __init__(self, file_path):
         self._file_path = file_path
         self._file = None
-        self._n_pages = None
-        self._sensors = None
+        self.caches = {}
 
     def __del__(self):
         if self._file:
@@ -43,14 +42,15 @@ class SensorDataFile(ABC):
         return self._file
 
     def n_pages(self):
-        if self._n_pages is None:
-            self._n_pages = self._calc_n_pages()
-        return self._n_pages
+        return self._cached_result(self._calc_n_pages)
 
     def sensors(self):
-        if self._sensors is None:
-            self._sensors = self._create_sensors()
-        return self._sensors
+        return self._cached_result(self._create_sensors)
+
+    def _cached_result(self, method):
+        if method not in self.caches:
+            self.caches[method] = method()
+        return self.caches[method]
 
     def _calc_n_pages(self):
         return 1
