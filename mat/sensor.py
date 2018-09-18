@@ -4,10 +4,10 @@ from mat.sensor_filter import SensorFilter
 
 
 class SensorFactory:
-    def __init__(self, header, calibration, page_time):
+    def __init__(self, header, calibration, seconds):
         self.header = header
         self.calibration = calibration
-        self.page_time = page_time
+        self.seconds = seconds
         self.sensors_list = None
 
     def get_sensors(self):
@@ -15,7 +15,7 @@ class SensorFactory:
         # with sensors discovered, determine the overall sensor sequence
         # and let the individual sensors know their positions
         time_and_order = self._time_and_order(self.sensors_list,
-                                              self.page_time)
+                                              self.seconds)
         self._load_sequence_into_sensors(time_and_order)
         return self.sensors_list
 
@@ -25,7 +25,8 @@ class SensorFactory:
             if self.header.tag(spec.enabled_tag):
                 self.sensors_list.append(Sensor(spec,
                                                 self.header,
-                                                self.calibration))
+                                                self.calibration,
+                                                self.seconds))
 
     def _load_sequence_into_sensors(self, time_and_order):
         for sensor in self.sensors_list:
@@ -40,22 +41,22 @@ class SensorFactory:
         """
         time_and_order = []
         for sensor in sensors:
-            sample_times = sensor.get_time_sequence(seconds)
+            sample_times = sensor.sample_times()
             sensor_time_order = [(t, sensor.order) for t in sample_times]
             time_and_order.extend(sensor_time_order)
         return sorted(time_and_order)
 
 
 class Sensor:
-    def __init__(self, spec, header, calibration):
+    def __init__(self, spec, header, calibration, seconds):
         self.spec = spec
         self.name = spec.name
         self.order = spec.order
-        self.sensor_filter = SensorFilter(spec, header)
+        self.sensor_filter = SensorFilter(spec, header, seconds)
         self.converter = spec.converter(calibration)
 
-    def get_time_sequence(self, seconds):
-        return self.sensor_filter.time_sequence(seconds)
+    def sample_times(self):
+        return self.sensor_filter.sample_times()
 
     def set_filter_sequence(self, is_sensor):
         self.sensor_filter.is_sensor = is_sensor

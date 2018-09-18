@@ -32,10 +32,6 @@ def _sensor_from_name(sensors, names):
     return [s for s in sensors if s.name in names]
 
 
-def _remove_from_list(source_list, items_to_remove):
-    return [x for x in source_list if x not in items_to_remove]
-
-
 class DataProduct:
     OUTPUT_TYPE = ''
     REQUIRED_SENSORS = []
@@ -52,13 +48,10 @@ class DataProduct:
         self.configure_output_stream()
 
     def configure_output_stream(self):
-        pass
+        pass  # pragma: no cover
 
-    def process_page(self, data_page):
-        pass
-
-    def file_suffix(self):
-        pass
+    def process_page(self, data_page, page_time):
+        pass  # pragma: no cover
 
 
 class DiscreteChannel(DataProduct):
@@ -70,12 +63,15 @@ class DiscreteChannel(DataProduct):
         self.output_stream.add_stream(name)
         self.output_stream.set_data_format(name, self.sensors.spec.format)
         self.output_stream.set_header_string(name, self.sensors.spec.header)
-        self.output_stream.set_time_format(name, self.parameters['time_format'])
+        self.output_stream.set_time_format(name,
+                                           self.parameters['time_format'])
+        self.output_stream.write_header(name)
 
-    def process_page(self, data_page):
+    def process_page(self, data_page, page_time):
         raw_data = self.sensors.parse(data_page)
         data = self.sensors.apply_calibration(raw_data)
-        self.output_stream.write(self.sensors.name, data)
+        time = page_time + self.sensors.sample_times()
+        self.output_stream.write(self.sensors.name, time, data)
 
 
 class AccelerometerMagnetometer(DiscreteChannel):
@@ -84,8 +80,9 @@ class AccelerometerMagnetometer(DiscreteChannel):
     def file_suffix(self):
         return '_AccelMag'
 
-    def process_page(self, data_page):
+    def process_page(self, data_page, page_time):
         pass
+
 
 class Current(AccelerometerMagnetometer):
     OUTPUT_TYPE = 'current'
@@ -93,7 +90,7 @@ class Current(AccelerometerMagnetometer):
     def file_suffix(self):
         return '_Current'
 
-    def process_page(self, data_page):
+    def process_page(self, data_page, page_time):
         pass
 
 
@@ -103,5 +100,5 @@ class Compass(AccelerometerMagnetometer):
     def file_suffix(self):
         return '_Compass'
 
-    def process_page(self, data_page):
+    def process_page(self, data_page, page_time):
         pass

@@ -17,8 +17,8 @@ class OutputStream:
     def add_stream(self, data_product):
         pass
 
-    def set_header_string(self, stream, header_format):
-        self.streams[stream].header_format = header_format
+    def set_header_string(self, stream, header_string):
+        self.streams[stream].header_string = header_string
 
     def set_data_format(self, stream, data_format):
         self.streams[stream].data_format = data_format
@@ -26,8 +26,11 @@ class OutputStream:
     def set_time_format(self, stream, time_format):
         self.streams[stream].time_format = time_format
 
-    def write(self, stream, data):
-        self.streams[stream].write(data)
+    def write(self, stream, time, data):
+        self.streams[stream].write(time, data)
+
+    def write_header(self, stream):
+        self.streams[stream].write_header()
 
 
 class CsvStream(OutputStream):
@@ -53,7 +56,7 @@ class CsvFile:
 
     def __init__(self, output_path):
         self.output_path = output_path
-        self.header_str = ''
+        self.header_string = ''
         self.data_format = ''
         self.time_format = 'iso8601'
         self.delete_output_file(output_path)
@@ -64,8 +67,12 @@ class CsvFile:
         except FileNotFoundError:
             pass
 
-    def write(self, data):
-        data_format = self.data_format + '\r\n'
+    def write_header(self):
+        with open(self.output_path, 'a') as fid:
+            fid.write('Time,' + self.header_string + '\r\n')
+
+    def write(self, time, data):
+        data_format = '{},' + self.data_format + '\r\n'
         with open(self.output_path, 'a') as fid:
             for i in range(np.shape(data)[1]):
-                fid.write(data_format.format(*data[:, i]))
+                fid.write(data_format.format(time[i], *data[:, i]))

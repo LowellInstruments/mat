@@ -71,7 +71,7 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                header='Ax (g), Ay (g), Az (g)',
                converter=accelerometer_factory,
-               format='{:0.4f}, {:0.4f}, {:0.4f}'),
+               format='{:0.4f},{:0.4f},{:0.4f}'),
 
     SensorSpec(name='Magnetometer',
                enabled_tag='MGN',
@@ -83,5 +83,5 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                header='Mx (mG), My (mG), Mz (mG)',
                converter=magnetometer_factory,
-               format='{:0.2f}, {:0.2f}, {:0.2f}')
+               format='{:0.2f},{:0.2f},{:0.2f}')
 ]

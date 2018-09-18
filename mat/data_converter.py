@@ -20,17 +20,17 @@ class DataConverter:
     def source_file(self):
         if self._source_file:
             return self._source_file
-        # TODO change name of create_data_file
         self._source_file = create_data_file(self.path)
         return self._source_file
 
     def convert(self):
         outputs = self.get_outputs(self.source_file().sensors(),
                                    self.parameters)
+        page_times = self.source_file().page_times()
         for i in range(self.source_file().n_pages()):
             page = self.source_file().page(i)
             for this_output in outputs:
-                this_output.process_page(page)
+                this_output.process_page(page, page_times[i])
 
     def get_outputs(self, sensors, parameters):
         return data_product_factory(sensors, parameters)
