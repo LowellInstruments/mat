@@ -48,6 +48,7 @@ class SensorFactory:
 
 class Sensor:
     def __init__(self, spec, header, calibration):
+        self.spec = spec
         self.name = spec.name
         self.order = spec.order
         self.sensor_filter = SensorFilter(spec, header)
@@ -62,7 +63,7 @@ class Sensor:
     def apply_calibration(self, data):
         return self.converter.convert(data)
 
-    def parse_sensor(self, data_page):
+    def parse(self, data_page):
         return self.sensor_filter.parse_data_page(data_page)
 
     def samples_per_page(self):

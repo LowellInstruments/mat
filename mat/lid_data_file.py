@@ -13,7 +13,7 @@ class LidDataFile(SensorDataFile):
     def n_pages(self):
         return ceil((self.file_size() - DATA_START) / PAGE_SIZE)
 
-    def load_page(self, i):
+    def _load_page(self, i):
         if i >= self.n_pages():
             raise ValueError('page {} exceeds number of pages'.format(i))
 

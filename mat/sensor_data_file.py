@@ -32,7 +32,7 @@ class SensorDataFile(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def load_page(self, i):
+    def _load_page(self, i):
         pass  # pragma: no cover
 
     @abstractmethod
@@ -51,7 +51,7 @@ class SensorDataFile(ABC):
         if self._cached_page_n == i:
             return self._cached_page
         self._cached_page_n = i
-        self._cached_page = self.load_page(i)
+        self._cached_page = self._load_page(i)
         return self._cached_page
 
     def header(self):

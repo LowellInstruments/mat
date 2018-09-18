@@ -25,5 +25,5 @@ class LisDataFile(SensorDataFile):
     def data_start(self):
         return DATA_START
 
-    def load_page(self, i):
+    def _load_page(self, i):
         pass

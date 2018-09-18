@@ -19,9 +19,9 @@ SensorSpec = namedtuple('SensorSpec', [
     'burst_rate_tag',
     'burst_count_tag',
     'data_type',
-    'channel_name',
-    'channel_units',
-    'converter']
+    'header',
+    'converter',
+    'format']
 )
 
 AVAILABLE_SENSORS = [
@@ -33,9 +33,9 @@ AVAILABLE_SENSORS = [
                burst_rate_tag=None,
                burst_count_tag=None,
                data_type='uint16',
-               channel_name='Temperature',
-               channel_units='C',
-               converter=Temperature),
+               header='Temperature (C)',
+               converter=Temperature,
+               format='{:0.4f}'),
 
     SensorSpec(name='Pressure',
                enabled_tag='PRS',
@@ -45,9 +45,9 @@ AVAILABLE_SENSORS = [
                burst_rate_tag='PRR',
                burst_count_tag='PRN',
                data_type='uint16',
-               channel_name='Pressure',
-               channel_units='psi',
-               converter=Pressure),
+               header='Pressure (psi)',
+               converter=Pressure,
+               format='{:0.2f}'),
 
     SensorSpec(name='Light',
                enabled_tag='PHD',
@@ -57,9 +57,9 @@ AVAILABLE_SENSORS = [
                burst_rate_tag=None,
                burst_count_tag=None,
                data_type='uint16',
-               channel_name='Light',
-               channel_units='%',
-               converter=Light),
+               header='Light (%)',
+               converter=Light,
+               format='{:0.1f}'),
 
     SensorSpec(name='Accelerometer',
                enabled_tag='ACL',
@@ -69,9 +69,9 @@ AVAILABLE_SENSORS = [
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
                data_type='int16',
-               channel_name=['Ax', 'Ay', 'Az'],
-               channel_units='g',
-               converter=accelerometer_factory),
+               header='Ax (g), Ay (g), Az (g)',
+               converter=accelerometer_factory,
+               format='{:0.4f}, {:0.4f}, {:0.4f}'),
 
     SensorSpec(name='Magnetometer',
                enabled_tag='MGN',
@@ -81,7 +81,7 @@ AVAILABLE_SENSORS = [
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
                data_type='int16',
-               channel_name=['Mx', 'My', 'Mz'],
-               channel_units='mG',
-               converter=magnetometer_factory)
+               header='Mx (mG), My (mG), Mz (mG)',
+               converter=magnetometer_factory,
+               format='{:0.2f}, {:0.2f}, {:0.2f}')
 ]
