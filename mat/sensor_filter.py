@@ -11,18 +11,20 @@ class SensorFilter:
         self.data_type = spec.data_type
         self.is_sensor = None
         self.seconds = seconds
+        self._sample_times = None
 
     def sample_times(self):
-        """
-        Returns a list of all sample times that occur between 0 and 'seconds'
-        """
+        if self._sample_times is not None:
+            return self._sample_times
+
         sample_times = []
         for interval_time in range(0, self.seconds, self.interval):
             for burst_time in range(0, self.burst_count):
                 burst = [interval_time + burst_time / self.burst_rate]
                 burst *= self.channels
                 sample_times.extend(burst)
-        return np.array(sample_times)
+        self._sample_times = np.array(sample_times)
+        return self._sample_times
 
     def parse_data_page(self, data_page):
         index = self.is_sensor[self.is_sensor < len(data_page)]
