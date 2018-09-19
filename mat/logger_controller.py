@@ -59,12 +59,11 @@ PORT_PATTERNS = {
 
 
 def find_port():
-    for this_port in grep('2047:08[AEae]+'):
-        for field in this_port:
-            pattern = PORT_PATTERNS.get(os.name)
-            if not pattern:
-                raise RuntimeError("Unsupported operating system: " + os.name)
-            return re.search(pattern, field).group(1)
+    field = grep('2047:08[AEae]+')[0][0]
+    pattern = PORT_PATTERNS.get(os.name)
+    if not pattern:
+        raise RuntimeError("Unsupported operating system: " + os.name)
+    return re.search(pattern, field).group(1)
 
 
 class LoggerController(object):
