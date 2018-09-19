@@ -9,7 +9,8 @@ from serial.tools.list_ports import grep
 import numpy as np
 import re
 import os
-from mat import calibration, converter
+from mat.converter import Converter
+from mat.calibration_factories import make_from_string
 import datetime
 
 
@@ -165,8 +166,8 @@ class LoggerController(object):
             else:
                 break
 
-        self.hoststorage = calibration.make_from_string((hs_string))
-        self.converter = converter.Converter(self.hoststorage)
+        self.hoststorage = make_from_string((hs_string))
+        self.converter = Converter(self.hoststorage)
 
     def load_logger_info(self):
         read_size = 42
