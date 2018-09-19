@@ -6,7 +6,11 @@ from unittest.mock import patch
 from unittest import TestCase
 from serial import SerialException
 from mat.converter import Converter
-from mat.logger_controller import LoggerController
+from mat.logger_controller import (
+    LoggerController,
+    RESET_CMD,
+    SIMPLE_CMDS,
+)
 from mat.v2_calibration import V2Calibration
 
 COM_PORT = "1234"
@@ -79,65 +83,60 @@ class TestLoggerController(TestCase):
     def test_create(self):
         assert LoggerController()
 
-    def test_check_ports(self):
-        controller = LoggerController()
-        assert controller.check_ports() == []
+    # def test_check_ports(self):
+    #     controller = LoggerController()
+    #     assert controller.check_ports() == []
 
-    def test_check_ports_tty(self):
-        with _grep_patch(TTY_VALUE, "posix"):
-            _check_ports(TTY_NAME)
+    # def test_check_ports_tty(self):
+    #     with _grep_patch(TTY_VALUE, "posix"):
+    #         _check_ports(TTY_NAME)
 
-    def test_check_ports_com(self):
-        with _grep_patch(COM_VALUE):
-            _check_ports(COM_PORT)
+    # def test_check_ports_com(self):
+    #     with _grep_patch(COM_VALUE):
+    #         _check_ports(COM_PORT)
 
-    @patch('mat.logger_controller.grep',
-           return_value=COM_VALUE)
-    @patch('mat.logger_controller.os.name', "unknown")
-    def test_check_ports_unknown(self, grep):
-        controller = LoggerController()
-        with self.assertRaises(RuntimeError):
-            controller.check_ports()
-
-    @patch('mat.logger_controller.os.name', "unknown")
-    def test_open_port(self):
-        controller = LoggerController()
-        with self.assertRaises(AttributeError):
-            controller.open_port(com_port="1")
+    # def test_check_ports_unknown(self):
+    #     with _grep_patch(COM_VALUE, name="unknown"):
+    #         controller = LoggerController()
+    #         with self.assertRaises(RuntimeError):
+    #             controller.check_ports()
 
     def test_open_port_on_posix(self):
-        with _serial_patch(FakeSerial, name="posix"):
-            _open_port()
+        with _grep_patch(TTY_VALUE, name="posix"):
+            _open_controller()
 
-    @patch('mat.logger_controller.Serial.close', return_value=None)
-    def test_open_port_on_nt(self, close):
-        with _serial_patch(FakeSerial):
-            _open_port()
-            assert close.call_count == 0
+    def test_open_port_on_nt(self):
+        with _grep_patch(COM_VALUE, name="nt"):
+            _open_controller()
+
+    def test_open_port_on_nt(self):
+        with _grep_patch(COM_VALUE, name="unknown"):
+            with self.assertRaises(RuntimeError):
+                _open_controller()
 
     def test_open_port_twice(self):
         with _serial_patch(FakeSerial):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             close_count = FakeSerial.close_count
             assert controller.open_port(com_port="1")
             assert FakeSerial.close_count > close_count
 
     def test_open_port_exception(self):
         with _serial_patch(FakeExceptionSerial):
-            _open_port(False)
+            _open_controller(com_port="1", expectation=False)
 
-    @patch('mat.logger_controller.os.name', "nt")
-    def test_auto_connect(self):
-        controller = LoggerController()
-        assert not controller.auto_connect()
+    # @patch('mat.logger_controller.os.name', "nt")
+    # def test_auto_connect(self):
+    #     controller = LoggerController()
+    #     assert not controller.auto_connect()
 
-    @patch('mat.logger_controller.grep',
-           return_value=COM_VALUE)
-    @patch('mat.logger_controller.os.name', "nt")
-    @patch('mat.logger_controller.Serial', FakeSerial)
-    def test_auto_connect_with_ports(self, grep):
-        controller = LoggerController()
-        assert controller.auto_connect()
+    # @patch('mat.logger_controller.grep',
+    #        return_value=COM_VALUE)
+    # @patch('mat.logger_controller.os.name', "nt")
+    # @patch('mat.logger_controller.Serial', FakeSerial)
+    # def test_auto_connect_with_ports(self, grep):
+    #     controller = LoggerController()
+    #     assert controller.auto_connect()
 
     def test_empty_command(self):
         controller = LoggerController()
@@ -162,7 +161,7 @@ class TestLoggerController(TestCase):
 
     def test_short_command2(self):
         with _command_patch("SIT 04dow"):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             with self.assertRaises(RuntimeError):
                 controller.command("SIT")
 
@@ -183,10 +182,10 @@ class TestLoggerController(TestCase):
 
     def test_exception_command(self):
         with _serial_patch(FakeSerialExceptionReader):
-            assert _open_port().command("SIT") is None
+            assert _open_controller(com_port="1").command("SIT") is None
 
     def exception_command(self):
-        assert _open_port().command("SIT") is None
+        assert _open_controller(com_port="1").command("SIT") is None
 
     def test_load_host_storage(self):
         with _command_patch("RHS 04down"):
@@ -197,7 +196,7 @@ class TestLoggerController(TestCase):
             self.load_host_storage()
 
     def load_host_storage(self):
-        controller = _open_port()
+        controller = _open_controller(com_port="1")
         assert controller.hoststorage is None
         assert controller.load_host_storage() is None
         assert isinstance(controller.hoststorage, V2Calibration)
@@ -206,28 +205,28 @@ class TestLoggerController(TestCase):
 
     def test_load_logger_info_bad(self):
         with _command_patch("RLI 03bad"):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info['error'] is True
 
     def test_load_logger_ca_info(self):
         with _command_patch("RLI 09CA\x04FFFF##"):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info["CA"] != 0
 
     def test_load_logger_ba_info(self):
         with _command_patch("RLI 09BA\x04FFFF##"):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info["BA"] != 0
 
     def test_load_logger_ba_info_short(self):
         with _command_patch("RLI 07BA\x02FF##"):
-            controller = _open_port()
+            controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info["BA"] == 0
@@ -235,57 +234,40 @@ class TestLoggerController(TestCase):
     def test_get_timestamp(self):
         with _command_patch("GTM 13" + TIME_STAMP):
             expectation = timegm(strptime(TIME_STAMP, TIME_FORMAT))
-            assert _open_port().get_timestamp() == expectation
+            assert _open_controller(com_port="1").get_timestamp() == expectation
 
     def test_get_empty_logger_settings(self):
         with _command_patch("GLS 00"):
-            assert _open_port().get_logger_settings() == {}
+            assert _open_controller(com_port="1").get_logger_settings() == {}
 
     def test_get_logger_settings_on(self):
         with _command_patch("GLS 1e" + "01" * 15):
-            settings = _open_port().get_logger_settings()
+            settings = _open_controller(com_port="1").get_logger_settings()
             assert settings['ACL'] is True
             assert settings['BMN'] == 257
 
     def test_get_logger_settings_off(self):
         with _command_patch("GLS 1e" + "00" * 15):
-            settings = _open_port().get_logger_settings()
+            settings = _open_controller(com_port="1").get_logger_settings()
             assert settings['ACL'] is False
             assert settings['BMN'] == 0
 
     def test_reset(self):
-        with _command_patch("RST"):
-            assert _open_port().reset() is None
-
-    def test_commands_that_return_none(self):
-        for cmd, method in [("RUN", "run"),
-                            ("STP", "stop"),
-                            ("STM", "sync_time")]:
-            with _command_patch(cmd + " 00"):
-                assert getattr(_open_port(), method)() is None
+        with _command_patch(RESET_CMD):
+            assert _open_controller(com_port="1").command(RESET_CMD) is None
 
     def test_commands_that_return_empty_string(self):
-        for cmd, method in [("GFV", "get_firmware_version"),
-                            ("GIT", "get_interval_time"),
-                            ("GPC", "get_page_count"),
-                            ("GSN", "get_serial_number"),
-                            ("GST", "get_start_time"),
-                            ("GTM", "get_time"),
-                            ("STS", "get_status")]:
+        for cmd in SIMPLE_CMDS:
             with _command_patch(cmd + " 00"):
-                assert getattr(_open_port(), method)() == ""
+                assert _open_controller(com_port="1").command(cmd) == ""
 
     def test_stop_with_string(self):
         with _command_patch("SWS 00"):
-            assert _open_port().stop_with_string("") is None
-
-    def test_is_connected(self):
-        with _serial_patch(FakeSerial):
-            assert _open_port().is_connected() is True
+            assert _open_controller(com_port="1").stop_with_string("") == ""
 
     def test_get_sensor_readings_empty(self):
         with _command_patch("GSR 00"):
-            assert _open_port().get_sensor_readings() is None
+            assert _open_controller(com_port="1").get_sensor_readings() is None
 
     def test_get_sensor_readings_32bytes(self):
         self.get_sensor_readings(32, "E")  # "F" causes a ZeroDivisionError
@@ -302,38 +284,42 @@ class TestLoggerController(TestCase):
 
     def test_get_sd_capacity_empty(self):
         with _command_patch("CTS 00"):
-            assert _open_port().get_sd_capacity() is None
+            assert _open_controller(com_port="1").get_sd_capacity() is None
 
     def test_get_sd_capacity(self):
         capacity = 128
         with _command_patch("CTS 05%dKB" % capacity):
-            assert _open_port().get_sd_capacity() == capacity
+            assert _open_controller(com_port="1").get_sd_capacity() == capacity
 
     def test_get_sd_capacity_bad_data(self):
         with _command_patch("CTS 02XY"):
-            assert _open_port().get_sd_capacity() is None
+            assert _open_controller(com_port="1").get_sd_capacity() is None
 
     def test_get_sd_free_space_empty(self):
         with _command_patch("CFS 00"):
-            assert _open_port().get_sd_free_space() is None
+            assert _open_controller(com_port="1").get_sd_free_space() is None
 
     def test_get_sd_free_space(self):
         free_space = 128
         with _command_patch("CFS 05%dKB" % free_space):
-            assert _open_port().get_sd_free_space() == free_space
+            assert _open_controller(com_port="1").get_sd_free_space() == free_space
 
     def test_get_sd_free_space_bad_data(self):
         with _command_patch("CFS 02XY"):
-            assert _open_port().get_sd_free_space() is None
+            assert _open_controller(com_port="1").get_sd_free_space() is None
 
     def test_get_sd_file_size(self):
         size = 128
         with _command_patch("FSZ 03%d" % size):
-            assert _open_port().get_sd_file_size() == size
+            assert _open_controller(com_port="1").get_sd_file_size() == size
 
     def test_get_sd_file_size_empty(self):
         with _command_patch("FSZ 00"):
-            assert _open_port().get_sd_file_size() is None
+            assert _open_controller(com_port="1").get_sd_file_size() is None
+
+    def test_sync_time(self):
+        with _command_patch("STM 00"):
+            assert _open_controller(com_port="1").sync_time() == ""
 
 
 def _check_ports(port):
@@ -343,9 +329,10 @@ def _check_ports(port):
 
 @contextmanager
 def _grep_patch(grep_return, name="nt"):
-    with patch("mat.logger_controller.grep", return_value=grep_return):
-        with patch("mat.logger_controller.os.name", name):
-            yield
+    with patch("mat.logger_controller.Serial", FakeSerial):
+        with patch("mat.logger_controller.grep", return_value=grep_return):
+            with patch("mat.logger_controller.os.name", name):
+                yield
 
 
 @contextmanager
@@ -367,14 +354,14 @@ def fake_for_command(cmds):
     return type("FakeSerial", (FakeSerialForCommand,), {"cmds": cmds})
 
 
-def _open_port(expectation=True):
+def _open_controller(com_port=None, expectation=True):
     controller = LoggerController()
-    assert bool(controller.open_port(com_port="1")) is expectation
+    assert bool(controller.open_port(com_port=com_port)) is expectation
     return controller
 
 
 def _command(cmd):
-    controller = _open_port()
+    controller = _open_controller(com_port="1")
     return controller.command(cmd)
 
 

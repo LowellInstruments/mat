@@ -19,10 +19,57 @@ import datetime
 # TODO: if host storage isn't loaded, gsr crashes.
 # TODO: A default value needs to be loaded.
 
+FIRMWARE_VERSION_CMD = 'GFV'
+HOST_STORAGE_CMD = 'RHS'
+INTERVAL_TIME_CMD = 'GIT'
+LOGGER_INFO_CMD = 'RLI'
+LOGGER_SETTINGS_CMD = 'GLS'
+PAGE_COUNT_CMD = 'GPC'
+RESET_CMD = 'RST'
+RUN_CMD = 'RUN'
+SD_CAPACITY_CMD = 'CTS'
+SD_FILE_SIZE_CMD = 'FSZ'
+SD_FREE_SPACE_CMD = 'CFS'
+SENSOR_READINGS_CMD = 'GSR'
+SERIAL_NUMBER_CMD = 'GSN'
+START_TIME_CMD = 'GST'
+STATUS_CMD = 'STS'
+STOP_CMD = 'STP'
+STOP_WITH_STRING_CMD = 'SWS'
+SYNC_TIME_CMD = 'STM'
+TIME_CMD = 'GTM'
+
+SIMPLE_CMDS = [
+    FIRMWARE_VERSION_CMD,
+    INTERVAL_TIME_CMD,
+    PAGE_COUNT_CMD,
+    RUN_CMD,
+    SERIAL_NUMBER_CMD,
+    START_TIME_CMD,
+    STATUS_CMD,
+    STOP_CMD,
+    TIME_CMD,
+]
+
+
+PORT_PATTERNS = {
+    'posix': r'(ttyACM0)',
+    'nt': r'^COM(\d+)',
+}
+
+
+def find_port():
+    for this_port in grep('2047:08[AEae]+'):
+        for field in this_port:
+            pattern = PORT_PATTERNS.get(os.name)
+            if not pattern:
+                raise RuntimeError("Unsupported operating system: " + os.name)
+            return re.search(pattern, field).group(1)
+
 
 class LoggerController(object):
     def __init__(self):
-        self.__connected = False
+        self.is_connected = False
         self.__port = None
         self.timeout = 6
         self.com_port = None
@@ -31,50 +78,25 @@ class LoggerController(object):
         self.hoststorage = None
         self.converter = None
 
-    def check_ports(self):
-        port_info = grep('2047:08[AEae]+')
-        com_ports = []
-        for this_port in port_info:
-            for field in this_port:
-                if os.name == 'posix':
-                    port_re = re.search('(ttyACM0)', field)
-                elif os.name == 'nt':
-                    port_re = re.search(r'^COM(\d+)', field)
-                else:
-                    raise RuntimeError('Unsupported operating system')
-
-                if port_re:
-                    com_ports.append(port_re.group(1))
-
-        return com_ports
-
-    def open_port(self, com_port):
+    def open_port(self, com_port=None):
+        com_port = com_port or find_port()
         try:
-            if isinstance(self.__port, Serial):
-                self.__port.close()
-            if os.name == 'posix':
-                self.__port = Serial('/dev/' + com_port, 9600)
-            elif os.name == 'nt':
-                self.__port = Serial('COM' + str(com_port))
-
-            self.__port.timeout = 5
-            self.__connected = True
-            self.com_port = com_port
+            if com_port:
+                self._open_port(com_port)
         except SerialException:
-            self.__connected = False
             self.close()
+        return self.is_connected
 
-        # port_poller = threading.Thread(target=self.__port_watcher)
-        # port_poller.start()
-        return self.__connected
-
-    def auto_connect(self):
-        ports = self.check_ports()
-        if ports:
-            state = self.open_port(ports[0])
+    def _open_port(self, com_port):
+        if isinstance(self.__port, Serial):
+            self.__port.close()
+        if os.name == 'posix':
+            self.__port = Serial('/dev/' + com_port)
         else:
-            state = False
-        return state
+            self.__port = Serial('COM' + str(com_port))
+        self.__port.timeout = 5
+        self.is_connected = True
+        self.com_port = com_port
 
     def command(self, *args):
         tag = args[0]
@@ -82,7 +104,7 @@ class LoggerController(object):
         if len(args) == 2:
             data = str(args[1])
         length = '%02x' % len(data)
-        if not self.__connected:
+        if not self.is_connected:
             return
 
         try:
@@ -100,7 +122,7 @@ class LoggerController(object):
 
             # RST, BSL and sleep don't return tags.
             # This will allow the tx below to run and fail
-            if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
+            if tag == RESET_CMD or tag == 'sleep' or tag == 'BSL':
                 tag_waiting = ''
             else:
                 tag_waiting = tag
@@ -146,7 +168,7 @@ class LoggerController(object):
     def close(self):
         if self.__port:
             self.__port.close()
-        self.__connected = False
+        self.is_connected = False
         self.com_port = 0
 
     def load_host_storage(self):
@@ -160,7 +182,7 @@ class LoggerController(object):
             read_address = read_address[2:4] + read_address[0:2]
             read_length = '%02X' % read_size
             command_str = read_address + read_length
-            in_str = self.command('RHS', command_str)
+            in_str = self.command(HOST_STORAGE_CMD, command_str)
             if in_str:
                 hs_string += in_str
             else:
@@ -178,37 +200,21 @@ class LoggerController(object):
             read_address = read_address[2:4] + read_address[0:2]
             read_length = '%02x' % read_size
             command_str = read_address + read_length
-            li_string += self.command('RLI', command_str)
-
+            li_string += self.command(LOGGER_INFO_CMD, command_str)
         if li_string and not all([c == 255 for c in
                                   bytes(li_string, encoding='IBM437')]):
             self.logger_info = self.__parse_li(li_string)
 
-    def get_time(self):
-        return self.command('GTM')
-
     def get_timestamp(self):
         """ Return posix timestamp """
-        date_string = self.command('GTM')
+        date_string = self.command(TIME_CMD)
         epoch = datetime.datetime(1970, 1, 1)  # naive datetime format
         logger_time = datetime.datetime.strptime(date_string,
                                                  '%Y/%m/%d %H:%M:%S')
         return (logger_time-epoch).total_seconds()
 
-    def get_serial_number(self):
-        return self.command('GSN')
-
-    def get_firmware_version(self):
-        return self.command('GFV')
-
-    def get_interval_time(self):
-        return self.command('GIT')
-
-    def get_page_count(self):
-        return self.command('GPC')
-
     def get_logger_settings(self):
-        gls_string = self.command('GLS')
+        gls_string = self.command(LOGGER_SETTINGS_CMD)
         logger_settings = {}
         if not gls_string:
             return {}
@@ -253,33 +259,15 @@ class LoggerController(object):
 
         return logger_settings
 
-    def reset(self):
-        self.command('RST')
-
-    def get_status(self):
-        return self.command('STS')
-
-    def get_start_time(self):
-        return self.command('GST')
-
-    def run(self):
-        self.command('RUN')
-
-    def stop(self):
-        self.command('STP')
-
     def stop_with_string(self, data):
-        self.command('SWS', data)
-
-    def is_connected(self):
-        return self.__connected
+        return self.command(STOP_WITH_STRING_CMD, data)
 
     def get_sensor_readings(self):
-        sensor_string = self.command('GSR')
+        sensor_string = self.command(SENSOR_READINGS_CMD)
         return self._parse_sensors(sensor_string)
 
     def get_sd_capacity(self):
-        data = self.command('CTS')
+        data = self.command(SD_CAPACITY_CMD)
         if not data:
             return None
 
@@ -290,7 +278,7 @@ class LoggerController(object):
             return None
 
     def get_sd_free_space(self):
-        data = self.command('CFS')
+        data = self.command(SD_FREE_SPACE_CMD)
         if not data:
             return None
 
@@ -301,7 +289,7 @@ class LoggerController(object):
             return None
 
     def get_sd_file_size(self):
-        fsz = self.command('FSZ')
+        fsz = self.command(SD_FILE_SIZE_CMD)
         return int(fsz) if fsz else None
 
     def __parse_li(self, li_string):
@@ -403,7 +391,7 @@ class LoggerController(object):
     def sync_time(self):
         datetimeObj = datetime.datetime.now()
         formattedString = datetimeObj.strftime('%Y/%m/%d %H:%M:%S')
-        self.command('STM', formattedString)
+        return self.command(SYNC_TIME_CMD, formattedString)
 
     def set_callback(self, event, callback):
         self.__callback[event] = callback
