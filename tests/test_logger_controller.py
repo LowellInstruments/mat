@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 from calendar import timegm
 from time import strptime
+from itertools import chain
 from unittest.mock import patch
 from unittest import TestCase
 from serial import SerialException
+from mat.converter import Converter
 from mat.logger_controller import LoggerController
 from mat.v2_calibration import V2Calibration
 
@@ -63,13 +65,14 @@ class FakeSerialErr(FakeSerialReader):
 
 
 class FakeSerialForCommand(FakeSerialReader):
-    cmd = "ERR"
+    cmds = ["ERR"]
 
     def __init__(self, path, baud=9600):
         super().__init__(path, baud)
-        self.reads = [self.cmd[0].encode(),
-                      self.cmd[1:6].encode(),
-                      self.cmd[6:].encode()]
+        self.reads = list(chain(*[[cmd[0].encode(),
+                                   cmd[1:6].encode(),
+                                   cmd[6:].encode()]
+                                  for cmd in self.cmds]))
 
 
 class TestLoggerController(TestCase):
@@ -198,6 +201,8 @@ class TestLoggerController(TestCase):
         assert controller.hoststorage is None
         assert controller.load_host_storage() is None
         assert isinstance(controller.hoststorage, V2Calibration)
+        assert isinstance(controller.converter, Converter)
+        return controller
 
     def test_load_logger_info_bad(self):
         with _command_patch("RLI 03bad"):
@@ -254,7 +259,8 @@ class TestLoggerController(TestCase):
 
     def test_commands_that_return_none(self):
         for cmd, method in [("RUN", "run"),
-                            ("STP", "stop")]:
+                            ("STP", "stop"),
+                            ("STM", "sync_time")]:
             with _command_patch(cmd + " 00"):
                 assert getattr(_open_port(), method)() is None
 
@@ -277,9 +283,22 @@ class TestLoggerController(TestCase):
         with _serial_patch(FakeSerial):
             assert _open_port().is_connected() is True
 
-    def test_get_sensor_readings(self):
+    def test_get_sensor_readings_empty(self):
         with _command_patch("GSR 00"):
             assert _open_port().get_sensor_readings() is None
+
+    def test_get_sensor_readings_32bytes(self):
+        self.get_sensor_readings(32, "E")  # "F" causes a ZeroDivisionError
+
+    def test_get_sensor_readings_40bytes(self):
+        self.get_sensor_readings(40, "0")
+
+    def get_sensor_readings(self, bytes, value):
+        controller = None
+        with _command_patch(["RHS 00",
+                             "GSR %02s%s" % (hex(bytes)[2:], value * bytes)]):
+            controller = self.load_host_storage()
+            assert "ax" in controller.get_sensor_readings()
 
     def test_get_sd_capacity_empty(self):
         with _command_patch("CTS 00"):
@@ -337,13 +356,15 @@ def _serial_patch(serial_class, name="nt"):
 
 
 @contextmanager
-def _command_patch(cmd_str, name="nt"):
-    with _serial_patch(fake_for_command(cmd_str), name):
+def _command_patch(cmds, name="nt"):
+    if not isinstance(cmds, list):
+        cmds = [cmds]
+    with _serial_patch(fake_for_command(cmds), name):
         yield
 
 
-def fake_for_command(cmd):
-    return type("FakeSerial", (FakeSerialForCommand,), {"cmd": cmd})
+def fake_for_command(cmds):
+    return type("FakeSerial", (FakeSerialForCommand,), {"cmds": cmds})
 
 
 def _open_port(expectation=True):
