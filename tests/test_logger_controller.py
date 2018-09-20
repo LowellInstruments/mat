@@ -47,15 +47,16 @@ class FakeSerial:
 
 
 class FakeSerialReader(FakeSerial):
-    reads = [b'ERR']
+    data = b'ERR'
 
     def __init__(self, path, baud=9600):
         super().__init__(path, baud)
-        self.read_count = 0
+        self.start = 0
 
     def read(self, count):
-        result = self.reads[self.read_count % len(self.reads)]
-        self.read_count += 1
+        end = self.start + count
+        result = self.data[self.start:end]
+        self.start = end
         return result
 
 
@@ -65,7 +66,7 @@ class FakeSerialExceptionReader(FakeSerialReader):
 
 
 class FakeSerialErr(FakeSerialReader):
-    reads = [b'\n', b'\r', b'E', b'RR 04', b'boom']
+    data = b'\n\rERR 04boom'
 
 
 class FakeSerialForCommand(FakeSerialReader):
@@ -73,33 +74,12 @@ class FakeSerialForCommand(FakeSerialReader):
 
     def __init__(self, path, baud=9600):
         super().__init__(path, baud)
-        self.reads = list(chain(*[[cmd[0].encode(),
-                                   cmd[1:6].encode(),
-                                   cmd[6:].encode()]
-                                  for cmd in self.cmds]))
+        self.data = ''.join(self.cmds).encode()
 
 
 class TestLoggerController(TestCase):
     def test_create(self):
         assert LoggerController()
-
-    # def test_check_ports(self):
-    #     controller = LoggerController()
-    #     assert controller.check_ports() == []
-
-    # def test_check_ports_tty(self):
-    #     with _grep_patch(TTY_VALUE, "posix"):
-    #         _check_ports(TTY_NAME)
-
-    # def test_check_ports_com(self):
-    #     with _grep_patch(COM_VALUE):
-    #         _check_ports(COM_PORT)
-
-    # def test_check_ports_unknown(self):
-    #     with _grep_patch(COM_VALUE, name="unknown"):
-    #         controller = LoggerController()
-    #         with self.assertRaises(RuntimeError):
-    #             controller.check_ports()
 
     def test_open_port_on_posix(self):
         with _grep_patch(TTY_VALUE, name="posix"):
@@ -125,23 +105,11 @@ class TestLoggerController(TestCase):
         with _serial_patch(FakeExceptionSerial):
             _open_controller(com_port="1", expectation=False)
 
-    # @patch('mat.logger_controller.os.name', "nt")
-    # def test_auto_connect(self):
-    #     controller = LoggerController()
-    #     assert not controller.auto_connect()
-
-    # @patch('mat.logger_controller.grep',
-    #        return_value=COM_VALUE)
-    # @patch('mat.logger_controller.os.name', "nt")
-    # @patch('mat.logger_controller.Serial', FakeSerial)
-    # def test_auto_connect_with_ports(self, grep):
-    #     controller = LoggerController()
-    #     assert controller.auto_connect()
-
     def test_empty_command(self):
-        controller = LoggerController()
-        with self.assertRaises(IndexError):
-            controller.command()
+        with _serial_patch(FakeSerial):
+            controller = _open_controller(com_port="1")
+            with self.assertRaises(IndexError):
+                controller.command()
 
     def test_simple_command_port_closed(self):
         controller = LoggerController()
@@ -188,11 +156,12 @@ class TestLoggerController(TestCase):
         assert _open_controller(com_port="1").command("SIT") is None
 
     def test_load_host_storage(self):
-        with _command_patch("RHS 04down"):
+        with _command_patch("RHS 04down" * 10):
             self.load_host_storage()
 
     def test_load_host_storage_empty_rhs(self):  # For coverage
-        with _command_patch("RHS 00"):
+        with _command_patch("RHS 00" * 10):
+            _open_controller(com_port="1")
             self.load_host_storage()
 
     def load_host_storage(self):
@@ -204,28 +173,28 @@ class TestLoggerController(TestCase):
         return controller
 
     def test_load_logger_info_bad(self):
-        with _command_patch("RLI 03bad"):
+        with _command_patch("RLI 03bad" * 3):
             controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info['error'] is True
 
     def test_load_logger_ca_info(self):
-        with _command_patch("RLI 09CA\x04FFFF##"):
+        with _command_patch("RLI 09CA\x04FFFF##" * 3):
             controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info["CA"] != 0
 
     def test_load_logger_ba_info(self):
-        with _command_patch("RLI 09BA\x04FFFF##"):
+        with _command_patch("RLI 09BA\x04FFFF##" * 3):
             controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None
             assert controller.logger_info["BA"] != 0
 
     def test_load_logger_ba_info_short(self):
-        with _command_patch("RLI 07BA\x02FF##"):
+        with _command_patch("RLI 07BA\x02FF##" * 3):
             controller = _open_controller(com_port="1")
             assert len(controller.logger_info) == 0
             assert controller.load_logger_info() is None

@@ -1,17 +1,18 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
+import datetime
+import os
+import re
+import numpy as np
 from serial import (
     Serial,
     SerialException,
 )
 from serial.tools.list_ports import grep
-import numpy as np
-import re
-import os
 from mat.converter import Converter
 from mat.calibration_factories import make_from_string
-import datetime
+from mat.logger_cmd import LoggerCmd
 
 
 # TODO: the "command" method is in DIRE shape! Please, please fix it!
@@ -58,6 +59,9 @@ PORT_PATTERNS = {
 }
 
 
+TIMEOUT = 5
+
+
 def find_port():
     field = grep('2047:08[AEae]+')[0][0]
     pattern = PORT_PATTERNS.get(os.name)
@@ -70,7 +74,6 @@ class LoggerController(object):
     def __init__(self):
         self.is_connected = False
         self.__port = None
-        self.timeout = 6
         self.com_port = None
         self.__callback = {}
         self.logger_info = {}
@@ -93,76 +96,48 @@ class LoggerController(object):
             self.__port = Serial('/dev/' + com_port)
         else:
             self.__port = Serial('COM' + str(com_port))
-        self.__port.timeout = 5
+        self.__port.timeout = TIMEOUT
         self.is_connected = True
         self.com_port = com_port
 
     def command(self, *args):
+        if not self.is_connected:
+            return None
+        try:
+            return self.find_tag(self.target_tag(args))
+        except SerialException:
+            self.close()
+            return None
+
+    def find_tag(self, target):
+        if not target:
+            return
+        while True:
+            cmd = LoggerCmd(self.__port)
+            if cmd.tag == target or cmd.tag == 'ERR':
+                self.callback('rx', cmd.cmd_str())
+                return cmd.result()
+
+    def callback(self, key, cmd_str):
+        if key in self.__callback:
+            self.__callback[key](cmd_str)
+
+    def target_tag(self, args):
         tag = args[0]
         data = ''
         if len(args) == 2:
             data = str(args[1])
         length = '%02x' % len(data)
-        if not self.is_connected:
-            return
-
-        try:
-            if tag == 'sleep' or tag == 'RFN':
-                out_str = tag + chr(13)
-            else:
-                out_str = tag + ' ' + length + data + chr(13)
-
-            self.__port.reset_input_buffer()
-
-            self.__port.write(out_str.encode('IBM437'))
-
-            if 'tx' in self.__callback:
-                self.__callback['tx'](out_str[:-1])
-
-            # RST, BSL and sleep don't return tags.
-            # This will allow the tx below to run and fail
-            if tag == RESET_CMD or tag == 'sleep' or tag == 'BSL':
-                tag_waiting = ''
-            else:
-                tag_waiting = tag
-
-            while tag_waiting:
-                # flush out the nl and cr chars that inevitably end up
-                # coming first...
-                inchar = self.__port.read(1).decode('IBM437')
-                while ord(inchar) in [10, 13]:
-                    inchar = self.__port.read(1).decode('IBM437')
-
-                inline = inchar + self.__port.read(5).decode('IBM437')
-
-                # TODO: consider returning data as bytes type???
-
-                tag = inline[0:3]
-                length = int(inline[4:6], 16)
-
-                data = self.__port.read(length).decode('IBM437')
-
-                if length != len(data):
-                    raise RuntimeError(
-                        'Incorrect data length. Expecting ' +
-                        str(length) +
-                        ' received ' +
-                        str(len(data)))
-
-                if tag == tag_waiting:
-                    tag_waiting = ''
-                    if 'rx' in self.__callback:
-                        self.__callback['rx'](tag + ' ' + inline[4:6] + data)
-                    return data
-                elif tag == 'ERR':
-                    tag_waiting = ''
-                    if 'rx' in self.__callback:
-                        self.__callback['rx'](tag + ' ' + inline[4:6] + data)
-                    return None
-
-        except SerialException:
-            self.close()
-            return None
+        if tag == 'sleep' or tag == 'RFN':
+            out_str = tag + chr(13)
+        else:
+            out_str = tag + ' ' + length + data + chr(13)
+        self.__port.reset_input_buffer()
+        self.__port.write(out_str.encode('IBM437'))
+        self.callback('tx', out_str[:-1])
+        if tag == RESET_CMD or tag == 'sleep' or tag == 'BSL':
+            return ''
+        return tag
 
     def close(self):
         if self.__port:
