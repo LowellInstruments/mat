@@ -189,47 +189,26 @@ class LoggerController(object):
 
     def get_logger_settings(self):
         gls_string = self.command(LOGGER_SETTINGS_CMD)
-        logger_settings = {}
         if not gls_string:
             return {}
-
-        if gls_string[0:2] == '01':
-            logger_settings['TMP'] = True
-        else:
-            logger_settings['TMP'] = False
-
-        if gls_string[2:4] == '01':
-            logger_settings['ACL'] = True
-        else:
-            logger_settings['ACL'] = False
-
-        if gls_string[4:6] == '01':
-            logger_settings['MGN'] = True
-        else:
-            logger_settings['MGN'] = False
-
-        tri_hex = gls_string[8:10] + gls_string[6:8]
-        tri_int = int(tri_hex, 16)
-        logger_settings['TRI'] = tri_int
-
-        ori_hex = gls_string[12:14] + gls_string[10:12]
-        ori_int = int(ori_hex, 16)
-        logger_settings['ORI'] = ori_int
-
-        bmr_hex = gls_string[14:16]
-        bmr_int = int(bmr_hex, 16)
-        logger_settings['BMR'] = bmr_int
-
-        bmn_hex = gls_string[18:20] + gls_string[16:18]
-        bmn_int = int(bmn_hex, 16)
-        logger_settings['BMN'] = bmn_int
+        logger_settings = {
+            'TMP': gls_string[0:2] == '01',
+            'ACL': gls_string[2:4] == '01',
+            'MGN': gls_string[4:6] == '01',
+            'TRI': _four_byte_int(gls_string[6:10]),
+            'ORI': _four_byte_int(gls_string[10:14]),
+            'TRI': _four_byte_int(gls_string[6:10]),
+            'BMR': int(gls_string[14:16], 16),
+            'BMN': _four_byte_int(gls_string[16:20]),
+        }
 
         if len(gls_string) == 30:
-            logger_settings['PRS'] = gls_string[20:22] == '01'
-            logger_settings['PHD'] = gls_string[22:24] == '01'
-            logger_settings['PRR'] = int(gls_string[24:26], 16)
-            logger_settings['PRN'] = int(gls_string[28:30] + gls_string[26:28],
-                                         16)
+            logger_settings.update({
+                'PRS': gls_string[20:22] == '01',
+                'PHD': gls_string[22:24] == '01',
+                'PRR': int(gls_string[24:26], 16),
+                'PRN': _four_byte_int(gls_string[26:30]),
+            })
 
         return logger_settings
 
@@ -372,3 +351,7 @@ class LoggerController(object):
 
     def __del__(self):
         self.close()
+
+
+def _four_byte_int(bytes):
+    return int(bytes[2:4] + bytes[0:2], 16)
