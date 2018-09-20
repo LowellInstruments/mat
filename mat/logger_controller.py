@@ -10,11 +10,12 @@ from serial import (
     SerialException,
 )
 from serial.tools.list_ports import grep
-from mat.converter import Converter
 from mat.calibration_factories import make_from_string
+from mat.converter import Converter
 from mat.logger_cmd import LoggerCmd
 from mat.logger_info_parser import LoggerInfoParser
 from mat.sensor_parser import SensorParser
+from mat.utils import four_byte_int
 
 
 # TODO: the "command" method is in DIRE shape! Please, please fix it!
@@ -197,11 +198,11 @@ class LoggerController(object):
             'TMP': gls_string[0:2] == '01',
             'ACL': gls_string[2:4] == '01',
             'MGN': gls_string[4:6] == '01',
-            'TRI': _four_byte_int(gls_string[6:10]),
-            'ORI': _four_byte_int(gls_string[10:14]),
-            'TRI': _four_byte_int(gls_string[6:10]),
+            'TRI': four_byte_int(gls_string[6:10]),
+            'ORI': four_byte_int(gls_string[10:14]),
+            'TRI': four_byte_int(gls_string[6:10]),
             'BMR': int(gls_string[14:16], 16),
-            'BMN': _four_byte_int(gls_string[16:20]),
+            'BMN': four_byte_int(gls_string[16:20]),
         }
 
         if len(gls_string) == 30:
@@ -209,7 +210,7 @@ class LoggerController(object):
                 'PRS': gls_string[20:22] == '01',
                 'PHD': gls_string[22:24] == '01',
                 'PRR': int(gls_string[24:26], 16),
-                'PRN': _four_byte_int(gls_string[26:30]),
+                'PRN': four_byte_int(gls_string[26:30]),
             })
 
         return logger_settings
@@ -258,7 +259,3 @@ class LoggerController(object):
 
     def __del__(self):
         self.close()
-
-
-def _four_byte_int(bytes):
-    return int(bytes[2:4] + bytes[0:2], 16)
