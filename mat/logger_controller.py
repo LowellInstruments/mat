@@ -13,6 +13,8 @@ from serial.tools.list_ports import grep
 from mat.converter import Converter
 from mat.calibration_factories import make_from_string
 from mat.logger_cmd import LoggerCmd
+from mat.logger_info_parser import LoggerInfoParser
+from mat.sensor_parser import SensorParser
 
 
 # TODO: the "command" method is in DIRE shape! Please, please fix it!
@@ -177,7 +179,7 @@ class LoggerController(object):
             li_string += self.command(LOGGER_INFO_CMD, command_str)
         if li_string and not all([c == 255 for c in
                                   bytes(li_string, encoding='IBM437')]):
-            self.logger_info = self.__parse_li(li_string)
+            self.logger_info = LoggerInfoParser(li_string).info()
 
     def get_timestamp(self):
         """ Return posix timestamp """
@@ -217,7 +219,8 @@ class LoggerController(object):
 
     def get_sensor_readings(self):
         sensor_string = self.command(SENSOR_READINGS_CMD)
-        return self._parse_sensors(sensor_string)
+        # Should ensure that self.converter has been initialized
+        return SensorParser(sensor_string, self.converter).sensors()
 
     def get_sd_capacity(self):
         data = self.command(SD_CAPACITY_CMD)
@@ -244,102 +247,6 @@ class LoggerController(object):
     def get_sd_file_size(self):
         fsz = self.command(SD_FILE_SIZE_CMD)
         return int(fsz) if fsz else None
-
-    def __parse_li(self, li_string):
-        logger_info = {}
-        try:
-            tag = li_string[0:2]
-            while tag != '##' and tag != '\xff' * 2:
-                length = ord(li_string[2])
-                value = li_string[3:3 + length]
-                if tag == 'CA':
-                    value = value[2:4] + value[0:2]
-                    value = int(value, 16)
-                    if value > 32768:
-                        value -= 65536
-                    value /= float(256)  # float() is to avoid integer division
-                elif tag == 'BA' or tag == 'DP':
-                    if length == 4:
-                        value = value[2:4] + value[0:2]
-                        value = int(value, 16)
-                    else:
-                        value = 0
-                logger_info[tag] = value
-                li_string = li_string[3 + length:]
-                tag = li_string[0:2]
-        except (IndexError, ValueError):
-            logger_info = {'error': True}
-        return logger_info
-
-    def _parse_sensors(self, data):
-        channels = []
-        if not data or not (len(data) == 32 or len(data) == 40):
-            return None
-
-        n_sensors = 8 if len(data) == 32 else 10
-        for i in range(n_sensors):
-            dataHex = data[i * 4:i * 4 + 4]
-            dataHex = dataHex[2:4] + dataHex[0:2]
-            dataInt = int(dataHex, 16)
-            # Convert to negative unless temperature or pressure
-            if i not in [0, 8]:
-                if dataInt > 32768:
-                    dataInt -= 65536
-            channels.append(dataInt)
-
-        temp_raw = channels[0]
-        accel_raw = np.array([[channels[1]], [channels[2]], [channels[3]]])
-        mag_raw = np.array([[channels[4]], [channels[5]], [channels[6]]])
-        batt = np.array([float(channels[7]) / 1000])
-
-        if n_sensors == 10:
-            pressure_raw = channels[8]
-            pressure = self.converter.pressure(pressure_raw)[0]
-            light_raw = channels[9]
-            light = self.converter.light(np.array([light_raw]))
-
-        else:
-            light_raw = 0
-            light = 0
-            pressure_raw = 0
-            pressure = 0
-
-        if temp_raw == 0:  # Avoid 0 right after power up
-            temp_raw = 1
-
-        temp = self.converter.temperature(temp_raw)
-        accel = self.converter.accelerometer(accel_raw)
-        mag = self.converter.magnetometer(mag_raw, np.array([temp]))
-
-        sensors = {}
-        sensors['temp_raw'] = temp_raw
-        sensors['temp'] = temp
-
-        sensors['ax_raw'] = accel_raw[0]
-        sensors['ax'] = accel[0]
-
-        sensors['ay_raw'] = accel_raw[1]
-        sensors['ay'] = accel[1]
-
-        sensors['az_raw'] = accel_raw[2]
-        sensors['az'] = accel[2]
-
-        sensors['mx_raw'] = mag_raw[0]
-        sensors['mx'] = mag[0]
-
-        sensors['my_raw'] = mag_raw[1]
-        sensors['my'] = mag[1]
-
-        sensors['mz_raw'] = mag_raw[2]
-        sensors['mz'] = mag[2]
-
-        sensors['batt'] = batt
-        sensors['light_raw'] = light_raw
-        sensors['light'] = light
-
-        sensors['pressure'] = pressure
-        sensors['pressure_raw'] = pressure_raw
-        return sensors
 
     def sync_time(self):
         datetimeObj = datetime.datetime.now()
