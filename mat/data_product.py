@@ -1,6 +1,7 @@
 from os import path
 from mat.output_stream import output_stream_factory
 import numpy as np
+from abc import ABC, abstractmethod
 
 
 def data_product_factory(sensors, parameters):
@@ -48,7 +49,8 @@ def _sensor_from_name(sensors, names):
         raise ValueError('Required sensor not in sensors')
     return requested_sensors
 
-class DataProduct:
+
+class DataProduct(ABC):
     OUTPUT_TYPE = ''
     REQUIRED_SENSORS = []
 
@@ -62,11 +64,31 @@ class DataProduct:
         self.output_stream = output_stream_factory(parameters['output_format'],
                                                    filename,
                                                    destination)
+
         self.configure_output_stream()
 
     def configure_output_stream(self):
+        name = self.stream_name()
+        self.output_stream.add_stream(name)
+        self.output_stream.set_time_format(name,
+                                           self.parameters['time_format'])
+        self.output_stream.set_data_format(name, self.data_format())
+        self.output_stream.set_header_string(name, self.header_string())
+        self.output_stream.write_header(name)
+
+    @abstractmethod
+    def stream_name(self):
         pass  # pragma: no cover
 
+    @abstractmethod
+    def data_format(self):
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def header_string(self):
+        pass  # pragma: no cover
+
+    @abstractmethod
     def process_page(self, data_page, page_time):
         pass  # pragma: no cover
 
@@ -75,14 +97,14 @@ class DiscreteChannel(DataProduct):
     OUTPUT_TYPE = 'discrete'
     REQUIRED_SENSORS = []
 
-    def configure_output_stream(self):
-        name = self.sensors.name
-        self.output_stream.add_stream(name)
-        self.output_stream.set_data_format(name, self.sensors.spec.format)
-        self.output_stream.set_header_string(name, self.sensors.spec.header)
-        self.output_stream.set_time_format(name,
-                                           self.parameters['time_format'])
-        self.output_stream.write_header(name)
+    def stream_name(self):
+        return self.sensors.name
+
+    def data_format(self):
+        return self.sensors.spec.format
+
+    def header_string(self):
+        return self.sensors.spec.header
 
     def process_page(self, data_page, page_time):
         raw_data = self.sensors.parse(data_page)
@@ -94,19 +116,17 @@ class DiscreteChannel(DataProduct):
 class AccelMag(DataProduct):
     OUTPUT_TYPE = 'discrete'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
-    NAME = 'AccelMag'
 
-    def configure_output_stream(self):
-        self.output_stream.add_stream(self.NAME)
-        data_format = (self.sensors[0].spec.format + ','
-                       + self.sensors[1].spec.format)
-        self.output_stream.set_data_format(self.NAME, data_format)
-        header_string = (self.sensors[0].spec.header + ','
-                         + self.sensors[1].spec.header)
-        self.output_stream.set_header_string(self.NAME, header_string)
-        self.output_stream.set_time_format(self.NAME,
-                                           self.parameters['time_format'])
-        self.output_stream.write_header(self.NAME)
+    def stream_name(self):
+        return 'AccelMag'
+
+    def data_format(self):
+        return '{},{}'.format(self.sensors[0].spec.format,
+                              self.sensors[1].spec.format)
+
+    def header_string(self):
+        return '{},{}'.format(self.sensors[0].spec.header,
+                              self.sensors[1].spec.header)
 
     def process_page(self, data_page, page_time):
         data_matrix = None
@@ -118,23 +138,41 @@ class AccelMag(DataProduct):
                 data_matrix = data
             else:
                 data_matrix = np.vstack((data_matrix, data))
-        self.output_stream.write(self.NAME, time, data_matrix)
+        self.output_stream.write(self.stream_name(), time, data_matrix)
 
 
 class Current(DataProduct):
     OUTPUT_TYPE = 'current'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
+    def stream_name(self):
+        pass  # pragma: no cover
+
+    def data_format(self):
+        pass  # pragma: no cover
+
+    def header_string(self):
+        pass  # pragma: no cover
+
     def process_page(self, data_page, page_time):
-        pass
+        pass  # pragma: no cover
 
 
 class Compass(DataProduct):
     OUTPUT_TYPE = 'compass'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
+    def stream_name(self):
+        return 'Compass'
+
+    def data_format(self):
+        return '{:0.1f}'
+
+    def header_string(self):
+        return 'Bearing (deg)'
+
     def process_page(self, data_page, page_time):
-        pass
+        pass  # pragma: no cover
 
 
 # class Steve(DataProduct):

@@ -41,10 +41,10 @@ class TestDataConverter(TestCase):
         dc.register_observer(lambda x: None)
         dc.convert()
 
-    def test_current(self):
-        full_file_path = reference_file('test.lid')
-        dc = DataConverter(full_file_path, output_type='current')
-        dc.convert()
+    # def test_current(self):
+    #     full_file_path = reference_file('test.lid')
+    #     dc = DataConverter(full_file_path, output_type='current')
+    #     dc.convert()
 
     def test_compass(self):
         full_file_path = reference_file('test.lid')
