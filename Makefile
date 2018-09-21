@@ -9,7 +9,8 @@ help:
 	@echo help - Prints this help message
 	@echo code-check - Runs pycodestyle on all python code in the project
 	@echo coverage - Use pytest to run all tests and report on test coverage
-	@echo test - Use pytest to run all tests
+	@echo test - Use pytest to run all tests. Use tests to run subset.
+	@echo E.g., make test tests=test_create
 
 
 VENV = venv
@@ -35,17 +36,21 @@ ifeq ($(OS),Windows_NT)
     mat/data_file_registry.py \
     mat/gps.py \
     mat/header.py \
+    mat/__init__.py \
     mat/lid_data_file.py \
     mat/light.py \
     mat/linear_accelerometer.py \
     mat/lis_data_file.py \
+    mat/logger_cmd.py \
+    mat/logger_controller.py \
+    mat/logger_info_parser.py \
     mat/magnetometer_factory.py \
-    mat/matcomm.py \
     mat/meter.py \
     mat/odlfile.py \
     mat/pressure.py \
     mat/sensor_data_file.py \
     mat/sensor_filter.py \
+    mat/sensor_parser.py \
     mat/sensor.py \
     mat/temp_compensated_magnetometer.py \
     mat/temperature.py \
@@ -54,11 +59,13 @@ ifeq ($(OS),Windows_NT)
     mat/utils.py \
     mat/v2_calibration.py \
     mat/v3_calibration.py \
+    setup.py \
     tests/test_calibration.py \
     tests/test_compare_data_files.py \
     tests/test_converter.py \
     tests/test_gps.py \
     tests/test_header.py \
+    tests/test_logger_controller.py \
     tests/test_sensor_data_file.py \
     tests/utils.py \
 
@@ -97,8 +104,12 @@ code-check: $(VENV)
 	@$(ACTIVATE) && flake8 $(PROJECT_PYFILES)
 
 
+ifneq ($(tests),)
+  TESTS = -k $(tests)
+endif
+
 test: $(VENV)
-	@$(ACTIVATE) && pytest
+	@$(ACTIVATE) && pytest $(TESTS)
 
 
 coverage: $(VENV)
