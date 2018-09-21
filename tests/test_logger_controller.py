@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from calendar import timegm
 from time import strptime
 from itertools import chain
+from numpy import array
+from numpy.testing import assert_array_almost_equal
 from unittest.mock import patch
 from unittest import TestCase
 from serial import SerialException
@@ -21,6 +23,69 @@ TTY_NAME = "ttyACM0"
 TTY_VALUE = [[TTY_NAME]]
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 TIME_STAMP = "2018/09/18 14:36:00"
+EXPECTED_SENSOR_READINGS_32_BYTES = {
+    'ax': array([-4.26757812]),
+    'ax_raw': array([-4370]),
+    'ay': array([-4.26757812]),
+    'ay_raw': array([-4370]),
+    'az': array([-4.26757812]),
+    'az_raw': array([-4370]),
+    'batt': array([-4.37]),
+    'light': 0,
+    'light_raw': 0,
+    'mx': array([-4370.]),
+    'mx_raw': array([-4370]),
+    'my': array([-4370.]),
+    'my_raw': array([-4370]),
+    'mz': array([-4370.]),
+    'mz_raw': array([-4370]),
+    'pressure': 0,
+    'pressure_raw': 0,
+    'temp': -26.170648093957993,
+    'temp_raw': 61166,
+}
+EXPECTED_SENSOR_READINGS_40_BYTES = {
+    'ax': array([-4.26757812]),
+    'ax_raw': -4370,
+    'ay': array([-4.26757812]),
+    'ay_raw': -4370,
+    'az': array([-4.26757812]),
+    'az_raw': -4370,
+    'batt': -4.37,
+    'light': array([206.68945312]),
+    'light_raw': -4370,
+    'mx': array([-4370.]),
+    'mx_raw': -4370,
+    'my': array([-4370.]),
+    'my_raw': -4370,
+    'mz': array([-4370.]),
+    'mz_raw': -4370,
+    'pressure': array([100.8656]),
+    'pressure_raw': 61166,
+    'temp': array([-26.17064809]),
+    'temp_raw': 61166,
+}
+EXPECTED_SENSOR_READINGS_40_ZERO_BYTES = {
+    'ax': array([0.]),
+    'ax_raw': array([0]),
+    'ay': array([0.]),
+    'ay_raw': array([0]),
+    'az': array([0.]),
+    'az_raw': array([0]),
+    'batt': array([0.]),
+    'light': array([100.]),
+    'light_raw': 0,
+    'mx': array([0.]),
+    'mx_raw': array([0]),
+    'my': array([0.]),
+    'my_raw': array([0]),
+    'mz': array([0.]),
+    'mz_raw': array([0]),
+    'pressure': 3.0,
+    'pressure_raw': 0,
+    'temp': 1194.0891079879839,
+    'temp_raw': 1,
+}
 
 
 class FakeExceptionSerial:
@@ -238,18 +303,31 @@ class TestLoggerController(TestCase):
         with _command_patch("GSR 00"):
             assert _open_controller(com_port="1").get_sensor_readings() is None
 
-    def test_get_sensor_readings_32bytes(self):
-        self.get_sensor_readings(32, "E")  # "F" causes a ZeroDivisionError
+    def test_get_sensor_readings_32_bytes(self):
+        # Note: "F" causes a ZeroDivisionError
+        readings = self.get_sensor_readings(32, "E")
+        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_32_BYTES[key],
+                                   readings[key])
+         for key in EXPECTED_SENSOR_READINGS_32_BYTES.keys()]
 
-    def test_get_sensor_readings_40bytes(self):
-        self.get_sensor_readings(40, "0")
+    def test_get_sensor_readings_40_bytes(self):
+        readings = self.get_sensor_readings(40, "E")
+        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_40_BYTES[key],
+                                   readings[key])
+         for key in EXPECTED_SENSOR_READINGS_40_BYTES.keys()]
+
+    def test_get_sensor_readings_40_zero_bytes(self):
+        readings = self.get_sensor_readings(40, "0")
+        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_40_ZERO_BYTES[key],
+                                   readings[key])
+         for key in EXPECTED_SENSOR_READINGS_40_ZERO_BYTES.keys()]
 
     def get_sensor_readings(self, bytes, value):
         controller = None
         with _command_patch(["RHS 00",
                              "GSR %02s%s" % (hex(bytes)[2:], value * bytes)]):
             controller = self.load_host_storage()
-            assert "ax" in controller.get_sensor_readings()
+            return controller.get_sensor_readings()
 
     def test_get_sd_capacity_empty(self):
         with _command_patch("CTS 00"):
