@@ -4,7 +4,6 @@
 import datetime
 import os
 import re
-import numpy as np
 from serial import (
     Serial,
     SerialException,
@@ -200,7 +199,6 @@ class LoggerController(object):
             'MGN': gls_string[4:6] == '01',
             'TRI': four_byte_int(gls_string[6:10]),
             'ORI': four_byte_int(gls_string[10:14]),
-            'TRI': four_byte_int(gls_string[6:10]),
             'BMR': int(gls_string[14:16], 16),
             'BMN': four_byte_int(gls_string[16:20]),
         }
@@ -224,26 +222,10 @@ class LoggerController(object):
         return SensorParser(sensor_string, self.converter).sensors()
 
     def get_sd_capacity(self):
-        data = self.command(SD_CAPACITY_CMD)
-        if not data:
-            return None
-
-        regexp = re.search('([0-9]+)KB', data)
-        if regexp:
-            return int(regexp.group(1))
-        else:
-            return None
+        return _extract_sd_kb(self.command(SD_CAPACITY_CMD))
 
     def get_sd_free_space(self):
-        data = self.command(SD_FREE_SPACE_CMD)
-        if not data:
-            return None
-
-        regexp = re.search('([0-9]+)KB', data)
-        if regexp:
-            return int(regexp.group(1))
-        else:
-            return None
+        return _extract_sd_kb(self.command(SD_FREE_SPACE_CMD))
 
     def get_sd_file_size(self):
         fsz = self.command(SD_FILE_SIZE_CMD)
@@ -259,3 +241,13 @@ class LoggerController(object):
 
     def __del__(self):
         self.close()
+
+
+def _extract_sd_kb(data):
+    if not data:
+        return None
+    regexp = re.search('([0-9]+)KB', data)
+    if regexp:
+        return int(regexp.group(1))
+    else:
+        return None

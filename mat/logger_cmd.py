@@ -32,4 +32,4 @@ class LoggerCmd:
         return data
 
     def cmd_str(self):
-       return self.tag + ' ' + self.length_str + self.data
+        return self.tag + ' ' + self.length_str + self.data

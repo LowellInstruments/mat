@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 from calendar import timegm
 from time import strptime
-from itertools import chain
 from numpy import array
 from numpy.testing import assert_array_almost_equal
 from unittest.mock import patch
@@ -154,7 +153,7 @@ class TestLoggerController(TestCase):
         with _grep_patch(COM_VALUE, name="nt"):
             _open_controller()
 
-    def test_open_port_on_nt(self):
+    def test_open_port_on_unknown(self):
         with _grep_patch(COM_VALUE, name="unknown"):
             with self.assertRaises(RuntimeError):
                 _open_controller()
@@ -268,7 +267,8 @@ class TestLoggerController(TestCase):
     def test_get_timestamp(self):
         with _command_patch("GTM 13" + TIME_STAMP):
             expectation = timegm(strptime(TIME_STAMP, TIME_FORMAT))
-            assert _open_controller(com_port="1").get_timestamp() == expectation
+            assert (_open_controller(com_port="1").get_timestamp() ==
+                    expectation)
 
     def test_get_empty_logger_settings(self):
         with _command_patch("GLS 00"):
@@ -349,7 +349,8 @@ class TestLoggerController(TestCase):
     def test_get_sd_free_space(self):
         free_space = 128
         with _command_patch("CFS 05%dKB" % free_space):
-            assert _open_controller(com_port="1").get_sd_free_space() == free_space
+            assert (_open_controller(com_port="1").get_sd_free_space() ==
+                    free_space)
 
     def test_get_sd_free_space_bad_data(self):
         with _command_patch("CFS 02XY"):

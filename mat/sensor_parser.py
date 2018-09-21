@@ -46,7 +46,6 @@ class SensorParser:
         }
 
     def sensors(self):
-        data = self.data
         count = self.sensor_count()
         if count is None:
             return None
