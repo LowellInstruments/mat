@@ -219,20 +219,20 @@ class TestLoggerController(TestCase):
     def exception_command(self):
         assert _open_controller(com_port="1").command("SIT") is None
 
-    def test_load_host_storage(self):
+    def test_load_calibration(self):
         with _command_patch("RHS 04down" * 10):
-            self.load_host_storage()
+            self.load_calibration()
 
-    def test_load_host_storage_empty_rhs(self):  # For coverage
+    def test_load_calibration_empty(self):  # For coverage
         with _command_patch("RHS 00" * 10):
             _open_controller(com_port="1")
-            self.load_host_storage()
+            self.load_calibration()
 
-    def load_host_storage(self):
+    def load_calibration(self):
         controller = _open_controller(com_port="1")
-        assert controller.hoststorage is None
-        assert controller.load_host_storage() is None
-        assert isinstance(controller.hoststorage, V2Calibration)
+        assert controller.calibration is None
+        assert controller.load_calibration() is None
+        assert isinstance(controller.calibration, V2Calibration)
         assert isinstance(controller.converter, Converter)
         return controller
 
@@ -300,7 +300,7 @@ class TestLoggerController(TestCase):
             assert _open_controller(com_port="1").stop_with_string("") == ""
 
     def test_get_sensor_readings_empty(self):
-        with _command_patch("GSR 00"):
+        with _command_patch("GSR 00" + "RHS 00" * 10):
             assert _open_controller(com_port="1").get_sensor_readings() is None
 
     def test_get_sensor_readings_32_bytes(self):
@@ -326,7 +326,7 @@ class TestLoggerController(TestCase):
         controller = None
         with _command_patch(["RHS 00",
                              "GSR %02s%s" % (hex(bytes)[2:], value * bytes)]):
-            controller = self.load_host_storage()
+            controller = self.load_calibration()
             return controller.get_sensor_readings()
 
     def test_get_sd_capacity_empty(self):

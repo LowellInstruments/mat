@@ -19,11 +19,11 @@ from mat.utils import four_byte_int
 
 # TODO: the "command" method is in DIRE shape! Please, please fix it!
 # TODO: currently the logger class is blocking. Needs to be rewritten
-# TODO: if host storage isn't loaded, gsr crashes.
+# TODO: if calibration isn't loaded, gsr crashes.
 # TODO: A default value needs to be loaded.
 
 FIRMWARE_VERSION_CMD = 'GFV'
-HOST_STORAGE_CMD = 'RHS'
+CALIBRATION_CMD = 'RHS'
 INTERVAL_TIME_CMD = 'GIT'
 LOGGER_INFO_CMD = 'RLI'
 LOGGER_SETTINGS_CMD = 'GLS'
@@ -79,7 +79,7 @@ class LoggerController(object):
         self.com_port = None
         self.__callback = {}
         self.logger_info = {}
-        self.hoststorage = None
+        self.calibration = None
         self.converter = None
 
     def open_port(self, com_port=None):
@@ -147,9 +147,9 @@ class LoggerController(object):
         self.is_connected = False
         self.com_port = 0
 
-    def load_host_storage(self):
+    def load_calibration(self):
         read_size = 38
-        hs_string = ''
+        cal_string = ''
 
         # Load the entire HS from the logger
         for i in range(10):
@@ -158,14 +158,14 @@ class LoggerController(object):
             read_address = read_address[2:4] + read_address[0:2]
             read_length = '%02X' % read_size
             command_str = read_address + read_length
-            in_str = self.command(HOST_STORAGE_CMD, command_str)
+            in_str = self.command(CALIBRATION_CMD, command_str)
             if in_str:
-                hs_string += in_str
+                cal_string += in_str
             else:
                 break
 
-        self.hoststorage = make_from_string((hs_string))
-        self.converter = Converter(self.hoststorage)
+        self.calibration = make_from_string((cal_string))
+        self.converter = Converter(self.calibration)
 
     def load_logger_info(self):
         read_size = 42
@@ -218,7 +218,8 @@ class LoggerController(object):
 
     def get_sensor_readings(self):
         sensor_string = self.command(SENSOR_READINGS_CMD)
-        # Should ensure that self.converter has been initialized
+        if not self.converter:
+            self.load_calibration()
         return SensorParser(sensor_string, self.converter).sensors()
 
     def get_sd_capacity(self):
