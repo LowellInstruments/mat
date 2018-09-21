@@ -9,7 +9,8 @@ help:
 	@echo help - Prints this help message
 	@echo code-check - Runs pycodestyle on all python code in the project
 	@echo coverage - Use pytest to run all tests and report on test coverage
-	@echo test - Use pytest to run all tests
+	@echo test - Use pytest to run all tests. Use tests to run subset.
+	@echo E.g., make test tests=test_create
 
 
 VENV = venv
@@ -97,8 +98,12 @@ code-check: $(VENV)
 	@$(ACTIVATE) && flake8 $(PROJECT_PYFILES)
 
 
+ifneq ($(tests),)
+  TESTS = -k $(tests)
+endif
+
 test: $(VENV)
-	@$(ACTIVATE) && pytest
+	@$(ACTIVATE) && pytest $(TESTS)
 
 
 coverage: $(VENV)
