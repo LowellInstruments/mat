@@ -16,6 +16,7 @@ class DataConverter:
         self.parameters.update(kwargs)
         self.parameters.update({'path': path})
         self._source_file = None
+        self.observers = []
 
     def source_file(self):
         if self._source_file:
@@ -31,9 +32,14 @@ class DataConverter:
             page = self.source_file().page(i)
             for this_output in outputs:
                 this_output.process_page(page, page_times[i])
+            for observer in self.observers:
+                observer((i+1) / self.source_file().n_pages() * 100)
 
     def get_outputs(self, sensors, parameters):
         return data_product_factory(sensors, parameters)
+
+    def register_observer(self, observer):
+        self.observers.append(observer)
 
     def __del__(self):
         if self._source_file:

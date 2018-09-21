@@ -135,3 +135,46 @@ class Compass(DataProduct):
 
     def process_page(self, data_page, page_time):
         pass
+
+
+# class Steve(DataProduct):
+#     OUTPUT_TYPE = 'steve'
+#     REQUIRED_SENSORS = ['Accelerometer']
+#
+#     def configure_output_stream(self):
+#         self.name = 'TiltVibe'
+#         self.output_stream.add_stream(self.name)
+#         data_format = '{:0.2f},{:0.5f}'
+#         self.output_stream.set_data_format(self.name, data_format)
+#         header = 'Tilt (degrees),Stddev (m/s^2)'
+#         self.output_stream.set_header_string(self.name, header)
+#         self.output_stream.set_time_format(self.name,
+#                                            self.parameters['time_format'])
+#         self.output_stream.write_header(self.name)
+#
+#     def process_page(self, data_page, page_time):
+#         raw_data = self.sensors[0].parse(data_page)
+#         data = self.sensors[0].apply_calibration(raw_data)
+#         time = page_time + self.sensors[0].sample_times()[::3]
+#         time = time[0::30*64]
+#         vec_sum = (data[0,:]**2 + data[1,:]**2 + data[2,:]**2)**0.5
+#         extra_cols = len(vec_sum) % (30*64)
+#         if extra_cols:
+#             vec_sum = vec_sum[:-extra_cols]
+#         vec_sum2 = np.reshape(vec_sum, (-1, 64*30))
+#         std_dev = np.std(vec_sum2, axis=1)
+#
+#         tilt = tilt_from_accel(data)
+#         if extra_cols:
+#             tilt = tilt[:-extra_cols]
+#         tilt = np.reshape(tilt, (-1, 64*30))
+#         tilt = np.mean(tilt, axis=1)
+#
+#         out_data = np.vstack((tilt, std_dev))
+#         self.output_stream.write(self.name, time, out_data)
+#
+#
+# def tilt_from_accel(accel):
+#     tilt = np.arccos(
+#         accel[2] / np.sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
+#     return np.degrees(tilt)

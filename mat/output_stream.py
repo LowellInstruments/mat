@@ -69,10 +69,10 @@ class CsvFile:
 
     def write_header(self):
         with open(self.output_path, 'a') as fid:
-            fid.write('Time,' + self.header_string + '\r\n')
+            fid.write('Time,' + self.header_string + '\n')
 
     def write(self, time, data):
-        data_format = '{},' + self.data_format + '\r\n'
+        data_format = '{},' + self.data_format + '\n'
         with open(self.output_path, 'a') as fid:
-            for i in range(np.shape(data)[1]):
+            for i in range(data.shape[1]):
                 fid.write(data_format.format(time[i], *data[:, i]))

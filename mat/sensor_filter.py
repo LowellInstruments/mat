@@ -27,7 +27,7 @@ class SensorFilter:
         return self._sample_times
 
     def parse_data_page(self, data_page):
-        index = self.is_sensor[self.is_sensor < len(data_page)]
+        index = self.is_sensor[:len(data_page)]
         sensor_data = self._remove_partial_burst(data_page[index])
         sensor_data = sensor_data.astype(self.data_type)
         return np.reshape(sensor_data, (self.channels, -1), order='F')

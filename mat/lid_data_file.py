@@ -40,8 +40,9 @@ class LidDataFile(SensorDataFile):
             # extra second (permanent firmware bug)
             if page_n > 0:
                 epoch_time -= 1
-            page_start_times.append(epoch_time)
-        return page_start_times
+            page_start_times.append(int(epoch_time))
+        self._page_times = page_start_times
+        return self._page_times
 
     def _read_mini_header(self, page):
         file_position = self.file().tell()
