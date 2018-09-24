@@ -92,6 +92,10 @@ class DataProduct(ABC):
     def process_page(self, data_page, page_time):
         pass  # pragma: no cover
 
+    def _join_spec_fields(self, field):
+        fields = [getattr(x.spec, field) for x in self.sensors]
+        return ','.join(fields)
+
 
 class DiscreteChannel(DataProduct):
     OUTPUT_TYPE = 'discrete'
@@ -121,12 +125,10 @@ class AccelMag(DataProduct):
         return 'AccelMag'
 
     def data_format(self):
-        return '{},{}'.format(self.sensors[0].spec.format,
-                              self.sensors[1].spec.format)
+        return self._join_spec_fields('format')
 
     def header_string(self):
-        return '{},{}'.format(self.sensors[0].spec.header,
-                              self.sensors[1].spec.header)
+        return self._join_spec_fields('header')
 
     def process_page(self, data_page, page_time):
         data_matrix = None
