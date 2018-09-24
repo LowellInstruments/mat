@@ -43,3 +43,12 @@ def parse_tags(string):
         tag, value = tag_and_value.strip().split(' ', 1)
         dictionary[tag] = value
     return dictionary
+
+
+def four_byte_int(bytes, signed=False):
+    if len(bytes) != 4:
+        return 0
+    result = int(bytes[2:4] + bytes[0:2], 16)
+    if signed and result > 32768:
+        return result - 65536
+    return result
