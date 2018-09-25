@@ -1,4 +1,4 @@
-from mat.data_file_factory import create_data_file
+from mat.data_file_factory import load_data_file
 from mat.data_product import data_product_factory
 DEFAULT_PARAMETERS = {
     'output_directory': None,
@@ -21,7 +21,7 @@ class DataConverter:
     def source_file(self):
         if self._source_file:
             return self._source_file
-        self._source_file = create_data_file(self.path)
+        self._source_file = load_data_file(self.path)
         return self._source_file
 
     def convert(self):

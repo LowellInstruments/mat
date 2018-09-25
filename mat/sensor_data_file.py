@@ -3,7 +3,7 @@
 
 from mat.header import Header
 from mat.calibration_factories import make_from_string
-from mat.sensor import SensorFactory
+from mat.sensor_filter import build_sensor_filters
 from abc import ABC, abstractmethod
 from math import floor
 from mat.header import ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
@@ -99,9 +99,9 @@ class SensorDataFile(ABC):
         return self._file
 
     def sensors(self):
-        return SensorFactory(self.header(),
-                             self.calibration(),
-                             self.seconds_per_page()).get_sensors()
+        return build_sensor_filters(self.header(),
+                                    self.calibration(),
+                                    self.seconds_per_page())
 
     def file_size(self):
         if self._file_size:
@@ -118,9 +118,9 @@ class SensorDataFile(ABC):
         # number of samples.
 
         maj_interval = self.major_interval()
-        sensors = SensorFactory(self.header(),
-                                self.calibration(),
-                                maj_interval).get_sensors()
+        sensors = build_sensor_filters(self.header(),
+                                       self.calibration(),
+                                       maj_interval)
 
         n_samples_per_interval = self._count_samples(sensors)
         remaining_bytes = (self.file_size()

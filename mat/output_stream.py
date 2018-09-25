@@ -25,8 +25,8 @@ class OutputStream:
     def set_time_format(self, stream, time_format):
         self.streams[stream].time_format = time_format
 
-    def write(self, stream, time, data):
-        self.streams[stream].write(time, data)
+    def write(self, stream, data, time):
+        self.streams[stream].write(data, time)
 
     def write_header(self, stream):
         self.streams[stream].write_header()
@@ -70,7 +70,7 @@ class CsvFile:
         with open(self.output_path, 'a') as fid:
             fid.write('Time,' + self.header_string + '\n')
 
-    def write(self, time, data):
+    def write(self, data, time):
         data_format = '{},' + self.data_format + '\n'
         with open(self.output_path, 'a') as fid:
             for i in range(data.shape[1]):

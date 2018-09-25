@@ -33,7 +33,7 @@ def data_product_factory(sensors, parameters):
 
     # Convert remaining sensors as discrete channels
     for sensor in sensors:
-        data_product = DiscreteChannel(sensor, parameters)
+        data_product = DiscreteChannel([sensor], parameters)
         data_products.append(data_product)
 
     return data_products
@@ -58,14 +58,20 @@ class DataProduct(ABC):
         # TODO I think I can just pass in output_format instead of parameters
         self.sensors = sensors
         self.parameters = parameters
+        self.converters = self._load_converters(sensors)
         filename = path.basename(parameters['path'])
         dir_name = path.dirname(parameters['path'])
         destination = parameters['output_directory'] or dir_name
         self.output_stream = output_stream_factory(parameters['output_format'],
                                                    filename,
                                                    destination)
-
         self.configure_output_stream()
+
+    def _load_converters(self, sensors):
+        converters = []
+        for sensor in sensors:
+            converters.append(sensor.converter)
+        return converters
 
     def configure_output_stream(self):
         name = self.stream_name()
@@ -93,8 +99,17 @@ class DataProduct(ABC):
         pass  # pragma: no cover
 
     def _join_spec_fields(self, field):
-        fields = [getattr(x.spec, field) for x in self.sensors]
+        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
         return ','.join(fields)
+
+    def convert_sensors(self, data_page, page_time):
+        converted = []
+        for i, sensor in enumerate(self.sensors):
+            raw_data, time = sensor.parse_page(data_page)
+            time += page_time
+            data = self.converters[i].convert(raw_data)
+            converted.append((data, time))
+        return converted
 
 
 class DiscreteChannel(DataProduct):
@@ -102,19 +117,19 @@ class DiscreteChannel(DataProduct):
     REQUIRED_SENSORS = []
 
     def stream_name(self):
-        return self.sensors.name
+        return self.sensors[0].name
 
     def data_format(self):
-        return self.sensors.spec.format
+        return self.sensors[0].sensor_spec.format
 
     def header_string(self):
-        return self.sensors.spec.header
+        return self.sensors[0].sensor_spec.header
 
     def process_page(self, data_page, page_time):
-        raw_data = self.sensors.parse(data_page)
-        data = self.sensors.apply_calibration(raw_data)
-        time = page_time + self.sensors.sample_times()
-        self.output_stream.write(self.sensors.name, time, data)
+        converted = self.convert_sensors(data_page, page_time)
+        data = converted[0][0]
+        time = converted[0][1]
+        self.output_stream.write(self.sensors[0].name, data, time)
 
 
 class AccelMag(DataProduct):
@@ -131,16 +146,10 @@ class AccelMag(DataProduct):
         return self._join_spec_fields('header')
 
     def process_page(self, data_page, page_time):
-        data_matrix = None
-        time = page_time + self.sensors[0].sample_times()
-        for sensor in self.sensors:
-            raw_data = sensor.parse(data_page)
-            data = sensor.apply_calibration(raw_data)
-            if data_matrix is None:
-                data_matrix = data
-            else:
-                data_matrix = np.vstack((data_matrix, data))
-        self.output_stream.write(self.stream_name(), time, data_matrix)
+        converted = self.convert_sensors(data_page, page_time)
+        data_matrix = np.vstack((converted[0][0], converted[1][0]))
+        time = converted[0][1]
+        self.output_stream.write(self.stream_name(), data_matrix, time)
 
 
 class Current(DataProduct):
@@ -176,6 +185,22 @@ class Compass(DataProduct):
     def process_page(self, data_page, page_time):
         pass  # pragma: no cover
 
+
+# def calc_compass(accel, mag, declination=0):
+#     # The channels need to be adjusted because compass mode has the logger horizontal, not vertical like current
+#     m = np.array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+#     accel = np.dot(m, accel)
+#     mag = np.dot(m, mag)
+#
+#     roll = np.arctan2(accel[1], accel[2])
+#     pitch = np.arctan2(-accel[0], accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
+#     by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
+#     bx = mag[1] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll) + mag[2] * np.sin(pitch) * np.cos(roll)
+#
+#     heading = np.arctan2(by, bx)
+#     heading = np.rad2deg(heading)
+#     heading = np.mod(heading + declination, 360)
+#     return heading
 
 # class Steve(DataProduct):
 #     OUTPUT_TYPE = 'steve'
