@@ -69,7 +69,7 @@ AVAILABLE_SENSORS = [
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
                data_type='int16',
-               header='Ax (g), Ay (g), Az (g)',
+               header='Ax (g),Ay (g),Az (g)',
                converter=accelerometer_factory,
                format='{:0.4f},{:0.4f},{:0.4f}'),
 
@@ -81,7 +81,7 @@ AVAILABLE_SENSORS = [
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
                data_type='int16',
-               header='Mx (mG), My (mG), Mz (mG)',
+               header='Mx (mG),My (mG),Mz (mG)',
                converter=magnetometer_factory,
                format='{:0.2f},{:0.2f},{:0.2f}')
 ]

@@ -58,20 +58,14 @@ class DataProduct(ABC):
         # TODO I think I can just pass in output_format instead of parameters
         self.sensors = sensors
         self.parameters = parameters
-        self.converters = self._load_converters(sensors)
         filename = path.basename(parameters['path'])
         dir_name = path.dirname(parameters['path'])
         destination = parameters['output_directory'] or dir_name
         self.output_stream = output_stream_factory(parameters['output_format'],
                                                    filename,
                                                    destination)
+        self.average = parameters['average']
         self.configure_output_stream()
-
-    def _load_converters(self, sensors):
-        converters = []
-        for sensor in sensors:
-            converters.append(sensor.converter)
-        return converters
 
     def configure_output_stream(self):
         name = self.stream_name()
@@ -105,7 +99,7 @@ class DataProduct(ABC):
     def convert_sensors(self, data_page, page_time):
         converted = []
         for i, sensor in enumerate(self.sensors):
-            raw_data, time = sensor.parse_page(data_page)
+            raw_data, time = sensor.parse_page(data_page, average=True)
             time += page_time
             data = self.converters[i].convert(raw_data)
             converted.append((data, time))
@@ -126,9 +120,9 @@ class DiscreteChannel(DataProduct):
         return self.sensors[0].sensor_spec.header
 
     def process_page(self, data_page, page_time):
-        converted = self.convert_sensors(data_page, page_time)
-        data = converted[0][0]
-        time = converted[0][1]
+        data, time = self.sensors[0].convert(data_page,
+                                             self.average,
+                                             page_time)
         self.output_stream.write(self.sensors[0].name, data, time)
 
 
@@ -146,10 +140,14 @@ class AccelMag(DataProduct):
         return self._join_spec_fields('header')
 
     def process_page(self, data_page, page_time):
-        converted = self.convert_sensors(data_page, page_time)
-        data_matrix = np.vstack((converted[0][0], converted[1][0]))
-        time = converted[0][1]
-        self.output_stream.write(self.stream_name(), data_matrix, time)
+        accel, time = self.sensors[0].convert(data_page,
+                                              self.average,
+                                              page_time)
+        mag, _ = self.sensors[1].convert(data_page,
+                                         self.average,
+                                         page_time)
+        data = np.vstack((accel, mag))
+        self.output_stream.write(self.stream_name(), data, time)
 
 
 class Current(DataProduct):

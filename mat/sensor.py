@@ -3,7 +3,7 @@ import numpy as np
 from math import floor
 
 
-def build_sensor_filters(header, calibration, seconds):
+def create_sensors(header, calibration, seconds):
     """
     The sensor filters (sensors) need to be built together because the
     individual sensor sequences depend on the order of all the sensors.
@@ -18,10 +18,10 @@ def _build_sensors(header, calibration, seconds):
     sensors = []
     for sensor_spec in AVAILABLE_SENSORS:
         if header.tag(sensor_spec.enabled_tag):
-            sensors.append(SensorFilter(sensor_spec,
-                                        header,
-                                        calibration,
-                                        seconds))
+            sensors.append(Sensor(sensor_spec,
+                                  header,
+                                  calibration,
+                                  seconds))
     return sensors
 
 
@@ -45,7 +45,7 @@ def _load_sequence_into_sensors(sensors, time_and_order):
         sensor.is_sensor = np.array(is_sensor)
 
 
-class SensorFilter:
+class Sensor:
     def __init__(self, sensor_spec, header, calibration, seconds):
         self.sensor_spec = sensor_spec
         self.name = sensor_spec.name
@@ -85,9 +85,9 @@ class SensorFilter:
         self._sample_times = sample_times[0, :]
         return self._sample_times
 
-    def parse_page(self, data_page, average=True):
+    def parse_page(self, data_page, average):
         """
-        Return parsed data and time as a tuple
+        Return raw data and time as a tuple
         """
         index = self.is_sensor[:len(data_page)]
         sensor_data = self._remove_partial_burst(data_page[index])
@@ -116,3 +116,9 @@ class SensorFilter:
 
     def samples_per_page(self):
         return np.sum(self.is_sensor)
+
+    def convert(self, data_page, average, page_time=0):
+        raw_data, time = self.parse_page(data_page, average)
+        data = self.converter.convert(raw_data)
+        time += page_time
+        return data, time
