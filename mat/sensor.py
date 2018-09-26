@@ -133,7 +133,7 @@ class Sensor:
     def samples_per_page(self):
         return np.sum(self.is_sensor)
 
-    def convert(self, data_page, average, page_time=0):
+    def convert(self, data_page, average, page_time):
         raw_data, time = self.parse_page(data_page, average)
         data = self.converter.convert(raw_data)
         time += page_time
@@ -144,3 +144,15 @@ class TempDependantSensor(Sensor):
     def __init__(self, sensor_spec, header, calibration, seconds):
         super().__init__(sensor_spec, header, calibration, seconds)
         self.temperature = None
+
+    def convert(self, data_page, average, page_time):
+        if not self.temperature:
+            return super().convert(data_page, average, page_time)
+        temp, temp_time = self.temperature.convert(data_page,
+                                                   average,
+                                                   page_time)
+        raw_data, time = self.parse_page(data_page, average)
+        time += page_time
+        temp_interp = np.interp(time, temp_time, temp[0, :])
+        data = self.converter.convert(raw_data, temp_interp)
+        return data, time
