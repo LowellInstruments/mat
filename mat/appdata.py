@@ -11,7 +11,7 @@ def get_userdata(filename):
         path = os.path.join(appdata_path, 'Lowell Instruments\\' + filename)
     elif os.name == 'posix':
         appdata_path = os.environ['HOME']
-        path = os.path.join(appdata_path, '.config/.Lowell/' + filename)
+        path = os.path.join(appdata_path, '.Lowell/' + filename)
     else:
         raise SystemError('Unknown system type')
     if os.path.isfile(path):
@@ -27,7 +27,7 @@ def set_userdata(filename, field, data):
         path = appdata_path + '\\Lowell Instruments'
     elif os.name == 'posix':
         appdata_path = os.getenv('HOME')
-        path = os.path.join(appdata_path, '.config/.Lowell')
+        path = os.path.join(appdata_path, '.Lowell')
     else:
         raise SystemError('Unknown system type')
     if not os.path.exists(path):

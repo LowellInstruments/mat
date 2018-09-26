@@ -1,7 +1,6 @@
 from mat.sensor_specification import AVAILABLE_SENSORS
 import numpy as np
 from math import floor
-from hashlib import md5
 
 
 def create_sensors(header, calibration, seconds):
@@ -77,7 +76,7 @@ class Sensor:
         self.seconds = seconds
         self.order = sensor_spec.order
         self.converter = sensor_spec.converter(calibration)
-        self.cache = {'md5_hash': None, 'data': None}
+        self.cache = {'page_time': None, 'data': None}
 
     def full_sample_times(self):
         """
@@ -134,13 +133,12 @@ class Sensor:
         return np.sum(self.is_sensor)
 
     def convert(self, data_page, average, page_time):
-        md5_hash = md5(data_page).hexdigest()
-        if self.cache['md5_hash'] == md5_hash:
+        if self.cache['page_time'] == page_time:
             return self.cache['data']
         raw_data, time = self.parse_page(data_page, average)
-        data = self.converter.convert(raw_data)
         time += page_time
-        self.cache = {'md5_hash': md5_hash, 'data': (data, time)}
+        data = self.converter.convert(raw_data)
+        self.cache = {'page_time': page_time, 'data': (data, time)}
         return self.cache['data']
 
 
@@ -152,11 +150,11 @@ class TempDependantSensor(Sensor):
     def convert(self, data_page, average, page_time):
         if not self.temperature:
             return super().convert(data_page, average, page_time)
+        raw_data, time = self.parse_page(data_page, average)
+        time += page_time
         temp, temp_time = self.temperature.convert(data_page,
                                                    average,
                                                    page_time)
-        raw_data, time = self.parse_page(data_page, average)
-        time += page_time
         temp_interp = np.interp(time, temp_time, temp[0, :])
         data = self.converter.convert(raw_data, temp_interp)
         return data, time

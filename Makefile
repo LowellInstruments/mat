@@ -115,4 +115,4 @@ test: $(VENV)
 
 coverage: $(VENV)
 	@$(ACTIVATE) && pytest --cov=$(MODULE_NAME) \
-		--cov-report=term --cov-report=html
+		--cov-report=term --cov-report=html $(TESTS)
