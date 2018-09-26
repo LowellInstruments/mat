@@ -1,6 +1,7 @@
 from mat.sensor_specification import AVAILABLE_SENSORS
 import numpy as np
 from math import floor
+from hashlib import md5
 
 
 def create_sensors(header, calibration, seconds):
@@ -73,8 +74,8 @@ class Sensor:
         self.is_sensor = None
         self.seconds = seconds
         self.order = sensor_spec.order
-        self._sample_times = None
         self.converter = sensor_spec.converter(calibration)
+        self.cache = {'md5_hash': None, 'data': None}
 
     def full_sample_times(self):
         """
@@ -94,12 +95,9 @@ class Sensor:
         1-d sample times. If a sensor has n channels, only one time is returned
         for each sample
         """
-        if self._sample_times is not None:
-            return self._sample_times
         sample_times = self.full_sample_times()
         sample_times = self.reshape_to_n_channels(sample_times)
-        self._sample_times = sample_times[0, :]
-        return self._sample_times
+        return sample_times[0, :]
 
     def parse_page(self, data_page, average):
         """
@@ -134,10 +132,14 @@ class Sensor:
         return np.sum(self.is_sensor)
 
     def convert(self, data_page, average, page_time):
+        md5_hash = md5(data_page).hexdigest()
+        if self.cache['md5_hash'] == md5_hash:
+            return self.cache['data']
         raw_data, time = self.parse_page(data_page, average)
         data = self.converter.convert(raw_data)
         time += page_time
-        return data, time
+        self.cache = {'md5_hash': md5_hash, 'data': (data, time)}
+        return self.cache['data']
 
 
 class TempDependantSensor(Sensor):
