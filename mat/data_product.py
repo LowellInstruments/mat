@@ -96,15 +96,6 @@ class DataProduct(ABC):
         fields = [getattr(x.sensor_spec, field) for x in self.sensors]
         return ','.join(fields)
 
-    def convert_sensors(self, data_page, page_time):
-        converted = []
-        for i, sensor in enumerate(self.sensors):
-            raw_data, time = sensor.parse_page(data_page, average=True)
-            time += page_time
-            data = self.converters[i].convert(raw_data)
-            converted.append((data, time))
-        return converted
-
 
 class DiscreteChannel(DataProduct):
     OUTPUT_TYPE = 'discrete'

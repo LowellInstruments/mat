@@ -20,15 +20,17 @@ def _build_sensors(header, calibration, seconds):
     sensors = []
     for sensor_spec in AVAILABLE_SENSORS:
         if header.tag(sensor_spec.enabled_tag):
-            if sensor_spec.temp_dependant:
-                sensor = TempDependantSensor(sensor_spec,
-                                             header,
-                                             calibration,
-                                             seconds)
-            else:
-                sensor = Sensor(sensor_spec, header, calibration, seconds)
-            sensors.append(sensor)
+            sensors.append(_sensor_factory(sensor_spec,
+                                           header,
+                                           calibration,
+                                           seconds))
     return sensors
+
+
+def _sensor_factory(sensor_spec, header, calibration, seconds):
+    if sensor_spec.temp_dependant:
+        return TempDependantSensor(sensor_spec, header, calibration, seconds)
+    return Sensor(sensor_spec, header, calibration, seconds)
 
 
 def _time_and_order(sensors):
