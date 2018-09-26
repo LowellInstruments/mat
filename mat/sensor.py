@@ -11,6 +11,7 @@ def create_sensors(header, calibration, seconds):
     sensors = _build_sensors(header, calibration, seconds)
     time_and_order = _time_and_order(sensors)
     _load_sequence_into_sensors(sensors, time_and_order)
+    _add_temperature_dependency(sensors)
     return sensors
 
 
@@ -18,10 +19,14 @@ def _build_sensors(header, calibration, seconds):
     sensors = []
     for sensor_spec in AVAILABLE_SENSORS:
         if header.tag(sensor_spec.enabled_tag):
-            sensors.append(Sensor(sensor_spec,
-                                  header,
-                                  calibration,
-                                  seconds))
+            if sensor_spec.temp_dependant:
+                sensor = TempDependantSensor(sensor_spec,
+                                             header,
+                                             calibration,
+                                             seconds)
+            else:
+                sensor = Sensor(sensor_spec, header, calibration, seconds)
+            sensors.append(sensor)
     return sensors
 
 
@@ -43,6 +48,17 @@ def _load_sequence_into_sensors(sensors, time_and_order):
     for sensor in sensors:
         is_sensor = [s[1] == sensor.order for s in time_and_order]
         sensor.is_sensor = np.array(is_sensor)
+
+
+def _add_temperature_dependency(sensors):
+    sensor_names = [x.name for x in sensors]
+    try:
+        temp_ind = sensor_names.index('Temperature')
+    except ValueError:
+        return
+    for sensor in sensors:
+        if sensor.sensor_spec.temp_dependant:
+            sensor.temperature = sensors[temp_ind]
 
 
 class Sensor:
@@ -122,3 +138,9 @@ class Sensor:
         data = self.converter.convert(raw_data)
         time += page_time
         return data, time
+
+
+class TempDependantSensor(Sensor):
+    def __init__(self, sensor_spec, header, calibration, seconds):
+        super().__init__(sensor_spec, header, calibration, seconds)
+        self.temperature = None

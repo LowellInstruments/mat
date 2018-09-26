@@ -21,7 +21,8 @@ SensorSpec = namedtuple('SensorSpec', [
     'data_type',
     'header',
     'converter',
-    'format']
+    'format',
+    'temp_dependant']
 )
 
 AVAILABLE_SENSORS = [
@@ -35,7 +36,8 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                header='Temperature (C)',
                converter=Temperature,
-               format='{:0.4f}'),
+               format='{:0.4f}',
+               temp_dependant=False),
 
     SensorSpec(name='Pressure',
                enabled_tag='PRS',
@@ -47,7 +49,8 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                header='Pressure (psi)',
                converter=Pressure,
-               format='{:0.2f}'),
+               format='{:0.2f}',
+               temp_dependant=False),
 
     SensorSpec(name='Light',
                enabled_tag='PHD',
@@ -59,7 +62,8 @@ AVAILABLE_SENSORS = [
                data_type='uint16',
                header='Light (%)',
                converter=Light,
-               format='{:0.1f}'),
+               format='{:0.1f}',
+               temp_dependant=False),
 
     SensorSpec(name='Accelerometer',
                enabled_tag='ACL',
@@ -71,7 +75,8 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                header='Ax (g),Ay (g),Az (g)',
                converter=accelerometer_factory,
-               format='{:0.4f},{:0.4f},{:0.4f}'),
+               format='{:0.4f},{:0.4f},{:0.4f}',
+               temp_dependant=False),
 
     SensorSpec(name='Magnetometer',
                enabled_tag='MGN',
@@ -83,5 +88,6 @@ AVAILABLE_SENSORS = [
                data_type='int16',
                header='Mx (mG),My (mG),Mz (mG)',
                converter=magnetometer_factory,
-               format='{:0.2f},{:0.2f},{:0.2f}')
+               format='{:0.2f},{:0.2f},{:0.2f}',
+               temp_dependant=True)
 ]
