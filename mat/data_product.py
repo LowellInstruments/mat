@@ -10,10 +10,7 @@ def data_product_factory(sensors, parameters):
     """
     data_products = []
     output_stream = _create_output_stream(parameters)
-    sensor_names = [s.name for s in sensors]
-    if parameters['output_type'] == 'discrete':
-        if set(AccelMag.REQUIRED_SENSORS).issubset(sensor_names):
-            parameters['output_type'] = 'accelmag'
+    parameters = _accel_mag_check(sensors, parameters)
 
     # Special cases first
     for class_ in [Current, Compass, AccelMag]:
@@ -28,8 +25,15 @@ def data_product_factory(sensors, parameters):
     for sensor in sensors:
         data_product = DiscreteChannel([sensor], parameters, output_stream)
         data_products.append(data_product)
-
     return data_products
+
+
+def _accel_mag_check(sensors, parameters):
+    sensor_names = [s.name for s in sensors]
+    if parameters['output_type'] == 'discrete':
+        if set(AccelMag.REQUIRED_SENSORS).issubset(sensor_names):
+            parameters['output_type'] = 'accelmag'
+    return parameters
 
 
 def remove_sensors(sensors, sensors_to_remove):
@@ -60,7 +64,6 @@ class DataProduct(ABC):
     REQUIRED_SENSORS = []
 
     def __init__(self, sensors, parameters, output_stream):
-        # TODO I think I can just pass in output_format instead of parameters
         self.sensors = sensors
         self.parameters = parameters
         self.output_stream = output_stream
