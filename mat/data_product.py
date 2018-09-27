@@ -77,6 +77,13 @@ class DataProduct(ABC):
         self.output_stream.set_header_string(name, self.header_string())
         self.output_stream.write_header(name)
 
+    def convert_sensors(self, data_page, page_time):
+        converted = []
+        for sensor in self.sensors:
+            data, time = sensor.convert(data_page, self.average, page_time)
+            converted.append((data, time))
+        return converted
+
     @abstractmethod
     def stream_name(self):
         pass  # pragma: no cover
@@ -112,10 +119,10 @@ class DiscreteChannel(DataProduct):
         return self.sensors[0].sensor_spec.header
 
     def process_page(self, data_page, page_time):
-        data, time = self.sensors[0].convert(data_page,
-                                             self.average,
-                                             page_time)
-        self.output_stream.write(self.sensors[0].name, data, time)
+        converted = self.convert_sensors(data_page, page_time)
+        self.output_stream.write(self.sensors[0].name,
+                                 converted[0][0],
+                                 converted[0][1])
 
 
 class AccelMag(DataProduct):
@@ -132,14 +139,9 @@ class AccelMag(DataProduct):
         return self._join_spec_fields('header')
 
     def process_page(self, data_page, page_time):
-        accel, time = self.sensors[0].convert(data_page,
-                                              self.average,
-                                              page_time)
-        mag, _ = self.sensors[1].convert(data_page,
-                                         self.average,
-                                         page_time)
-        data = np.vstack((accel, mag))
-        self.output_stream.write(self.stream_name(), data, time)
+        converted = self.convert_sensors(data_page, page_time)
+        data = np.vstack((converted[0][0], converted[1][0]))
+        self.output_stream.write(self.stream_name(), data, converted[0][1])
 
 
 class Current(DataProduct):
@@ -160,6 +162,10 @@ class Current(DataProduct):
 
 
 class Compass(DataProduct):
+    def __init__(self, sensors, parameters, output_stream):
+        super().__init__(sensors, parameters, output_stream)
+        self.declination = self.parameters.get('declination') or 0
+
     OUTPUT_TYPE = 'compass'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
@@ -173,4 +179,23 @@ class Compass(DataProduct):
         return 'Bearing (deg)'
 
     def process_page(self, data_page, page_time):
-        pass  # pragma: no cover
+        converted = self.convert_sensors(data_page, page_time)
+        accel = converted[0][0]
+        mag = converted[1][0]
+
+        m = np.array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+        accel = np.dot(m, accel)
+        mag = np.dot(m, mag)
+
+        roll = np.arctan2(accel[1], accel[2])
+        pitch = np.arctan2(-accel[0],
+                           accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
+        by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
+        bx = (mag[1] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
+              + mag[2] * np.sin(pitch) * np.cos(roll))
+
+        heading = np.arctan2(by, bx)
+        heading = np.rad2deg(heading)
+        heading = np.mod(heading + self.declination, 360)
+        heading = np.reshape(heading, (1, -1))
+        self.output_stream.write(self.stream_name(), heading, converted[0][1])
