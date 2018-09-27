@@ -7,6 +7,7 @@ from mat.data_converter import DataConverter
 from mat.data_file_factory import load_data_file
 from tests.utils import reference_file
 from tests.utils import compare_files
+from mat.tiltcurve import TiltCurve
 
 
 class TestDataConverter(TestCase):
@@ -44,12 +45,17 @@ class TestDataConverter(TestCase):
         dc = DataConverter(full_file_path, time_format='legacy')
         dc.convert()
 
-    # def test_current(self):
-    #     full_file_path = reference_file('test.lid')
-    #     dc = DataConverter(full_file_path, output_type='current')
-    #     dc.convert()
-    #
-    # def test_compass(self):
-    #     full_file_path = reference_file('test.lid')
-    #     dc = DataConverter(full_file_path, output_type='compass')
-    #     dc.convert()
+    def test_current(self):
+        full_file_path = reference_file('test.lid')
+        tilt_file_path = reference_file('tiltcurve\\TCM-1, No Ballast Washer, '
+                                        'Salt Water.cal')
+        tilt_curve = TiltCurve(tilt_file_path)
+        dc = DataConverter(full_file_path,
+                           output_type='current',
+                           tilt_curve=tilt_curve)
+        dc.convert()
+
+    def test_compass(self):
+        full_file_path = reference_file('test.lid')
+        dc = DataConverter(full_file_path, output_type='compass')
+        dc.convert()

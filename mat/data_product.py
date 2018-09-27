@@ -148,26 +148,66 @@ class Current(DataProduct):
     OUTPUT_TYPE = 'current'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
+    def __init__(self, sensors, parameters, output_stream):
+        super().__init__(sensors, parameters, output_stream)
+        self.tilt_curve = self.parameters['tilt_curve']
+        self.declination = self.parameters.get('declination') or 0
+
     def stream_name(self):
-        pass  # pragma: no cover
+        return 'Current'
 
     def data_format(self):
-        pass  # pragma: no cover
+        return '{:0.2f},{:0.2f},{:0.2f},{:0.2f}'
 
     def header_string(self):
-        pass  # pragma: no cover
+        return ('Speed (cm/s),'
+                'Bearing (degrees),'
+                'Velocity-N (cm/s),'
+                'Velocity-E (cm/s)')
+
+    def _calc_tilt__and_bearing(self, accel, mag):
+        roll = np.arctan2(accel[1], accel[2])
+        pitch = np.arctan2(-accel[0],
+                           accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
+        by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
+        bx = (mag[0] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
+              + mag[2] * np.sin(pitch) * np.cos(roll))
+        yaw = np.arctan2(by, bx)
+
+        x = -np.cos(roll) * np.sin(pitch)
+        y = np.sin(roll)
+
+        tilt = np.arccos(
+            accel[2] / np.sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
+        is_usd = tilt > np.pi / 2
+        tilt[is_usd] = np.pi - tilt[is_usd]
+
+        bearing = np.arctan2(y, x) + yaw
+        bearing = np.mod(bearing + np.deg2rad(self.declination), 2 * np.pi)
+        return tilt, bearing
 
     def process_page(self, data_page, page_time):
-        pass  # pragma: no cover
+        converted = self.convert_sensors(data_page, page_time)
+        accel = converted[0][0]
+        mag = converted[1][0]
+        tilt, bearing = self._calc_tilt__and_bearing(accel, mag)
+        speed = self.tilt_curve.speed_from_tilt(np.degrees(tilt))
+
+        velocity_n = speed * np.cos(bearing)
+        velocity_e = speed * np.sin(bearing)
+
+        data = np.vstack((speed, bearing, velocity_n, velocity_e))
+
+        self.output_stream.write(self.stream_name(), data, converted[0][1])
 
 
 class Compass(DataProduct):
+    OUTPUT_TYPE = 'compass'
+    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
+
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
         self.declination = self.parameters.get('declination') or 0
-
-    OUTPUT_TYPE = 'compass'
-    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
     def stream_name(self):
         return 'Compass'

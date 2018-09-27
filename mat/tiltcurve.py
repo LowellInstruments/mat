@@ -20,6 +20,7 @@ class TiltCurve:
         self.path = path
         self.table = None
         self._deployment_configuration = {}
+        self.parse()
 
     @property
     def ballast(self):
