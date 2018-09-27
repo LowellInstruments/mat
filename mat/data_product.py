@@ -10,23 +10,19 @@ def data_product_factory(sensors, parameters):
     """
     data_products = []
     output_stream = _create_output_stream(parameters)
+    sensor_names = [s.name for s in sensors]
+    if parameters['output_type'] == 'discrete':
+        if set(AccelMag.REQUIRED_SENSORS).issubset(sensor_names):
+            parameters['output_type'] = 'accelmag'
+
     # Special cases first
-    for class_ in [Current, Compass]:
+    for class_ in [Current, Compass, AccelMag]:
         if class_.OUTPUT_TYPE == parameters['output_type']:
-            # there should be an exception of this fails
             required_sensors = _sensor_from_name(sensors,
                                                  class_.REQUIRED_SENSORS)
             sensors = remove_sensors(sensors, required_sensors)
             data_product = class_(required_sensors, parameters, output_stream)
             data_products.append(data_product)
-    try:
-        required_sensors = _sensor_from_name(sensors,
-                                             AccelMag.REQUIRED_SENSORS)
-        sensors = remove_sensors(sensors, required_sensors)
-        data_product = AccelMag(required_sensors, parameters, output_stream)
-        data_products.append(data_product)
-    except ValueError:
-        pass
 
     # Convert remaining sensors as discrete channels
     for sensor in sensors:
@@ -41,6 +37,8 @@ def remove_sensors(sensors, sensors_to_remove):
 
 
 def _sensor_from_name(sensors, names):
+    if not set(names).issubset([s.name for s in sensors]):
+        raise ValueError('Requested sensors not active')
     requested_sensors = [s for s in sensors if s.name in names]
     if len(requested_sensors) < len(names):
         raise ValueError('Required sensor not in sensors')
@@ -118,7 +116,7 @@ class DiscreteChannel(DataProduct):
 
 
 class AccelMag(DataProduct):
-    OUTPUT_TYPE = 'discrete'
+    OUTPUT_TYPE = 'accelmag'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
     def stream_name(self):
