@@ -1,5 +1,6 @@
 from numpy import array
 from datetime import datetime
+import numpy as np
 
 
 def obj_from_coefficients(coefficients, classes):
@@ -52,3 +53,14 @@ def four_byte_int(bytes, signed=False):
     if signed and result > 32768:
         return result - 65536
     return result
+
+
+def roll_pitch_yaw(accel, mag):
+    roll = np.arctan2(accel[1], accel[2])
+    pitch = np.arctan2(-accel[0],
+                       accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
+    by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
+    bx = (mag[0] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
+          + mag[2] * np.sin(pitch) * np.cos(roll))
+    yaw = np.arctan2(by, bx)
+    return roll, pitch, yaw

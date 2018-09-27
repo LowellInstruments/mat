@@ -2,6 +2,7 @@ from os import path
 from mat.output_stream import output_stream_factory
 import numpy as np
 from abc import ABC, abstractmethod
+from mat.utils import roll_pitch_yaw
 
 
 def data_product_factory(sensors, parameters):
@@ -166,14 +167,7 @@ class Current(DataProduct):
                 'Velocity-E (cm/s)')
 
     def _calc_tilt__and_bearing(self, accel, mag):
-        roll = np.arctan2(accel[1], accel[2])
-        pitch = np.arctan2(-accel[0],
-                           accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
-        by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
-        bx = (mag[0] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
-              + mag[2] * np.sin(pitch) * np.cos(roll))
-        yaw = np.arctan2(by, bx)
-
+        roll, pitch, yaw = roll_pitch_yaw(accel, mag)
         x = -np.cos(roll) * np.sin(pitch)
         y = np.sin(roll)
 
@@ -222,19 +216,10 @@ class Compass(DataProduct):
         converted = self.convert_sensors(data_page, page_time)
         accel = converted[0][0]
         mag = converted[1][0]
-
         m = np.array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
         accel = np.dot(m, accel)
         mag = np.dot(m, mag)
-
-        roll = np.arctan2(accel[1], accel[2])
-        pitch = np.arctan2(-accel[0],
-                           accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
-        by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
-        bx = (mag[1] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
-              + mag[2] * np.sin(pitch) * np.cos(roll))
-
-        heading = np.arctan2(by, bx)
+        roll, pitch, heading = roll_pitch_yaw(accel, mag)
         heading = np.rad2deg(heading)
         heading = np.mod(heading + self.declination, 360)
         heading = np.reshape(heading, (1, -1))

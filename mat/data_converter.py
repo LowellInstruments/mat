@@ -37,10 +37,17 @@ class DataConverter:
             if not self._is_running:
                 break
             page = self.source_file().page(i)
-            for this_output in outputs:
-                this_output.process_page(page, page_times[i])
-            for observer in self.observers:
-                observer((i+1) / self.source_file().n_pages() * 100)
+            self._write_to_outputs(outputs, page, page_times[i])
+            percent = (i + 1) / self.source_file().n_pages() * 100
+            self._update_observers(percent)
+
+    def _write_to_outputs(self, outputs, page, page_time):
+        for this_output in outputs:
+            this_output.process_page(page, page_time)
+
+    def _update_observers(self, percent):
+        for observer in self.observers:
+            observer(percent)
 
     def get_outputs(self, sensors, parameters):
         return data_product_factory(sensors, parameters)
