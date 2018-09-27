@@ -59,3 +59,8 @@ class TestDataConverter(TestCase):
         full_file_path = reference_file('test.lid')
         dc = DataConverter(full_file_path, output_type='compass')
         dc.convert()
+
+    def test_temp_comp_magnetometer(self):
+        path = reference_file('TCM1_Calibrate_(0).lid')
+        dc = DataConverter(path)
+        dc.convert()
