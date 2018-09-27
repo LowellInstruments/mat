@@ -2,7 +2,6 @@ from os import path
 from mat.output_stream import output_stream_factory
 import numpy as np
 from abc import ABC, abstractmethod
-from mat.time_converter import create_time_converter
 
 
 def data_product_factory(sensors, parameters):
@@ -20,8 +19,6 @@ def data_product_factory(sensors, parameters):
             sensors = remove_sensors(sensors, required_sensors)
             data_product = class_(required_sensors, parameters, output_stream)
             data_products.append(data_product)
-            break  # there can be only one special case
-
     try:
         required_sensors = _sensor_from_name(sensors,
                                              AccelMag.REQUIRED_SENSORS)
@@ -56,7 +53,8 @@ def _create_output_stream(parameters):
     destination = parameters['output_directory'] or dir_name
     return output_stream_factory(parameters['output_format'],
                                  filename,
-                                 destination)
+                                 destination,
+                                 parameters['time_format'])
 
 
 class DataProduct(ABC):
@@ -74,8 +72,6 @@ class DataProduct(ABC):
     def configure_output_stream(self):
         name = self.stream_name()
         self.output_stream.add_stream(name)
-        self.output_stream.set_time_format(name,
-                                           self.parameters['time_format'])
         self.output_stream.set_data_format(name, self.data_format())
         self.output_stream.set_header_string(name, self.header_string())
         self.output_stream.write_header(name)

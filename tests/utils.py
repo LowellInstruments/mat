@@ -1,5 +1,6 @@
 import os
 from mat.calibration_factories import make_from_calibration_file
+from math import isclose
 
 
 def reference_file(file_name):
@@ -22,3 +23,35 @@ def assert_compare_expected_file(file_name):
         expected_lines = [line.strip() for line in expected_file.readlines()]
     os.remove(new_path)
     assert new_lines == expected_lines
+
+
+def compare_files(path1, path2):
+    with open(path1, 'r') as fid1, open(path2, 'r') as fid2:
+        if _n_lines(fid1) != _n_lines(fid2):
+            raise ValueError('Files have different number of lines')
+        if _n_columns(fid1) != _n_columns(fid2):
+            raise ValueError('Headers have different number of columns')
+        _values_are_close(zip(fid1, fid2))
+
+
+def _n_lines(fid):
+    count = sum([1 for line in fid])
+    fid.seek(0)
+    return count
+
+
+def _n_columns(fid):
+    line = fid.readline()
+    return len(line.split(','))
+
+
+def _values_are_close(zip_obj):
+    row_count = 0
+    for rows in zip_obj:
+        file1 = rows[0].strip().split(',')
+        file2 = rows[1].strip().split(',')
+        for i in range(1, len(file1)):
+            if not isclose(float(file1[i]), float(file2[i]), abs_tol=0.01):
+                raise ValueError('Error on row {}'.format(row_count))
+        row_count += 1
+    return True
