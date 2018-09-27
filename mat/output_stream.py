@@ -1,4 +1,5 @@
 from os import path, remove
+from .time_converter import create_time_converter
 
 
 def output_stream_factory(output_type, file_name, destination):
@@ -12,6 +13,7 @@ class OutputStream:
         self.file_name = file_name
         self.streams = {}
         self.destination = destination  # output directory for file output
+        self.time_converter = None
 
     def add_stream(self, data_product):
         pass

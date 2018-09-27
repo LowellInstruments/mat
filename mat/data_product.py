@@ -2,6 +2,7 @@ from os import path
 from mat.output_stream import output_stream_factory
 import numpy as np
 from abc import ABC, abstractmethod
+from mat.time_converter import create_time_converter
 
 
 def data_product_factory(sensors, parameters):
@@ -9,7 +10,7 @@ def data_product_factory(sensors, parameters):
     Instantiate a data product subclass and pass it the necessary sensors
     """
     data_products = []
-
+    output_stream = _create_output_stream(parameters)
     # Special cases first
     for class_ in [Current, Compass]:
         if class_.OUTPUT_TYPE == parameters['output_type']:
@@ -17,8 +18,7 @@ def data_product_factory(sensors, parameters):
             required_sensors = _sensor_from_name(sensors,
                                                  class_.REQUIRED_SENSORS)
             sensors = remove_sensors(sensors, required_sensors)
-            data_product = class_(required_sensors, parameters)
-
+            data_product = class_(required_sensors, parameters, output_stream)
             data_products.append(data_product)
             break  # there can be only one special case
 
@@ -26,14 +26,14 @@ def data_product_factory(sensors, parameters):
         required_sensors = _sensor_from_name(sensors,
                                              AccelMag.REQUIRED_SENSORS)
         sensors = remove_sensors(sensors, required_sensors)
-        data_product = AccelMag(required_sensors, parameters)
+        data_product = AccelMag(required_sensors, parameters, output_stream)
         data_products.append(data_product)
     except ValueError:
         pass
 
     # Convert remaining sensors as discrete channels
     for sensor in sensors:
-        data_product = DiscreteChannel([sensor], parameters)
+        data_product = DiscreteChannel([sensor], parameters, output_stream)
         data_products.append(data_product)
 
     return data_products
@@ -50,20 +50,24 @@ def _sensor_from_name(sensors, names):
     return requested_sensors
 
 
+def _create_output_stream(parameters):
+    filename = path.basename(parameters['path'])
+    dir_name = path.dirname(parameters['path'])
+    destination = parameters['output_directory'] or dir_name
+    return output_stream_factory(parameters['output_format'],
+                                 filename,
+                                 destination)
+
+
 class DataProduct(ABC):
     OUTPUT_TYPE = ''
     REQUIRED_SENSORS = []
 
-    def __init__(self, sensors, parameters):
+    def __init__(self, sensors, parameters, output_stream):
         # TODO I think I can just pass in output_format instead of parameters
         self.sensors = sensors
         self.parameters = parameters
-        filename = path.basename(parameters['path'])
-        dir_name = path.dirname(parameters['path'])
-        destination = parameters['output_directory'] or dir_name
-        self.output_stream = output_stream_factory(parameters['output_format'],
-                                                   filename,
-                                                   destination)
+        self.output_stream = output_stream
         self.average = parameters['average']
         self.configure_output_stream()
 
