@@ -54,6 +54,11 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('test.lid'))
         data_file.seconds_per_page()
 
+    def test_read_nonexistent_page(self):
+        data_file = load_data_file(reference_file('test.lid'))
+        with self.assertRaises(ValueError):
+            data_file.page(3)
+
     def test_missing_hde_from_calibration(self):
         data_file = load_data_file(reference_file('missing_hde.lid'))
         with self.assertRaises(ValueError):

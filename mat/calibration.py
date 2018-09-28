@@ -54,7 +54,7 @@ class Calibration(ABC):
     @staticmethod
     @abstractmethod
     def _parse_tag_value_pairs(calibration_string):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def make_serial_string(self):

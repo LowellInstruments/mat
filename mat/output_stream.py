@@ -16,7 +16,7 @@ class OutputStream:
         self.time_converter = create_time_converter(time_format)
 
     def add_stream(self, data_product):
-        pass
+        pass  # pragma: no cover
 
     def set_header_string(self, stream, header_string):
         header_string = self.time_converter.header_str() + ',' + header_string
