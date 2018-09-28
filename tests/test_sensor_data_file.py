@@ -63,3 +63,8 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('missing_hde.lid'))
         with self.assertRaises(ValueError):
             data_file.calibration()
+
+    def test_mhs_wrong_place(self):
+        data_file = load_data_file(reference_file('mhs_wrong_place.lid'))
+        with self.assertRaises(ValueError):
+            data_file.page_times()
