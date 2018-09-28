@@ -72,6 +72,11 @@ class TestDataConverter(TestCase):
         dc = DataConverter(full_file_path, time_format='posix')
         dc.convert()
 
+    def test_convert_w_elapsed_time(self):
+        full_file_path = reference_file('test.lid')
+        dc = DataConverter(full_file_path, time_format='elapsed')
+        dc.convert()
+
     def test_two_page_file(self):
         full_file_path = reference_file('two_page_file.lid')
         dc = DataConverter(full_file_path)

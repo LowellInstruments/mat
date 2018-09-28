@@ -6,7 +6,8 @@ import numpy as np
 def create_time_converter(time_format):
     time_converters = {'iso8601': Iso8601,
                        'legacy': Legacy,
-                       'posix': Posix}
+                       'posix': Posix,
+                       'elapsed': Elapsed}
     return time_converters.get(time_format)()
 
 
@@ -54,3 +55,24 @@ class Posix(TimeConverter):
 
     def _process(self, posix_time):
         return '{:.3f}'.format(float(posix_time))
+
+
+class Elapsed:
+    """
+    Doesn't inherit from TimeConverter but has same interface
+    """
+    def __init__(self):
+        self.converter = None
+        self.start_time = None
+
+    def header_str(self):
+        return 'Elapsed Seconds'
+
+    def _process(self, posix_time):
+        return '{:.3f}'.format(float(posix_time) - self.start_time)
+
+    def convert(self, posix_time):
+        if self.converter == None:
+            self.start_time = float(posix_time[0])
+            self.converter = np.vectorize(lambda t: self._process(t))
+        return self.converter(posix_time)
