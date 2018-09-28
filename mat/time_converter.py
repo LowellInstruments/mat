@@ -72,7 +72,7 @@ class Elapsed:
         return '{:.3f}'.format(float(posix_time) - self.start_time)
 
     def convert(self, posix_time):
-        if self.converter == None:
+        if self.converter is None:
             self.start_time = float(posix_time[0])
             self.converter = np.vectorize(lambda t: self._process(t))
         return self.converter(posix_time)

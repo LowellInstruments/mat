@@ -27,17 +27,17 @@ class TestGPS:
     def test_verify(self):
         string = ('$GPGGA,125742.000,4119.6607,N,07301.3281,'
                   'W,1,09,1.0,100.3,M,-34.3,M,,0000*6D')
-        assert verify_string(string) == True
+        assert verify_string(string) is True
 
     def test_bad_string(self):
         string = ('125742.000,4119.6607,N,07301.3281,'
                   'W,1,09,1.0,100.3,M,-34.3,M,,0000*6D')
-        assert verify_string(string) == False
+        assert verify_string(string) is False
 
     def correct_format_bad_checksum(self):
         string = ('$GPGGA,225742.000,4119.6607,N,07301.3281,'
                   'W,1,09,1.0,100.3,M,-34.3,M,,0000*6D')
-        assert verify_string(string) == False
+        assert verify_string(string) is False
 
     def test_convert_time(self):
         time_str = convert_time('125742.000')
