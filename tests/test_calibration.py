@@ -1,5 +1,8 @@
 from unittest import TestCase
-from mat.calibration_factories import make_from_calibration_file
+from mat.calibration_factories import (
+    make_from_calibration_file,
+    DEFAULT_COEFFICIENTS
+)
 from mat.v3_calibration import V3Calibration
 from mat.data_file_factory import load_data_file
 from tests.utils import (
@@ -138,6 +141,16 @@ class TestHeader(TestCase):
     def test_empty_cal_string(self):
         with self.assertRaises(ValueError):
             V3Calibration.load_from_string('')
+
+    def test_missing_hde_from_calibration(self):
+        data_file = load_data_file(reference_file('missing_hde.lid'))
+        with self.assertRaises(ValueError):
+            data_file.calibration()
+
+    def test_missing_hss_from_calibration(self):
+        data_file = load_data_file(reference_file('missing_hss.lid'))
+        cal = data_file.calibration()
+        assert set(cal.coefficients) == set(DEFAULT_COEFFICIENTS)
 
 
 def cal_is_close(dict1, dict2):

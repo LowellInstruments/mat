@@ -83,6 +83,10 @@ class TestDataConverter(TestCase):
         with self.assertRaises(ValueError):
             dc.convert()
 
+    def test_accel_mag_no_temp(self):
+        dc = DataConverter(reference_file('accel_mag_no_temp.lid'))
+        dc.convert()
+
     def tearDown(self):
         directory = os.path.dirname(os.path.realpath(__file__))
         directory = os.path.join(directory, 'files')

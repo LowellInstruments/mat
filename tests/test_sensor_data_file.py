@@ -37,7 +37,7 @@ class TestSensorDataFile(TestCase):
         data_file.page(0)
         data_file.page(0)
 
-    def test_load_calibration(self):
+    def test_load_calibration_twice(self):
         data_file = load_data_file(reference_file('test.lid'))
         cal = data_file.calibration()
         cal = data_file.calibration()
@@ -58,11 +58,6 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('test.lid'))
         with self.assertRaises(ValueError):
             data_file.page(3)
-
-    def test_missing_hde_from_calibration(self):
-        data_file = load_data_file(reference_file('missing_hde.lid'))
-        with self.assertRaises(ValueError):
-            data_file.calibration()
 
     def test_mhs_wrong_place(self):
         data_file = load_data_file(reference_file('mhs_wrong_place.lid'))

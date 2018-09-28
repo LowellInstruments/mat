@@ -26,7 +26,10 @@ class DataConverter:
         return self._source_file
 
     def cancel_conversion(self):
-        self._is_running = False
+        # TODO: Nathan, I'm not sure if this is thread safe. This method
+        # would be called from another thread running in Logger. I suspect
+        # this may need to be done another way??
+        self._is_running = False  # pragma: no cover
 
     def convert(self):
         self._is_running = True
@@ -35,7 +38,7 @@ class DataConverter:
         page_times = self.source_file().page_times()
         for i in range(self.source_file().n_pages()):
             if not self._is_running:
-                break
+                break  # pragma: no cover
             page = self.source_file().page(i)
             self._write_to_outputs(outputs, page, page_times[i])
             percent = (i + 1) / self.source_file().n_pages() * 100
