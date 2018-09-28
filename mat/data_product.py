@@ -45,8 +45,6 @@ def _sensor_from_name(sensors, names):
     if not set(names).issubset([s.name for s in sensors]):
         raise ValueError('Requested sensors not active')
     requested_sensors = [s for s in sensors if s.name in names]
-    if len(requested_sensors) < len(names):
-        raise ValueError('Required sensor not in sensors')
     return requested_sensors
 
 

@@ -8,6 +8,8 @@ from mat.data_file_factory import load_data_file
 from tests.utils import reference_file
 from tests.utils import compare_files
 from mat.tiltcurve import TiltCurve
+import os
+import re
 
 
 class TestDataConverter(TestCase):
@@ -64,3 +66,10 @@ class TestDataConverter(TestCase):
         path = reference_file('TCM1_Calibrate_(0).lid')
         dc = DataConverter(path)
         dc.convert()
+
+    def tearDown(self):
+        directory = os.path.dirname(os.path.realpath(__file__))
+        directory = os.path.join(directory, 'files')
+        for f in os.listdir(directory):
+            if re.search(r'.*\.csv$', f):
+                os.remove(os.path.join(directory, f))
