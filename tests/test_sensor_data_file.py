@@ -32,10 +32,10 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('test.lid'))
         data_file.sensors()
 
-    def test_load_page(self):
+    def test_load_page_twice(self):
         data_file = load_data_file(reference_file('test.lid'))
         data_file.page(0)
-        pass
+        data_file.page(0)
 
     def test_load_calibration(self):
         data_file = load_data_file(reference_file('test.lid'))
@@ -53,4 +53,8 @@ class TestSensorDataFile(TestCase):
     def test_seconds_per_page_partial_page(self):
         data_file = load_data_file(reference_file('test.lid'))
         data_file.seconds_per_page()
-        pass
+
+    def test_missing_hde_from_calibration(self):
+        data_file = load_data_file(reference_file('missing_hde.lid'))
+        with self.assertRaises(ValueError):
+            data_file.calibration()

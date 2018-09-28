@@ -16,11 +16,11 @@ class TimeConverter(ABC):
 
     @abstractmethod
     def header_str(self):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def _process(self, posix_time):
-        pass
+        pass  # pragma: no cover
 
     def _format_time(self, posix_time, time_format):
         time = datetime.utcfromtimestamp(float(posix_time))
