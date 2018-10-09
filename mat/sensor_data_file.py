@@ -6,7 +6,6 @@ from mat.calibration_factories import calibration_from_string
 from mat.sensor import create_sensors
 from abc import ABC, abstractmethod
 from math import floor
-from mat.header import ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
 
 
 FULL_HEADER_LENGTH = 1000
