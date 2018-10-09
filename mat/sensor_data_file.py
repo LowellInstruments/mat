@@ -2,7 +2,7 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 from mat.header import Header
-from mat.calibration_factories import make_from_string
+from mat.calibration_factories import calibration_from_string
 from mat.sensor import create_sensors
 from abc import ABC, abstractmethod
 from math import floor
@@ -10,7 +10,6 @@ from mat.header import ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
 
 
 FULL_HEADER_LENGTH = 1000
-CALIBRATION_STRING_LENGTH = 380
 
 
 class SensorDataFile(ABC):
@@ -27,6 +26,7 @@ class SensorDataFile(ABC):
         self._mini_header_length = None
         self._samples_per_page = None
 
+    @property
     @abstractmethod
     def data_start(self):
         pass  # pragma: no cover
@@ -65,18 +65,8 @@ class SensorDataFile(ABC):
         if self._calibration:
             return self._calibration
         full_header = self._read_full_header()
-        calibration_start = full_header.find('HDE\r\n')
-        if calibration_start == -1:
-            raise ValueError('HDE tag missing from header')
-        start_ind = calibration_start + 5  # 5 chars for tag and /r/n
-        end_ind = calibration_start + 5 + CALIBRATION_STRING_LENGTH
-        self._calibration = make_from_string(full_header[start_ind:end_ind])
+        self._calibration = calibration_from_string(full_header)
         return self._calibration
-
-    def major_interval(self):
-        orientation_interval = self.header().tag(ORIENTATION_INTERVAL) or 0
-        temperature_interval = self.header().tag(TEMPERATURE_INTERVAL) or 0
-        return max(orientation_interval, temperature_interval)
 
     def seconds_per_page(self):
         if self.n_pages() > 1:
@@ -117,18 +107,18 @@ class SensorDataFile(ABC):
         # to the major interval. Then query each sensor to get the total
         # number of samples.
 
-        maj_interval = self.major_interval()
+        maj_interval = self.header().major_interval()
         sensors = create_sensors(self.header(),
                                  self.calibration(),
                                  maj_interval)
 
         n_samples_per_interval = self._count_samples(sensors)
         remaining_bytes = (self.file_size()
-                           - self.data_start()
+                           - self.data_start
                            - self.mini_header_length())
         samples = floor(remaining_bytes/2)
         n_intervals = floor(samples / n_samples_per_interval)
-        return n_intervals * self.major_interval()
+        return n_intervals * maj_interval
 
     def _read_full_header(self):
         file_position = self.file().tell()

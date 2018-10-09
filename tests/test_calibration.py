@@ -1,7 +1,6 @@
 from unittest import TestCase
 from mat.calibration_factories import (
     make_from_calibration_file,
-    DEFAULT_COEFFICIENTS
 )
 from mat.v3_calibration import V3Calibration
 from mat.data_file_factory import load_data_file
@@ -128,11 +127,6 @@ class TestHeader(TestCase):
             sdf = load_data_file(reference_file('missing_hse.lid'))
             sdf.calibration()
 
-    def test_missing_hde(self):
-        with self.assertRaises(ValueError):
-            sdf = load_data_file(reference_file('missing_hde.lid'))
-            sdf.calibration()
-
     def test_calibration_missing_value(self):
         with self.assertRaises(ValueError):
             file = reference_file('v3_calibration_missing_value.txt')
@@ -142,15 +136,13 @@ class TestHeader(TestCase):
         with self.assertRaises(ValueError):
             V3Calibration.load_from_string('')
 
-    def test_missing_hde_from_calibration(self):
-        data_file = load_data_file(reference_file('missing_hde.lid'))
-        with self.assertRaises(ValueError):
-            data_file.calibration()
-
     def test_missing_hss_from_calibration(self):
-        data_file = load_data_file(reference_file('missing_hss.lid'))
-        cal = data_file.calibration()
-        assert set(cal.coefficients) == set(DEFAULT_COEFFICIENTS)
+        """
+        HSE is present, but HSS is missing
+        """
+        with self.assertRaises(ValueError):
+            data_file = load_data_file(reference_file('missing_hss.lid'))
+            data_file.calibration()
 
 
 def cal_is_close(dict1, dict2):

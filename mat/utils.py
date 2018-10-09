@@ -36,7 +36,7 @@ def parse_tags(string):
     eg
     parse_tags('ABC 123\r\nDEF 456\r\n')
     would return
-    {'ABC': '123', 'DEF': '456}
+    {'ABC': '123', 'DEF': '456'}
     """
     lines = string.split('\r\n')[:-1]
     dictionary = {}

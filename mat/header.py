@@ -25,6 +25,8 @@ PRESSURE_BURST_RATE = 'PRR'
 START_TIME = 'CLK'
 STATUS = 'STS'
 TEMPERATURE_INTERVAL = 'TRI'
+HEADER_START_TAG = 'HDS\r\n'
+HEADER_END_TAG = 'HDE\r\n'
 
 
 class Header:
@@ -56,15 +58,18 @@ class Header:
 
     def parse_header(self):
         header_string = self._crop_header_block(self.header_string)
+        self._validate_header_block(header_string)
         header_string = self._remove_logger_info(header_string)
         header_string = self._remove_header_tags(header_string)
         header_dict = parse_tags(header_string)
         self._header = self._convert_to_type(header_dict)
 
     def _crop_header_block(self, header_block):
-        self._validate_header_block(header_block)
-        mhe_index = header_block.find('HDE')
-        return header_block[:mhe_index+5]
+        start_index = header_block.find(HEADER_START_TAG)
+        end_index = header_block.find(HEADER_END_TAG)
+        if start_index == -1 or end_index == -1:
+            raise ValueError('Header tags missing')
+        return header_block[start_index:end_index+len(HEADER_END_TAG)]
 
     def _remove_logger_info(self, header_string):
         lis = header_string.find('LIS')
@@ -81,9 +86,7 @@ class Header:
         return header_string
 
     def _validate_header_block(self, header_string):
-        if not header_string.startswith('HDS'):
-            raise ValueError('Header must start with HDS')
-        mandatory_tags = ['HDE', 'MHS', 'MHE']
+        mandatory_tags = ['MHS', 'MHE']
         for tag in mandatory_tags:
             if tag not in header_string:
                 raise ValueError(tag + ' tag missing in header')
@@ -95,3 +98,8 @@ class Header:
             if tag in self.type_int:
                 dictionary[tag] = int(value)
         return dictionary
+
+    def major_interval(self):
+        orientation_interval = self.tag(ORIENTATION_INTERVAL) or 0
+        temperature_interval = self.tag(TEMPERATURE_INTERVAL) or 0
+        return max(orientation_interval, temperature_interval)

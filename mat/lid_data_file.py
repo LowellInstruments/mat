@@ -5,26 +5,26 @@ from datetime import datetime
 import numpy as np
 
 
-DATA_START = 32768
 PAGE_SIZE = 1024**2
 
 
 class LidDataFile(SensorDataFile):
+    @property
+    def data_start(self):
+        return 32768
+
     def n_pages(self):
-        return ceil((self.file_size() - DATA_START) / PAGE_SIZE)
+        return ceil((self.file_size() - self.data_start) / PAGE_SIZE)
 
     def _load_page(self, i):
         if i >= self.n_pages():
             raise ValueError('page {} exceeds number of pages'.format(i))
 
-        ind = (self.data_start() + (i * PAGE_SIZE) + self.mini_header_length())
+        ind = (self.data_start + (i * PAGE_SIZE) + self.mini_header_length())
         self._file.seek(ind)
         return np.fromfile(self.file(),
                            dtype='<i2',
                            count=self.samples_per_page())
-
-    def data_start(self):
-        return DATA_START
 
     def page_times(self):
         if self._page_times:
@@ -46,7 +46,7 @@ class LidDataFile(SensorDataFile):
 
     def _read_mini_header(self, page):
         file_position = self.file().tell()
-        self.file().seek(DATA_START + PAGE_SIZE * page)
+        self.file().seek(self.data_start + PAGE_SIZE * page)
         header_string = self.file().read(self.mini_header_length())
         header_string = header_string.decode('IBM437')
         header_string = header_string[5:-5]  # remove HDE\r\n and HDS\r\n
@@ -57,7 +57,7 @@ class LidDataFile(SensorDataFile):
         if self._mini_header_length:
             return self._mini_header_length
         file_position = self.file().tell()
-        self.file().seek(DATA_START)
+        self.file().seek(self.data_start)
         this_line = self.file().readline().decode('IBM437')
         if not this_line.startswith('MHS'):
             raise ValueError('MHS tag missing on first data page.')
@@ -65,5 +65,5 @@ class LidDataFile(SensorDataFile):
             this_line = self.file().readline().decode('IBM437')
         end_pos = self._file.tell()
         self.file().seek(file_position)
-        self._mini_header_length = end_pos-DATA_START
+        self._mini_header_length = end_pos-self.data_start
         return self._mini_header_length

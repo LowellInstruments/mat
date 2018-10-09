@@ -9,7 +9,7 @@ DATA_FILE_TYPES = {'.lid': LidDataFile,
 def load_data_file(file_path):
     extension = file_path[-4:]
     try:
-        class_ = DATA_FILE_TYPES.get(extension)
-        return class_(file_path)
+        klass = DATA_FILE_TYPES.get(extension)
+        return klass(file_path)
     except TypeError:
         raise ValueError('Invalid Filename or extension')

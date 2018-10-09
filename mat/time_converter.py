@@ -1,6 +1,6 @@
 from datetime import datetime
 from abc import ABC, abstractmethod
-import numpy as np
+from numpy import vectorize
 
 
 def create_time_converter(time_format):
@@ -13,7 +13,7 @@ def create_time_converter(time_format):
 
 class TimeConverter(ABC):
     def __init__(self):
-        self.converter = np.vectorize(lambda t: self._process(t))
+        self.converter = vectorize(lambda t: self._process(t))
 
     @abstractmethod
     def header_str(self):
@@ -36,8 +36,8 @@ class Iso8601(TimeConverter):
         return 'ISO 8601 Time'
 
     def _process(self, posix_time):
-        time_str = self._format_time(posix_time, '%Y-%m-%dT%H:%M:%S.%f')
-        return time_str[:-3]
+        column_header = self._format_time(posix_time, '%Y-%m-%dT%H:%M:%S.%f')
+        return column_header[:-3]
 
 
 class Legacy(TimeConverter):
@@ -45,8 +45,8 @@ class Legacy(TimeConverter):
         return 'Date,Time'
 
     def _process(self, posix_time):
-        time_str = self._format_time(posix_time, '%Y-%m-%d,%H:%M:%S.%f')
-        return time_str[:-3]
+        column_header = self._format_time(posix_time, '%Y-%m-%d,%H:%M:%S.%f')
+        return column_header[:-3]
 
 
 class Posix(TimeConverter):
@@ -74,5 +74,5 @@ class Elapsed:
     def convert(self, posix_time):
         if self.converter is None:
             self.start_time = float(posix_time[0])
-            self.converter = np.vectorize(lambda t: self._process(t))
+            self.converter = vectorize(lambda t: self._process(t))
         return self.converter(posix_time)

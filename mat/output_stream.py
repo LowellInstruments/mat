@@ -4,8 +4,10 @@ from .time_converter import create_time_converter
 
 def output_stream_factory(output_type, file_name, destination, time_format):
     output_types = {'csv': CsvStream}
-    class_ = output_types.get(output_type)
-    return class_(file_name, destination, time_format)
+    stream_class = output_types.get(output_type)
+    if stream_class is None:
+        raise ValueError('Unknown output type' + output_type)
+    return stream_class(file_name, destination, time_format)
 
 
 class OutputStream:
@@ -18,9 +20,9 @@ class OutputStream:
     def add_stream(self, data_product):
         pass  # pragma: no cover
 
-    def set_header_string(self, stream, header_string):
-        header_string = self.time_converter.header_str() + ',' + header_string
-        self.streams[stream].header_string = header_string
+    def set_column_header(self, stream, column_header):
+        column_header = self.time_converter.header_str() + ',' + column_header
+        self.streams[stream].column_header = column_header
 
     def set_data_format(self, stream, data_format):
         self.streams[stream].data_format = data_format
@@ -49,7 +51,7 @@ class CsvFile:
 
     def __init__(self, output_path):
         self.output_path = output_path
-        self.header_string = ''
+        self.column_header = ''
         self.data_format = ''
         self.delete_output_file(output_path)
 
@@ -61,7 +63,7 @@ class CsvFile:
 
     def write_header(self):
         with open(self.output_path, 'a') as fid:
-            fid.write(self.header_string + '\n')
+            fid.write(self.column_header + '\n')
 
     def write(self, data, time):
         data_format = '{},' + self.data_format + '\n'

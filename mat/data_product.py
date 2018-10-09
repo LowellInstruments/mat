@@ -1,61 +1,67 @@
 from os import path
 from mat.output_stream import output_stream_factory
-import numpy as np
 from abc import ABC, abstractmethod
 from mat.utils import roll_pitch_yaw
+from collections import namedtuple
+from numpy import (
+    arccos,
+    arctan2,
+    array,
+    cos,
+    deg2rad,
+    degrees,
+    dot,
+    mod,
+    pi,
+    reshape,
+    sin,
+    sqrt,
+    vstack
+)
+
+
+SensorDataTime = namedtuple('SensorDataTime', ['data', 'time'])
 
 
 def data_product_factory(sensors, parameters):
     """
     Instantiate a data product subclass and pass it the necessary sensors
     """
+    special_cases = {'compass': Compass, 'current': Current}
     data_products = []
     output_stream = _create_output_stream(parameters)
-    parameters = _accel_mag_check(sensors, parameters)
 
-    # Special cases first
-    for class_ in [Current, Compass, AccelMag]:
-        if class_.OUTPUT_TYPE == parameters['output_type']:
-            required_sensors = _sensor_from_name(sensors,
-                                                 class_.REQUIRED_SENSORS)
-            sensors = remove_sensors(sensors, required_sensors)
-            data_product = class_(required_sensors, parameters, output_stream)
-            data_products.append(data_product)
+    # special cases and accelmag are mutually exclusive, hence the if elif
+    if parameters.output_type in special_cases.keys():
+        klass = special_cases[parameters.output_type]
+        data_products.append(klass(sensors, parameters, output_stream))
+
+    # no special cases, but were accel and mag enabled? If so bundle them
+    elif set(AccelMag.REQUIRED_SENSORS).issubset([s.name for s in sensors]):
+        data_products.append(AccelMag(sensors, parameters, output_stream))
 
     # Convert remaining sensors as discrete channels
-    for sensor in sensors:
-        data_product = DiscreteChannel([sensor], parameters, output_stream)
-        data_products.append(data_product)
+    remaining_sensors = _remaining_sensors(sensors, data_products)
+    for sensor in remaining_sensors:
+        data_products.append(DiscreteChannel([sensor],
+                                             parameters,
+                                             output_stream))
     return data_products
 
 
-def _accel_mag_check(sensors, parameters):
-    sensor_names = [s.name for s in sensors]
-    if parameters['output_type'] == 'discrete':
-        if set(AccelMag.REQUIRED_SENSORS).issubset(sensor_names):
-            parameters['output_type'] = 'accelmag'
-    return parameters
-
-
-def remove_sensors(sensors, sensors_to_remove):
-    return [s for s in sensors if s not in sensors_to_remove]
-
-
-def _sensor_from_name(sensors, names):
-    if not set(names).issubset([s.name for s in sensors]):
-        raise ValueError('Requested sensors not active')
-    requested_sensors = [s for s in sensors if s.name in names]
-    return requested_sensors
+def _remaining_sensors(sensors, data_products):
+    used_sensors = [s for p in data_products for s in p.REQUIRED_SENSORS]
+    return [s for s in sensors if s.name not in used_sensors]
 
 
 def _create_output_stream(parameters):
-    filename = path.basename(parameters['path'])
-    dir_name = path.dirname(parameters['path'])
-    destination = parameters['output_directory'] or dir_name
-    return output_stream_factory(parameters['output_format'],
+    filename = path.basename(parameters.path)
+    dir_name = path.dirname(parameters.path)
+    destination = parameters.output_directory or dir_name
+    return output_stream_factory(parameters.output_format,
                                  filename,
                                  destination,
-                                 parameters['time_format'])
+                                 parameters.time_format)
 
 
 class DataProduct(ABC):
@@ -63,24 +69,30 @@ class DataProduct(ABC):
     REQUIRED_SENSORS = []
 
     def __init__(self, sensors, parameters, output_stream):
-        self.sensors = sensors
+        self.sensors = self._get_required_sensors(sensors)
         self.parameters = parameters
         self.output_stream = output_stream
-        self.average = parameters['average']
+        self.average = parameters.average
         self.configure_output_stream()
+
+    def _get_required_sensors(self, sensors):
+        sensor_names = [s.name for s in sensors]
+        if not set(self.REQUIRED_SENSORS).issubset(sensor_names):
+            raise ValueError('Not all required sensors present')
+        return [s for s in sensors if s.name in self.REQUIRED_SENSORS]
 
     def configure_output_stream(self):
         name = self.stream_name()
         self.output_stream.add_stream(name)
         self.output_stream.set_data_format(name, self.data_format())
-        self.output_stream.set_header_string(name, self.header_string())
+        self.output_stream.set_column_header(name, self.column_header())
         self.output_stream.write_header(name)
 
     def convert_sensors(self, data_page, page_time):
         converted = []
         for sensor in self.sensors:
             data, time = sensor.convert(data_page, self.average, page_time)
-            converted.append((data, time))
+            converted.append(SensorDataTime(data, time))
         return converted
 
     @abstractmethod
@@ -92,21 +104,23 @@ class DataProduct(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def header_string(self):
+    def column_header(self):
         pass  # pragma: no cover
 
     @abstractmethod
     def process_page(self, data_page, page_time):
         pass  # pragma: no cover
 
-    def _join_spec_fields(self, field):
-        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
-        return ','.join(fields)
-
 
 class DiscreteChannel(DataProduct):
     OUTPUT_TYPE = 'discrete'
     REQUIRED_SENSORS = []
+
+    def _get_required_sensors(self, sensors):
+        # Override _get_required_sensors in DataProduct
+        if type(sensors) is not list or len(sensors) != 1:
+            raise ValueError('DiscreteChannels expects a list with one sensor')
+        return sensors
 
     def stream_name(self):
         return self.sensors[0].name
@@ -114,14 +128,14 @@ class DiscreteChannel(DataProduct):
     def data_format(self):
         return self.sensors[0].sensor_spec.format
 
-    def header_string(self):
+    def column_header(self):
         return self.sensors[0].sensor_spec.header
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
         self.output_stream.write(self.sensors[0].name,
-                                 converted[0][0],
-                                 converted[0][1])
+                                 converted[0].data,
+                                 converted[0].time)
 
 
 class AccelMag(DataProduct):
@@ -134,13 +148,17 @@ class AccelMag(DataProduct):
     def data_format(self):
         return self._join_spec_fields('format')
 
-    def header_string(self):
+    def column_header(self):
         return self._join_spec_fields('header')
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
-        data = np.vstack((converted[0][0], converted[1][0]))
-        self.output_stream.write(self.stream_name(), data, converted[0][1])
+        data = vstack((converted[0].data, converted[1].data))
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
+
+    def _join_spec_fields(self, field):
+        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
+        return ','.join(fields)
 
 
 class Current(DataProduct):
@@ -149,8 +167,8 @@ class Current(DataProduct):
 
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
-        self.tilt_curve = self.parameters['tilt_curve']
-        self.declination = self.parameters.get('declination') or 0
+        self.tilt_curve = self.parameters.tilt_curve
+        self.declination = self.parameters.declination
 
     def stream_name(self):
         return 'Current'
@@ -158,39 +176,39 @@ class Current(DataProduct):
     def data_format(self):
         return '{:0.2f},{:0.2f},{:0.2f},{:0.2f}'
 
-    def header_string(self):
+    def column_header(self):
         return ('Speed (cm/s),'
-                'Bearing (degrees),'
+                'Heading (degrees),'
                 'Velocity-N (cm/s),'
                 'Velocity-E (cm/s)')
 
-    def _calc_tilt__and_bearing(self, accel, mag):
+    def _calc_tilt_and_heading(self, accel, mag):
         roll, pitch, yaw = roll_pitch_yaw(accel, mag)
-        x = -np.cos(roll) * np.sin(pitch)
-        y = np.sin(roll)
+        x = -cos(roll) * sin(pitch)
+        y = sin(roll)
 
-        tilt = np.arccos(
-            accel[2] / np.sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
-        is_usd = tilt > np.pi / 2
-        tilt[is_usd] = np.pi - tilt[is_usd]
+        tilt = arccos(
+            accel[2] / sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
+        is_usd = tilt > pi / 2
+        tilt[is_usd] = pi - tilt[is_usd]
 
-        bearing = np.arctan2(y, x) + yaw
-        bearing = np.mod(bearing + np.deg2rad(self.declination), 2 * np.pi)
-        return tilt, bearing
+        heading = arctan2(y, x) + yaw
+        heading = mod(heading + deg2rad(self.declination), 2 * pi)
+        return tilt, heading
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
-        accel = converted[0][0]
-        mag = converted[1][0]
-        tilt, bearing = self._calc_tilt__and_bearing(accel, mag)
-        speed = self.tilt_curve.speed_from_tilt(np.degrees(tilt))
+        accel = converted[0].data
+        mag = converted[1].data
+        tilt, heading = self._calc_tilt_and_heading(accel, mag)
+        speed = self.tilt_curve.speed_from_tilt(degrees(tilt))
 
-        velocity_n = speed * np.cos(bearing)
-        velocity_e = speed * np.sin(bearing)
+        velocity_n = speed * cos(heading)
+        velocity_e = speed * sin(heading)
 
-        data = np.vstack((speed, bearing, velocity_n, velocity_e))
+        data = vstack((speed, heading, velocity_n, velocity_e))
 
-        self.output_stream.write(self.stream_name(), data, converted[0][1])
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
 
 
 class Compass(DataProduct):
@@ -199,26 +217,28 @@ class Compass(DataProduct):
 
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
-        self.declination = self.parameters.get('declination') or 0
+        self.declination = self.parameters.declination
 
     def stream_name(self):
-        return 'Compass'
+        return 'Heading'
 
     def data_format(self):
-        return '{:0.1f}'
+        return '{:0.2f}'
 
-    def header_string(self):
-        return 'Bearing (deg)'
+    def column_header(self):
+        return 'Heading (degrees)'
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
-        accel = converted[0][0]
-        mag = converted[1][0]
-        m = np.array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
-        accel = np.dot(m, accel)
-        mag = np.dot(m, mag)
+        accel = converted[0].data
+        mag = converted[1].data
+        m = array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+        accel = dot(m, accel)
+        mag = dot(m, mag)
         roll, pitch, heading = roll_pitch_yaw(accel, mag)
-        heading = np.rad2deg(heading)
-        heading = np.mod(heading + self.declination, 360)
-        heading = np.reshape(heading, (1, -1))
-        self.output_stream.write(self.stream_name(), heading, converted[0][1])
+        heading = degrees(heading)
+        heading = mod(heading + self.declination, 360)
+        heading = reshape(heading, (1, -1))
+        self.output_stream.write(self.stream_name(),
+                                 heading,
+                                 converted[0].time)

@@ -4,10 +4,11 @@ from mat.header import START_TIME
 from mat.utils import epoch
 
 
-DATA_START = 1024
-
-
 class LisDataFile(SensorDataFile):
+    @property
+    def data_start(self):
+        return 1024
+
     def n_pages(self):
         return 1
 
@@ -21,9 +22,6 @@ class LisDataFile(SensorDataFile):
 
     def mini_header_length(self):
         return 0
-
-    def data_start(self):
-        return DATA_START
 
     def _load_page(self, i):
         pass
