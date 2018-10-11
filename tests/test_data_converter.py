@@ -37,16 +37,22 @@ class TestDataConverter(TestCase):
 
     def test_observer(self):
         full_file_path = reference_file('test.lid')
-        parameters = ConversionParameters(full_file_path)
+        parameters = ConversionParameters(full_file_path, average=False)
         dc = DataConverter(parameters)
         dc.register_observer(lambda percent_done: None)
         dc.convert()
+        assert_compare_expected_file('test_AccelMag.csv')
+        assert_compare_expected_file('test_Temperature.csv')
 
-    def test_convert(self):
+    def test_convert_legacy(self):
         full_file_path = reference_file('test.lid')
         parameters = ConversionParameters(full_file_path, time_format='legacy')
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('test_AccelMag.csv',
+                                     'test_AccelMag-legacy.csv.expect')
+        assert_compare_expected_file('test_Temperature.csv',
+                                     'test_Temperature-legacy.csv.expect')
 
     def test_current(self):
         full_file_path = reference_file('test.lid')
@@ -58,6 +64,8 @@ class TestDataConverter(TestCase):
                                           tilt_curve=tilt_curve)
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('test_Current.csv')
+        assert_compare_expected_file('test_Temperature.csv')
 
     def test_compass(self):
         full_file_path = reference_file('test.lid')
@@ -72,12 +80,17 @@ class TestDataConverter(TestCase):
         parameters = ConversionParameters(full_file_path)
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('TCM1_Calibrate_(0)_AccelMag.csv')
 
     def test_convert_w_posix_time(self):
         full_file_path = reference_file('test.lid')
         parameters = ConversionParameters(full_file_path, time_format='posix')
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('test_AccelMag.csv',
+                                     'test_AccelMag-posix.csv.expect')
+        assert_compare_expected_file('test_Temperature.csv',
+                                     'test_Temperature-posix.csv.expect')
 
     def test_convert_w_elapsed_time(self):
         full_file_path = reference_file('test.lid')
@@ -85,12 +98,17 @@ class TestDataConverter(TestCase):
                                           time_format='elapsed')
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('test_AccelMag.csv',
+                                     'test_AccelMag-elapsed.csv.expect')
+        assert_compare_expected_file('test_Temperature.csv',
+                                     'test_Temperature-elapsed.csv.expect')
 
     def test_two_page_file(self):
         full_file_path = reference_file('two_page_file.lid')
         parameters = ConversionParameters(full_file_path)
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('two_page_file_AccelMag.csv')
 
     def test_current_no_accel(self):
         full_file_path = reference_file('temp_mag_no_accel.lid')
@@ -105,3 +123,4 @@ class TestDataConverter(TestCase):
         parameters = ConversionParameters(full_file_path)
         dc = DataConverter(parameters)
         dc.convert()
+        assert_compare_expected_file('accel_mag_no_temp_AccelMag.csv')
