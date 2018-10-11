@@ -25,8 +25,8 @@ class TestDataConverter(TestCase):
         parameters = ConversionParameters(full_file_path, average=False)
         converter = DataConverter(parameters)
         converter.convert()
-        assert_compare_expected_file('test_accelmag.csv')
-        assert_compare_expected_file('test_temperature.csv')
+        assert_compare_expected_file('test_AccelMag.csv')
+        assert_compare_expected_file('test_Temperature.csv')
 
     def test_data_converter_creation(self):
         full_file_path = reference_file("test.lid")
