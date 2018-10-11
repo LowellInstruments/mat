@@ -9,7 +9,7 @@ from serial import (
     SerialException,
 )
 from serial.tools.list_ports import grep
-from mat.calibration_factories import make_from_string
+from mat.calibration_factories import calibration_from_string
 from mat.converter import Converter
 from mat.logger_cmd import LoggerCmd
 from mat.logger_info_parser import LoggerInfoParser
@@ -164,7 +164,7 @@ class LoggerController(object):
             else:
                 break
 
-        self.calibration = make_from_string((cal_string))
+        self.calibration = calibration_from_string((cal_string))
         self.converter = Converter(self.calibration)
 
     def load_logger_info(self):

@@ -1,7 +1,10 @@
 from unittest import TestCase
-from mat.calibration_factories import make_from_calibration_file
-from mat import odlfile
-from utils import (
+from mat.calibration_factories import (
+    make_from_calibration_file,
+)
+from mat.v3_calibration import V3Calibration
+from mat.data_file_factory import load_data_file
+from tests.utils import (
     calibration_from_file,
     reference_file,
 )
@@ -85,16 +88,13 @@ class TestHeader(TestCase):
         cal_is_close(cal.coefficients, expected_dict)
 
     def test_load_v3_from_data_file(self):
-        with open(reference_file('test.lid'), 'rb') as fid:
-            odlfile.load_file(fid)
+        load_data_file(reference_file('test.lid'))
 
     def test_load_v2_from_data_file(self):
-        with open(reference_file('v2_datafile.lid'), 'rb') as fid:
-            odlfile.load_file(fid)
+        load_data_file(reference_file('v2_datafile.lid'))
 
     def test_empty_calibration(self):
-        with open(reference_file('empty_calibration.lid'), 'rb') as fid:
-            odlfile.load_file(fid)
+        load_data_file(reference_file('empty_calibration.lid'))
 
     def test_make_v2_serial_string(self):
         expected_str = 'RVN12TMO30.0TMR710000.0TMAd0.00112381007' \
@@ -124,18 +124,25 @@ class TestHeader(TestCase):
 
     def test_missing_hse(self):
         with self.assertRaises(ValueError):
-            with open(reference_file('missing_hse.lid'), 'rb') as fid:
-                odlfile.load_file(fid)
-
-    def test_missing_hde(self):
-        with self.assertRaises(ValueError):
-            with open(reference_file('missing_hde.lid'), 'rb') as fid:
-                odlfile.load_file(fid)
+            sdf = load_data_file(reference_file('missing_hse.lid'))
+            sdf.calibration()
 
     def test_calibration_missing_value(self):
         with self.assertRaises(ValueError):
             file = reference_file('v3_calibration_missing_value.txt')
             make_from_calibration_file(file)
+
+    def test_empty_cal_string(self):
+        with self.assertRaises(ValueError):
+            V3Calibration.load_from_string('')
+
+    def test_missing_hss_from_calibration(self):
+        """
+        HSE is present, but HSS is missing
+        """
+        with self.assertRaises(ValueError):
+            data_file = load_data_file(reference_file('missing_hss.lid'))
+            data_file.calibration()
 
 
 def cal_is_close(dict1, dict2):

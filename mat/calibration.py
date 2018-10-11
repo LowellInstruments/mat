@@ -25,7 +25,6 @@ eg. AXX^3r#p -- AXX is the tag, and "^3r#p" is -0.247291 encoded in ascii85
 
 from abc import ABC, abstractmethod
 from mat.utils import trim_start
-EMPTY_CHAR = bytes([255]).decode('IBM437')
 
 
 class Calibration(ABC):
@@ -42,7 +41,6 @@ class Calibration(ABC):
 
     @classmethod
     def load_from_string(cls, calibration_string):
-        cls._check_if_empty(calibration_string)
         cls._validate_string(calibration_string)
         # Trim HSS (3 characters) from start of calibration string
         calibration_string = trim_start(calibration_string, 3)
@@ -54,7 +52,7 @@ class Calibration(ABC):
     @staticmethod
     @abstractmethod
     def _parse_tag_value_pairs(calibration_string):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def make_serial_string(self):
@@ -65,15 +63,8 @@ class Calibration(ABC):
         pass  # pragma: no cover
 
     @staticmethod
-    def _check_if_empty(calibration_string):
+    def _validate_string(calibration_string):
         if not calibration_string:
             raise ValueError('Calibration string is empty')
-        if all([char == EMPTY_CHAR for char in calibration_string]):
-            raise ValueError('Calibration string contains only chr 255')
-
-    @staticmethod
-    def _validate_string(calibration_string):
-        if not calibration_string.startswith('HSS'):
-            raise ValueError('Host storage string must begin with HSS')
         if calibration_string.find('HSE') == -1:
             raise ValueError('Host storage string must contain HSE tag')

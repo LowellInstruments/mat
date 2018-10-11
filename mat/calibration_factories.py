@@ -2,6 +2,9 @@ from mat.v2_calibration import V2Calibration
 from mat.v3_calibration import V3Calibration
 
 
+CALIBRATION_STRING_LENGTH = 380
+CALIBRATION_START_TAG = 'HSS'
+CALIBRATION_END_TAG = 'HSE'
 DEFAULT_COEFFICIENTS = {'AXX': 1, 'AXY': 0, 'AXZ': 0, 'AXC': 0, 'AXV': 0,
                         'AYX': 0, 'AYY': 1, 'AYZ': 0, 'AYC': 0, 'AYV': 0,
                         'AZX': 0, 'AZY': 0, 'AZZ': 1, 'AZC': 0, 'AZV': 0,
@@ -31,8 +34,8 @@ def make_from_calibration_file(file_path):
     if 'RVN' not in coefficients.keys():
         coefficients['RVN'] = '2'
 
-    class_ = {'2': V2Calibration, '3': V3Calibration}.get(coefficients['RVN'])
-    return class_(coefficients)
+    klass = {'2': V2Calibration, '3': V3Calibration}.get(coefficients['RVN'])
+    return klass(coefficients)
 
 
 def _find_coefficients(fid):
@@ -62,13 +65,26 @@ def _split_tag_value(line):
     return tag_value[0], tag_value[1]
 
 
-def make_from_string(calibration_string):
+def calibration_from_string(calibration_string):
     """
     Factory function to return correct calibration subclass based on a string
     """
+    calibration_string = _crop_calibration_string(calibration_string)
     if calibration_string.startswith('HSSRVN13'):
         return V3Calibration.load_from_string(calibration_string)
     elif calibration_string.startswith('HSS'):
         return V2Calibration.load_from_string(calibration_string)
     else:
         return V2Calibration(DEFAULT_COEFFICIENTS)
+
+
+def _crop_calibration_string(calibration_string):
+    start_index = calibration_string.find(CALIBRATION_START_TAG)
+    end_index = calibration_string.find(CALIBRATION_END_TAG)
+    if start_index == -1 and end_index == -1:
+        return ''
+    if start_index == -1 and end_index > -1:
+        raise ValueError('{} tag missing'.format(CALIBRATION_START_TAG))
+    if start_index > -1 and end_index == -1:
+        raise ValueError('{} tag missing'.format(CALIBRATION_END_TAG))
+    return calibration_string[start_index:end_index+len(CALIBRATION_END_TAG)]

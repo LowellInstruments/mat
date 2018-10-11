@@ -1,4 +1,6 @@
 from numpy import array
+from datetime import datetime
+import numpy as np
 
 
 def obj_from_coefficients(coefficients, classes):
@@ -19,6 +21,31 @@ def array_from_tags(data, *key_lists):
                   for key_list in key_lists])
 
 
+def cut_out(string, start_cut, end_cut):
+    return string[:start_cut] + string[end_cut:]
+
+
+def epoch(time):
+    return (time - datetime(1970, 1, 1)).total_seconds()
+
+
+def parse_tags(string):
+    """
+    Break a string of tag/value pairs separated by \r\n into a dictionary
+    with tags as keys
+    eg
+    parse_tags('ABC 123\r\nDEF 456\r\n')
+    would return
+    {'ABC': '123', 'DEF': '456'}
+    """
+    lines = string.split('\r\n')[:-1]
+    dictionary = {}
+    for tag_and_value in lines:
+        tag, value = tag_and_value.strip().split(' ', 1)
+        dictionary[tag] = value
+    return dictionary
+
+
 def four_byte_int(bytes, signed=False):
     if len(bytes) != 4:
         return 0
@@ -26,3 +53,14 @@ def four_byte_int(bytes, signed=False):
     if signed and result > 32768:
         return result - 65536
     return result
+
+
+def roll_pitch_yaw(accel, mag):
+    roll = np.arctan2(accel[1], accel[2])
+    pitch = np.arctan2(-accel[0],
+                       accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
+    by = mag[2] * np.sin(roll) - mag[1] * np.cos(roll)
+    bx = (mag[0] * np.cos(pitch) + mag[1] * np.sin(pitch) * np.sin(roll)
+          + mag[2] * np.sin(pitch) * np.cos(roll))
+    yaw = np.arctan2(by, bx)
+    return roll, pitch, yaw

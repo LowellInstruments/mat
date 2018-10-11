@@ -9,7 +9,7 @@ from mat.linear_accelerometer import LinearAccelerometer
 from mat.pressure import DEFAULT_PRA
 from mat.temp_compensated_magnetometer import TempCompensatedMagnetometer
 from mat.v3_calibration import V3Calibration
-from utils import calibration_from_file
+from tests.utils import calibration_from_file
 
 
 EXAMPLE_RAW_DATA = array([[1, 2, 3, 4],

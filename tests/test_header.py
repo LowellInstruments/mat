@@ -42,3 +42,8 @@ class TestHeader(TestCase):
         with self.assertRaises(ValueError):
             h = header.header_factory(reference_file('missing_hds_header.lid'))
             h.parse_header()
+
+    def test_missing_hde(self):
+        with self.assertRaises(ValueError):
+            h = header.header_factory(reference_file('missing_hde.lid'))
+            h.parse_header()

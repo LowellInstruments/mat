@@ -63,6 +63,7 @@ ifeq ($(OS),Windows_NT)
     tests/test_calibration.py \
     tests/test_compare_data_files.py \
     tests/test_converter.py \
+    tests/test_data_converter.py \
     tests/test_gps.py \
     tests/test_header.py \
     tests/test_logger_controller.py \
@@ -114,4 +115,4 @@ test: $(VENV)
 
 coverage: $(VENV)
 	@$(ACTIVATE) && pytest --cov=$(MODULE_NAME) \
-		--cov-report=term --cov-report=html
+		--cov-report=term --cov-report=html $(TESTS)
