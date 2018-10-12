@@ -75,6 +75,13 @@ class TestDataConverter(TestCase):
         dc.convert()
         assert_compare_expected_file('test_Heading.csv')
 
+    def test_unsupported_format(self):
+        full_file_path = reference_file('test.lid')
+        parameters = ConversionParameters(full_file_path,
+                                          output_format='unsupported')
+        with self.assertRaises(ValueError):
+            DataConverter(parameters).convert()
+
     def test_temp_comp_magnetometer(self):
         full_file_path = reference_file('TCM1_Calibrate_(0).lid')
         parameters = ConversionParameters(full_file_path)

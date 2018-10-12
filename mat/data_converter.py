@@ -29,9 +29,8 @@ class DataConverter:
         self._is_running = None
 
     def _load_source_file(self):
-        if self.source_file:
-            return self.source_file
-        self.source_file = load_data_file(self.parameters.path)
+        if not self.source_file:
+            self.source_file = load_data_file(self.parameters.path)
         return self.source_file
 
     def cancel_conversion(self):
