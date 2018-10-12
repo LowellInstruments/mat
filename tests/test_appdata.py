@@ -21,6 +21,7 @@ class TestSensorDataFile(TestCase):
 
     def test_userdata_path_posix(self):
         with _name_patch(name="posix"):
+            environ["HOME"] = reference_file("appdata_dir/")
             assert POSIX_SUBDIR in userdata_path()
 
     def test_set_userdata(self):
