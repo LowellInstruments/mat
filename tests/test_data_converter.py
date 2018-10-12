@@ -19,7 +19,6 @@ class TestDataConverter(TestCase):
         with self.assertRaises(ValueError):
             load_data_file('')
 
-    # THIS IS THE GOAL
     def test_conversion(self):
         full_file_path = reference_file('test.lid')
         parameters = ConversionParameters(full_file_path, average=False)

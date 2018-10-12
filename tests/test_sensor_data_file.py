@@ -1,7 +1,6 @@
 from unittest import TestCase
 from mat.data_file_factory import load_data_file
 from mat.lid_data_file import LidDataFile
-from mat.lis_data_file import LisDataFile
 from tests.utils import reference_file
 from mat.v3_calibration import V3Calibration
 from mat.header import Header
@@ -12,20 +11,12 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('test.lid'))
         assert isinstance(data_file, LidDataFile)
 
-    def test_create_lis(self):
-        data_file = load_data_file(reference_file('test.lis'))
-        assert isinstance(data_file, LisDataFile)
-
     def test_create_bad_file(self):
         with self.assertRaises(ValueError):
             load_data_file(reference_file('test.xyz'))
 
     def test_n_pages_lid(self):
         data_file = load_data_file(reference_file('test.lid'))
-        assert data_file.n_pages() == 1
-
-    def test_n_pages_lis(self):
-        data_file = load_data_file(reference_file('test.lis'))
         assert data_file.n_pages() == 1
 
     def test_sensors(self):
