@@ -4,16 +4,12 @@
 import os
 import pickle
 
+NT_SUBDIR = 'Lowell Instruments\\'
+POSIX_SUBDIR = '.Lowell'
+
 
 def get_userdata(filename):
-    if os.name == 'nt':
-        appdata_path = os.getenv('APPDATA')
-        path = os.path.join(appdata_path, 'Lowell Instruments\\' + filename)
-    elif os.name == 'posix':
-        appdata_path = os.environ['HOME']
-        path = os.path.join(appdata_path, '.Lowell/' + filename)
-    else:
-        raise SystemError('Unknown system type')
+    path = userdata_path(filename)
     if os.path.isfile(path):
         with open(path, 'rb') as h:
             return pickle.load(h)
@@ -22,14 +18,7 @@ def get_userdata(filename):
 
 
 def set_userdata(filename, field, data):
-    if os.name == 'nt':
-        appdata_path = os.getenv('APPDATA')
-        path = appdata_path + '\\Lowell Instruments'
-    elif os.name == 'posix':
-        appdata_path = os.getenv('HOME')
-        path = os.path.join(appdata_path, '.Lowell')
-    else:
-        raise SystemError('Unknown system type')
+    path = userdata_path()
     if not os.path.exists(path):
         os.makedirs(path)
     userdata = get_userdata(filename)
@@ -37,3 +26,15 @@ def set_userdata(filename, field, data):
 
     with open(os.path.join(path, filename), 'wb') as h:
         pickle.dump(userdata, h)
+
+
+def userdata_path(filename=""):
+    if os.name == 'nt':
+        appdata_path = os.getenv('APPDATA')
+        subdir = NT_SUBDIR
+    elif os.name == 'posix':
+        appdata_path = os.getenv('HOME')
+        subdir = POSIX_SUBDIR
+    else:
+        raise SystemError('Unknown system type')
+    return os.path.join(appdata_path, subdir, filename)
