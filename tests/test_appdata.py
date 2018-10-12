@@ -1,17 +1,10 @@
 from os import environ
-from os.path import (
-    basename,
-    dirname,
-)
 from filecmp import cmp
 from shutil import rmtree
 from contextlib import contextmanager
 from unittest.mock import patch
 from unittest import TestCase
-from tests.utils import (
-    assert_compare_expected_file,
-    reference_file,
-)
+from tests.utils import reference_file
 from mat.appdata import (
     POSIX_SUBDIR,
     get_userdata,
