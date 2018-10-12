@@ -81,6 +81,7 @@ class TestDataConverter(TestCase):
         dc = DataConverter(parameters)
         dc.convert()
         assert_compare_expected_file('TCM1_Calibrate_(0)_AccelMag.csv')
+        assert_compare_expected_file('TCM1_Calibrate_(0)_Temperature.csv')
 
     def test_convert_w_posix_time(self):
         full_file_path = reference_file('test.lid')
@@ -109,6 +110,7 @@ class TestDataConverter(TestCase):
         dc = DataConverter(parameters)
         dc.convert()
         assert_compare_expected_file('two_page_file_AccelMag.csv')
+        assert_compare_expected_file('two_page_file_Temperature.csv')
 
     def test_current_no_accel(self):
         full_file_path = reference_file('temp_mag_no_accel.lid')
