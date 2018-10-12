@@ -136,6 +136,10 @@ class TestHeader(TestCase):
         with self.assertRaises(ValueError):
             V3Calibration.load_from_string('')
 
+    def test_bad_cal_string(self):
+        with self.assertRaises(ValueError):
+            V3Calibration.load_from_string('Bad Calibration String')
+
     def test_missing_hss_from_calibration(self):
         """
         HSE is present, but HSS is missing
