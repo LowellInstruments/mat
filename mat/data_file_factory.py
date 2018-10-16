@@ -1,9 +1,7 @@
 from mat.lid_data_file import LidDataFile
-from mat.lis_data_file import LisDataFile
 
 
-DATA_FILE_TYPES = {'.lid': LidDataFile,
-                   '.lis': LisDataFile}
+DATA_FILE_TYPES = {'.lid': LidDataFile}
 
 
 def load_data_file(file_path):

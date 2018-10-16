@@ -43,7 +43,7 @@ def data_product_factory(sensors, parameters):
     # Convert remaining sensors as discrete channels
     remaining_sensors = _remaining_sensors(sensors, data_products)
     for sensor in remaining_sensors:
-        data_products.append(DiscreteChannel([sensor],
+        data_products.append(DiscreteChannel(sensor,
                                              parameters,
                                              output_stream))
     return data_products
@@ -116,10 +116,10 @@ class DiscreteChannel(DataProduct):
     OUTPUT_TYPE = 'discrete'
     REQUIRED_SENSORS = []
 
+    def __init__(self, sensor, parameters, output_stream):
+        super().__init__([sensor], parameters, output_stream)
+
     def _get_required_sensors(self, sensors):
-        # Override _get_required_sensors in DataProduct
-        if type(sensors) is not list or len(sensors) != 1:
-            raise ValueError('DiscreteChannels expects a list with one sensor')
         return sensors
 
     def stream_name(self):
