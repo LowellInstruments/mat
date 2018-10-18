@@ -15,8 +15,10 @@ class LoggerCmd:
 
     def _first_real_char(self):
         inchar = self.port.read(1).decode('IBM437')
-        while ord(inchar) in [10, 13]:
+        while inchar and ord(inchar) in [10, 13]:
             inchar = self.port.read(1).decode('IBM437')
+        if not inchar:
+            raise RuntimeError("Unable to read from port")
         return inchar
 
     def _length_str(self):
