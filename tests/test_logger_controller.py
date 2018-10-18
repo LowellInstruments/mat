@@ -153,6 +153,11 @@ class TestLoggerController(TestCase):
         with _grep_patch(COM_VALUE, name="nt"):
             _open_controller()
 
+    def test_open_port_with_empty_grep(self):
+        with _grep_patch(None, name="posix"):
+            with self.assertRaises(RuntimeError):
+                _open_controller()
+
     def test_open_port_on_unknown(self):
         with _grep_patch(COM_VALUE, name="unknown"):
             with self.assertRaises(RuntimeError):

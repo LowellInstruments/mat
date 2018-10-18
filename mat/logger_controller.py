@@ -65,7 +65,10 @@ TIMEOUT = 5
 
 
 def find_port():
-    field = list(grep('2047:08[AEae]+'))[0][0]
+    try:
+        field = list(grep('2047:08[AEae]+'))[0][0]
+    except TypeError:
+        raise RuntimeError("Unable to find port")
     pattern = PORT_PATTERNS.get(os.name)
     if not pattern:
         raise RuntimeError("Unsupported operating system: " + os.name)
@@ -83,8 +86,8 @@ class LoggerController(object):
         self.converter = None
 
     def open_port(self, com_port=None):
-        com_port = com_port or find_port()
         try:
+            com_port = com_port or find_port()
             if com_port:
                 self._open_port(com_port)
         except SerialException:
