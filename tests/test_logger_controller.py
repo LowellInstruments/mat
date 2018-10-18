@@ -210,6 +210,12 @@ class TestLoggerController(TestCase):
         with _command_patch("SIT 04down"):
             assert self.command_with_callbacks() == "down"
 
+    def test_sit_command_with_bad_length(self):
+        with _command_patch("SIT down"):
+            controller = _open_controller(com_port="1")
+            with self.assertRaises(RuntimeError):
+                controller.command("SIT")
+
     def test_err_command_with_callbacks(self):
         with _serial_patch(FakeSerialErr):
             assert self.command_with_callbacks() is None

@@ -25,7 +25,11 @@ class LoggerCmd:
         return self.port.read(3).decode('IBM437')[1:]
 
     def _data(self):
-        length = int(self.length_str, 16)
+        try:
+            length = int(self.length_str, 16)
+        except ValueError:
+            raise RuntimeError(
+                'Invalid length string, %s, received' % self.length_str)
         data = self.port.read(length).decode('IBM437')
         if length != len(data):
             raise RuntimeError(
