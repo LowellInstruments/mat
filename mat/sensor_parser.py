@@ -36,6 +36,8 @@ SENSOR_CONVERTERS = [
 
 class SensorParser:
     def __init__(self, data, converter):
+        if data is None:
+            raise RuntimeError("No sensor data provided")
         self.data = data
         self.converter = converter
         self._sensors = {

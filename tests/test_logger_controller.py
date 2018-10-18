@@ -133,6 +133,10 @@ class FakeSerialErr(FakeSerialReader):
     data = b'\n\rERR 04boom'
 
 
+class FakeSerialEmpty(FakeSerialReader):
+    data = b''
+
+
 class FakeSerialForCommand(FakeSerialReader):
     cmds = ["ERR"]
 
@@ -300,9 +304,21 @@ class TestLoggerController(TestCase):
             with _command_patch(cmd + " 00"):
                 assert _open_controller(com_port="1").command(cmd) == ""
 
+    def test_cmd_with_no_data(self):
+        with _serial_patch(FakeSerialEmpty):
+            with self.assertRaises(RuntimeError):
+                _open_controller(com_port="1").command(SIMPLE_CMDS[0])
+
     def test_stop_with_string(self):
         with _command_patch("SWS 00"):
             assert _open_controller(com_port="1").stop_with_string("") == ""
+
+    def test_get_sensor_readings_closed_port(self):
+        with _command_patch("GSR 00" + "RHS 00" * 10):
+            controller = _open_controller(com_port="1")
+            controller.close()
+            with self.assertRaises(RuntimeError):
+                controller.get_sensor_readings()
 
     def test_get_sensor_readings_empty(self):
         with _command_patch("GSR 00" + "RHS 00" * 10):
