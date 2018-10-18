@@ -67,7 +67,7 @@ TIMEOUT = 5
 def find_port():
     try:
         field = list(grep('2047:08[AEae]+'))[0][0]
-    except TypeError:
+    except (TypeError, IndexError):
         raise RuntimeError("Unable to find port")
     pattern = PORT_PATTERNS.get(os.name)
     if not pattern:
