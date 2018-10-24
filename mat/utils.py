@@ -47,12 +47,15 @@ def parse_tags(string):
 
 
 def four_byte_int(bytes, signed=False):
-    if len(bytes) != 4:
-        return 0
-    result = int(bytes[2:4] + bytes[0:2], 16)
-    if signed and result > 32768:
-        return result - 65536
-    return result
+    try:
+        if len(bytes) != 4:
+            return 0
+        result = int(bytes[2:4] + bytes[0:2], 16)
+        if signed and result > 32768:
+            return result - 65536
+        return result
+    except ValueError:
+        raise RuntimeError("Unable to extract integer from %s" % bytes)
 
 
 def roll_pitch_yaw(accel, mag):
