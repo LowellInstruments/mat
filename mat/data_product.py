@@ -23,17 +23,17 @@ from numpy import (
 SensorDataTime = namedtuple('SensorDataTime', ['data', 'time'])
 
 
-def data_product_factory(sensors, parameters):
+def data_product_factory(file_path, sensors, parameters):
     """
     Instantiate a data product subclass and pass it the necessary sensors
     """
     special_cases = {'compass': Compass, 'current': Current}
     data_products = []
-    output_stream = _create_output_stream(parameters)
+    output_stream = _create_output_stream(file_path, parameters)
 
     # special cases and accelmag are mutually exclusive, hence the if elif
-    if parameters.output_type in special_cases.keys():
-        klass = special_cases[parameters.output_type]
+    if parameters['output_type'] in special_cases.keys():
+        klass = special_cases[parameters['output_type']]
         data_products.append(klass(sensors, parameters, output_stream))
 
     # no special cases, but were accel and mag enabled? If so bundle them
@@ -54,14 +54,14 @@ def _remaining_sensors(sensors, data_products):
     return [s for s in sensors if s.name not in used_sensors]
 
 
-def _create_output_stream(parameters):
-    filename = path.basename(parameters.path)
-    dir_name = path.dirname(parameters.path)
-    destination = parameters.output_directory or dir_name
-    return output_stream_factory(parameters.output_format,
+def _create_output_stream(file_path, parameters):
+    filename = path.basename(file_path)
+    dir_name = path.dirname(file_path)
+    destination = parameters['output_directory'] or dir_name
+    return output_stream_factory(parameters['output_format'],
                                  filename,
                                  destination,
-                                 parameters.time_format)
+                                 parameters['time_format'])
 
 
 class DataProduct(ABC):
@@ -72,7 +72,7 @@ class DataProduct(ABC):
         self.sensors = self._get_required_sensors(sensors)
         self.parameters = parameters
         self.output_stream = output_stream
-        self.average = parameters.average
+        self.average = parameters['average']
         self.configure_output_stream()
 
     def _get_required_sensors(self, sensors):
@@ -167,8 +167,8 @@ class Current(DataProduct):
 
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
-        self.tilt_curve = self.parameters.tilt_curve
-        self.declination = self.parameters.declination
+        self.tilt_curve = self.parameters['tilt_curve']
+        self.declination = self.parameters['declination']
 
     def stream_name(self):
         return 'Current'
@@ -217,7 +217,7 @@ class Compass(DataProduct):
 
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
-        self.declination = self.parameters.declination
+        self.declination = self.parameters['declination']
 
     def stream_name(self):
         return 'Heading'
