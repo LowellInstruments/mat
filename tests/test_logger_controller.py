@@ -22,7 +22,8 @@ TTY_NAME = "ttyACM0"
 TTY_VALUE = [[TTY_NAME]]
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S"
 TIME_STAMP = "2018/09/18 14:36:00"
-EXPECTED_SENSOR_READINGS_32_BYTES = {
+
+EXPECTED_SENSOR_READINGS_32_E_BYTES = {
     'ax': array([-4.26757812]),
     'ax_raw': array([-4370]),
     'ay': array([-4.26757812]),
@@ -43,7 +44,7 @@ EXPECTED_SENSOR_READINGS_32_BYTES = {
     'temp': -26.170648093957993,
     'temp_raw': 61166,
 }
-EXPECTED_SENSOR_READINGS_40_BYTES = {
+EXPECTED_SENSOR_READINGS_40_E_BYTES = {
     'ax': array([-4.26757812]),
     'ax_raw': -4370,
     'ay': array([-4.26757812]),
@@ -331,23 +332,27 @@ class TestLoggerController(TestCase):
             assert _open_controller(com_port="1").get_sensor_readings() is None
 
     def test_get_sensor_readings_32_bytes(self):
-        # Note: "F" causes a ZeroDivisionError
+        # Note: "F" bytes generates a divide by zero numpy warning
         readings = self.get_sensor_readings(32, "E")
-        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_32_BYTES[key],
+        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_32_E_BYTES[key],
                                    readings[key])
-         for key in EXPECTED_SENSOR_READINGS_32_BYTES.keys()]
+         for key in EXPECTED_SENSOR_READINGS_32_E_BYTES.keys()]
 
     def test_get_sensor_readings_40_bytes(self):
         readings = self.get_sensor_readings(40, "E")
-        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_40_BYTES[key],
+        [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_40_E_BYTES[key],
                                    readings[key])
-         for key in EXPECTED_SENSOR_READINGS_40_BYTES.keys()]
+         for key in EXPECTED_SENSOR_READINGS_40_E_BYTES.keys()]
 
     def test_get_sensor_readings_40_zero_bytes(self):
         readings = self.get_sensor_readings(40, "0")
         [assert_array_almost_equal(EXPECTED_SENSOR_READINGS_40_ZERO_BYTES[key],
                                    readings[key])
          for key in EXPECTED_SENSOR_READINGS_40_ZERO_BYTES.keys()]
+
+    def test_get_sensor_readings_bad_data(self):
+        with self.assertRaises(RuntimeError):
+            self.get_sensor_readings(32, "X")
 
     def get_sensor_readings(self, bytes, value):
         controller = None
@@ -442,3 +447,7 @@ def _command(cmd):
 
 def _do_nothing(*args):
     pass
+
+
+def _raise_runtime_error(*args):
+    raise RuntimeError
