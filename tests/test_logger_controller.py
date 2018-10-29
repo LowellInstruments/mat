@@ -352,7 +352,7 @@ class TestLoggerController(TestCase):
 
     def test_get_sensor_readings_bad_data(self):
         with self.assertRaises(RuntimeError):
-            readings = self.get_sensor_readings(32, "X")
+            self.get_sensor_readings(32, "X")
 
     def get_sensor_readings(self, bytes, value):
         controller = None
