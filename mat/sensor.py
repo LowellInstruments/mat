@@ -118,7 +118,9 @@ class Sensor:
     def _average_bursts(self, data, time):
         if self.burst_count == 1:
             return data, time
-        data = np.mean(np.reshape(data, (3, -1, self.burst_count)), axis=2)
+        data = np.mean(np.reshape(data, (self.channels,
+                                         -1,
+                                         self.burst_count)), axis=2)
         time = time[::self.burst_count]
         return data, time
 

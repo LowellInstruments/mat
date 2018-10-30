@@ -2,27 +2,23 @@ from mat.data_file_factory import load_data_file
 from mat.data_product import data_product_factory
 
 
-class ConversionParameters:
-    def __init__(self, path, **kwargs):
-        self.path = path
-        self.output_directory = None
-        self.output_type = 'discrete'
-        self.output_format = 'csv'
-        self.average = 'True'
-        self.time_format = 'iso8601'
-        self.tilt_curve = None
-        self.declination = 0
-        self._verify_kwargs(kwargs)
-        self.__dict__.update(kwargs)
-
-    def _verify_kwargs(self, kwargs):
-        accepted_keys = self.__dict__.keys()
-        if any([1 for x in kwargs if x not in accepted_keys]):
-            raise ValueError('Unknown keyword')
+def default_parameters():
+    """
+    If this were a stand alone dictionary, and not in a function, the user
+    would need to remember to copy the dictionary each time as it is mutable
+    """
+    return {'output_directory': None,
+            'output_type': 'discrete',
+            'output_format': 'csv',
+            'average': True,
+            'time_format': 'iso8601',
+            'tilt_curve': None,
+            'declination': 0}
 
 
 class DataConverter:
-    def __init__(self, parameters):
+    def __init__(self, path, parameters):
+        self.path = path
         self.parameters = parameters
         self.source_file = None
         self.observers = []
@@ -30,19 +26,17 @@ class DataConverter:
 
     def _load_source_file(self):
         if not self.source_file:
-            self.source_file = load_data_file(self.parameters.path)
+            self.source_file = load_data_file(self.path)
         return self.source_file
 
     def cancel_conversion(self):
-        # TODO: Nathan, I'm not sure if this is thread safe. This method
-        # would be called from another thread running in Logger. I suspect
-        # this may need to be done another way??
         self._is_running = False  # pragma: no cover
 
     def convert(self):
         self._is_running = True
         self._load_source_file()
-        outputs = data_product_factory(self.source_file.sensors(),
+        outputs = data_product_factory(self.path,
+                                       self.source_file.sensors(),
                                        self.parameters)
         page_times = self.source_file.page_times()
         for i in range(self.source_file.n_pages()):
