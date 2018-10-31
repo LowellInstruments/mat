@@ -74,7 +74,9 @@ class SensorDataFile(ABC):
             return self._partial_page_seconds()
 
     def samples_per_page(self):
-        return self._count_samples(self.sensors())
+        if self._samples_per_page is None:
+            self._samples_per_page = self._count_samples(self.sensors())
+        return self._samples_per_page
 
     def _count_samples(self, sensor_list):
         samples = 0
