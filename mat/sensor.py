@@ -2,6 +2,7 @@ from mat.sensor_specification import AVAILABLE_SENSORS
 import numpy as np
 from math import floor
 from heapq import merge
+from itertools import chain
 
 
 def create_sensors(header, calibration, seconds):
@@ -85,12 +86,10 @@ class Sensor:
         sensor samples. n channel sensors return n times per sample.
         """
         if self._full_sample_times_cache is None:
-            sample_times = []
-            for interval_time in range(0, self.seconds, self.interval):
-                for burst_time in range(0, self.burst_count):
-                    burst_time = [interval_time + burst_time / self.burst_rate]
-                    sample_times.extend([burst_time] * self.channels)
-            self._full_sample_times_cache = sample_times
+            times = [[interval+burst/self.burst_rate]*self.channels
+                     for interval in range(0, self.seconds, self.interval)
+                     for burst in range(self.burst_count)]
+            self._full_sample_times_cache = list(chain.from_iterable(times))
         return self._full_sample_times_cache
 
     def _parse_page(self, data_page):
