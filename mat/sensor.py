@@ -1,6 +1,8 @@
 from mat.sensor_specification import AVAILABLE_SENSORS
 import numpy as np
 from math import floor
+from heapq import merge
+from itertools import chain
 
 
 def create_sensors(header, calibration, seconds):
@@ -42,8 +44,8 @@ def _time_and_order(sensors):
     for sensor in sensors:
         sample_times = sensor.full_sample_times()
         sensor_time_order = [(t, sensor.order) for t in sample_times]
-        time_and_order.extend(sensor_time_order)
-    return sorted(time_and_order)
+        time_and_order.append(sensor_time_order)
+    return list(merge(*time_and_order))
 
 
 def _load_sequence_into_sensors(sensors, time_and_order):
@@ -76,18 +78,19 @@ class Sensor:
         self.order = sensor_spec.order
         self.converter = sensor_spec.converter(calibration)
         self.cache = {'page_time': None, 'data': None}
+        self._full_sample_times_cache = None
 
     def full_sample_times(self):
         """
         The elapsed time in seconds from the start of the data page when a
         sensor samples. n channel sensors return n times per sample.
         """
-        sample_times = []
-        for interval_time in range(0, self.seconds, self.interval):
-            for burst_time in range(0, self.burst_count):
-                burst_time = [interval_time + burst_time / self.burst_rate]
-                sample_times.extend([burst_time] * self.channels)
-        return np.array(sample_times)
+        if self._full_sample_times_cache is None:
+            times = [[interval+burst/self.burst_rate]*self.channels
+                     for interval in range(0, self.seconds, self.interval)
+                     for burst in range(self.burst_count)]
+            self._full_sample_times_cache = list(chain.from_iterable(times))
+        return self._full_sample_times_cache
 
     def _parse_page(self, data_page):
         """
