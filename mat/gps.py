@@ -134,10 +134,14 @@ class Device(object):
         self.record = None
         self.gsv = {}
         self.satellites = {}
+        # added
+        self.my_measures = {}
 
     def run(self):
         while True:
             self.parse_line()
+            my_last_measures = self.get_last_measures()
+            # if my_last_measures: print my_last_measures
 
     def read_line(self):
         while True:
@@ -158,8 +162,6 @@ class Device(object):
         timestamp = datetime.datetime.strptime(args[0], '%H%M%S.%f')
         latitude = to_decimal(args[1], args[2])
         longitude = to_decimal(args[3], args[4])
-        my_latitude = convert_lat(str(latitude), "N")
-        my_lngtiude = convert_lon(str(longitude), "W")
         fix = parse_int(args[5])
         count = parse_int(args[6])
         hdop = parse_float(args[7])
@@ -237,6 +239,28 @@ class Device(object):
 
     def on_satellites(self, satellites):
         self.satellites = satellites
+
+    def get_last_measures(self):
+        # collect interesting fields
+        if self.rmc:
+            my_longitude = convert_lon(str(self.rmc["longitude"]), "W")
+            my_longitude = str("{0:.4f}".format(my_longitude))
+            my_latitude = convert_lat(str(self.rmc["latitude"]), "N")
+            my_latitude = str("{0:.4f}".format(my_latitude))
+            # self.my_measures["rmc_longitude"] = str(my_longitude)
+            # self.my_measures["rmc_latitude"] = str(my_latitude)
+            self.my_measures["rmc_timestamp"] = str(self.rmc["timestamp"])
+
+        if self.gga:
+            my_longitude = convert_lon(str(self.gga["longitude"]), "W")
+            my_longitude = str("{0:.4f}".format(my_longitude))
+            my_latitude = convert_lat(str(self.gga["latitude"]), "N")
+            my_latitude = str("{0:.4f}".format(my_latitude))
+            self.my_measures["gga_longitude"] = my_longitude
+            self.my_measures["gga_latitude"] = my_latitude
+            self.my_measures["gga_altitude"] = str(self.gga["altitude"])
+
+        return self.my_measures
 
 
 def convert_lat(lat_str, ns):
