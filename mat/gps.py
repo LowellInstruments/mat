@@ -1,7 +1,7 @@
 import serial
-import time
 import datetime
 
+# adapted from https://github.com/fogleman/GPS/blob/master/gps.py
 
 # Settings
 PORT = '/dev/ttyUSB0'
@@ -13,6 +13,7 @@ DOP_GOOD = 2
 DOP_MODERATE = 3
 DOP_FAIR = 4
 DOP_POOR = 5
+
 
 DOP_STRING = {
     DOP_EXCELLENT: 'excellent',
@@ -119,7 +120,7 @@ class Satellite(object):
 
 
 # Device Object
-class Device(object):
+class GPS(object):
     def __init__(self, port=PORT, baud_rate=BAUD_RATE):
         self.port = serial.Serial(port, baud_rate)
         self.handlers = {
@@ -136,12 +137,6 @@ class Device(object):
         self.satellites = {}
         # added
         self.my_measures = {}
-
-    def run(self):
-        while True:
-            self.parse_line()
-            my_last_measures = self.get_last_measures()
-            # if my_last_measures: print my_last_measures
 
     def read_line(self):
         while True:
@@ -241,8 +236,11 @@ class Device(object):
         self.satellites = satellites
 
     def get_last_measures(self):
-        # collect interesting fields
-        if self.rmc:
+        # start with clean sheet
+        self.my_measures = {}
+
+        # collect interesting fields from "rmc" GPS sentence
+        if self.rmc and self.rmc.get("longitude"):
             my_longitude = convert_lon(str(self.rmc["longitude"]), "W")
             my_longitude = str("{0:.4f}".format(my_longitude))
             my_latitude = convert_lat(str(self.rmc["latitude"]), "N")
@@ -251,7 +249,8 @@ class Device(object):
             # self.my_measures["rmc_latitude"] = str(my_latitude)
             self.my_measures["rmc_timestamp"] = str(self.rmc["timestamp"])
 
-        if self.gga:
+        # collect interesting fields from "gga" GPS sentence
+        if self.gga and self.gga.get("longitude"):
             my_longitude = convert_lon(str(self.gga["longitude"]), "W")
             my_longitude = str("{0:.4f}".format(my_longitude))
             my_latitude = convert_lat(str(self.gga["latitude"]), "N")
@@ -273,13 +272,3 @@ def convert_lon(lon_str, ew):
     longitude = float(lon_str[0:3]) + float(lon_str[3:10])/60
     longitude = -longitude if ew == 'W' else longitude
     return longitude
-
-
-def convert_time(time_str):
-    time_struct = time.strptime(time_str, '%H%M%S.%f')
-    return '{:0>2d}:{:0>2d}:{:0>2d}'.format(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec)
-
-
-
-
-
