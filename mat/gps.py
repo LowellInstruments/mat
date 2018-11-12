@@ -146,12 +146,15 @@ class GPS(object):
 
     def parse_line(self):
         line = self.read_line().decode("ASCII")
-        data, checksum = line.split('*')
-        tokens = data.split(',')
-        command, args = tokens[0], tokens[1:]
-        handler = self.handlers.get(command)
-        if handler:
-            handler(args)
+        if line:
+            data, checksum = line.split('*')
+            tokens = data.split(',')
+            command, args = tokens[0], tokens[1:]
+            handler = self.handlers.get(command)
+            if handler:
+                handler(args)
+                return True
+        return False
 
     def on_gga(self, args):
         timestamp = datetime.datetime.strptime(args[0], '%H%M%S.%f')
