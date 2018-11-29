@@ -107,6 +107,7 @@ class LoggerController(object):
             return self.find_tag(self.target_tag(args))
         except SerialException:
             self.close()
+            self.is_connected = False
             return None
 
     def find_tag(self, target):
