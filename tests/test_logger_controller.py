@@ -1,6 +1,4 @@
 from contextlib import contextmanager
-from calendar import timegm
-from time import strptime
 from numpy import array
 from numpy.testing import assert_array_almost_equal
 from unittest.mock import patch
