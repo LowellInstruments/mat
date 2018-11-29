@@ -1,7 +1,7 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-import datetime
+from datetime import datetime
 import os
 import re
 from serial import (
@@ -16,11 +16,6 @@ from mat.logger_info_parser import LoggerInfoParser
 from mat.sensor_parser import SensorParser
 from mat.utils import four_byte_int
 
-
-# TODO: the "command" method is in DIRE shape! Please, please fix it!
-# TODO: currently the logger class is blocking. Needs to be rewritten
-# TODO: if calibration isn't loaded, gsr crashes.
-# TODO: A default value needs to be loaded.
 
 FIRMWARE_VERSION_CMD = 'GFV'
 CALIBRATION_CMD = 'RHS'
@@ -81,7 +76,7 @@ class LoggerController(object):
         self.__port = None
         self.com_port = None
         self.__callback = {}
-        self.logger_info = {}
+        self._logger_info = {}
         self.calibration = None
         self.converter = None
 
@@ -170,6 +165,11 @@ class LoggerController(object):
         self.calibration = calibration_from_string((cal_string))
         self.converter = Converter(self.calibration)
 
+    def logger_info(self):
+        if not self._logger_info:
+            self.load_logger_info()
+        return self._logger_info
+
     def load_logger_info(self):
         read_size = 42
         li_string = ''
@@ -182,15 +182,7 @@ class LoggerController(object):
             li_string += self.command(LOGGER_INFO_CMD, command_str)
         if li_string and not all([c == 255 for c in
                                   bytes(li_string, encoding='IBM437')]):
-            self.logger_info = LoggerInfoParser(li_string).info()
-
-    def get_timestamp(self):
-        """ Return posix timestamp """
-        date_string = self.command(TIME_CMD)
-        epoch = datetime.datetime(1970, 1, 1)  # naive datetime format
-        logger_time = datetime.datetime.strptime(date_string,
-                                                 '%Y/%m/%d %H:%M:%S')
-        return (logger_time-epoch).total_seconds()
+            self._logger_info = LoggerInfoParser(li_string).info()
 
     def get_logger_settings(self):
         gls_string = self.command(LOGGER_SETTINGS_CMD)
@@ -236,7 +228,7 @@ class LoggerController(object):
         return int(fsz) if fsz else None
 
     def sync_time(self):
-        datetimeObj = datetime.datetime.now()
+        datetimeObj = datetime.now()
         formattedString = datetimeObj.strftime('%Y/%m/%d %H:%M:%S')
         return self.command(SYNC_TIME_CMD, formattedString)
 

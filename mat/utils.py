@@ -29,6 +29,13 @@ def epoch(time):
     return (time - datetime(1970, 1, 1)).total_seconds()
 
 
+def epoch_from_timestamp(date_string):
+    """ Return posix timestamp """
+    epoch_time = datetime(1970, 1, 1)
+    date_time = datetime.strptime(date_string, '%Y/%m/%d %H:%M:%S')
+    return (date_time - epoch_time).total_seconds()
+
+
 def parse_tags(string):
     """
     Break a string of tag/value pairs separated by \r\n into a dictionary
