@@ -276,12 +276,6 @@ class TestLoggerController(TestCase):
             assert controller.load_logger_info() is None
             assert controller.logger_info()["BA"] == 0
 
-    def test_get_timestamp(self):
-        with _command_patch("GTM 13" + TIME_STAMP):
-            expectation = timegm(strptime(TIME_STAMP, TIME_FORMAT))
-            assert (_open_controller(com_port="1").get_timestamp() ==
-                    expectation)
-
     def test_get_empty_logger_settings(self):
         with _command_patch("GLS 00"):
             assert _open_controller(com_port="1").get_logger_settings() == {}
