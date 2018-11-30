@@ -30,7 +30,7 @@ def parse_float(x):
 
 
 # Device Object
-class GPS():
+class GPS:
     def __init__(self, port=PORT, baud_rate=BAUD_RATE):
         self.port = serial.Serial(port, baud_rate)
         self.handlers = {
@@ -79,12 +79,11 @@ class GPS():
             altitude=altitude,
             separation=separation,
         )
-        print(self.gga)
 
     def on_rmc(self, args):
         valid = args[1] == 'A'
         timestamp = datetime.datetime.strptime(args[8] + args[0],
-            '%d%m%y%H%M%S.%f')
+                                               '%d%m%y%H%M%S.%f')
         latitude = to_decimal(args[2], args[3])
         longitude = to_decimal(args[4], args[5])
         knots = parse_float(args[6])
@@ -97,21 +96,9 @@ class GPS():
             knots=knots,
             course=course,
         )
-        print(self.rmc)
 
     def get_last_measures(self):
-        # start with clean sheet
         self.my_measures = {}
-
-        # collect interesting fields from "rmc" GPS sentence
-        if self.rmc and self.rmc.get("longitude"):
-            my_longitude = convert_lon(str(self.rmc["longitude"]), "W")
-            my_longitude = str("{0:.4f}".format(my_longitude))
-            my_latitude = convert_lat(str(self.rmc["latitude"]), "N")
-            my_latitude = str("{0:.4f}".format(my_latitude))
-            # self.my_measures["rmc_longitude"] = my_longitude
-            # self.my_measures["rmc_latitude"] = my_latitude
-            self.my_measures["rmc_timestamp"] = str(self.rmc["timestamp"])
 
         # collect interesting fields from "gga" GPS sentence
         if self.gga and self.gga.get("longitude"):
@@ -123,12 +110,23 @@ class GPS():
             self.my_measures["gga_latitude"] = my_latitude
             self.my_measures["gga_altitude"] = str(self.gga["altitude"])
 
+        # collect interesting fields from "rmc" GPS sentence
+        if self.rmc and self.rmc.get("longitude"):
+            my_longitude = convert_lon(str(self.rmc["longitude"]), "W")
+            my_longitude = str("{0:.4f}".format(my_longitude))
+            my_latitude = convert_lat(str(self.rmc["latitude"]), "N")
+            my_latitude = str("{0:.4f}".format(my_latitude))
+            self.my_measures["rmc_longitude"] = my_longitude
+            self.my_measures["rmc_latitude"] = my_latitude
+            self.my_measures["rmc_timestamp"] = str(self.rmc["timestamp"])
+
         return self.my_measures
 
 
 def convert_lat(lat_str, ns):
     latitude = float(lat_str[0:2]) + float(lat_str[2:9])/60
-    latitude = -latitude if ns == 'S' else latitude
+    if ns == 'S':
+        latitude *= -1
     return latitude
 
 
