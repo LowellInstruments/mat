@@ -78,9 +78,9 @@ class GPS:
     def get_last_measures(self):
         self.my_measures = {}
         if self.rmc and self.rmc.get("longitude"):
-            my_longitude = convert_lon(str(self.rmc["longitude"]), "W")
+            my_longitude = convert_coor(str(self.rmc["longitude"]), "lon", "W")
             my_longitude = str("{0:.4f}".format(my_longitude))
-            my_latitude = convert_lat(str(self.rmc["latitude"]), "N")
+            my_latitude = convert_coor(str(self.rmc["latitude"]), "lat", "N")
             my_latitude = str("{0:.4f}".format(my_latitude))
             self.my_measures["rmc_longitude"] = my_longitude
             self.my_measures["rmc_latitude"] = my_latitude
@@ -88,23 +88,14 @@ class GPS:
         return self.my_measures
 
 
-def convert_lat(lat_str, ns):
-    latitude = build_latitude_from_string(lat_str)
-    if ns == 'S':
-        latitude = -latitude
-    return latitude
-
-
-def convert_lon(lon_str, ew):
-    longitude = build_longitude_from_string(lon_str)
-    if ew == 'W':
-        longitude = -longitude
-    return longitude
-
-
-def build_latitude_from_string(value):
-    return float(value[0:2]) + float(value[2:9]) / 60
-
-
-def build_longitude_from_string(value):
-    return float(value[0:3]) + float(value[3:10]) / 6
+def convert_coor(value, lat_or_lon, ns_or_ew):
+    if lat_or_lon == "lat":
+        latitude = float(value[0:2]) + float(value[2:9]) / 60
+        if ns_or_ew == 'S':
+            return -latitude
+        return latitude
+    if lat_or_lon == "lon":
+        longitude = float(value[0:3]) + float(value[3:10]) / 60
+        if ns_or_ew == 'W':
+            return -longitude
+        return longitude
