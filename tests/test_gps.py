@@ -72,12 +72,12 @@ class TestGPS:
         with _patch_gps_read_line(b'$GPRMC,150455.000,A,4138.4356,N,\
         07037.2775,W,0.00,61.63,211118,,,D*1234'):
             o = GPS("any", 115200)
-            assert True == o.parse_line()
+            assert o.parse_line() is True
 
     def test_gps_parse_line_empty(self):
         with _patch_gps_read_line(b''):
             o = GPS("any", 115200)
-            assert False == o.parse_line()
+            assert o.parse_line() is False
 
     def test_my_measures(self):
         with _patch_serial():
