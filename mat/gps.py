@@ -29,8 +29,20 @@ def parse_float(x):
     return float(x) if x else None
 
 
+def convert_coordinate(axis, coord_str, direction):
+    LAT_LON_SPEC = {'lat': (2, 'N'), 'lon': (3, 'E')}
+    split, positive = LAT_LON_SPEC[axis]
+    degrees = coord_str[:split]
+    minutes = coord_str[split:]
+    decimal = float(degrees) + float(minutes)/60
+    if direction == positive:
+        return decimal
+    return -decimal
+
+
 # Device Object
 class GPS:
+
     def __init__(self, port=PORT, baud_rate=BAUD_RATE):
         self.port = serial.Serial(port, baud_rate)
         self.handlers = {
@@ -76,26 +88,13 @@ class GPS:
         )
 
     def get_last_measures(self):
-        self.my_measures = {}
+        self.measures = {}
         if self.rmc and self.rmc.get("longitude"):
-            my_longitude = convert_coor(str(self.rmc["longitude"]), "lon", "W")
-            my_longitude = str("{0:.4f}".format(my_longitude))
-            my_latitude = convert_coor(str(self.rmc["latitude"]), "lat", "N")
-            my_latitude = str("{0:.4f}".format(my_latitude))
-            self.my_measures["rmc_longitude"] = my_longitude
-            self.my_measures["rmc_latitude"] = my_latitude
-            self.my_measures["rmc_timestamp"] = str(self.rmc["timestamp"])
-        return self.my_measures
-
-
-def convert_coor(value, lat_or_lon, ns_or_ew):
-    if lat_or_lon == "lat":
-        latitude = float(value[0:2]) + float(value[2:9]) / 60
-        if ns_or_ew == 'S':
-            return -latitude
-        return latitude
-    if lat_or_lon == "lon":
-        longitude = float(value[0:3]) + float(value[3:10]) / 60
-        if ns_or_ew == 'W':
-            return -longitude
-        return longitude
+            lon = convert_coordinate("lon", str(self.rmc["longitude"]), "W")
+            lon = str("{0:.4f}".format(lon))
+            lat = convert_coordinate("lat", str(self.rmc["latitude"]), "N")
+            lat = str("{0:.4f}".format(lat))
+            self.measures["rmc_longitude"] = lon
+            self.measures["rmc_latitude"] = lat
+            self.measures["rmc_timestamp"] = str(self.rmc["timestamp"])
+        return self.measures
