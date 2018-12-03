@@ -1,20 +1,18 @@
 import serial
 import datetime
 
-# adapted from https://github.com/fogleman/GPS/blob/master/gps.py
-
-# Settings
 BAUD_RATE = 4800
 
 
-def to_decimal(value, nsew):
+def to_decimal_degrees(value, nsew):
+    # RMC example: 4807.038,N (DM.m) == Latitude 48 deg 07.038' N
     if not value:
         return None
     a, b = value.split('.')
-    degrees = int(a) / 100
+    degrees = int(a) // 100
     minutes = int(a) % 100
-    seconds = 60.0 * int(b) / 10 ** len(b)
-    result = degrees + minutes / 60.0 + seconds / 3600.0
+    minutes += float(int(b) / 10 ** len(b))
+    result = degrees + minutes / 60.0
     if nsew in 'SW':
         result = -result
     return result
@@ -26,17 +24,6 @@ def parse_int(x):
 
 def parse_float(x):
     return float(x) if x else None
-
-
-def convert_coordinate(axis, coord_str, direction):
-    coordinate_specifications = {'lat': (2, 'N'), 'lon': (3, 'E')}
-    split, positive = coordinate_specifications[axis]
-    degrees = coord_str[:split]
-    minutes = coord_str[split:]
-    decimal = float(degrees) + float(minutes)/60
-    if direction == positive:
-        return decimal
-    return -decimal
 
 
 # Device Object
@@ -72,8 +59,8 @@ class GPS:
         valid = args[1] == 'A'
         timestamp = datetime.datetime.strptime(args[8] + args[0],
                                                '%d%m%y%H%M%S.%f')
-        latitude = to_decimal(args[2], args[3])
-        longitude = to_decimal(args[4], args[5])
+        latitude = to_decimal_degrees(args[2], args[3])
+        longitude = to_decimal_degrees(args[4], args[5])
         knots = parse_float(args[6])
         course = parse_float(args[7])
         self.rmc = dict(
@@ -87,12 +74,8 @@ class GPS:
 
     def get_last_rmc_frame(self):
         rmc_frame = {}
-        if self.rmc and self.rmc.get("longitude"):
-            lon = convert_coordinate("lon", str(self.rmc["longitude"]), "W")
-            lon = str("{0:.4f}".format(lon))
-            lat = convert_coordinate("lat", str(self.rmc["latitude"]), "N")
-            lat = str("{0:.4f}".format(lat))
-            rmc_frame["rmc_longitude"] = lon
-            rmc_frame["rmc_latitude"] = lat
+        if self.rmc and self.rmc.get("timestamp"):
+            rmc_frame["rmc_longitude"] = str(self.rmc["longitude"])
+            rmc_frame["rmc_latitude"] = str(self.rmc["latitude"])
             rmc_frame["rmc_timestamp"] = str(self.rmc["timestamp"])
         return rmc_frame

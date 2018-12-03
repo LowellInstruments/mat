@@ -1,6 +1,5 @@
 from mat.gps import (
-    convert_coordinate,
-    to_decimal,
+    to_decimal_degrees,
     parse_int,
     parse_float,
     GPS
@@ -32,28 +31,28 @@ def _patch_gps_read_line(rv_read_line):
 
 
 class TestGPS:
-    # 4119.6607,N,07301.3281,W
+    # check: http://www.hiddenvision.co.uk/ez/?nmea_lat=3015.4550S&nmea_lon=
     def test_convert_lat_n(self):
-        lat_str = "4119.6607"
-        assert convert_coordinate("lat", lat_str, "N") == 41 + 19.6607 / 60
+        lat_str = "3015.4550"
+        assert to_decimal_degrees(lat_str, "N") == 30.257583333333333
 
     def test_convert_lat_s(self):
-        lat_str = "4119.6607"
-        assert convert_coordinate("lat", lat_str, "S") == -41 - 19.6607/60
+        lat_str = "3015.4550"
+        assert to_decimal_degrees(lat_str, "S") == -30.257583333333333
 
     def test_convert_lon_e(self):
         lon_str = "07301.3281"
-        assert convert_coordinate("lon", lon_str, "E") == 73 + 1.3281/60
+        assert to_decimal_degrees(lon_str, "E") == 73.022135
 
     def test_convert_lon_w(self):
-        lon_str = "17301.3281"
-        assert convert_coordinate("lon", lon_str, "W") == -173 - 1.3281/60
+        lon_str = "07301.3281"
+        assert to_decimal_degrees(lon_str, "W") == -73.022135
 
     def test_to_decimal_value_none(self):
-        assert to_decimal("", "SW") is None
+        assert to_decimal_degrees("", "SW") is None
 
     def test_to_decimal_value_existing(self):
-        assert to_decimal("4119.6607", "SW") == -41.517678333333336
+        assert to_decimal_degrees("4119.6607", "SW") == -41.32767833333333
 
     def test_parse_int(self):
         assert parse_int("3") == 3
@@ -83,9 +82,10 @@ class TestGPS:
         with _patch_serial():
             rmc_dict = {'valid': True,
                         'timestamp': '2018-11-21 18:21:52',
-                        'latitude': 42.02066,
-                        'longitude': -70.99146499999999,
-                        'knots': 0.56, 'course': 190.22
+                        'latitude': 42.0003,
+                        'longitude': 69.9835,
+                        'knots': 0.56,
+                        'course': 190.22
                         }
             o = GPS("any", 115200)
             o.rmc = rmc_dict
@@ -93,4 +93,6 @@ class TestGPS:
                         'rmc_longitude': '69.9835',
                         'rmc_timestamp': '2018-11-21 18:21:52'
                         }
+            print(o.get_last_rmc_frame())
+            print(expected)
             assert o.get_last_rmc_frame() == expected
