@@ -4,7 +4,6 @@ import datetime
 # adapted from https://github.com/fogleman/GPS/blob/master/gps.py
 
 # Settings
-PORT = '/dev/ttyUSB0'
 BAUD_RATE = 4800
 
 
@@ -30,8 +29,8 @@ def parse_float(x):
 
 
 def convert_coordinate(axis, coord_str, direction):
-    LAT_LON_SPEC = {'lat': (2, 'N'), 'lon': (3, 'E')}
-    split, positive = LAT_LON_SPEC[axis]
+    coordinate_specifications = {'lat': (2, 'N'), 'lon': (3, 'E')}
+    split, positive = coordinate_specifications[axis]
     degrees = coord_str[:split]
     minutes = coord_str[split:]
     decimal = float(degrees) + float(minutes)/60
@@ -43,13 +42,12 @@ def convert_coordinate(axis, coord_str, direction):
 # Device Object
 class GPS:
 
-    def __init__(self, port=PORT, baud_rate=BAUD_RATE):
+    def __init__(self, port, baud_rate=BAUD_RATE):
         self.port = serial.Serial(port, baud_rate)
         self.handlers = {
             '$GPRMC': self.on_rmc,
         }
         self.rmc = None
-        self.my_measures = {}
 
     def read_line(self):
         while True:
@@ -64,7 +62,7 @@ class GPS:
             tokens = data.split(',')
             command, args = tokens[0], tokens[1:]
             handler = self.handlers.get(command)
-            # sent to parsers
+            # sent to parsers, aka handlers, aka "on_*"
             if handler and tokens[1] != "":
                 handler(args)
                 return True
@@ -87,14 +85,14 @@ class GPS:
             course=course,
         )
 
-    def get_last_measures(self):
-        self.measures = {}
+    def get_last_rmc_frame(self):
+        rmc_frame = {}
         if self.rmc and self.rmc.get("longitude"):
             lon = convert_coordinate("lon", str(self.rmc["longitude"]), "W")
             lon = str("{0:.4f}".format(lon))
             lat = convert_coordinate("lat", str(self.rmc["latitude"]), "N")
             lat = str("{0:.4f}".format(lat))
-            self.measures["rmc_longitude"] = lon
-            self.measures["rmc_latitude"] = lat
-            self.measures["rmc_timestamp"] = str(self.rmc["timestamp"])
-        return self.measures
+            rmc_frame["rmc_longitude"] = lon
+            rmc_frame["rmc_latitude"] = lat
+            rmc_frame["rmc_timestamp"] = str(self.rmc["timestamp"])
+        return rmc_frame

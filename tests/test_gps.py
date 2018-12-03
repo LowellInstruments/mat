@@ -93,4 +93,4 @@ class TestGPS:
                         'rmc_longitude': '69.9835',
                         'rmc_timestamp': '2018-11-21 18:21:52'
                         }
-            assert o.get_last_measures() == expected
+            assert o.get_last_rmc_frame() == expected
