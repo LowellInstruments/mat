@@ -46,7 +46,7 @@ class TestGPS(TestCase):
         assert GPS._to_decimal_degrees(lon_str, 'W') == -73.022135
 
     def test_convert_lon_too_short(self):
-        lon_str = '807.0387'
+        lon_str = '807.2500'
         with self.assertRaises(ValueError):
             GPS._to_decimal_degrees(lon_str, 'W')
 

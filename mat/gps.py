@@ -1,10 +1,7 @@
 import serial
 import datetime
-import re
 import time
 from collections import namedtuple
-
-BAUD_RATE = 4800
 
 
 def parse_int(x):
@@ -18,42 +15,16 @@ def parse_float(x):
 # Device Object
 class GPS:
 
+    BAUD_RATE_BU_353_S4 = 4800
     RMC_Frame = namedtuple('RMC_Frame',
                            'valid timestamp latitude longitude knots course')
 
-    def __init__(self, port, baud_rate=BAUD_RATE):
+    def __init__(self, port, baud_rate=BAUD_RATE_BU_353_S4):
         self.port = serial.Serial(port, baud_rate)
         self.handlers = {
             '$GPRMC': self._on_rmc,
         }
         self.rmc = None
-
-    @classmethod
-    def _verify_string(cls, data, checksum):
-        checksum_in_decimal = int(checksum, 16)
-        print("checksum_in_decimal {}".format(checksum_in_decimal))
-        int_values = [ord(x) for x in data]
-        calculated = 0
-        for x in int_values:
-            calculated = calculated ^ x
-        print("calculated {}".format(calculated))
-        return True if calculated == checksum_in_decimal else False
-
-    @classmethod
-    def _to_decimal_degrees(cls, value, nsew):
-        # BU-353-S4 GPS provides RMC frame as DDMM.mmmm
-        if not value:
-            return None
-        a, b = value.split('.')
-        if len(a) < 4 or len(b) < 4:
-            raise ValueError
-        degrees = int(a) // 100
-        minutes = int(a) % 100
-        minutes += float(int(b) / 10 ** len(b))
-        result = degrees + minutes / 60.0
-        if nsew in 'SW':
-            result = -result
-        return result
 
     def read_line(self, timeout=5):
         end_time = time.time() + timeout
@@ -65,13 +36,23 @@ class GPS:
                 data, checksum = line.split('*')
                 tokens = data.split(',')
                 command, args = tokens[0], tokens[1:]
+                # sent to parsers, aka handlers, only '_on_rmc_()' here
                 handler = self.handlers.get(command)
-                # sent to parsers, aka handlers, aka 'on_*'
-                data = data[1:]
                 if GPS._verify_string(data, checksum) and handler:
                     handler(args)
                     return line
         return None
+
+    @classmethod
+    def _verify_string(cls, data, checksum):
+        # get rid of '$' character
+        data = data[1:]
+        checksum_in_decimal = int(checksum, 16)
+        int_values = [ord(x) for x in data]
+        calculated = 0
+        for x in int_values:
+            calculated = calculated ^ x
+        return True if calculated == checksum_in_decimal else False
 
     def _on_rmc(self, args):
         valid = args[1] == 'A'
@@ -89,6 +70,22 @@ class GPS:
             knots=knots,
             course=course,
         )
+
+    @classmethod
+    def _to_decimal_degrees(cls, value, nsew):
+        # BU-353-S4 GPS provides RMC frame as DDMM.mmmm
+        if not value:
+            return None
+        a, b = value.split('.')
+        if len(a) < 4:
+            raise ValueError
+        degrees = int(a) // 100
+        minutes = int(a) % 100
+        minutes += float(int(b) / 10 ** len(b))
+        result = degrees + minutes / 60.0
+        if nsew in 'SW':
+            result = -result
+        return result
 
     def get_last_rmc_frame(self):
         if self.rmc.timestamp:
