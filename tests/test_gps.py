@@ -13,12 +13,14 @@ class FakeSerial:
         pass
 
     def readline(self):
-        return b'$GPRMC,210239.000,A,4134.2946,N,07038.2859,W,0.00,196.76,041218,,,A*77'
+        return b'$GPRMC,210239.000,A,4134.2946,N,\
+        07038.2859,W,0.00,196.76,041218,,,A*77'
 
 
 class FakeSerialWrongChecksum(FakeSerial):
     def readline(self):
-        return b'$GPRMC,210239.000,A,4134.2946,N,07038.2859,W,0.00,196.76,041218,,,A*11'
+        return b'$GPRMC,210239.000,A,4134.2946,N,\
+        07038.2859,W,0.00,196.76,041218,,,A*11'
 
 
 @contextmanager
