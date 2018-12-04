@@ -83,3 +83,8 @@ class TestGPS(TestCase):
             expected = GPS.RMC_Frame(True, '2018-11-21 18:21:52', 42.0003,
                                      69.9835, 0.56, 190.22)
             assert o.get_last_rmc_frame() == expected
+
+    def test_last_rmc_frame(self):
+        with _patch_serial(FakeSerial):
+            o = GPS('any', 115200)
+            assert o.get_last_rmc_frame() == {}

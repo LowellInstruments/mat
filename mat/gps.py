@@ -26,21 +26,45 @@ class GPS:
         }
         self.rmc = None
 
+    # def read_line(self, timeout=5):
+    #     end_time = time.time() + timeout
+    #     while time.time() < end_time:
+    #         time.sleep(0.1)
+    #         line_bytes = self.port.readline().strip()
+    #         if line_bytes.startswith('$'.encode('ASCII')):
+    #             line = line_bytes.decode('ASCII')
+    #             data, checksum = line.split('*')
+    #             tokens = data.split(',')
+    #             command, args = tokens[0], tokens[1:]
+    #             # sent to parsers, aka handlers, only '_on_rmc_()' here
+    #             handler = self.handlers.get(command)
+    #             if GPS._verify_string(data, checksum) and handler:
+    #                 handler(args)
+    #                 return line
+    #     return None
+
     def read_line(self, timeout=5):
         end_time = time.time() + timeout
         while time.time() < end_time:
             time.sleep(0.1)
             line_bytes = self.port.readline().strip()
-            if line_bytes.startswith('$'.encode('ASCII')):
-                line = line_bytes.decode('ASCII')
-                data, checksum = line.split('*')
-                tokens = data.split(',')
-                command, args = tokens[0], tokens[1:]
-                # sent to parsers, aka handlers, only '_on_rmc_()' here
-                handler = self.handlers.get(command)
-                if GPS._verify_string(data, checksum) and handler:
-                    handler(args)
-                    return line
+            parsed = self._parse_line(line_bytes)
+            if parsed:
+                return parsed
+        return None
+
+    def _parse_line(self, line_bytes):
+        if line_bytes.startswith('$'.encode('ASCII')):
+            line = line_bytes.decode('ASCII')
+            data, checksum = line.split('*')
+            tokens = data.split(',')
+            command, args = tokens[0], tokens[1:]
+            # sent to parsers, aka handlers, only '_on_rmc_()' here
+            handler = self.handlers.get(command)
+            if GPS._verify_string(data, checksum) and handler:
+                handler(args)
+                return line
+            return None
         return None
 
     @classmethod
@@ -88,6 +112,6 @@ class GPS:
         return result
 
     def get_last_rmc_frame(self):
-        if self.rmc.timestamp:
+        if self.rmc is not None and self.rmc.timestamp:
             return self.rmc
         return {}
