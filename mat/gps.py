@@ -17,6 +17,7 @@ class GPS:
     BAUD_RATE_BU_353_S4 = 4800
     RMC_Frame = namedtuple('RMC_Frame',
                            'valid timestamp latitude longitude knots course')
+    TIMEOUT_PORT_READS = 3
 
     def __init__(self, port, baud_rate=BAUD_RATE_BU_353_S4):
         self.port = serial.Serial(port, baud_rate, timeout=1)
@@ -25,8 +26,8 @@ class GPS:
         }
         self.last_rmc = None
 
-    # waits for frame_type + checksum OK -> populates self.last_* attributes
-    def wait_for_frame_type(self, frame_type, timeout=3):
+    # waits for frame_type + checksum OK -> populates self.last_*
+    def _wait_for_frame_type(self, frame_type, timeout=TIMEOUT_PORT_READS):
         end_time = time.time() + timeout
         while time.time() < end_time:
             line_bytes = self.port.readline().strip()
@@ -53,8 +54,8 @@ class GPS:
         else:
             return None
 
-    @classmethod
-    def _verify_string(cls, data, checksum):
+    @staticmethod
+    def _verify_string(data, checksum):
         # lose '$' character at the beginning of gps sentence
         data = data[1:]
         checksum_in_decimal = int(checksum, 16)
@@ -73,17 +74,11 @@ class GPS:
         knots = parse_float(args[6])
         course = parse_float(args[7])
         self.last_rmc = GPS.RMC_Frame(
-            valid=valid,
-            timestamp=timestamp,
-            latitude=latitude,
-            longitude=longitude,
-            knots=knots,
-            course=course,
-        )
+            valid, timestamp, latitude, longitude, knots, course)
 
-    @classmethod
-    def _to_decimal_degrees(cls, value, nsew):
-        # BU-353-S4 lat and lon fields DDMM.mmmm but not always filled
+    @staticmethod
+    def _to_decimal_degrees(value, nsew):
+        # BU-353-S4 lat, lon fields are DDMM.mmmm, may be empty if no coverage
         if not value:
             return None
         a, b = value.split('.')
@@ -97,7 +92,10 @@ class GPS:
             result = -result
         return result
 
-    def get_last_rmc_frame(self):
-        if self.last_rmc and self.last_rmc.timestamp:
-            return self.last_rmc
-        return {}
+    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
+        if self._wait_for_frame_type('$GPRMC', timeout):
+            if self.last_rmc and self.last_rmc.timestamp:
+                return self.last_rmc
+        return None
+
+
