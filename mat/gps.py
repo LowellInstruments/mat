@@ -43,12 +43,10 @@ class GPS:
             data, checksum = line.split('*')
             tokens = data.split(',')
             gps_sentence, args = tokens[0], tokens[1:]
-            if not GPS._verify_string(data, checksum):
-                return None
-            if gps_sentence != frame_type:
-                return None
             handler = self.handlers.get(gps_sentence)
-            if handler is None:
+            if GPS._verify_string(data, checksum) is False \
+                    or gps_sentence != frame_type \
+                    or handler is None:
                 return None
             handler(args)
             return line
@@ -85,7 +83,7 @@ class GPS:
 
     @classmethod
     def _to_decimal_degrees(cls, value, nsew):
-        # BU-353-S4 latitude, longitude fields are DDMM.mmmm but not always filled
+        # BU-353-S4 lat and lon fields DDMM.mmmm but not always filled
         if not value:
             return None
         a, b = value.split('.')
