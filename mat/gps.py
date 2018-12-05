@@ -97,5 +97,3 @@ class GPS:
             if self.last_rmc and self.last_rmc.timestamp:
                 return self.last_rmc
         return None
-
-

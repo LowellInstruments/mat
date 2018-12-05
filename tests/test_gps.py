@@ -74,32 +74,32 @@ class TestGPS(TestCase):
 
     def test_gps_wait_for_rmc_frame_type(self):
         with _patch_serial(FakeSerial):
-            assert GPS('any', 115200)._wait_for_frame_type('$GPRMC') is not None
+            assert GPS('any', 57600)._wait_for_frame_type('$GPRMC') is not None
 
     def test_gps_wait_for_not_rmc_frame_type(self):
         with _patch_serial(FakeSerial):
-            assert GPS('any', 115200)._wait_for_frame_type('$GPXXX') is None
+            assert GPS('any', 57600)._wait_for_frame_type('$GPXXX') is None
 
     def test_gps_wait_for_rmc_frame_type_no_handler(self):
         with _patch_serial(FakeSerial):
-            o = GPS('any', 115200)
+            o = GPS('any', 57600)
             o.handlers = {}
             assert o._wait_for_frame_type('$GPRMC') is None
 
     def test_gps_wait_for_rmc_frame_type_checksum_bad_and_timeouts(self):
         with _patch_serial(FakeSerialWrongChecksum):
-            assert GPS('any', 115200)._wait_for_frame_type('$GPRMC') is None
+            assert GPS('any', 57600)._wait_for_frame_type('$GPRMC') is None
 
     def test_gps_wait_for_rmc_frame_type_but_not_starts_with_dollar(self):
         with _patch_serial(FakeSerialReadlineNotStartsWithDollar):
-            assert GPS('any', 115200)._wait_for_frame_type('$GPRMC') is None
+            assert GPS('any', 57600)._wait_for_frame_type('$GPRMC') is None
 
     def test_get_last_rmc_frame_not_empty(self):
         with _patch_serial(FakeSerial):
-            o = GPS('any', 115200)
+            o = GPS('any', 57600)
             assert type(o.get_gps_info()) is GPS.RMC_Frame
 
     def test_get_last_rmc_frame_empty(self):
         with _patch_serial(FakeSerialNoAnswer):
-            o = GPS('any', 115200)
+            o = GPS('any', 57600)
             assert o.get_gps_info() is None
