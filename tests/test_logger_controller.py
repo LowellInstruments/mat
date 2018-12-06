@@ -253,25 +253,21 @@ class TestLoggerController(TestCase):
     def test_load_logger_info_bad(self):
         with _command_patch("RLI 03bad" * 3):
             controller = _open_controller(com_port="1")
-            assert controller.load_logger_info() is None
             assert controller.logger_info()['error'] is True
 
     def test_load_logger_ca_info(self):
         with _command_patch("RLI 09CA\x04FFFF##" * 3):
             controller = _open_controller(com_port="1")
-            assert controller.load_logger_info() is None
             assert controller.logger_info()["CA"] != 0
 
     def test_load_logger_ba_info(self):
         with _command_patch("RLI 09BA\x04FFFF##" * 3):
             controller = _open_controller(com_port="1")
-            assert controller.load_logger_info() is None
             assert controller.logger_info()["BA"] != 0
 
     def test_load_logger_ba_info_short(self):
         with _command_patch("RLI 07BA\x02FF##" * 3):
             controller = _open_controller(com_port="1")
-            assert controller.load_logger_info() is None
             assert controller.logger_info()["BA"] == 0
 
     def test_get_empty_logger_settings(self):

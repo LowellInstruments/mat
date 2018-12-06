@@ -76,7 +76,6 @@ class LoggerController(object):
         self.__port = None
         self.com_port = None
         self.__callback = {}
-        self._logger_info = {}
         self.calibration = None
         self.converter = None
 
@@ -167,11 +166,6 @@ class LoggerController(object):
         self.converter = Converter(self.calibration)
 
     def logger_info(self):
-        if not self._logger_info:
-            self.load_logger_info()
-        return self._logger_info
-
-    def load_logger_info(self):
         read_size = 42
         li_string = ''
         for i in range(3):
@@ -183,7 +177,7 @@ class LoggerController(object):
             li_string += self.command(LOGGER_INFO_CMD, command_str)
         if li_string and not all([c == 255 for c in
                                   bytes(li_string, encoding='IBM437')]):
-            self._logger_info = LoggerInfoParser(li_string).info()
+            return LoggerInfoParser(li_string).info()
 
     def get_logger_settings(self):
         gls_string = self.command(LOGGER_SETTINGS_CMD)
