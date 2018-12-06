@@ -1,49 +1,99 @@
-# GPLv3 License
-# Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
-
-import re
+import serial
+import datetime
 import time
-
-# This is the format of the string we are parsing
-# $GPGGA,125742.000,4119.6607,N,07301.3281,W,1,09,1.0,100.3,M,-34.3,M,,0000*6D
+from collections import namedtuple
 
 
-def verify_string(string):
-    """
-    Confirm the correct string format and calculate checksum
-    The checksum is calculated by xor'ing each byte between the $ and *
-    The checksum is the two digit value after the * (and is in hex)
-    """
-    regexp = re.search(r'^\$(GP[A-Z]{3}.+)\*([0-9A-F]{2})', string)
-    if not regexp:
-        return False
-    checksum = int(regexp.group(2), 16)
-    int_values = [ord(x) for x in regexp.group(1)]
-    value = 0
-    for x in int_values:
-        value = value ^ x
-    return True if value == checksum else False
+def parse_int(x):
+    return int(x) if x else None
 
 
-def convert_lat(lat_str, ns):
-    return _convert_coordinate(lat_str, 2, 9, ns == 'S')
+def parse_float(x):
+    return float(x) if x else None
 
 
-def convert_lon(lon_str, ew):
-    return _convert_coordinate(lon_str, 3, 10, ew == 'W')
+class GPS:
 
+    BAUD_RATE_BU_353_S4 = 4800
+    RMC_Frame = namedtuple('RMC_Frame',
+                           'valid timestamp latitude longitude knots course')
+    TIMEOUT_PORT_READS = 3
 
-def _convert_coordinate(coord_str, split, end, negative):
-    minutes = coord_str[split:end]
-    remainder = coord_str[0:split]
-    raw = float(remainder) + float(minutes)/60
-    if negative:
-        return -raw
-    return raw
+    def __init__(self, port, baud_rate=BAUD_RATE_BU_353_S4):
+        self.port = serial.Serial(port, baud_rate, timeout=1)
+        self.handlers = {
+            '$GPRMC': self._on_rmc,
+        }
+        self.last_rmc = None
 
+    # waits for frame_type + checksum OK -> populates self.last_*
+    def _wait_for_frame_type(self, frame_type, timeout=TIMEOUT_PORT_READS):
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            line_bytes = self.port.readline().strip()
+            frame_type_received = self._parse_line(line_bytes, frame_type)
+            if frame_type_received:
+                return frame_type_received
+            else:
+                time.sleep(0.1)
+        return None
 
-def convert_time(time_str):
-    time_struct = time.strptime(time_str, '%H%M%S.%f')
-    return '{:0>2d}:{:0>2d}:{:0>2d}'.format(time_struct.tm_hour,
-                                            time_struct.tm_min,
-                                            time_struct.tm_sec)
+    def _parse_line(self, line_bytes, frame_type):
+        if line_bytes.startswith('$'.encode('ASCII')):
+            line = line_bytes.decode('ASCII')
+            data, checksum = line.split('*')
+            tokens = data.split(',')
+            gps_sentence, args = tokens[0], tokens[1:]
+            handler = self.handlers.get(gps_sentence)
+            if GPS._verify_string(data, checksum) is False \
+                    or gps_sentence != frame_type \
+                    or handler is None:
+                return None
+            handler(args)
+            return line
+        else:
+            return None
+
+    @staticmethod
+    def _verify_string(data, checksum):
+        # lose '$' character at the beginning of gps sentence
+        data = data[1:]
+        checksum_in_decimal = int(checksum, 16)
+        int_values = [ord(x) for x in data]
+        calculated = 0
+        for x in int_values:
+            calculated = calculated ^ x
+        return True if calculated == checksum_in_decimal else False
+
+    def _on_rmc(self, args):
+        valid = args[1] == 'A'
+        timestamp = datetime.datetime.strptime(args[8] + args[0],
+                                               '%d%m%y%H%M%S.%f')
+        latitude = GPS._to_decimal_degrees(args[2], args[3])
+        longitude = GPS._to_decimal_degrees(args[4], args[5])
+        knots = parse_float(args[6])
+        course = parse_float(args[7])
+        self.last_rmc = GPS.RMC_Frame(
+            valid, timestamp, latitude, longitude, knots, course)
+
+    @staticmethod
+    def _to_decimal_degrees(value, nsew):
+        # BU-353-S4 lat, lon fields are DDMM.mmmm, may be empty if no coverage
+        if not value:
+            return None
+        a, b = value.split('.')
+        if len(a) < 4:
+            raise ValueError
+        degrees = int(a) // 100
+        minutes = int(a) % 100
+        minutes += float(int(b) / 10 ** len(b))
+        result = degrees + minutes / 60.0
+        if nsew in 'SW':
+            result = -result
+        return result
+
+    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
+        if self._wait_for_frame_type('$GPRMC', timeout):
+            if self.last_rmc and self.last_rmc.timestamp:
+                return self.last_rmc
+        return None
