@@ -1,21 +1,21 @@
-from os import path, remove
+from os import path
 from .time_converter import create_time_converter
 
 
-def output_stream_factory(output_type, file_name, destination, time_format):
+def output_stream_factory(file_path, parameters):
     output_types = {'csv': CsvStream}
-    stream_class = output_types.get(output_type)
+    stream_class = output_types.get(parameters['output_format'])
     if stream_class is None:
-        raise ValueError('Unknown output type' + output_type)
-    return stream_class(file_name, destination, time_format)
+        raise ValueError('Unknown output type' + parameters['output_format'])
+    return stream_class(file_path, parameters)
 
 
 class OutputStream:
-    def __init__(self, file_name, destination, time_format):
-        self.file_name = file_name
+    def __init__(self, file_path, parameters):
+        self.file_path = file_path
+        self.parameters = parameters
         self.streams = {}
-        self.destination = destination  # output directory for file output
-        self.time_converter = create_time_converter(time_format)
+        self.time_converter = create_time_converter(parameters['time_format'])
 
     def add_stream(self, data_product):
         pass  # pragma: no cover
@@ -31,45 +31,51 @@ class OutputStream:
         time = self.time_converter.convert(time)
         self.streams[stream].write(data, time)
 
-    def write_header(self, stream):
-        self.streams[stream].write_header()
-
 
 class CsvStream(OutputStream):
-    """
-    Create a different csv file for each stream
-    """
     def add_stream(self, data_product):
-        file_prefix = path.basename(self.file_name).split('.')[0]
-        output_file_name = file_prefix + '_' + data_product + '.csv'
-        output_path = path.join(self.destination, output_file_name)
-        self.streams[data_product] = CsvFile(output_path)
+        self.streams[data_product] = CsvFile(self.file_path,
+                                             data_product,
+                                             self.parameters)
 
 
 class CsvFile:
     EXTENSION = '.csv'
 
-    def __init__(self, output_path):
-        self.output_path = output_path
+    def __init__(self, file_path, stream_name, parameters):
+        self.file_path = file_path
+        self.stream_name = stream_name
+        self.parameters = parameters
         self.column_header = ''
         self.data_format = ''
-        self.delete_output_file(output_path)
+        self.split = parameters['split'] or 100000
+        self.write_count = 0
 
-    def delete_output_file(self, output_path):
-        try:
-            remove(output_path)
-        except FileNotFoundError:
-            pass
+    def next_file_path(self):
+        dir_name = path.dirname(self.file_path)
+        destination = self.parameters['output_directory'] or dir_name
+        file_prefix = path.basename(self.file_path).split('.')[0]
+        file_num = self.write_count // self.split
+        file_num_str = '_{}'.format(file_num) if self.split != 100000 else ''
+        output_file_name = '{}_{}{}.csv'.format(file_prefix,
+                                                self.stream_name,
+                                                file_num_str)
+        self.output_path = path.join(destination, output_file_name)
 
     def write_header(self):
-        with open(self.output_path, 'a') as fid:
+        with open(self.output_path, 'w') as fid:
             fid.write(self.column_header + '\n')
 
     def write(self, data, time):
+        if self.write_count % self.split == 0:
+            self.next_file_path()
+            self.write_header()
+
         data_format = '{},' + self.data_format + '\n'
         with open(self.output_path, 'a') as fid:
             for i in range(data.shape[1]):
                 fid.write(data_format.format(time[i], *data[:, i]))
+        self.write_count += 1
 
 
 class HdfFile(OutputStream):

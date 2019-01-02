@@ -13,7 +13,8 @@ def default_parameters():
             'average': True,
             'time_format': 'iso8601',
             'tilt_curve': None,
-            'declination': 0}
+            'declination': 0,
+            'split': None}
 
 
 class DataConverter:

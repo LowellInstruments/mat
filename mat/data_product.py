@@ -1,4 +1,3 @@
-from os import path
 from mat.output_stream import output_stream_factory
 from abc import ABC, abstractmethod
 from mat.utils import roll_pitch_yaw
@@ -29,7 +28,7 @@ def data_product_factory(file_path, sensors, parameters):
     """
     special_cases = {'compass': Compass, 'current': Current}
     data_products = []
-    output_stream = _create_output_stream(file_path, parameters)
+    output_stream = output_stream_factory(file_path, parameters)
 
     # special cases and accelmag are mutually exclusive, hence the if elif
     if parameters['output_type'] in special_cases.keys():
@@ -54,16 +53,6 @@ def _remaining_sensors(sensors, data_products):
     return [s for s in sensors if s.name not in used_sensors]
 
 
-def _create_output_stream(file_path, parameters):
-    filename = path.basename(file_path)
-    dir_name = path.dirname(file_path)
-    destination = parameters['output_directory'] or dir_name
-    return output_stream_factory(parameters['output_format'],
-                                 filename,
-                                 destination,
-                                 parameters['time_format'])
-
-
 class DataProduct(ABC):
     OUTPUT_TYPE = ''
     REQUIRED_SENSORS = []
@@ -73,6 +62,7 @@ class DataProduct(ABC):
         self.parameters = parameters
         self.output_stream = output_stream
         self.average = parameters['average']
+        self.split = parameters['split']
         self.configure_output_stream()
 
     def _get_required_sensors(self, sensors):
@@ -86,7 +76,6 @@ class DataProduct(ABC):
         self.output_stream.add_stream(name)
         self.output_stream.set_data_format(name, self.data_format())
         self.output_stream.set_column_header(name, self.column_header())
-        self.output_stream.write_header(name)
 
     def convert_sensors(self, data_page, page_time):
         converted = []
