@@ -1,4 +1,4 @@
-from os import path, remove
+from os import path
 from .time_converter import create_time_converter
 
 
@@ -56,7 +56,7 @@ class CsvFile:
         destination = self.parameters['output_directory'] or dir_name
         file_prefix = path.basename(self.file_path).split('.')[0]
         file_num = self.write_count // self.split
-        file_num_str = '_{}'.format(file_num) if file_num > 0 else ''
+        file_num_str = '_{}'.format(file_num) if self.split else ''
         output_file_name = '{}_{}{}.csv'.format(file_prefix,
                                                 self.stream_name,
                                                 file_num_str)

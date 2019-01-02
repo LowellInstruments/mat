@@ -1,4 +1,3 @@
-from os import path
 from mat.output_stream import output_stream_factory
 from abc import ABC, abstractmethod
 from mat.utils import roll_pitch_yaw
