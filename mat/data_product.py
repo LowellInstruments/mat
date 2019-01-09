@@ -195,7 +195,7 @@ class Current(DataProduct):
         velocity_n = speed * cos(heading)
         velocity_e = speed * sin(heading)
 
-        data = vstack((speed, heading, velocity_n, velocity_e))
+        data = vstack((speed, degrees(heading), velocity_n, velocity_e))
 
         self.output_stream.write(self.stream_name(), data, converted[0].time)
 

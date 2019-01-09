@@ -56,8 +56,7 @@ class TestDataConverter(TestCase):
 
     def test_current(self):
         full_file_path = reference_file('test.lid')
-        tilt_file_path = reference_file('tiltcurve/TCM-1, No Ballast Washer, '
-                                        'Salt Water.cal')
+        tilt_file_path = reference_file('tiltcurve/TCM-1, 1BalSalt.cal')
         tilt_curve = TiltCurve(tilt_file_path)
         parameters = default_parameters()
         parameters['output_type'] = 'current'
