@@ -14,7 +14,8 @@ def default_parameters():
             'time_format': 'iso8601',
             'tilt_curve': None,
             'declination': 0,
-            'split': None}
+            'split': None,
+            'calibration': None}
 
 
 class DataConverter:
@@ -27,7 +28,8 @@ class DataConverter:
 
     def _load_source_file(self):
         if not self.source_file:
-            self.source_file = load_data_file(self.path)
+            self.source_file = load_data_file(self.path,
+                                              self.parameters['calibration'])
         return self.source_file
 
     def cancel_conversion(self):
