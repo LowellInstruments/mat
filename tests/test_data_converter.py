@@ -5,9 +5,10 @@
 from unittest import TestCase
 from mat.data_converter import DataConverter, default_parameters
 from mat.data_file_factory import load_data_file
-from tests.utils import reference_file
+from tests.utils import reference_file, compare_files
 from tests.utils import assert_compare_expected_file
 from mat.tiltcurve import TiltCurve
+from mat.calibration_factories import make_from_calibration_file
 
 
 class TestDataConverter(TestCase):
@@ -130,3 +131,15 @@ class TestDataConverter(TestCase):
         dc = DataConverter(full_file_path, default_parameters())
         dc.convert()
         assert_compare_expected_file('accel_mag_no_temp_AccelMag.csv')
+
+    def test_custom_calibration(self):
+        full_file_path = reference_file('custom_cal/test.lid')
+        cal_path = reference_file('custom_cal/hoststorage_default.txt')
+        calibration = make_from_calibration_file(cal_path)
+        parameters = default_parameters()
+        parameters['calibration'] = calibration
+        parameters['average'] = False
+        dc = DataConverter(full_file_path, parameters)
+        dc.convert()
+        compare_files(reference_file('custom_cal/test_AccelMag.csv'),
+                      reference_file('custom_cal/test_default_hs_MA.txt'))

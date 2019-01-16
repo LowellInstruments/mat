@@ -12,12 +12,12 @@ FULL_HEADER_LENGTH = 1000
 
 
 class SensorDataFile(ABC):
-    def __init__(self, file_path):
+    def __init__(self, file_path, calibration=None):
         self._file_path = file_path
         self._file = None
         self._n_pages = None
         self._header = None
-        self._calibration = None
+        self._calibration = calibration
         self._page_times = None
         self._cached_page = None
         self._cached_page_n = None
