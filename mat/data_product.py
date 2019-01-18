@@ -66,6 +66,7 @@ class DataProduct(ABC):
         self.average = parameters['average']
         self.split = parameters['split']
         self.configure_output_stream()
+        self.declination = self.parameters['declination']
 
     def _get_required_sensors(self, sensors):
         sensor_names = [s.name for s in sensors]
@@ -159,7 +160,6 @@ class Current(DataProduct):
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
         self.tilt_curve = self.parameters['tilt_curve']
-        self.declination = self.parameters['declination']
 
     def stream_name(self):
         return 'Current'
@@ -206,10 +206,6 @@ class Compass(DataProduct):
     OUTPUT_TYPE = 'compass'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
-    def __init__(self, sensors, parameters, output_stream):
-        super().__init__(sensors, parameters, output_stream)
-        self.declination = self.parameters['declination']
-
     def stream_name(self):
         return 'Heading'
 
@@ -237,10 +233,6 @@ class Compass(DataProduct):
 class YawPitchRoll(DataProduct):
     OUTPUT_TYPE = 'ypr'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
-
-    def __init__(self, sensors, parameters, output_stream):
-        super().__init__(sensors, parameters, output_stream)
-        self.declination = self.parameters['declination']
 
     def stream_name(self):
         return 'YawPitchRoll'
