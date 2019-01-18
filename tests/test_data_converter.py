@@ -73,7 +73,8 @@ class TestDataConverter(TestCase):
         parameters['output_type'] = 'compass'
         dc = DataConverter(full_file_path, parameters)
         dc.convert()
-        assert_compare_expected_file('test_Heading.csv')
+        compare_files(reference_file('test_Heading.csv'),
+                      reference_file('test_Heading_GS.txt'))
 
     def test_unsupported_format(self):
         full_file_path = reference_file('test.lid')
@@ -143,3 +144,12 @@ class TestDataConverter(TestCase):
         dc.convert()
         compare_files(reference_file('custom_cal/test_AccelMag.csv'),
                       reference_file('custom_cal/test_default_hs_MA.txt'))
+
+    def test_yaw_pitch_roll(self):
+        full_file_path = reference_file('test.lid')
+        parameters = default_parameters()
+        parameters['output_type'] = 'ypr'
+        dc = DataConverter(full_file_path, parameters)
+        dc.convert()
+        compare_files(reference_file('test_YawPitchRoll.csv'),
+                      reference_file('test_ypr_GS.txt'))

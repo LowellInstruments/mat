@@ -1,4 +1,4 @@
-from numpy import array
+from numpy import array, mod
 from datetime import datetime
 import numpy as np
 
@@ -66,6 +66,9 @@ def four_byte_int(bytes, signed=False):
 
 
 def roll_pitch_yaw(accel, mag):
+    """
+    Convert accel and mag components into yaw/pitch/roll. Output is in radians
+    """
     roll = np.arctan2(accel[1], accel[2])
     pitch = np.arctan2(-accel[0],
                        accel[1] * np.sin(roll) + accel[2] * np.cos(roll))
@@ -74,3 +77,7 @@ def roll_pitch_yaw(accel, mag):
           + mag[2] * np.sin(pitch) * np.cos(roll))
     yaw = np.arctan2(by, bx)
     return roll, pitch, yaw
+
+
+def apply_declination(heading, declination):
+    return mod(heading + 180 + declination, 360) - 180

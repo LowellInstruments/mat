@@ -1,6 +1,6 @@
 from mat.output_stream import output_stream_factory
 from abc import ABC, abstractmethod
-from mat.utils import roll_pitch_yaw
+from mat.utils import roll_pitch_yaw, apply_declination
 from collections import namedtuple
 from numpy import (
     arccos,
@@ -26,7 +26,9 @@ def data_product_factory(file_path, sensors, parameters):
     """
     Instantiate a data product subclass and pass it the necessary sensors
     """
-    special_cases = {'compass': Compass, 'current': Current}
+    special_cases = {'compass': Compass,
+                     'current': Current,
+                     'ypr': YawPitchRoll}
     data_products = []
     output_stream = output_stream_factory(file_path, parameters)
 
@@ -64,6 +66,7 @@ class DataProduct(ABC):
         self.average = parameters['average']
         self.split = parameters['split']
         self.configure_output_stream()
+        self.declination = self.parameters['declination']
 
     def _get_required_sensors(self, sensors):
         sensor_names = [s.name for s in sensors]
@@ -157,7 +160,6 @@ class Current(DataProduct):
     def __init__(self, sensors, parameters, output_stream):
         super().__init__(sensors, parameters, output_stream)
         self.tilt_curve = self.parameters['tilt_curve']
-        self.declination = self.parameters['declination']
 
     def stream_name(self):
         return 'Current'
@@ -204,10 +206,6 @@ class Compass(DataProduct):
     OUTPUT_TYPE = 'compass'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
 
-    def __init__(self, sensors, parameters, output_stream):
-        super().__init__(sensors, parameters, output_stream)
-        self.declination = self.parameters['declination']
-
     def stream_name(self):
         return 'Heading'
 
@@ -225,9 +223,32 @@ class Compass(DataProduct):
         accel = dot(m, accel)
         mag = dot(m, mag)
         roll, pitch, heading = roll_pitch_yaw(accel, mag)
-        heading = degrees(heading)
-        heading = mod(heading + self.declination, 360)
+        heading = apply_declination(degrees(heading), self.declination)
         heading = reshape(heading, (1, -1))
         self.output_stream.write(self.stream_name(),
                                  heading,
                                  converted[0].time)
+
+
+class YawPitchRoll(DataProduct):
+    OUTPUT_TYPE = 'ypr'
+    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
+
+    def stream_name(self):
+        return 'YawPitchRoll'
+
+    def data_format(self):
+        return '{:0.2f},{:0.2f},{:0.2f}'
+
+    def column_header(self):
+        return 'Yaw (degrees),Pitch (degrees),Roll (degrees)'
+
+    def process_page(self, data_page, page_time):
+        converted = self.convert_sensors(data_page, page_time)
+        accel = converted[0].data
+        mag = converted[1].data
+        roll, pitch, yaw = roll_pitch_yaw(accel, mag)
+        yaw = apply_declination(degrees(yaw), self.declination)
+        yaw = reshape(yaw, (1, -1))
+        data = vstack((yaw, degrees(pitch), degrees(roll)))
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
