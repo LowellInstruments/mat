@@ -5,8 +5,8 @@ from unittest.mock import patch
 from unittest import TestCase
 from serial import SerialException
 from mat.converter import Converter
+from mat.logger_controller_usb import LoggerControllerUSB
 from mat.logger_controller import (
-    LoggerController,
     RESET_CMD,
     SIMPLE_CMDS,
 )
@@ -144,9 +144,9 @@ class FakeSerialForCommand(FakeSerialReader):
         self.data = ''.join(self.cmds).encode()
 
 
-class TestLoggerController(TestCase):
+class TestLoggerControllerUSB(TestCase):
     def test_create(self):
-        assert LoggerController()
+        assert LoggerControllerUSB()
 
     def test_open_port_on_posix(self):
         with _grep_patch(TTY_VALUE, name="posix"):
@@ -184,11 +184,11 @@ class TestLoggerController(TestCase):
                 controller.command()
 
     def test_simple_command_port_closed(self):
-        controller = LoggerController()
+        controller = LoggerControllerUSB()
         assert controller.command("SIT") is None
 
     def test_command_with_data_port_closed(self):
-        controller = LoggerController()
+        controller = LoggerControllerUSB()
         assert controller.command("WAIT", "1") is None
 
     def test_sleep_command(self):
@@ -220,7 +220,7 @@ class TestLoggerController(TestCase):
             assert self.command_with_callbacks() is None
 
     def command_with_callbacks(self):
-        controller = LoggerController()
+        controller = LoggerControllerUSB()
         controller.set_callback("tx", _do_nothing)
         controller.set_callback("rx", _do_nothing)
         assert controller.open_port(com_port="1")
@@ -387,22 +387,22 @@ class TestLoggerController(TestCase):
 
 
 def _check_ports(port):
-    controller = LoggerController()
+    controller = LoggerControllerUSB()
     assert controller.check_ports() == [port]
 
 
 @contextmanager
 def _grep_patch(grep_return, name="nt"):
-    with patch("mat.logger_controller.Serial", FakeSerial):
-        with patch("mat.logger_controller.grep", return_value=grep_return):
-            with patch("mat.logger_controller.os.name", name):
+    with patch("mat.logger_controller_usb.Serial", FakeSerial):
+        with patch("mat.logger_controller_usb.grep", return_value=grep_return):
+            with patch("mat.logger_controller_usb.os.name", name):
                 yield
 
 
 @contextmanager
 def _serial_patch(serial_class, name="nt"):
-    with patch("mat.logger_controller.Serial", serial_class):
-        with patch("mat.logger_controller.os.name", name):
+    with patch("mat.logger_controller_usb.Serial", serial_class):
+        with patch("mat.logger_controller_usb.os.name", name):
             yield
 
 
@@ -419,7 +419,7 @@ def fake_for_command(cmds):
 
 
 def _open_controller(com_port=None, expectation=True):
-    controller = LoggerController()
+    controller = LoggerControllerUSB()
     assert bool(controller.open_port(com_port=com_port)) is expectation
     return controller
 
