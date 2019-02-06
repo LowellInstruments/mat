@@ -79,8 +79,8 @@ class LoggerControllerUSB(LoggerController):
             cmd = LoggerCmd(self.__port)
             if cmd.tag == target or cmd.tag == 'ERR':
                 self.callback('rx', cmd.cmd_str())
-                delay = 2 if cmd.tag in DELAY_COMMANDS else 0
-                time.sleep(delay)
+                if cmd.tag in DELAY_COMMANDS:
+                    time.sleep(2)
                 return cmd.result()
 
     def target_tag(self, args):
