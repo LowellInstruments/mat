@@ -2,8 +2,10 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 from mat.logger_controller import LoggerController
+from mat.logger_controller import DELAY_COMMANDS
 import os
 import re
+import time
 from serial import (
     Serial,
     SerialException,
@@ -77,6 +79,8 @@ class LoggerControllerUSB(LoggerController):
             cmd = LoggerCmd(self.__port)
             if cmd.tag == target or cmd.tag == 'ERR':
                 self.callback('rx', cmd.cmd_str())
+                delay = 2 if cmd.tag in DELAY_COMMANDS else 0
+                time.sleep(delay)
                 return cmd.result()
 
     def target_tag(self, args):

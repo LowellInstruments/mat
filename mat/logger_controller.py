@@ -3,7 +3,6 @@
 
 from abc import ABC, abstractmethod
 import datetime
-import time
 import re
 from mat.calibration_factories import calibration_from_string
 from mat.converter import Converter
@@ -43,6 +42,11 @@ SIMPLE_CMDS = [
     STATUS_CMD,
     STOP_CMD,
     TIME_CMD,
+]
+
+DELAY_COMMANDS = [
+    RUN_CMD,
+    STOP_CMD
 ]
 
 
@@ -86,7 +90,7 @@ class LoggerController(ABC):
             else:
                 break
 
-        self.calibration = calibration_from_string((cal_string))
+        self.calibration = calibration_from_string(cal_string)
         self.converter = Converter(self.calibration)
 
     def logger_info(self):
@@ -147,9 +151,8 @@ class LoggerController(ABC):
         return int(fsz) if fsz else None
 
     def sync_time(self):
-        datetimeObj = datetime.datetime.now()
-        formattedString = datetimeObj.strftime('%Y/%m/%d %H:%M:%S')
-        return self.command(SYNC_TIME_CMD, formattedString)
+        formatted_now = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        return self.command(SYNC_TIME_CMD, formatted_now)
 
     def set_callback(self, event, callback):
         self.__callback[event] = callback
@@ -157,54 +160,11 @@ class LoggerController(ABC):
     def __del__(self):
         self.close()
 
-    def get_timestamp(self):
-        """ Return posix timestamp """
-        date_string = self.command(TIME_CMD)
-        epoch = datetime.datetime(1970, 1, 1)  # naive datetime format
-        logger_time = datetime.datetime.strptime(date_string,
-                                                 '%Y/%m/%d %H:%M:%S')
-        return (logger_time-epoch).total_seconds()
-
-    def delete_file(self, name):
-        self.command(DEL_FILE_CMD, name)
-
-    def start_deployment(self):
-        # give time to msp430 to open SD card and create headers
-        answer = self.command(RUN_CMD)
-        time.sleep(2)
-        return answer
-
-    def stop_deployment(self):
-        # give time to msp430 to close SD card
-        answer = self.command(STOP_CMD)
-        time.sleep(2)
-        return answer
-
-    def get_status(self):
-        return self.command(STATUS_CMD)
-
-    def get_time(self):
-        return datetime.datetime.strptime(
-            self.command(TIME_CMD)[6:], '%Y/%m/%d %H:%M:%S')
-
-    def get_serial_number(self):
-        return self.command(SERIAL_NUMBER_CMD)
-
-    def get_firmware_version(self):
-        return self.command(FIRMWARE_VERSION_CMD)
-
     def check_time(self):
-        pre_time = self.get_time()
-        synced = False
-        if abs(datetime.datetime.now() - pre_time).total_seconds() > 60:
-            synced = True
-            self.sync_time()
-            post_time = self.get_time()
-        if synced:
-            rv = "\n\tTime synced from {} to {}".format(pre_time, post_time)
-        else:
-            rv = "{}".format(pre_time)
-        return rv
+        logger_time = datetime.datetime.strptime(self.command(TIME_CMD)[6:],
+                                                 '%Y/%m/%d %H:%M:%S')
+        local_time = datetime.datetime.now()
+        return (local_time - logger_time).total_seconds()
 
 
 def _extract_sd_kb(data):
