@@ -74,45 +74,30 @@ class LoggerController(ABC):
             self.__callback[key](cmd_str)
 
     def load_calibration(self):
-        read_size = 38
-        cal_string = ''
+        cal_string = self._multi_read(CALIBRATION_CMD, 10, 38)
+        self.calibration = calibration_from_string(cal_string)
+        self.converter = Converter(self.calibration)
 
-        # Load the entire HS from the logger
-        for i in range(10):
+    def logger_info(self):
+        li_string = self._multi_read(LOGGER_INFO_CMD, 3, 42)
+        if li_string and not all([c == 255 for c in
+                                  bytes(li_string, encoding='IBM437')]):
+            return LoggerInfoParser(li_string).info()
+
+    def _multi_read(self, read_command, n_reads, read_size):
+        in_str = ''
+        for i in range(n_reads):
             read_address = i * read_size
             read_address = '%04X' % read_address
             read_address = read_address[2:4] + read_address[0:2]
             read_length = '%02X' % read_size
             command_str = read_address + read_length
-            in_str = self.command(CALIBRATION_CMD, command_str)
-            if in_str:
-                cal_string += in_str
+            this_read = self.command(read_command, command_str)
+            if this_read:
+                in_str += this_read
             else:
-                cal_string = ''
                 break
-
-        self.calibration = calibration_from_string(cal_string)
-        self.converter = Converter(self.calibration)
-
-    def logger_info(self):
-        read_size = 42
-        li_string = ''
-        for i in range(3):
-            read_address = i*read_size
-            read_address = '%04x' % read_address
-            read_address = read_address[2:4] + read_address[0:2]
-            read_length = '%02x' % read_size
-            command_str = read_address + read_length
-            in_str = self.command(LOGGER_INFO_CMD, command_str)
-            if in_str:
-                li_string += in_str
-            else:
-                li_string = ''
-                break
-
-        if li_string and not all([c == 255 for c in
-                                  bytes(li_string, encoding='IBM437')]):
-            return LoggerInfoParser(li_string).info()
+        return in_str
 
     def get_logger_settings(self):
         gls_string = self.command(LOGGER_SETTINGS_CMD)
