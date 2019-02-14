@@ -88,6 +88,7 @@ class LoggerController(ABC):
             if in_str:
                 cal_string += in_str
             else:
+                cal_string = ''
                 break
 
         self.calibration = calibration_from_string(cal_string)
@@ -102,7 +103,13 @@ class LoggerController(ABC):
             read_address = read_address[2:4] + read_address[0:2]
             read_length = '%02x' % read_size
             command_str = read_address + read_length
-            li_string += self.command(LOGGER_INFO_CMD, command_str)
+            in_str = self.command(LOGGER_INFO_CMD, command_str)
+            if in_str:
+                li_string += in_str
+            else:
+                li_string = ''
+                break
+
         if li_string and not all([c == 255 for c in
                                   bytes(li_string, encoding='IBM437')]):
             return LoggerInfoParser(li_string).info()
