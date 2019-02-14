@@ -22,4 +22,4 @@ def ascii85_to_num(in_str):
     for i, c in enumerate(chars):
         num = num + (ord(c) - 33) * 85 ** (4-i)
     num.dtype = '<f4'
-    return np.asscalar(num)
+    return num.item()
