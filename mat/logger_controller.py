@@ -51,8 +51,8 @@ DELAY_COMMANDS = [
 
 
 class LoggerController(ABC):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, address):
+        self.address = address
         self.__callback = {}
         self.calibration = None
         self.converter = None
@@ -68,6 +68,13 @@ class LoggerController(ABC):
     @abstractmethod
     def command(self, *args):
         pass
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
     def callback(self, key, cmd_str):
         if key in self.__callback:

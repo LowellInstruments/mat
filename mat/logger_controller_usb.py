@@ -33,34 +33,29 @@ def find_port():
 
 
 class LoggerControllerUSB(LoggerController):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, address=None):
+        super().__init__(address)
         self.is_connected = False
         self.__port = None
-        self.com_port = None
 
     def open(self):
-        self.open_port()
-
-    def open_port(self, com_port=None):
         try:
-            com_port = com_port or find_port()
-            if com_port:
-                self._open_port(com_port)
+            self.address = self.address or find_port()
+            if self.address:
+                self._open_port()
         except SerialException:
             self.close()
         return self.is_connected
 
-    def _open_port(self, com_port):
+    def _open_port(self):
         if isinstance(self.__port, Serial):
             self.__port.close()
         if os.name == 'posix':
-            self.__port = Serial('/dev/' + com_port)
+            self.__port = Serial('/dev/' + self.address)
         else:
-            self.__port = Serial('COM' + str(com_port))
+            self.__port = Serial('COM' + str(self.address))
         self.__port.timeout = TIMEOUT
         self.is_connected = True
-        self.com_port = com_port
 
     def command(self, *args):
         if not self.is_connected:
@@ -104,4 +99,3 @@ class LoggerControllerUSB(LoggerController):
         if self.__port:
             self.__port.close()
         self.is_connected = False
-        self.com_port = 0
