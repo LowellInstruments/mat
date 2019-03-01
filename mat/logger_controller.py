@@ -28,7 +28,7 @@ START_TIME_CMD = 'GST'
 STATUS_CMD = 'STS'
 STOP_CMD = 'STP'
 STOP_WITH_STRING_CMD = 'SWS'
-SYNC_TIME_CMD = 'STM'
+SET_TIME_CMD = 'STM'
 TIME_CMD = 'GTM'
 DEL_FILE_CMD = 'DEL'
 
@@ -153,7 +153,7 @@ class LoggerController(ABC):
 
     def sync_time(self):
         formatted_now = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-        return self.command(SYNC_TIME_CMD, formatted_now)
+        return self.command(SET_TIME_CMD, formatted_now)
 
     def set_callback(self, event, callback):
         self.__callback[event] = callback
