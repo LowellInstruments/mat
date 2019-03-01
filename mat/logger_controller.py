@@ -176,3 +176,7 @@ def _extract_sd_kb(data):
         return int(regexp.group(1))
     else:
         return None
+
+
+class CommunicationError(Exception):
+    pass
