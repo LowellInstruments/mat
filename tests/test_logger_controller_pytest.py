@@ -66,20 +66,20 @@ def test_create():
 def test_open_port_on_posix(fake_serial_factory):
     logger_controller = fake_serial_factory(system='posix')
     with logger_controller() as controller:
-        pass
+        assert controller.is_connected
 
 
 def test_open_port_on_nt(fake_serial_factory):
     logger_controller = fake_serial_factory(system='nt')
     with logger_controller() as controller:
-        pass
+        assert controller.is_connected
 
 
 def test_open_port_exception(fake_serial_factory):
     logger_controller = fake_serial_factory(subclass=FakeSerialException)
     with pytest.raises(RuntimeError):
         with logger_controller() as controller:
-            pass
+            assert controller.is_connected
 
 
 def test_empty_command(fake_serial_factory):
@@ -122,7 +122,7 @@ def test_receive_err(fake_serial_factory):
     logger_controller = fake_serial_factory('ERR 00')
     with logger_controller() as controller:
         response = controller.command(TIME_CMD)
-        assert response == None
+        assert response is None
 
 
 def test_partial_response(fake_serial_factory):
@@ -130,4 +130,3 @@ def test_partial_response(fake_serial_factory):
     with logger_controller() as controller:
         with pytest.raises(CommunicationError):
             controller.command(TIME_CMD)
-
