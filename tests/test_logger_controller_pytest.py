@@ -3,6 +3,8 @@ import pytest
 from mat.logger_controller import (
     SD_CAPACITY_CMD,
     TIME_CMD,
+    SET_TIME_CMD,
+    RUN_CMD,
     CommunicationError
 )
 import re
@@ -130,3 +132,18 @@ def test_partial_response(fake_serial_factory):
     with logger_controller() as controller:
         with pytest.raises(CommunicationError):
             controller.command(TIME_CMD)
+
+
+def test_two_parameter_command(fake_serial_factory):
+    logger_controller = fake_serial_factory('STM 00')
+    with logger_controller() as controller:
+        controller.command(SET_TIME_CMD, '132019/03/01 16:47:51')
+
+
+def test_delay_command(fake_serial_factory, mocker):
+    sleep_mock = mocker.Mock()
+    mocker.patch('mat.logger_controller_usb.time.sleep', sleep_mock)
+    logger_controller = fake_serial_factory('RUN 00')
+    with logger_controller() as controller:
+        controller.command(RUN_CMD)
+        sleep_mock.assert_called_with(2)
