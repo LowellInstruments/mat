@@ -61,22 +61,22 @@ class LoggerControllerUSB(LoggerController):
         if not self.is_connected:
             return None
         try:
-            return self.find_tag(self.target_tag(args))
+            return self.receive_response(self.send_command(args))
         except SerialException:
             self.close()
             self.is_connected = False
             return None
 
-    def find_tag(self, target):
-        if not target:
+    def receive_response(self, expected_tag):
+        if not expected_tag:
             return
         while True:
             cmd = LoggerCmd(self.__port)
-            if cmd.tag == target or cmd.tag == 'ERR':
+            if cmd.tag == expected_tag or cmd.tag == 'ERR':
                 self.callback('rx', cmd.cmd_str())
                 return cmd.result()
 
-    def target_tag(self, args):
+    def send_command(self, args):
         tag = args[0]
         data = ''
         if len(args) == 2:
