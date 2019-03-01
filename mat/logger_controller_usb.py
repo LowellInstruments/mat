@@ -1,8 +1,9 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-from mat.logger_controller import LoggerController
-from mat.logger_controller import DELAY_COMMANDS
+from mat.logger_controller import (
+    LoggerController,
+    DELAY_COMMANDS)
 import os
 import re
 import time
