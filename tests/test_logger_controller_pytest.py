@@ -2,7 +2,8 @@ from mat.logger_controller_usb import LoggerControllerUSB
 import pytest
 from mat.logger_controller import (
     SD_CAPACITY_CMD,
-    TIME_CMD
+    TIME_CMD,
+    CommunicationError
 )
 import re
 from serial import SerialException
@@ -84,7 +85,7 @@ def test_open_port_exception(fake_serial_factory):
 def test_empty_command(fake_serial_factory):
     logger_controller = fake_serial_factory()
     with logger_controller() as controller:
-        with pytest.raises(RuntimeError):
+        with pytest.raises(CommunicationError):
             controller.command(TIME_CMD)
 
 
@@ -113,11 +114,20 @@ def test_sleep_command(fake_serial_factory):
 def test_short_command(fake_serial_factory):
     logger_controller = fake_serial_factory('GTM 051234')
     with logger_controller() as controller:
-        with pytest.raises(RuntimeError):
+        with pytest.raises(CommunicationError):
             controller.command(TIME_CMD)
 
+
 def test_receive_err(fake_serial_factory):
-    logger_controller = fake_serial_factory('ERR')
+    logger_controller = fake_serial_factory('ERR 00')
     with logger_controller() as controller:
-        controller.command(TIME_CMD)
+        response = controller.command(TIME_CMD)
+        assert response == None
+
+
+def test_partial_response(fake_serial_factory):
+    logger_controller = fake_serial_factory('GT')
+    with logger_controller() as controller:
+        with pytest.raises(CommunicationError):
+            controller.command(TIME_CMD)
 
