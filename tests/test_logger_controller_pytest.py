@@ -5,13 +5,23 @@ from mat.logger_controller import (
     TIME_CMD,
     SET_TIME_CMD,
     RUN_CMD,
+    SENSOR_READINGS_CMD,
     CommunicationError
 )
 import re
 from serial import SerialException
+from numpy.testing import assert_array_almost_equal
 
 
-GREP_RETURN = {'nt': [['COM10']], 'posix': [['ttyACM0']]}
+EXPECTED_LOGGER_SETTINGS = {
+    'TMP': True, 'ACL': True, 'MGN': True, 'TRI': 1, 'ORI': 1, 'BMR': 32,
+    'BMN': 32, 'PRS': False, 'PHD': False, 'PRR': 16, 'PRN': 16}
+
+
+GREP_RETURN = {'nt': [['COM10']],
+               'posix': [['ttyACM0']],
+               'dummy': [['dummy']],
+               'not_found': None}
 
 
 @pytest.fixture
@@ -23,7 +33,7 @@ def fake_serial_factory(mocker):
         mocker.patch('mat.logger_controller_usb.Serial', subclass)
         mocker.patch('mat.logger_controller_usb.os.name', system)
         mocker.patch('mat.logger_controller_usb.grep',
-                     return_value=GREP_RETURN[system])
+                     return_value=GREP_RETURN.get(system, None))
         return LoggerControllerUSB
     return patched_logger_controller
 
@@ -61,6 +71,11 @@ class FakeSerialException(FakeSerial):
         raise SerialException
 
 
+class FakeSerialReadException(FakeSerial):
+    def read(self, count):
+        raise SerialException
+
+
 def test_create():
     assert LoggerControllerUSB()
 
@@ -75,6 +90,20 @@ def test_open_port_on_nt(fake_serial_factory):
     logger_controller = fake_serial_factory(system='nt')
     with logger_controller() as controller:
         assert controller.is_connected
+
+
+def test_open_port_on_unknown(fake_serial_factory):
+    logger_controller = fake_serial_factory(system='dummy')
+    with pytest.raises(RuntimeError):
+        with logger_controller() as controller:
+            pass
+
+
+def test_open_port_not_found(fake_serial_factory):
+    logger_controller = fake_serial_factory(system='not_found')
+    with pytest.raises(RuntimeError):
+        with logger_controller() as controller:
+            pass
 
 
 def test_open_port_exception(fake_serial_factory):
@@ -147,3 +176,53 @@ def test_delay_command(fake_serial_factory, mocker):
     with logger_controller() as controller:
         controller.command(RUN_CMD)
         sleep_mock.assert_called_with(2)
+
+
+def test_read_raised_serial_exception(fake_serial_factory):
+    logger_controller = fake_serial_factory(subclass=FakeSerialReadException)
+    with logger_controller() as controller:
+        response = controller.command(TIME_CMD)
+        assert response is None
+
+def test_open_already_opened_port(fake_serial_factory):
+    logger_controller = fake_serial_factory()
+    with logger_controller() as controller:
+        controller.open()
+        assert controller.is_connected is True
+
+def test_get_sensor_readings(fake_serial_factory):
+    reply = 'GSR 28368924f10af7eeff97026b03b9fe9e0f3f060000\r\n' + \
+            'RHS 00' * 10
+    logger_controller = fake_serial_factory(reply)
+    with logger_controller() as controller:
+        response = controller.get_sensor_readings()
+        #TODO add an assert
+
+
+def test_get_logger_settings_empty(fake_serial_factory):
+    reply = 'GLS 00'
+    logger_controller = fake_serial_factory(reply)
+    with logger_controller() as controller:
+        response = controller.get_logger_settings()
+        assert response == {}
+
+
+def test_get_logger_settings(fake_serial_factory):
+    reply = 'GLS 1E010101010001002020000000101000'
+    logger_controller = fake_serial_factory(reply)
+    with logger_controller() as controller:
+        response = controller.get_logger_settings()
+        assert response == EXPECTED_LOGGER_SETTINGS
+
+
+def test_callback(fake_serial_factory, mocker):
+    logger_controller = fake_serial_factory('GTM 0512345')
+    callback_target = mocker.Mock()
+    expected = [mocker.call('GTM 00'), mocker.call('GTM 0512345')]
+    with logger_controller() as controller:
+        controller.set_callback('tx', callback_target)
+        controller.set_callback('rx', callback_target)
+        response = controller.command(TIME_CMD)
+        callback_target.assert_has_calls(expected, any_order=False)
+        assert callback_target.call_count == 2
+        assert response == '12345'

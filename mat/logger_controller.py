@@ -59,15 +59,15 @@ class LoggerController(ABC):
 
     @abstractmethod
     def open(self):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def close(self):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def command(self, *args):
-        pass
+        pass  # pragma: no cover
 
     def __enter__(self):
         if self.open():
