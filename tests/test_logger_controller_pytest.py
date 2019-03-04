@@ -5,7 +5,7 @@ from mat.logger_controller import (
     TIME_CMD,
     SET_TIME_CMD,
     RUN_CMD,
-    SENSOR_READINGS_CMD,
+    STOP_WITH_STRING_CMD,
     CommunicationError
 )
 import re
@@ -113,8 +113,8 @@ def test_open_port_exception(fake_serial_factory):
             assert controller.is_connected
 
 
-def test_empty_command(fake_serial_factory):
-    logger_controller = fake_serial_factory()
+def test_empty_command_reply(fake_serial_factory):
+    logger_controller = fake_serial_factory('')
     with logger_controller() as controller:
         with pytest.raises(CommunicationError):
             controller.command(TIME_CMD)
@@ -226,3 +226,23 @@ def test_callback(fake_serial_factory, mocker):
         callback_target.assert_has_calls(expected, any_order=False)
         assert callback_target.call_count == 2
         assert response == '12345'
+
+def test_sd_query(fake_serial_factory):
+    reply = 'CTS 0d00003864064KB\r\n' \
+            'CFS 0d00003842879KB\r\n' \
+            'FSZ 100000000000034664\r\n' \
+            'CTS 00\r\n' \
+            'CTS 05123AB'
+    logger_controller = fake_serial_factory(reply)
+    with logger_controller() as controller:
+        assert controller.get_sd_capacity() == 3864064
+        assert controller.get_sd_free_space() == 3842879
+        assert controller.get_sd_file_size() == 34664
+        assert controller.get_sd_capacity() == None
+        assert controller.get_sd_capacity() == None
+
+
+def test_stop_with_string(fake_serial_factory):
+    logger_controller = fake_serial_factory('SWS 00')
+    with logger_controller() as controller:
+        assert controller.stop_with_string('SOME DATA') == ''
