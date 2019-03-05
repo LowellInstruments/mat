@@ -72,8 +72,6 @@ class LoggerController(ABC):
     def __enter__(self):
         if self.open():
             return self
-        else:
-            raise RuntimeError('Cannot open connection')
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.close()

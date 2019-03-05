@@ -108,9 +108,8 @@ def test_open_port_not_found(fake_serial_factory):
 
 def test_open_port_exception(fake_serial_factory):
     logger_controller = fake_serial_factory(subclass=FakeSerialException)
-    with pytest.raises(RuntimeError):
-        with logger_controller() as controller:
-            assert controller.is_connected
+    with logger_controller() as controller:
+        assert controller is None
 
 
 def test_empty_command_reply(fake_serial_factory):
