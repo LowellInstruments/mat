@@ -2,7 +2,7 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 from abc import ABC, abstractmethod
-import datetime
+from datetime import datetime
 import re
 from mat.calibration_factories import calibration_from_string
 from mat.converter import Converter
@@ -152,7 +152,7 @@ class LoggerController(ABC):
         return int(fsz) if fsz else None
 
     def sync_time(self):
-        formatted_now = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        formatted_now = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         return self.command(SET_TIME_CMD, formatted_now)
 
     def set_callback(self, event, callback):
@@ -162,9 +162,9 @@ class LoggerController(ABC):
         self.close()
 
     def check_time(self):
-        logger_time = datetime.datetime.strptime(self.command(TIME_CMD)[6:],
+        logger_time = datetime.strptime(self.command(TIME_CMD),
                                                  '%Y/%m/%d %H:%M:%S')
-        local_time = datetime.datetime.now()
+        local_time = datetime.now()
         return (local_time - logger_time).total_seconds()
 
 

@@ -5,12 +5,12 @@ from mat.logger_controller import (
     TIME_CMD,
     SET_TIME_CMD,
     RUN_CMD,
-    STOP_WITH_STRING_CMD,
     CommunicationError
 )
 import re
 from serial import SerialException
 from numpy.testing import assert_array_almost_equal
+from datetime import datetime
 
 
 EXPECTED_LOGGER_SETTINGS = {
@@ -238,11 +238,26 @@ def test_sd_query(fake_serial_factory):
         assert controller.get_sd_capacity() == 3864064
         assert controller.get_sd_free_space() == 3842879
         assert controller.get_sd_file_size() == 34664
-        assert controller.get_sd_capacity() == None
-        assert controller.get_sd_capacity() == None
+        assert controller.get_sd_capacity() is None
+        assert controller.get_sd_capacity() is None
 
 
 def test_stop_with_string(fake_serial_factory):
     logger_controller = fake_serial_factory('SWS 00')
     with logger_controller() as controller:
         assert controller.stop_with_string('SOME DATA') == ''
+
+
+def test_check_time(fake_serial_factory, mocker):
+    aa = mocker.Mock(wraps=datetime)
+    aa.now.return_value = datetime(2019, 3, 3, 21, 39, 14)
+    mocker.patch('mat.logger_controller.datetime', aa)
+    logger_controller = fake_serial_factory('GTM 132019/03/03 21:39:04')
+    with logger_controller() as controller:
+        assert controller.check_time() == 10.0
+
+def test_empty_logger_info(fake_serial_factory):
+    reply = ''.join(['RLI 2A' + '\xa0'*42 + '\r\n']*3)
+    logger_controller = fake_serial_factory(reply)
+    with logger_controller() as controller:
+        assert controller.logger_info() is None
