@@ -44,7 +44,7 @@ class LoggerControllerUSB(LoggerController):
             self.address = self.address or find_port()
             if self.address:
                 self._open_port()
-        except SerialException:
+        except (SerialException, RuntimeError):
             self.close()
         return self.is_connected
 
