@@ -9,7 +9,6 @@ from mat.logger_controller import (
 )
 import re
 from serial import SerialException
-from numpy.testing import assert_array_almost_equal
 from datetime import datetime
 
 
@@ -94,16 +93,14 @@ def test_open_port_on_nt(fake_serial_factory):
 
 def test_open_port_on_unknown(fake_serial_factory):
     logger_controller = fake_serial_factory(system='dummy')
-    with pytest.raises(RuntimeError):
-        with logger_controller() as controller:
-            pass
+    with logger_controller() as controller:
+        assert controller is None
 
 
 def test_open_port_not_found(fake_serial_factory):
     logger_controller = fake_serial_factory(system='not_found')
-    with pytest.raises(RuntimeError):
-        with logger_controller() as controller:
-            pass
+    with logger_controller() as controller:
+        assert controller is None
 
 
 def test_open_port_exception(fake_serial_factory):
@@ -183,19 +180,21 @@ def test_read_raised_serial_exception(fake_serial_factory):
         response = controller.command(TIME_CMD)
         assert response is None
 
+
 def test_open_already_opened_port(fake_serial_factory):
     logger_controller = fake_serial_factory()
     with logger_controller() as controller:
         controller.open()
         assert controller.is_connected is True
 
+
 def test_get_sensor_readings(fake_serial_factory):
     reply = 'GSR 28368924f10af7eeff97026b03b9fe9e0f3f060000\r\n' + \
             'RHS 00' * 10
     logger_controller = fake_serial_factory(reply)
     with logger_controller() as controller:
-        response = controller.get_sensor_readings()
-        #TODO add an assert
+        controller.get_sensor_readings()
+        # TODO add an assert
 
 
 def test_get_logger_settings_empty(fake_serial_factory):
@@ -226,6 +225,7 @@ def test_callback(fake_serial_factory, mocker):
         assert callback_target.call_count == 2
         assert response == '12345'
 
+
 def test_sd_query(fake_serial_factory):
     reply = 'CTS 0d00003864064KB\r\n' \
             'CFS 0d00003842879KB\r\n' \
@@ -254,6 +254,7 @@ def test_check_time(fake_serial_factory, mocker):
     logger_controller = fake_serial_factory('GTM 132019/03/03 21:39:04')
     with logger_controller() as controller:
         assert controller.check_time() == 10.0
+
 
 def test_empty_logger_info(fake_serial_factory):
     reply = ''.join(['RLI 2A' + '\xa0'*42 + '\r\n']*3)
