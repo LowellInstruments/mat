@@ -2,7 +2,7 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
 from abc import ABC, abstractmethod
-import datetime
+from datetime import datetime
 import re
 from mat.calibration_factories import calibration_from_string
 from mat.converter import Converter
@@ -28,7 +28,7 @@ START_TIME_CMD = 'GST'
 STATUS_CMD = 'STS'
 STOP_CMD = 'STP'
 STOP_WITH_STRING_CMD = 'SWS'
-SYNC_TIME_CMD = 'STM'
+SET_TIME_CMD = 'STM'
 TIME_CMD = 'GTM'
 DEL_FILE_CMD = 'DEL'
 
@@ -51,23 +51,30 @@ DELAY_COMMANDS = [
 
 
 class LoggerController(ABC):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, address):
+        self.address = address
         self.__callback = {}
         self.calibration = None
         self.converter = None
 
     @abstractmethod
     def open(self):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def close(self):
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def command(self, *args):
-        pass
+        pass  # pragma: no cover
+
+    def __enter__(self):
+        if self.open():
+            return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
     def callback(self, key, cmd_str):
         if key in self.__callback:
@@ -143,8 +150,8 @@ class LoggerController(ABC):
         return int(fsz) if fsz else None
 
     def sync_time(self):
-        formatted_now = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-        return self.command(SYNC_TIME_CMD, formatted_now)
+        formatted_now = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        return self.command(SET_TIME_CMD, formatted_now)
 
     def set_callback(self, event, callback):
         self.__callback[event] = callback
@@ -153,9 +160,9 @@ class LoggerController(ABC):
         self.close()
 
     def check_time(self):
-        logger_time = datetime.datetime.strptime(self.command(TIME_CMD)[6:],
-                                                 '%Y/%m/%d %H:%M:%S')
-        local_time = datetime.datetime.now()
+        logger_time = datetime.strptime(self.command(TIME_CMD),
+                                        '%Y/%m/%d %H:%M:%S')
+        local_time = datetime.now()
         return (local_time - logger_time).total_seconds()
 
 
@@ -167,3 +174,7 @@ def _extract_sd_kb(data):
         return int(regexp.group(1))
     else:
         return None
+
+
+class CommunicationError(Exception):
+    pass

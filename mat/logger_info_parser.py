@@ -1,7 +1,7 @@
 from mat.utils import four_byte_int
 
 
-EXIT_MARKERS = ["##", "\xff\xff"]
+EXIT_MARKERS = ['##', '\xff\xff']
 
 
 class LoggerInfoParser:

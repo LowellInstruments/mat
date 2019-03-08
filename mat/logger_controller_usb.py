@@ -1,8 +1,9 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
-from mat.logger_controller import LoggerController
-from mat.logger_controller import DELAY_COMMANDS
+from mat.logger_controller import (
+    LoggerController,
+    DELAY_COMMANDS)
 import os
 import re
 import time
@@ -33,55 +34,50 @@ def find_port():
 
 
 class LoggerControllerUSB(LoggerController):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, address=None):
+        super().__init__(address)
         self.is_connected = False
         self.__port = None
-        self.com_port = None
 
     def open(self):
-        self.open_port()
-
-    def open_port(self, com_port=None):
         try:
-            com_port = com_port or find_port()
-            if com_port:
-                self._open_port(com_port)
-        except SerialException:
+            self.address = self.address or find_port()
+            if self.address:
+                self._open_port()
+        except (SerialException, RuntimeError):
             self.close()
         return self.is_connected
 
-    def _open_port(self, com_port):
+    def _open_port(self):
         if isinstance(self.__port, Serial):
             self.__port.close()
         if os.name == 'posix':
-            self.__port = Serial('/dev/' + com_port)
+            self.__port = Serial('/dev/' + self.address)
         else:
-            self.__port = Serial('COM' + str(com_port))
+            self.__port = Serial('COM' + str(self.address))
         self.__port.timeout = TIMEOUT
         self.is_connected = True
-        self.com_port = com_port
 
     def command(self, *args):
         if not self.is_connected:
             return None
         try:
-            return self.find_tag(self.target_tag(args))
+            return self.receive_response(self.send_command(args))
         except SerialException:
             self.close()
             self.is_connected = False
             return None
 
-    def find_tag(self, target):
-        if not target:
+    def receive_response(self, expected_tag):
+        if not expected_tag:
             return
         while True:
             cmd = LoggerCmd(self.__port)
-            if cmd.tag == target or cmd.tag == 'ERR':
+            if cmd.tag == expected_tag or cmd.tag == 'ERR':
                 self.callback('rx', cmd.cmd_str())
                 return cmd.result()
 
-    def target_tag(self, args):
+    def send_command(self, args):
         tag = args[0]
         data = ''
         if len(args) == 2:
@@ -104,4 +100,3 @@ class LoggerControllerUSB(LoggerController):
         if self.__port:
             self.__port.close()
         self.is_connected = False
-        self.com_port = 0
