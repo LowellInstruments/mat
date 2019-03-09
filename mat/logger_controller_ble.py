@@ -120,30 +120,52 @@ class LoggerControllerBLE(LoggerController):
         return return_val
 
     # send command to MSP430 so it configures RN4020 with it
+    # def control_command(self, data):
+    #     # vars
+    #     self.delegate.buffer = ''
+    #     self.delegate.read_buffer = []
+    #
+    #     # build and send control command
+    #     out_str = ('BTC 00' + data + chr(13)).encode()
+    #     self.write(out_str)
+    #
+    #     # wait for answer to control command
+    #     last_rx = time.time()
+    #     return_val = ''
+    #     while time.time() - last_rx < 3:
+    #         # can return: '', 'CMDAOKMDLP', 'PERRAOKMDLP'
+    #         if self.peripheral.waitForNotifications(0.05):
+    #             last_rx = time.time()
+    #         if self.delegate.in_waiting:
+    #             inline = self.delegate.read_line()
+    #             return_val += inline.decode()
+    #             if return_val.endswith('MLDP'):
+    #                 break
+    #     if return_val == '':
+    #         return_val = 'DIDNOT'
+    #     return return_val
+
     def control_command(self, data):
-        # vars
+        # build and send control command
         self.delegate.buffer = ''
         self.delegate.read_buffer = []
-
-        # build and send control command
         out_str = ('BTC 00' + data + chr(13)).encode()
         self.write(out_str)
+        return self._control_command_result()
 
-        # wait for answer to control command
+    def _control_command_result(self):
         last_rx = time.time()
-        return_val = ''
-        while time.time() - last_rx < 3:
-            # can return: '', 'CMDAOKMDLP', 'PERRAOKMDLP'
-            if self.peripheral.waitForNotifications(0.05):
-                last_rx = time.time()
-            if self.delegate.in_waiting:
-                inline = self.delegate.read_line()
-                return_val += inline.decode()
-                if return_val.endswith('MLDP'):
-                    break
-        if return_val == '':
-            return_val = 'DIDNOT'
-        return return_val
+        result = ''
+        while not result.endswith('MLDP') and time.time() - last_rx < 3:
+            result, last_rx = self._parse_control_command_back(result, last_rx)
+        return result
+
+    def _parse_control_command_back(self, result, last_rx):
+        if self.peripheral.waitForNotifications(0.05):
+            last_rx = time.time()
+        if self.delegate.in_waiting:
+            result += self.delegate.read_line().decode()
+        return result, last_rx
 
     # write to logger BLE characteristic
     def write(self, data, response=False):
@@ -160,6 +182,7 @@ class LoggerControllerBLE(LoggerController):
 
     # grab dir_command() answer
     def _list_files(self):
+        # todo: address corresponding test
         files = []
         answer_bytes = bytes()
         last_rx = time.time()
@@ -168,13 +191,13 @@ class LoggerControllerBLE(LoggerController):
             self.peripheral.waitForNotifications(0.01)
             if self.delegate.in_waiting:
                 last_rx = time.time()
-                answer_bytes = self._parse_list_files(files)
+                answer_bytes = self._parse_list_files_back(files)
             # timeout while DIR answer, quit
             if time.time() - last_rx > 3:
                 raise LCBLEException('Timeout while getting file list.')
         return files
 
-    def _parse_list_files(self, files):
+    def _parse_list_files_back(self, files):
         answer_bytes = self.delegate.read_line()
         file_str = answer_bytes.decode()
         re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
