@@ -82,42 +82,76 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
+    # # send commands to MSP430 such as RUN or STP
+    # def command(self, tag, data=None):
+    #     return_val = None
+    #     data = '' if data is None else data
+    #     length = '%02x' % len(data)
+    #
+    #     # build command
+    #     if tag == 'sleep' or tag == 'RFN':
+    #         out_str = tag
+    #     else:
+    #         out_str = tag + ' ' + length + data
+    #
+    #     # send command via BLE
+    #     self.write((out_str + chr(13)).encode())
+    #
+    #     # RST, BSL and sleep don't return tags
+    #     if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
+    #         tag_waiting = ''
+    #     else:
+    #         tag_waiting = tag
+    #
+    #     # wait command answer
+    #     while tag_waiting:
+    #         if not self.peripheral.waitForNotifications(3):
+    #             raise LCBLEException('Logger timeout waiting: ' + tag_waiting)
+    #
+    #         if self.delegate.in_waiting:
+    #             inline = self.delegate.read_line()
+    #             if inline.startswith(tag_waiting.encode()):
+    #                 return_val = inline
+    #                 break
+    #             elif inline.startswith(b'ERR'):
+    #                 raise LCBLEException('MAT-1W returned ERR')
+    #             elif inline.startswith(b'INV'):
+    #                 raise LCBLEException('MAT-1W reported invalid command')
+    #     return return_val
+
     # send commands to MSP430 such as RUN or STP
     def command(self, tag, data=None):
-        return_val = None
+        # build command
         data = '' if data is None else data
         length = '%02x' % len(data)
-
-        # build command
         if tag == 'sleep' or tag == 'RFN':
             out_str = tag
         else:
             out_str = tag + ' ' + length + data
-
-        # send command via BLE
         self.write((out_str + chr(13)).encode())
 
-        # RST, BSL and sleep don't return tags
+        # answer: RST, BSL and sleep don't return any
         if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
-            tag_waiting = ''
-        else:
-            tag_waiting = tag
+            return None
 
-        # wait command answer
-        while tag_waiting:
+        # answer: the ones that do
+        return self._command_result(tag)
+
+    def _command_result(self, tag):
+        while True:
             if not self.peripheral.waitForNotifications(3):
-                raise LCBLEException('Logger timeout waiting: ' + tag_waiting)
-
+                raise LCBLEException('Logger timeout waiting: ' + tag)
             if self.delegate.in_waiting:
-                inline = self.delegate.read_line()
-                if inline.startswith(tag_waiting.encode()):
-                    return_val = inline
-                    break
-                elif inline.startswith(b'ERR'):
-                    raise LCBLEException('MAT-1W returned ERR')
-                elif inline.startswith(b'INV'):
-                    raise LCBLEException('MAT-1W reported invalid command')
-        return return_val
+                return self._command_parse_back(tag)
+
+    def _command_parse_back(self, tag):
+        result = self.delegate.read_line()
+        if result.startswith(tag.encode()):
+            return result
+        if result.startswith(b'ERR'):
+            raise LCBLEException('MAT-1W returned ERR')
+        if result.startswith(b'INV'):
+            raise LCBLEException('MAT-1W reported invalid command')
 
     # send command to MSP430 so it configures RN4020 with it
     # def control_command(self, data):
@@ -172,6 +206,38 @@ class LoggerControllerBLE(LoggerController):
         data2 = [data[i:i + 1] for i in range(len(data))]
         for c in data2:
             self.mldp_data.write(c, withResponse=response)
+
+    # def list_files(self):
+    #     # build DIR command
+    #     files = []
+    #     self.delegate.buffer = ''
+    #     self.delegate.read_buffer = []
+    #     self.write(('DIR 00' + chr(13)).encode())
+    #
+    #     # wait for DIR command answer
+    #     last_rx = time.time()
+    #     while True:
+    #         self.peripheral.waitForNotifications(0.01)
+    #         # check if there is a whole line in the buffer
+    #         if self.delegate.in_waiting:
+    #             last_rx = time.time()
+    #             file_str = self.delegate.read_line()
+    #             # EOT received so end of file list
+    #             if file_str == b'\x04':
+    #                 break
+    #             file_str = file_str.decode()
+    #             re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
+    #             try:
+    #                 file_name = re_obj.group(1)
+    #                 file_size = int(re_obj.group(2))
+    #             except (AttributeError, IndexError):
+    #                 raise LCBLEException(
+    #                     'DIR bad file_str {}.'.format(file_str))
+    #             files.append((file_name, file_size))
+    #         # there was a timeout during DIR answer
+    #         if time.time() - last_rx > 3:
+    #             raise LCBLEException('Timeout while getting file list.')
+    #     return files
 
     # know which files are in remote logger
     def dir_command(self):
