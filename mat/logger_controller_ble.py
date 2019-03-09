@@ -152,36 +152,40 @@ class LoggerControllerBLE(LoggerController):
             self.mldp_data.write(c, withResponse=response)
 
     # know which files are in remote logger
-    def list_files(self):
-        # build DIR command
-        files = []
+    def dir_command(self):
         self.delegate.buffer = ''
         self.delegate.read_buffer = []
         self.write(('DIR 00' + chr(13)).encode())
+        return self._list_files()
 
-        # wait for DIR command answer
+    # grab dir_command() answer
+    def _list_files(self):
+        files = []
+        answer_bytes = bytes()
         last_rx = time.time()
-        while True:
+        while answer_bytes != b'\x04':
+            # receive via BLE, parse any waiting line in buffer
             self.peripheral.waitForNotifications(0.01)
-            # check if there is a whole line in the buffer
             if self.delegate.in_waiting:
                 last_rx = time.time()
-                file_str = self.delegate.read_line()
-                # EOT received so end of file list
-                if file_str == b'\x04':
-                    break
-                file_str = file_str.decode()
-                re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
-                try:
-                    file_name = re_obj.group(1)
-                    file_size = int(re_obj.group(2))
-                except (AttributeError, IndexError):
-                    raise LCBLEException('DIR bad file_str {}.'.format(file_str))
-                files.append((file_name, file_size))
-            # there was a timeout during DIR answer
+                answer_bytes = self._parse_list_files(files)
+            # timeout while DIR answer, quit
             if time.time() - last_rx > 3:
                 raise LCBLEException('Timeout while getting file list.')
         return files
+
+    def _parse_list_files(self, files):
+        answer_bytes = self.delegate.read_line()
+        file_str = answer_bytes.decode()
+        re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
+        try:
+            file_name = re_obj.group(1)
+            file_size = int(re_obj.group(2))
+            files.append((file_name, file_size))
+        except (AttributeError, IndexError):
+            pass
+        finally:
+            return answer_bytes
 
     # obtain a file from the logger via BLE
     def get_file(self, filename, dfolder):  # pragma: no cover
