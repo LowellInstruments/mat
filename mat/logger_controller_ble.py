@@ -17,25 +17,32 @@ class Delegate(btle.DefaultDelegate):
     # receive data from BLE logger
     def handleNotification(self, handler, data):
         if not self.xmodem_mode:
-            # required, some times changes its type
-            if self.buffer == '':
-                self.buffer = bytes()
-            self.buffer += data
-            self.buffer = self.buffer.replace(b'\n', b'')
-            while b'\r' in self.buffer:
-                # Make sure it doesn't start with CR
-                if self.buffer.startswith(b'\r'):
-                    self.buffer = self.buffer[1:]
-                    continue
-                pos = self.buffer.find(b'\r')
-                in_str = self.buffer[:pos]
-                self.buffer = self.buffer[pos+1:]
-                if in_str:
-                    # if complete string received, add to read_buffer
-                    self.read_buffer.append(in_str)
+            # ascii mode
+            self._handle_notifications_ascii_mode(data)
         else:
             # xmodem mode, just accumulate bytes
             self.x_buffer += data
+
+    def _handle_notifications_ascii_mode(self, data):
+        # required, some times changes its type
+        if self.buffer == '':
+            self.buffer = bytes()
+        self.buffer += data
+        self.buffer = self.buffer.replace(b'\n', b'')
+        self._handle_notifications_ascii_mode_extract_buffer()
+
+    def _handle_notifications_ascii_mode_extract_buffer(self):
+        while b'\r' in self.buffer:
+            # Make sure it doesn't start with CR
+            if self.buffer.startswith(b'\r'):
+                self.buffer = self.buffer[1:]
+                continue
+            pos = self.buffer.find(b'\r')
+            in_str = self.buffer[:pos]
+            self.buffer = self.buffer[pos + 1:]
+            if in_str:
+                # if complete string received, add to read_buffer
+                self.read_buffer.append(in_str)
 
     @property
     def in_waiting(self):
@@ -73,6 +80,7 @@ class LoggerControllerBLE(LoggerController):
         self.peripheral.writeCharacteristic(CCCD, b'\x01\x00')
         return True
 
+    # called by __exit__ & __del__ (overriden here) in class LoggerController
     def close(self):
         try:
             print('Disconnecting...')
@@ -120,6 +128,7 @@ class LoggerControllerBLE(LoggerController):
     #     return return_val
 
     # send commands to MSP430 such as RUN or STP
+
     def command(self, tag, data=None):
         # build command
         data = '' if data is None else data
@@ -191,10 +200,10 @@ class LoggerControllerBLE(LoggerController):
         last_rx = time.time()
         result = ''
         while not result.endswith('MLDP') and time.time() - last_rx < 3:
-            result, last_rx = self._parse_control_command_back(result, last_rx)
+            result, last_rx = self._control_command_parse_back(result, last_rx)
         return result
 
-    def _parse_control_command_back(self, result, last_rx):
+    def _control_command_parse_back(self, result, last_rx):
         if self.peripheral.waitForNotifications(0.05):
             last_rx = time.time()
         if self.delegate.in_waiting:
@@ -244,10 +253,10 @@ class LoggerControllerBLE(LoggerController):
         self.delegate.buffer = ''
         self.delegate.read_buffer = []
         self.write(('DIR 00' + chr(13)).encode())
-        return self._list_files()
+        return self._dir_command_result()
 
     # grab dir_command() answer
-    def _list_files(self):
+    def _dir_command_result(self):
         # todo: address corresponding test
         files = []
         answer_bytes = bytes()
@@ -257,13 +266,13 @@ class LoggerControllerBLE(LoggerController):
             self.peripheral.waitForNotifications(0.01)
             if self.delegate.in_waiting:
                 last_rx = time.time()
-                answer_bytes = self._parse_list_files_back(files)
+                answer_bytes = self._dir_command_parse_back(files)
             # timeout while DIR answer, quit
             if time.time() - last_rx > 3:
                 raise LCBLEException('Timeout while getting file list.')
         return files
 
-    def _parse_list_files_back(self, files):
+    def _dir_command_parse_back(self, files):
         answer_bytes = self.delegate.read_line()
         file_str = answer_bytes.decode()
         re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
@@ -284,7 +293,7 @@ class LoggerControllerBLE(LoggerController):
         self.command('GET', filename)
         self.delegate.xmodem_mode = True
 
-        # variables
+        # constants
         MAXRETRANS = 25
         retrans = MAXRETRANS
         SOH = b'\x01'
@@ -438,6 +447,7 @@ class LoggerControllerBLE(LoggerController):
     # prevent garbage collector
     def __del__(self):
         pass
+
 
 class LCBLEException(Exception):
     pass
