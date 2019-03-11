@@ -2,6 +2,7 @@ import bluepy.btle as btle
 import time
 import re
 import crc16
+from mat.xmodem_ble import xmodem_get_file
 from mat.logger_controller import LoggerController
 from mat.logger_controller import DELAY_COMMANDS
 
@@ -293,156 +294,15 @@ class LoggerControllerBLE(LoggerController):
         self.command('GET', filename)
         self.delegate.xmodem_mode = True
 
-        # constants
-        MAXRETRANS = 25
-        retrans = MAXRETRANS
-        SOH = b'\x01'
-        STX = b'\x02'
-        EOT = b'\x04'
-        ACK = b'\x06'
-        CAN = b'\x18'
-        bufsz = 0
-        whole_file = bytes()
-        trychar = b'C'
-
-        # start xmodem protocol
-        while True:
-            # tries for CONTROL characters
-            something_to_rx = False
-            for retry in range(16):
-                # send C, which can fail, too
-                if trychar:
-                    self.delegate.x_buffer = bytes()
-                    whole_file = bytes()
-                    self.write(trychar)
-                # collect control bytes back
-                self._collect(1)
-                c = self._inbyte(0)
-                # 128 bytes page incoming
-                if c == SOH:
-                    bufsz = 128
-                    something_to_rx = True
-                    break
-                # 1k size page incoming
-                elif c == STX:
-                    bufsz = 1024
-                    something_to_rx = True
-                    break
-                # end of transmission
-                elif c == EOT:
-                    print('eot')
-                    self.delegate.x_buffer = bytes()
-                    self.write(ACK)
-                    full_file_path = dfolder + '/' + filename
-                    with open(full_file_path, 'wb') as f:
-                        f.write(whole_file)
-                    self.delegate.xmodem_mode = False
-                    return len(whole_file)
-                # remote side cancelled transmission
-                elif c == CAN:
-                    self._collect(1)
-                    c = self._inbyte(0)
-                    if c == CAN:
-                        self.delegate.x_buffer = bytes()
-                        self.write(ACK)
-                        self.delegate.xmodem_mode = False
-                        return -1
-                # remote sent something unexpected or local did not clear ok
-                else:
-                    self._send_nak()
-
-            # finished 16 retries for control characters w/o success
-            if not something_to_rx:
-                self.delegate.x_buffer = bytes()
-                self.write(CAN)
-                self.write(CAN)
-                self.write(CAN)
-                self.delegate.xmodem_mode = False
-                return -2
-
-            # start receiving pages, or blocks
-            trychar = 0
-            len_page_plus_crc = bufsz + 5
-            self._collect(len_page_plus_crc)
-
-            # TIMEOUT, did not receive whole page in time, NAK to retry
-            if len(self.delegate.x_buffer) != len_page_plus_crc:
-                retrans -= 1
-                self._send_nak()
-                continue
-
-            # todo: check the sequence numbers here, NAK if needed
-
-            # whole page received, good CRC, ACK
-            if self._check_crc():
-                nseq = self.delegate.x_buffer[1]
-                print('.'.format(nseq), end='')
-                if not nseq % 25:
-                    print('\n')
-                self.write(ACK)
-                retrans = MAXRETRANS
-                whole_file += self.delegate.x_buffer[3:-2]
-                self.delegate.x_buffer = bytes()
-                continue
-            # whole page received but bad CRC, NAK
-            else:
-                nseq = self.delegate.x_buffer[1]
-                print('x{} '.format(nseq), end='')
-                if not nseq % 25:
-                    print('\n')
-                retrans -= 1
-                # too many consecutive fails for this page
-                if not retrans:
-                    print('exhausted page retries')
-                    self.write(CAN)
-                    self.write(CAN)
-                    self.write(CAN)
-                    self.delegate.xmodem_mode = False
-                    return -3
-                # still some fails allowed for this page
-                self._send_nak()
-                continue
-
-    # get byte at indicated index
-    def _inbyte(self, index):
-        if len(self.delegate.x_buffer):
-            return bytes([self.delegate.x_buffer[index]])
-        return None
-
-    # collect bytes which form page
-    def _collect(self, minimum):
-        end_time = time.time() + 1
-        while time.time() < end_time:
-            self.peripheral.waitForNotifications(0.05)
-            # minimum = 1 when receiving CTRL chars (SOH, SOT...), > 1 else
-            if len(self.delegate.x_buffer) >= minimum:
-                return True
-        return False
-
-    # to start with a clean sheet after an error
-    def _send_nak(self):
-        print('x')
-        NAK = b'\x15'
-        self._collect_to_purge(1)
-        self.delegate.x_buffer = bytes()
-        self.write(NAK)
-
-    # clean possible incoming full buffers
-    def _collect_to_purge(self, during):
-        end_time = time.time() + during
-        while time.time() < end_time:
-            self.peripheral.waitForNotifications(0.05)
-
-    # skip SOH, SOT, sequence numbers and CRC of frame and calculate CRC
-    def _check_crc(self):
-        data = self.delegate.x_buffer[3:-2]
-        received_crc_bytes = self.delegate.x_buffer[-2:]
-        calculated_crc_int = crc16.crc16xmodem(data)
-        calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
-        if calculated_crc_bytes == received_crc_bytes:
-            return True
+        # try to receive via xmodem with our logger_controller
+        result, bytes_received = xmodem_get_file(self)
+        if result == 0:
+            full_file_path = dfolder + '/' + filename
+            with open(full_file_path, 'wb') as f:
+                f.write(bytes_received)
         else:
-            return False
+            print('xmodem_get_files() returned {}'.format(result))
+        self.delegate.xmodem_mode = False
 
     # prevent garbage collector
     def __del__(self):
