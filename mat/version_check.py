@@ -7,7 +7,7 @@ from distutils.version import LooseVersion
 class VersionChecker:
     def __init__(self):
         self.remote = 'https://lowellinstruments.com/download_files'
-        self.pattern = 'Domino_Installer_([0-9]+\.[0-9]+\.[0-9]+)\.exe'
+        self.pattern = r'Domino_Installer_([0-9]+\.[0-9]+\.[0-9]+)\.exe'
 
     def get_latest_version(self):
         try:
