@@ -1,7 +1,6 @@
 import bluepy.btle as btle
 import time
 import re
-import crc16
 from mat.xmodem_ble import xmodem_get_file
 from mat.logger_controller import LoggerController
 from mat.logger_controller import DELAY_COMMANDS
@@ -91,49 +90,28 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    # # send commands to MSP430 such as RUN or STP
     # def command(self, tag, data=None):
-    #     return_val = None
-    #     data = '' if data is None else data
-    #     length = '%02x' % len(data)
-    #
     #     # build command
+    #     data = '' if data is None else data
+    #     length = '{:02x}'.format(len(data))
     #     if tag == 'sleep' or tag == 'RFN':
     #         out_str = tag
     #     else:
     #         out_str = tag + ' ' + length + data
-    #
-    #     # send command via BLE
     #     self.write((out_str + chr(13)).encode())
     #
-    #     # RST, BSL and sleep don't return tags
-    #     if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
-    #         tag_waiting = ''
-    #     else:
-    #         tag_waiting = tag
+    #     # answer: RST, BSL and sleep don't return any
+    #     if tag in ['RST', 'sleep', 'BSL']:
+    #         return None
     #
-    #     # wait command answer
-    #     while tag_waiting:
-    #         if not self.peripheral.waitForNotifications(3):
-    #             raise LCBLEException('Logger timeout waiting: ' + tag_waiting)
-    #
-    #         if self.delegate.in_waiting:
-    #             inline = self.delegate.read_line()
-    #             if inline.startswith(tag_waiting.encode()):
-    #                 return_val = inline
-    #                 break
-    #             elif inline.startswith(b'ERR'):
-    #                 raise LCBLEException('MAT-1W returned ERR')
-    #             elif inline.startswith(b'INV'):
-    #                 raise LCBLEException('MAT-1W reported invalid command')
-    #     return return_val
+    #     # answer: the ones that do
+    #     return self._command_result(tag)
 
-    # send commands to MSP430 such as RUN or STP
-
-    def command(self, tag, data=None):
-        # build command
-        data = '' if data is None else data
-        length = '%02x' % len(data)
+    def command(self, *args):
+        # build command, same interface as other logger_controller_*
+        tag = args[0]
+        data = str(args[1]) if len(args) == 2 else ''
+        length = '{:02x}'.format(len(data))
         if tag == 'sleep' or tag == 'RFN':
             out_str = tag
         else:
@@ -141,7 +119,7 @@ class LoggerControllerBLE(LoggerController):
         self.write((out_str + chr(13)).encode())
 
         # answer: RST, BSL and sleep don't return any
-        if tag == 'RST' or tag == 'sleep' or tag == 'BSL':
+        if tag in ['RST', 'sleep', 'BSL']:
             return None
 
         # answer: the ones that do
@@ -157,37 +135,13 @@ class LoggerControllerBLE(LoggerController):
     def _command_parse_back(self, tag):
         result = self.delegate.read_line()
         if result.startswith(tag.encode()):
+            if tag in DELAY_COMMANDS:
+                time.sleep(2)
             return result
         if result.startswith(b'ERR'):
             raise LCBLEException('MAT-1W returned ERR')
         if result.startswith(b'INV'):
             raise LCBLEException('MAT-1W reported invalid command')
-
-    # send command to MSP430 so it configures RN4020 with it
-    # def control_command(self, data):
-    #     # vars
-    #     self.delegate.buffer = ''
-    #     self.delegate.read_buffer = []
-    #
-    #     # build and send control command
-    #     out_str = ('BTC 00' + data + chr(13)).encode()
-    #     self.write(out_str)
-    #
-    #     # wait for answer to control command
-    #     last_rx = time.time()
-    #     return_val = ''
-    #     while time.time() - last_rx < 3:
-    #         # can return: '', 'CMDAOKMDLP', 'PERRAOKMDLP'
-    #         if self.peripheral.waitForNotifications(0.05):
-    #             last_rx = time.time()
-    #         if self.delegate.in_waiting:
-    #             inline = self.delegate.read_line()
-    #             return_val += inline.decode()
-    #             if return_val.endswith('MLDP'):
-    #                 break
-    #     if return_val == '':
-    #         return_val = 'DIDNOT'
-    #     return return_val
 
     def control_command(self, data):
         # build and send control command

@@ -27,7 +27,7 @@ def xmodem_get_file(lc_ble):
             print('c', end='')
             lc_ble.write(b'C')
 
-        # check: receiving byte at control stage
+        # check: control stage, one byte required
         end_time = time.time() + 1
         while True:
             if time.time() > end_time:
@@ -37,11 +37,11 @@ def xmodem_get_file(lc_ble):
             if len(lc_ble.delegate.x_buffer) >= 1:
                 break
 
-        # check: timeouts control stage, won't enter if single byte received
+        # check: control stage received control byte
         if time.time() > end_time:
             return False, 1
 
-        # good: no timeout receiving control byte, let's continue
+        # good: no timeout receiving control byte
         control_byte = bytes([lc_ble.delegate.x_buffer[0]])
         if control_byte == SOH:
             retries = 0
@@ -70,14 +70,14 @@ def xmodem_get_file(lc_ble):
             if len(lc_ble.delegate.x_buffer) >= frame_len:
                 break
 
-        # check: timeouts during frame stage
+        # check: frame stage
         if time.time() > end_time:
             # bad: timeout during frame stage, some retransmissions left
             if retransmissions < 3:
                 print('f', end='')
                 # not received enough answer after our last 'C' control byte
                 if sending_c:
-                    return False, 1
+                    return False, 3
                 _xmodem_purge(lc_ble, 1)
                 _xmodem_nak(lc_ble)
                 continue
@@ -85,7 +85,7 @@ def xmodem_get_file(lc_ble):
             else:
                 print('timeout frame')
                 _xmodem_can(lc_ble)
-                return False, 3
+                return False, 4
 
         # good: received enough during frame stage to check crc
         if _xmodem_check_crc(lc_ble):
