@@ -1,6 +1,6 @@
 import time
 import crc16
-
+import sys
 
 MAX_RETRANSMISSIONS = 25
 SOH = b'\x01'
@@ -8,102 +8,92 @@ STX = b'\x02'
 EOT = b'\x04'
 ACK = b'\x06'
 CAN = b'\x18'
+NAK = b'\x15'
 
 
 def xmodem_get_file(lc_ble):
     retrans = MAX_RETRANSMISSIONS
-    bufsz = 0
     whole_file = bytes()
     trychar = b'C'
 
     while True:
-        something_to_rx = False
-        for retry in range(16):
-            # send C, which can fail, too
-            if trychar:
-                lc_ble.delegate.x_buffer = bytes()
-                whole_file = bytes()
-                lc_ble.write(trychar)
-            # collect control bytes back
-            _xmodem_collect(lc_ble, 1)
-            c = _xmodem_inbyte(lc_ble, 0)
-            # 128 bytes page incoming
-            if c == SOH:
-                bufsz = 128
-                something_to_rx = True
-                break
-            # 1k size page incoming
-            elif c == STX:
-                bufsz = 1024
-                something_to_rx = True
-                break
-            # end of transmission
-            elif c == EOT:
-                print('eot')
-                lc_ble.delegate.x_buffer = bytes()
-                lc_ble.write(ACK)
-                return 0, whole_file
-            # remote side cancelled transmission
-            elif c == CAN:
-                _xmodem_collect(lc_ble, 1)
-                c = _xmodem_inbyte(lc_ble, 0)
-                if c == CAN:
-                    lc_ble.delegate.x_buffer = bytes()
-                    lc_ble.write(ACK)
-                    return -1, None
-            # remote sent something unexpected or local did not clear ok
-            else:
-                _xmodem_nak(lc_ble)
+        # start or continue xmodem protocol analyzing control bytes
+        something_to_rx, bufsz = _xmodem_control(lc_ble, trychar)
 
-        # finished 16 retries for control characters w/o success
-        if not something_to_rx:
-            lc_ble.delegate.x_buffer = bytes()
-            lc_ble.write(CAN)
-            lc_ble.write(CAN)
-            lc_ble.write(CAN)
-            lc_ble.delegate.xmodem_mode = False
-            return -2, None
+        # bad: CAN because 0 retries left for control characters
+        if bufsz < 0:
+            _xmodem_can(lc_ble)
+            return bufsz, None
+        # good: potentially received whole file, check outside
+        elif bufsz == 0:
+            _xmodem_ack(lc_ble)
+            return bufsz, whole_file
+        # good: started receiving a page
+        elif bufsz > 0 and something_to_rx:
+            trychar = 0
+        # bad: this should never happen
+        else:
+            return -4, None
 
         # start receiving pages, or blocks
-        trychar = 0
         len_page_plus_crc = bufsz + 5
         _xmodem_collect(lc_ble, len_page_plus_crc)
 
-        # TIMEOUT, did not receive whole page in time, NAK to retry
-        if len(lc_ble.delegate.x_buffer) != len_page_plus_crc:
+        # bad: timeout receiving page
+        if len(lc_ble.delegate.x_buffer) < len_page_plus_crc:
             retrans -= 1
-            _xmodem_nak(lc_ble)
+            _xmodem_nak(lc_ble, 0)
+            # print('fucking TIMEOUT')
+            # sys.exit(-1)
+            # todo: this happened... II
             continue
 
-        # whole page received, good CRC, ACK
+        # good: whole page received w/ correct CRC
         if _xmodem_check_crc(lc_ble):
-            nseq = lc_ble.delegate.x_buffer[1]
-            print('.'.format(nseq), end='')
-            if not nseq % 25:
-                print('\n')
-            lc_ble.write(ACK)
             retrans = MAX_RETRANSMISSIONS
             whole_file += lc_ble.delegate.x_buffer[3:-2]
-            lc_ble.delegate.x_buffer = bytes()
-            continue
-        # whole page received but bad CRC, NAK
+            _xmodem_ack(lc_ble)
+        # bad: whole page received w/o correct CRC
         else:
-            nseq = lc_ble.delegate.x_buffer[1]
-            print('x{} '.format(nseq), end='')
-            if not nseq % 25:
-                print('\n')
-            retrans -= 1
-            # too many consecutive fails for this page
             if not retrans:
-                print('exhausted page retries')
-                lc_ble.write(CAN)
-                lc_ble.write(CAN)
-                lc_ble.write(CAN)
-                lc_ble.delegate.xmodem_mode = False
+                _xmodem_can(lc_ble)
                 return -3, None
-            # still some fails allowed for this page
-            _xmodem_nak(lc_ble)
-            continue
+            retrans -= 1
+            # todo: this happened... II
+            # print('fucking CRC')
+            # sys.exit(-1)
+            _xmodem_nak(lc_ble, 0)
+
+
+# xmodem control stage
+def _xmodem_control(lc_ble, trychar):
+    for retry in range(16):
+        # send C (which can fail, too)
+        if trychar:
+            lc_ble.delegate.x_buffer = bytes()
+            lc_ble.write(trychar)
+        # receive 1 control byte back
+        _xmodem_collect(lc_ble, 1)
+        c = _xmodem_inbyte(lc_ble, 0)
+        # ok, 128 bytes page incoming
+        if c == SOH:
+            return True, 128
+        # ok, 1k size page incoming
+        elif c == STX:
+            return True, 1024
+        # end of transmission
+        elif c == EOT:
+            return False, 0
+        # remote side cancelled transmission
+        elif c == CAN:
+            return False, -1
+        # remote sent control unexpected
+        else:
+            # todo: this happened... I
+            # print('fucking CONTROL')
+            # sys.exit(-1)
+            _xmodem_nak(lc_ble, 1)
+    return False, -2
 
 
 # get byte at indicated index
@@ -113,29 +103,39 @@ def _xmodem_inbyte(lc_ble, index):
     return None
 
 
-# collect bytes which form page
+# collect bytes which form page, minimum = 1 for ctrl bytes, >1 otherwise
 def _xmodem_collect(lc_ble, minimum):
     end_time = time.time() + 1
     while time.time() < end_time:
-        lc_ble.peripheral.waitForNotifications(0.05)
-        # minimum = 1 when receiving CTRL chars (SOH, SOT...), > 1 else
+        if lc_ble.peripheral.waitForNotifications(0.01):
+            end_time = end_time + 0.01
         if len(lc_ble.delegate.x_buffer) >= minimum:
             return True
     return False
 
 
-def _xmodem_nak(lc_ble):
-    print('x')
-    _xmodem_collect_to_purge(lc_ble, 1)
+def _xmodem_nak(lc_ble, during):
+    _xmodem_collect_to_purge(lc_ble, during)
     lc_ble.delegate.x_buffer = bytes()
-    lc_ble.write(b'\x15')
+    lc_ble.write(NAK)
+
+
+def _xmodem_ack(lc_ble):
+    lc_ble.delegate.x_buffer = bytes()
+    lc_ble.write(ACK)
+
+
+def _xmodem_can(lc_ble):
+    lc_ble.write(CAN)
+    lc_ble.write(CAN)
+    lc_ble.write(CAN)
 
 
 # clean possible incoming full buffers
 def _xmodem_collect_to_purge(lc_ble, during):
     end_time = time.time() + during
     while time.time() < end_time:
-        lc_ble.peripheral.waitForNotifications(0.05)
+        lc_ble.peripheral.waitForNotifications(0.01)
 
 
 # skip SOH, SOT, sequence numbers and CRC of frame and calculate CRC
