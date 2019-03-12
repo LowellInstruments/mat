@@ -39,21 +39,7 @@ def xmodem_get_file(lc_ble):
 
         # check: timeouts control stage, won't enter if single byte received
         if time.time() > end_time:
-            # bad: timeout during control stage, but retries left
-            if retries < 3:
-                print('k', end='')
-                # not received any answer to our last 'C' control byte, restart
-                    _xmodem_purge(lc_ble, 1)
-                    _xmodem_nak(lc_ble)
-                # not received any answer to our last, non-'C', control byte
-                else:
-                    _xmodem_nak(lc_ble)
-                continue
-            # bad: timeout during control stage, no retries left
-            else:
-                print('timeout control')
-                _xmodem_can(lc_ble)
-                return False, 1
+            return False, 1
 
         # good: no timeout receiving control byte, let's continue
         control_byte = bytes([lc_ble.delegate.x_buffer[0]])
@@ -89,19 +75,16 @@ def xmodem_get_file(lc_ble):
             # bad: timeout during frame stage, some retransmissions left
             if retransmissions < 3:
                 print('f', end='')
-                _xmodem_purge(lc_ble, 1)
                 # not received enough answer after our last 'C' control byte
                 if sending_c:
-                    # just purged
-                    _xmodem_nak(lc_ble)
-                # not received enough answer after our last non-C control byte
-                else:
-                    _xmodem_nak(lc_ble)
+                    return False, 1
+                _xmodem_purge(lc_ble, 1)
+                _xmodem_nak(lc_ble)
                 continue
             # bad: timeout during frame stage, no retransmissions left
             else:
                 print('timeout frame')
-                _xmodem_nak(lc_ble)
+                _xmodem_can(lc_ble)
                 return False, 3
 
         # good: received enough during frame stage to check crc
@@ -112,6 +95,7 @@ def xmodem_get_file(lc_ble):
             print('.', end='')
             _xmodem_ack(lc_ble)
         else:
+            print('x', end='')
             _xmodem_nak(lc_ble)
 
 
