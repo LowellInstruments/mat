@@ -129,6 +129,7 @@ def _xmodem_can(lc_ble):
     lc_ble.write(CAN)
     lc_ble.write(CAN)
     lc_ble.write(CAN)
+    #todo: remove this
 
 
 # clean possible incoming full buffers
