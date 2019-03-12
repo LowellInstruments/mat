@@ -18,85 +18,121 @@ def xmodem_get_file(lc_ble):
     # start: xmodem protocol
     whole_file = bytes()
     retries = 0
-    retransmissions = 0
     sending_c = True
     while True:
         # send 'C' only if the first packet
-        lc_ble.delegate.x_buffer = bytes()
-        if sending_c:
-            print('c', end='')
-            lc_ble.write(b'C')
+        _xmodem_send_c_if_required(lc_ble, sending_c)
 
         # check: control stage, one byte required
         end_time = time.time() + 1
-        while True:
-            if time.time() > end_time:
-                retries += 1
-                break
-            lc_ble.peripheral.waitForNotifications(1)
-            if len(lc_ble.delegate.x_buffer) >= 1:
-                break
+        _xmodem_wait_control_byte(lc_ble, end_time)
 
-        # check: control stage received control byte
+        # check: control stage received control byte in time
         if time.time() > end_time:
             return False, 1
 
         # good: no timeout receiving control byte
-        control_byte = bytes([lc_ble.delegate.x_buffer[0]])
-        if control_byte == SOH:
-            retries = 0
-            frame_len = 128 + 5
-        elif control_byte == STX:
-            retries = 0
-            frame_len = 1024 + 5
-        elif control_byte == EOT:
-            print('v', end='')
-            _xmodem_ack(lc_ble)
+        control_byte, frame_len = _xmodem_get_control_byte(lc_ble)
+        if control_byte == EOT:
             return True, whole_file
-        # bad: received CAN or strange control byte, should not happen
-        else:
-            print('w', end='')
-            print(control_byte)
+        if control_byte == CAN:
             _xmodem_can(lc_ble)
             return False, 2
 
         # check: receiving bytes during frame stage
         end_time = time.time() + 1
-        while True:
-            if time.time() > end_time:
-                retransmissions += 1
-                break
-            lc_ble.peripheral.waitForNotifications(0.01)
-            if len(lc_ble.delegate.x_buffer) >= frame_len:
-                break
+        retries = _xmodem_wait_frame(lc_ble, frame_len, retries, end_time)
 
-        # check: frame stage
-        if time.time() > end_time:
-            # bad: timeout during frame stage, some retransmissions left
-            if retransmissions < 3:
-                print('f', end='')
-                # not received enough answer after our last 'C' control byte
-                if sending_c:
-                    return False, 3
-                _xmodem_purge(lc_ble, 1)
-                _xmodem_nak(lc_ble)
+        # check: frame stage received data in time
+        ok, code = _xmodem_frame_timeout(lc_ble, sending_c, retries, end_time)
+        if not ok:
+            return ok, code
+        else:
+            if code == 1:
                 continue
-            # bad: timeout during frame stage, no retransmissions left
-            else:
-                print('timeout frame')
-                _xmodem_can(lc_ble)
-                return False, 4
 
         # good: received enough during frame stage to check crc
-        if _xmodem_check_crc(lc_ble):
-            sending_c = False
-            retransmissions = 0
-            whole_file += lc_ble.delegate.x_buffer[3:-2]
-            print('.', end='')
-            _xmodem_ack(lc_ble)
-        else:
-            print('x', end='')
+        bunch = _xmodem_get_frame(lc_ble, sending_c, retries, whole_file)
+        sending_c, retries, whole_file = bunch
+
+
+def _xmodem_send_c_if_required(lc_ble, sending_c):
+    lc_ble.delegate.x_buffer = bytes()
+    if sending_c:
+        print('c', end='')
+        lc_ble.write(b'C')
+
+
+def _xmodem_wait_control_byte(lc_ble, timeout):
+    while True:
+        if time.time() > timeout:
+            break
+        lc_ble.peripheral.waitForNotifications(1)
+        if len(lc_ble.delegate.x_buffer) >= 1:
+            break
+
+
+def _xmodem_get_control_byte(lc_ble):
+    # good: continue or finish
+    control_byte = bytes([lc_ble.delegate.x_buffer[0]])
+    if control_byte == SOH:
+        return SOH, 128 + 5
+    elif control_byte == STX:
+        return STX, 1024 + 5
+    elif control_byte == EOT:
+        print('v', end='')
+        _xmodem_ack(lc_ble)
+        return EOT, None
+    # bad: received CAN or strange control byte, should not happen
+    else:
+        print('w', end='')
+        return CAN, None
+
+
+def _xmodem_wait_frame(lc_ble, frame_len, retries, timeout):
+    while True:
+        if time.time() > timeout:
+            retries += 1
+            break
+        lc_ble.peripheral.waitForNotifications(0.01)
+        if len(lc_ble.delegate.x_buffer) >= frame_len:
+            break
+    return retries
+
+
+def _xmodem_frame_timeout(lc_ble, sending_c, retries, timeout):
+    if time.time() > timeout:
+        # bad: timeout during frame stage, some retries left
+        if retries < 3:
+            print('f', end='')
+            # last thing we sent was 'C' control byte
+            if sending_c:
+                return False, 3
+            # last thing we sent was not 'C' control byte
+            _xmodem_purge(lc_ble, 1)
             _xmodem_nak(lc_ble)
+            return True, 1
+        # bad: timeout during frame stage, no retries left
+        else:
+            print('timeout frame')
+            _xmodem_can(lc_ble)
+            return False, 4
+    else:
+        # good: no timeout during frame receiving
+        return True, 0
+
+
+def _xmodem_get_frame(lc_ble, sending_c, retries, whole_file):
+    if _xmodem_check_crc(lc_ble):
+        sending_c = False
+        retries = 0
+        whole_file += lc_ble.delegate.x_buffer[3:-2]
+        print('.', end='')
+        _xmodem_ack(lc_ble)
+    else:
+        print('x', end='')
+        _xmodem_nak(lc_ble)
+    return sending_c, retries, whole_file
 
 
 def _xmodem_purge(lc_ble, during):
