@@ -296,12 +296,12 @@ class LoggerControllerBLE(LoggerController):
 
         # try to receive via xmodem with our logger_controller
         result, bytes_received = xmodem_get_file(self)
-        if result:
+        if result == 0:
             full_file_path = dfolder + '/' + filename
             with open(full_file_path, 'wb') as f:
                 f.write(bytes_received)
         else:
-            print('xmodem_get_files() returned {}'.format(bytes_received))
+            print('xmodem_get_files() returned {}'.format(result))
         self.delegate.xmodem_mode = False
 
     # prevent garbage collector
