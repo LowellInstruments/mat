@@ -12,10 +12,8 @@ NAK = b'\x15'
 
 
 def xmodem_get_file(lc_ble):
-    # purge: collect a while to clean potential previous downloads
-    end_time = time.time() + 1
-    while time.time() < end_time:
-        lc_ble.peripheral.waitForNotifications(0.01)
+    # purge: collect potential previous downloads remains
+    _xmodem_purge(lc_ble, 1)
 
     # start: xmodem protocol
     whole_file = bytes()
@@ -39,18 +37,18 @@ def xmodem_get_file(lc_ble):
             if len(lc_ble.delegate.x_buffer) >= 1:
                 break
 
-        # check: timeouts during control stage
+        # check: timeouts control stage, won't enter if single byte received
         if time.time() > end_time:
             # bad: timeout during control stage, but retries left
             if retries < 3:
                 print('k', end='')
-                # not received any answer to our last non-C control byte
-                if not sending_c:
-                    _xmodem_nak(lc_ble)
                 # not received any answer to our last 'C' control byte, restart
+                    _xmodem_purge(lc_ble, 1)
+                    _xmodem_nak(lc_ble)
+                # not received any answer to our last, non-'C', control byte
                 else:
-                    time.sleep(0.5)
-                break
+                    _xmodem_nak(lc_ble)
+                continue
             # bad: timeout during control stage, no retries left
             else:
                 print('timeout control')
@@ -69,10 +67,10 @@ def xmodem_get_file(lc_ble):
             print('v', end='')
             _xmodem_ack(lc_ble)
             return True, whole_file
-        # bad: received CAN or strange control byte
+        # bad: received CAN or strange control byte, should not happen
         else:
-            print(control_byte)
             print('w', end='')
+            print(control_byte)
             _xmodem_can(lc_ble)
             return False, 2
 
@@ -88,18 +86,17 @@ def xmodem_get_file(lc_ble):
 
         # check: timeouts during frame stage
         if time.time() > end_time:
-            # bad: timeout during frame stage, but retransmissions left
+            # bad: timeout during frame stage, some retransmissions left
             if retransmissions < 3:
                 print('f', end='')
-                # not received enough answer after our last non-C control byte
-                if not sending_c:
-                    _xmodem_nak(lc_ble)
+                _xmodem_purge(lc_ble, 1)
                 # not received enough answer after our last 'C' control byte
+                if sending_c:
+                    # just purged
+                    _xmodem_nak(lc_ble)
+                # not received enough answer after our last non-C control byte
                 else:
-                    # purge
-                    end_time = time.time() + 1
-                    while time.time() < end_time:
-                        lc_ble.peripheral.waitForNotifications(0.01)
+                    _xmodem_nak(lc_ble)
                 continue
             # bad: timeout during frame stage, no retransmissions left
             else:
@@ -116,6 +113,12 @@ def xmodem_get_file(lc_ble):
             _xmodem_ack(lc_ble)
         else:
             _xmodem_nak(lc_ble)
+
+
+def _xmodem_purge(lc_ble, during):
+    end_time = time.time() + during
+    while time.time() < end_time:
+        lc_ble.peripheral.waitForNotifications(0.01)
 
 
 def _xmodem_ack(lc_ble):
