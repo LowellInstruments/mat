@@ -35,25 +35,19 @@ def xmodem_get_file(lc_ble):
         control_byte, frame_len = _xmodem_get_control_byte(lc_ble)
         if control_byte == EOT:
             return True, whole_file
-        if control_byte == CAN:
-            _xmodem_can(lc_ble)
-            return False, 2
 
         # check: receiving bytes during frame stage
         end_time = time.time() + 1
         retries = _xmodem_wait_frame(lc_ble, frame_len, retries, end_time)
 
         # check: frame stage received data in time
-        ok, code = _xmodem_frame_timeout(lc_ble, sending_c, retries, end_time)
-        if not ok:
-            return ok, code
-        else:
-            if code == 1:
-                continue
-
-        # good: received enough during frame stage to check crc
-        bunch = _xmodem_get_frame(lc_ble, sending_c, retries, whole_file)
-        sending_c, retries, whole_file = bunch
+        code = _xmodem_frame_timeout(lc_ble, sending_c, retries, end_time)
+        if code == 0:
+            # good: received enough during frame stage to check crc
+            bunch = _xmodem_get_frame(lc_ble, sending_c, retries, whole_file)
+            sending_c, retries, whole_file = bunch
+        elif code < 0:
+            return False, code
 
 
 def _xmodem_send_c_if_required(lc_ble, sending_c):
@@ -85,8 +79,7 @@ def _xmodem_get_control_byte(lc_ble):
         return EOT, None
     # bad: received CAN or strange control byte, should not happen
     else:
-        print('w', end='')
-        return CAN, None
+        raise XModemException('what is this?')
 
 
 def _xmodem_wait_frame(lc_ble, frame_len, retries, timeout):
@@ -101,25 +94,21 @@ def _xmodem_wait_frame(lc_ble, frame_len, retries, timeout):
 
 
 def _xmodem_frame_timeout(lc_ble, sending_c, retries, timeout):
-    if time.time() > timeout:
-        # bad: timeout during frame stage, some retries left
-        if retries < 3:
-            print('f', end='')
-            # last thing we sent was 'C' control byte
-            if sending_c:
-                return False, 3
-            # last thing we sent was not 'C' control byte
-            _xmodem_purge(lc_ble, 1)
-            _xmodem_nak(lc_ble)
-            return True, 1
-        # bad: timeout during frame stage, no retries left
-        else:
-            print('timeout frame')
-            _xmodem_can(lc_ble)
-            return False, 4
-    else:
-        # good: no timeout during frame receiving
-        return True, 0
+    # easier to restart than recover a 'C'
+    if time.time() > timeout and sending_c:
+        return -3
+    # timeout, check if we have retries left
+    if time.time() > timeout and retries >= 3:
+        print('timeout frame')
+        _xmodem_can(lc_ble)
+        return -4
+    elif time.time() > timeout and retries < 3:
+        print('f', end='')
+        _xmodem_purge(lc_ble, 1)
+        _xmodem_nak(lc_ble)
+        return 1
+    # good: no timeout during frame receiving
+    return 0
 
 
 def _xmodem_get_frame(lc_ble, sending_c, retries, whole_file):
@@ -165,3 +154,7 @@ def _xmodem_check_crc(lc_ble):
         return True
     else:
         return False
+
+
+class XModemException(Exception):
+    pass
