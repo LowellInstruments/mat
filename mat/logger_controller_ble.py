@@ -1,7 +1,7 @@
 import bluepy.btle as btle
 import time
 import re
-from mat.xmodem_ble import xmodem_get_file, XModemException
+from mat.xmodem_ble import xmodem_get_file
 from mat.logger_controller import LoggerController
 from mat.logger_controller import DELAY_COMMANDS
 
@@ -192,7 +192,8 @@ class LoggerControllerBLE(LoggerController):
             file_name = re_obj.group(1)
             file_size = int(re_obj.group(2))
             files.append((file_name, file_size))
-        except (AttributeError, IndexError) as e:
+        except (AttributeError, IndexError):
+            # do not allow a bad pair to mess everything
             pass
         finally:
             return answer_bytes

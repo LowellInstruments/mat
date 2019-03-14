@@ -8,3 +8,4 @@ numpy
 pyserial
 pytest-mock
 crc16
+bluepy
