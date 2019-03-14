@@ -140,7 +140,7 @@ class TestLoggerControllerBLE(TestCase):
     def test_open_bad(self):
         with _peripheral_exception_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            assert lc_ble.open() == False
+            assert lc_ble.open() is False
 
     # test for close method
     def test_close_ok(self):
