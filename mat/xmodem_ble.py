@@ -120,10 +120,10 @@ def _xmodem_get_frame(lc_ble, sending_c, retries, whole_file):
         sending_c = False
         retries = 0
         whole_file += lc_ble.delegate.x_buffer[3:-2]
-        #print('.', end='')
+        # print('.', end='')
         _xmodem_ack(lc_ble)
     else:
-        #print('x', end='')
+        # print('x', end='')
         _xmodem_nak(lc_ble)
     return sending_c, retries, whole_file
 
