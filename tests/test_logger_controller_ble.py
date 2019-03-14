@@ -93,6 +93,9 @@ class FakePeripheralException(FakePeripheral):
     def getServiceByUUID(self, uuid):
         return FakeServiceException()
 
+    def connect(self, mac):
+        raise AttributeError
+
 
 class FakePeripheralCmdTimeout(FakePeripheral):
     def waitForNotifications(self, value):
@@ -126,12 +129,18 @@ class TestLoggerControllerBLE(TestCase):
         d.handleNotification(None, b'thing_received')
         assert d.x_buffer == b'thing_received'
 
-    # test for open method
-    def test_open(self):
+    # test for open method, went ok
+    def test_open_ok(self):
         with _peripheral_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
             assert lc_ble.peripheral
+
+    # test for open method, went ok
+    def test_open_bad(self):
+        with _peripheral_exception_patch():
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            assert lc_ble.open() == False
 
     # test for close method
     def test_close_ok(self):
@@ -190,11 +199,11 @@ class TestLoggerControllerBLE(TestCase):
             assert lc_ble.control_command('data_X') == 'CMDAOKMLDP'
 
     # test for a control_command to RN4020 with new fw which does not goes well
-    def test_control_command_answer_wrong(self):
+    def test_control_command_answer_empty(self):
         with _command_patch_timeout():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.control_command('data_X') == 'DIDNOT'
+            assert lc_ble.control_command('data_X') == ''
 
     # test for writing characteristics, used by command(), must do nothing
     def test_write(self):
@@ -203,81 +212,27 @@ class TestLoggerControllerBLE(TestCase):
             lc_ble.open()
             lc_ble.write('hello')
 
-    # test for the special command 'DIR' when logger answers wrong
-    def test_list_files_answer_wrong(self):
-        with _command_patch(True, b'file_with_no_size.fil'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.list_files)
-
-    # test for command 'DIR' when logger answers timeouts
-    def test_list_files_answer_timeout(self):
-        with _command_patch_timeout():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.list_files)
-
-    # test for command 'DIR' when logger answers perfectly but empty list
-    def test_list_files_answer_empty(self):
+    # test for the special command 'DIR' when logger answers an empty list
+    def test_dir_command_answer_empty(self):
         with _command_patch(True, b'\x04'):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.list_files() == []
+            assert lc_ble.dir_command() == []
+
+    # test for command 'DIR' when logger answers timeouts
+    def test_dir_command_answer_timeout(self):
+        with _command_patch_timeout():
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            lc_ble.open()
+            self.assertRaises(LCBLEException, lc_ble.dir_command)
 
     # test for command 'DIR' when logger answers a populated file list
-    def test_list_files_answer_ok(self):
-        rl_answers = Mock(side_effect=[b'one.h\t12', b'two.dat\t2345', b'\x04'])
-        with _command_patch_dir(True, rl_answers):
+    def test_dir_command_answer_ok(self):
+        answers = Mock(side_effect=[b'one.h\t12', b'two.dat\t2345', b'\x04'])
+        with _command_patch_dir(True, answers):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.list_files() == [('one.h', 12), ('two.dat', 2345)]
-
-    # test for xmodem mode, get control character
-    def test_xmodem_inbyte(self):
-        with _peripheral_patch():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            lc_ble.delegate.x_buffer = b'\x04\xff\x02'
-            assert lc_ble._inbyte(0) == b'\x04'
-            assert lc_ble._inbyte(2) == b'\x02'
-            lc_ble.delegate.x_buffer = b''
-            assert lc_ble._inbyte(100) is None
-
-    # test for xmodem when collecting bytes from a file
-    def test_xmodem_collect(self):
-        with _peripheral_patch():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            lc_ble.delegate.x_buffer = b'\x04\xff\x02'
-            assert lc_ble._collect(3)
-            assert not lc_ble._collect(4)
-
-    # test for xmodem to collect data for x secs to empty peripheral buffer
-    def test_xmodem_collect_to_purge(self):
-        with _peripheral_patch():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble._collect_to_purge(2) is None
-
-    # test for xmodem to send nak
-    def test_xmodem_send_nak(self):
-        with _peripheral_patch():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble._send_nak() is None
-
-    # test for xmodem to check CRC of something currently received
-    def test_xmodem_check_crc(self):
-        with _peripheral_patch():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            # recall first 3 bytes are not part of CRC in xmodem
-            frame_wrong_no_crc = b'\xff\xff\xff\x03\x04\x05\x06\x07\x08\x09'
-            lc_ble.delegate.x_buffer = frame_wrong_no_crc
-            assert not lc_ble._check_crc()
-            frame_ok_w_crc = b'\xff\xff\xff\x03\x04\x05\x06\x07\x08\x09\x47\xfd'
-            lc_ble.delegate.x_buffer = frame_ok_w_crc
-            assert lc_ble._check_crc()
+            assert lc_ble.dir_command() == [('one.h', 12), ('two.dat', 2345)]
 
 
 # ----------------------------------
@@ -315,12 +270,6 @@ def _command_patch_dir(rv_in_waiting, rl_method):
                     yield
 
 
-# @contextmanager
-# def _command_patch_get(rv_in_waiting, rv_read_line):
-#     with _command_patch(rv_in_waiting, rv_read_line):
-#             yield
-
-
 @contextmanager
 def _command_patch_timeout():
     with patch(peripheral_class, FakePeripheralCmdTimeout):
@@ -329,6 +278,6 @@ def _command_patch_timeout():
 
 
 @contextmanager
-def _write_char_exception_patch():
+def _peripheral_exception_patch():
     with patch(peripheral_class, FakePeripheralException):
         yield
