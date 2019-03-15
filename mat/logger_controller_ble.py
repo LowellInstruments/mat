@@ -83,7 +83,7 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    # called by __exit__ & __del__ (overriden here) in class LoggerController
+    # called by __exit__ & __del__ (overriden here) in LoggerController class
     def close(self):
         try:
             self.peripheral.disconnect()
