@@ -229,5 +229,6 @@ class LoggerControllerBLE(LoggerController):
             return datetime.datetime.strptime(logger_time, '%Y/%m/%d %H:%M:%S')
         return None
 
+
 class LCBLEException(Exception):
     pass
