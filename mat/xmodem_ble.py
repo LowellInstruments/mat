@@ -99,12 +99,12 @@ def _xmodem_frame_timeout(lc_ble, sending_c, retries, timeout):
     # easier to restart than recover a 'C'
     if time.time() > timeout and sending_c:
         # print('I')
-        raise XModemException('xmodem exception: timeout waiting frame after C')
+        raise XModemException('xmodem exception: timeout waiting frame post-C')
     # timeout, check if we have retries left
     if time.time() > timeout and retries >= 3:
         # print('F')
         _xmodem_can(lc_ble)
-        raise XModemException('xmodem exception: timeout data, no retries left')
+        raise XModemException('xmodem exception: timeout data, 0 retries left')
     elif time.time() > timeout and retries < 3:
         # print('f', end='')
         _xmodem_purge(lc_ble, 1)
