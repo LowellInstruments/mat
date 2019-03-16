@@ -1,5 +1,6 @@
 import bluepy.btle as btle
 import time
+import datetime
 import re
 from mat.xmodem_ble import xmodem_get_file
 from mat.logger_controller import LoggerController
@@ -108,7 +109,10 @@ class LoggerControllerBLE(LoggerController):
             return None
 
         # answer: commands that do
-        return self._command_result(tag)
+        result = self._command_result(tag)
+        if result:
+            result = result.decode()
+        return result
 
     # see command result
     def _command_result(self, tag):
@@ -179,7 +183,7 @@ class LoggerControllerBLE(LoggerController):
             if self.delegate.in_waiting:
                 last_rx = time.time()
                 answer_bytes = self._dir_command_parse_back(files)
-            if time.time() - last_rx > 3:
+            if time.time() - last_rx > 2:
                 raise LCBLEException('Timeout while getting file list.')
         return files
 
@@ -193,7 +197,6 @@ class LoggerControllerBLE(LoggerController):
             file_size = int(re_obj.group(2))
             files.append((file_name, file_size))
         except (AttributeError, IndexError):
-            # do not allow a bad pair to mess everything
             pass
         finally:
             return answer_bytes
@@ -219,6 +222,12 @@ class LoggerControllerBLE(LoggerController):
     def __del__(self):
         pass
 
+    def get_time(self):
+        logger_time = self.command('GTM')
+        if logger_time:
+            logger_time = logger_time[6:]
+            return datetime.datetime.strptime(logger_time, '%Y/%m/%d %H:%M:%S')
+        return None
 
 class LCBLEException(Exception):
     pass

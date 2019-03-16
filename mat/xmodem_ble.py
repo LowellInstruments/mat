@@ -58,7 +58,7 @@ def _xmodem_wait_control_byte(lc_ble):
         if time.time() > timeout:
             # this happens very rarely but it does
             # print('K')
-            raise XModemException('xmodem: timeout waiting control byte')
+            raise XModemException('xmodem exception: waiting control byte.')
         lc_ble.peripheral.waitForNotifications(1)
         if len(lc_ble.delegate.x_buffer) >= 1:
             return
@@ -79,7 +79,7 @@ def _xmodem_get_control_byte(lc_ble):
     # bad: received CAN or strange control byte, should not happen
     else:
         # print('W')
-        raise XModemException('what is this?')
+        raise XModemException('xmodem exception: getting control byte.')
 
 
 # wait for the rest of the data in the frame besides the control byte
@@ -99,12 +99,12 @@ def _xmodem_frame_timeout(lc_ble, sending_c, retries, timeout):
     # easier to restart than recover a 'C'
     if time.time() > timeout and sending_c:
         # print('I')
-        raise XModemException('xmodem: timeout waiting initial frame after C')
+        raise XModemException('xmodem exception: timeout waiting frame after C')
     # timeout, check if we have retries left
     if time.time() > timeout and retries >= 3:
         # print('F')
         _xmodem_can(lc_ble)
-        raise XModemException('xmodem: timeout waiting frame, no retries left')
+        raise XModemException('xmodem exception: timeout data, no retries left')
     elif time.time() > timeout and retries < 3:
         # print('f', end='')
         _xmodem_purge(lc_ble, 1)
