@@ -6,6 +6,7 @@ from mat.logger_controller_ble import (
     Delegate,
     LCBLEException,
 )
+import datetime
 
 
 class FakeOutStream:
@@ -221,18 +222,35 @@ class TestLoggerControllerBLE(TestCase):
 
     # test for command 'DIR' when logger answers timeouts
     def test_dir_command_answer_timeout(self):
-        with _command_patch_timeout():
+        with _command_patch_dir():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.dir_command)
+            assert lc_ble.dir_command() == []
 
     # test for command 'DIR' when logger answers a populated file list
     def test_dir_command_answer_ok(self):
-        answers = Mock(side_effect=[b'one.h\t12', b'two.dat\t2345', b'\x04'])
-        with _command_patch_dir(True, answers):
+        with _command_patch_dir():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.dir_command() == [('one.h', 12), ('two.dat', 2345)]
+            lc_ble.delegate.read_buffer = [b'a.lid\t12', b'b.lid\t34', b'\x04']
+            expected = [('a.lid', 12), ('b.lid', 34)]
+            assert lc_ble._dir_command_result() == expected
+
+    # test for get_time()
+    def test_command_get_time(self):
+        with _command_patch(True, b'GTM 132019/03/18 13:32:22'):
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            lc_ble.open()
+            expected = datetime.datetime(2019, 3, 18, 13, 32, 22)
+            assert lc_ble.get_time() == expected
+        with _command_patch(False, ''):
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            lc_ble.open()
+            assert lc_ble.get_time() is None
+        with _command_patch(True, b'strangetimeanswer'):
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            lc_ble.open()
+            assert lc_ble.get_time() is None
 
 
 # ----------------------------------
@@ -262,12 +280,10 @@ def _command_patch(rv_in_waiting, rv_read_line):
 
 # this one provides different answers on successive calls of read_line()
 @contextmanager
-def _command_patch_dir(rv_in_waiting, rl_method):
+def _command_patch_dir():
     with patch(peripheral_class, FakePeripheral):
         with patch(lc_ble_write_method):
-            with patch(d_in_waiting_property, return_value=rv_in_waiting):
-                with patch(d_read_line_method, rl_method):
-                    yield
+            yield
 
 
 @contextmanager

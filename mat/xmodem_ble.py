@@ -61,7 +61,7 @@ def _xmodem_wait_control_byte(lc_ble):
             raise XModemException('xmodem exception: waiting control byte.')
         lc_ble.peripheral.waitForNotifications(1)
         if len(lc_ble.delegate.x_buffer) >= 1:
-            return
+            break
 
 
 # control decision, may be cancelling, ending ok or just receiving data frame

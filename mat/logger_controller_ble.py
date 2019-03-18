@@ -47,7 +47,7 @@ class Delegate(btle.DefaultDelegate):
 
     @property
     def in_waiting(self):
-        return True if self.xmodem_mode or self.read_buffer else False
+        return True if self.read_buffer else False
 
     # obtain single line from ascii buffer, complements append() above
     def read_line(self):
@@ -95,12 +95,14 @@ class LoggerControllerBLE(LoggerController):
 
     # build and send command, same interface as other logger_controller_*
     def command(self, *args):
-        tag = args[0]
+        self.delegate.buffer = ''
+        self.delegate.read_buffer = []
+        out_str = tag = args[0]
         data = str(args[1]) if len(args) == 2 else ''
         length = '{:02x}'.format(len(data))
-        if tag == 'sleep' or tag == 'RFN':
-            out_str = tag
-        else:
+
+        # format
+        if tag not in ('sleep', 'RFN'):
             out_str = tag + ' ' + length + data
         self.write((out_str + chr(13)).encode())
 
@@ -116,11 +118,12 @@ class LoggerControllerBLE(LoggerController):
 
     # see command result
     def _command_result(self, tag):
-        while True:
-            if not self.peripheral.waitForNotifications(3):
-                raise LCBLEException('Logger timeout waiting: ' + tag)
+        timeout = time.time() + 3
+        while time.time() < timeout:
+            self.peripheral.waitForNotifications(0.1)
             if self.delegate.in_waiting:
                 return self._command_parse_back(tag)
+        raise LCBLEException('Logger timeout waiting: ' + tag)
 
     # parse command result
     def _command_parse_back(self, tag):
@@ -129,10 +132,8 @@ class LoggerControllerBLE(LoggerController):
             if tag in DELAY_COMMANDS:
                 time.sleep(2)
             return result
-        if result.startswith(b'ERR'):
-            raise LCBLEException('MAT-1W returned ERR')
-        if result.startswith(b'INV'):
-            raise LCBLEException('MAT-1W reported invalid command')
+        elif result.startswith(b'ERR') or result.startswith(b'INV'):
+            raise LCBLEException('Logger returned {}'.format(result[:3]))
 
     # build and send control_command destined to RN4020 not MSP430
     def control_command(self, data):
@@ -141,6 +142,7 @@ class LoggerControllerBLE(LoggerController):
         self.delegate.read_buffer = []
         out_str = ('BTC 00' + data + chr(13)).encode()
         self.write(out_str)
+        time.sleep(1)
         return self._control_command_result()
 
     # see control command result
@@ -175,40 +177,30 @@ class LoggerControllerBLE(LoggerController):
     # grab dir_command() answer
     def _dir_command_result(self):
         files = []
-        answer_bytes = bytes()
-        last_rx = time.time()
-        while answer_bytes != b'\x04':
-            # receive via BLE the file list, parse line by line
-            self.peripheral.waitForNotifications(0.01)
-            if self.delegate.in_waiting:
-                last_rx = time.time()
-                answer_bytes = self._dir_command_parse_back(files)
-            if time.time() - last_rx > 2:
-                raise LCBLEException('Timeout while getting file list.')
-        return files
+        timeout = time.time() + 2
 
-    # parse each row containing file + size
-    def _dir_command_parse_back(self, files):
-        answer_bytes = self.delegate.read_line()
-        try:
-            file_str = answer_bytes.decode()
-            re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', file_str)
-            file_name = re_obj.group(1)
-            file_size = int(re_obj.group(2))
-            files.append((file_name, file_size))
-        except (AttributeError, IndexError):
-            pass
-        finally:
-            return answer_bytes
+        while time.time() < timeout:
+            self.peripheral.waitForNotifications(0.1)
+
+        for each in self.delegate.read_buffer:
+            try:
+                re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', each.decode())
+                files.append((re_obj.group(1), int(re_obj.group(2))))
+            except AttributeError:
+                # decode() protection
+                pass
+        return files
 
     # obtain a file from the logger via BLE using xmodem
     def get_file(self, filename, dfolder):  # pragma: no cover
         self.delegate.buffer = ''
+        self.delegate.read_buffer = []
         self.delegate.x_buffer = bytes()
+        self.delegate.xmodem_mode = False
         self.command('GET', filename)
-        self.delegate.xmodem_mode = True
 
         # try to receive binary file using xmodem
+        self.delegate.xmodem_mode = True
         result, bytes_received = xmodem_get_file(self)
         self.delegate.xmodem_mode = False
         if result:
@@ -223,12 +215,20 @@ class LoggerControllerBLE(LoggerController):
         pass
 
     def get_time(self):
-        logger_time = self.command('GTM')
-        if logger_time:
-            logger_time = logger_time[6:]
-            return datetime.datetime.strptime(logger_time, '%Y/%m/%d %H:%M:%S')
+        self.write(('GTM' + chr(13)).encode())
+        timeout = time.time() + 1
+        while time.time() < timeout:
+            self.peripheral.waitForNotifications(0.1)
+        try:
+            if self.delegate.in_waiting:
+                logger_time = self.delegate.read_line().decode()
+                logger_time = logger_time[6:]
+                time_format = '%Y/%m/%d %H:%M:%S'
+                return datetime.datetime.strptime(logger_time, time_format)
+        except Exception:
+            pass
         return None
 
-
+# todo: Jeff is PR mat-73, this is mat-73-cleanup
 class LCBLEException(Exception):
     pass
