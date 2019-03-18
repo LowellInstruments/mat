@@ -229,6 +229,7 @@ class LoggerControllerBLE(LoggerController):
             pass
         return None
 
+
 # todo: Jeff is PR mat-73, this is mat-73-cleanup
 class LCBLEException(Exception):
     pass
