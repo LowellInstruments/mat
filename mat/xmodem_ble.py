@@ -75,9 +75,10 @@ def _xmodem_get_control_byte(lc_ble):
         print('v')
         _xmodem_ack(lc_ble)
         return EOT, None
-    # bad: received CAN or strange control byte, should not happen
+    # bad: received CAN or strange control byte
     else:
         print('W')
+        _xmodem_can(lc_ble)
         raise XModemException('xmodem exception: getting control byte.')
 
 

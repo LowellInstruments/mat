@@ -1,6 +1,6 @@
 import bluepy.btle as btle
 import time
-import os
+import datetime
 from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
@@ -48,9 +48,9 @@ class LoggerControllerBLE(LoggerController):
             self.peripheral.connect(self.peripheral_mac)
             # one second required by RN4020
             time.sleep(1)
-            uuid_serv = '00035b03-58e6-07dd-021a-08123a000300'
+            uuid_service = '00035b03-58e6-07dd-021a-08123a000300'
             uuid_char = '00035b03-58e6-07dd-021a-08123a000301'
-            self.service = self.peripheral.getServiceByUUID(uuid_serv)
+            self.service = self.peripheral.getServiceByUUID(uuid_service)
             self.characteristic = self.service.getCharacteristics(uuid_char)[0]
             descriptor = self.characteristic.valHandle + 1
             self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
@@ -75,10 +75,9 @@ class LoggerControllerBLE(LoggerController):
             try:
                 result = self._command(*args)
                 if result:
-                    break
-            except Exception:
+                    return result
+            except btle.BTLEException:
                 time.sleep(1)
-        return result
 
     def _command(self, *args):
         # prepare reception vars
@@ -98,7 +97,7 @@ class LoggerControllerBLE(LoggerController):
         cmd_to_send = cmd_to_send.encode()
 
         # send command as binary
-        print('Command being sent = {}'.format(cmd_to_send))
+        # print('Command being sent = {}'.format(cmd_to_send))
         self.ble_write(cmd_to_send)
 
         # check if this command will wait for an answer
@@ -110,7 +109,7 @@ class LoggerControllerBLE(LoggerController):
         return cmd_answer
 
     def _command_answer(self, cmd):
-        cmd_timeouts = {'BTC': 3}
+        cmd_timeouts = {'BTC': 3, 'GET': 3}
         end_time = cmd_timeouts[cmd[:3]] if cmd[:3] in cmd_timeouts else 1
         timeout = time.time() + end_time
         while time.time() < timeout:
@@ -118,7 +117,7 @@ class LoggerControllerBLE(LoggerController):
         return self.delegate.buffer
 
     # obtain a file from the logger via BLE using xmodem
-    def get_file(self, filename, size):  # pragma: no cover
+    def get_file(self, filename, folder, size):  # pragma: no cover
         self.delegate.clear_delegate_buffer()
         self.delegate.clear_delegate_x_buffer()
 
@@ -130,13 +129,10 @@ class LoggerControllerBLE(LoggerController):
                 self.delegate.set_file_mode()
                 result, bytes_received = xmodem_get_file(self)
                 if result:
-                    mac = self.peripheral_mac
-                    folder = mac.replace(':', '-').lower()
-                    os.makedirs(folder, exist_ok=True)
                     full_file_path = folder + '/' + filename
                     with open(full_file_path, 'wb') as f:
                         f.write(bytes_received)
-                        f.truncate(size)
+                        f.truncate(int(size))
                 file_dl = True
             else:
                 print('File NOT downloaded.')
@@ -149,24 +145,20 @@ class LoggerControllerBLE(LoggerController):
 
         return file_dl
 
+    def list_files(self):
+        self.delegate.clear_delegate_buffer()
+        answer_dir = self.command('DIR 00')
+        if answer_dir:
+            files = answer_dir[0:][::2]
+            sizes = answer_dir[1:][::2]
+            return dict(zip(files, sizes))
+        return dict()
 
-#
-#     def get_time(self):
-#         self.write(('GTM' + chr(13)).encode())
-#         timeout = time.time() + 1
-#         while time.time() < timeout:
-#             self.peripheral.waitForNotifications(0.1)
-#         try:
-#             if self.delegate.in_waiting:
-#                 logger_time = self.delegate.read_line().decode()
-#                 logger_time = logger_time[6:]
-#                 time_format = '%Y/%m/%d %H:%M:%S'
-#                 return datetime.datetime.strptime(logger_time, time_format)
-#         except Exception:
-#             pass
-#         return None
-#
-#
-# # todo: Jeff is PR mat-73, this is mat-73-cleanup
-# class LCBLEException(Exception):
-#     pass
+    def get_time(self):
+        self.delegate.clear_delegate_buffer()
+        answer_gtm = self.command('GTM')
+        if answer_gtm:
+            logger_time = answer_gtm[1].decode()
+            logger_time = logger_time[2:] + ' ' + answer_gtm[2].decode()
+            time_format = '%Y/%m/%d %H:%M:%S'
+            return datetime.datetime.strptime(logger_time, time_format)
