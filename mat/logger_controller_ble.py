@@ -125,18 +125,7 @@ class LoggerControllerBLE(LoggerController):
         answer_get = self.command('GET', filename)
 
         try:
-            if answer_get[0] == b'GET':
-                self.delegate.set_file_mode()
-                result, bytes_received = xmodem_get_file(self)
-                if result:
-                    full_file_path = folder + '/' + filename
-                    with open(full_file_path, 'wb') as f:
-                        f.write(bytes_received)
-                        f.truncate(int(size))
-                file_dl = True
-            else:
-                print('File NOT downloaded.')
-                file_dl = False
+            file_dl = self._save_file(answer_get, filename, folder, size)
         except XModemException as xme:
             print('XModemException caught at lc_ble --> {}'.format(xme))
             file_dl = False
@@ -144,6 +133,19 @@ class LoggerControllerBLE(LoggerController):
             self.delegate.clear_file_mode()
 
         return file_dl
+
+    def _save_file(self, answer_get, filename, folder, size):
+        if answer_get[0] == b'GET':
+            self.delegate.set_file_mode()
+            result, bytes_received = xmodem_get_file(self)
+            if result:
+                full_file_path = folder + '/' + filename
+                with open(full_file_path, 'wb') as f:
+                    f.write(bytes_received)
+                    f.truncate(int(size))
+            return True
+        print('File NOT downloaded.')
+        return False
 
     def list_files(self):
         self.delegate.clear_delegate_buffer()
