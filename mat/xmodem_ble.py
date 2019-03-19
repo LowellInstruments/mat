@@ -2,7 +2,6 @@ import time
 import crc16
 
 
-MAX_RETRANSMISSIONS = 25
 SOH = b'\x01'
 STX = b'\x02'
 EOT = b'\x04'
@@ -47,7 +46,7 @@ def _xmodem_send_c_if_required(lc_ble, sending_c):
     lc_ble.delegate.x_buffer = bytes()
     if sending_c:
         print('c', end='')
-        lc_ble.write(b'C')
+        lc_ble.ble_write(b'C')
 
 
 # wait for the first byte in incoming frame, if any
@@ -136,17 +135,17 @@ def _xmodem_purge(lc_ble, during):
 
 
 def _xmodem_ack(lc_ble):
-    lc_ble.write(ACK)
+    lc_ble.ble_write(ACK)
 
 
 def _xmodem_nak(lc_ble):
-    lc_ble.write(NAK)
+    lc_ble.ble_write(NAK)
 
 
 def _xmodem_can(lc_ble):
-    lc_ble.write(CAN)
-    lc_ble.write(CAN)
-    lc_ble.write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
 
 
 # calculate CRC omitting proper fields

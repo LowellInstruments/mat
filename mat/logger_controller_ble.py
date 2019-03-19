@@ -1,59 +1,34 @@
 import bluepy.btle as btle
 import time
-import datetime
-import re
-from mat.xmodem_ble import xmodem_get_file
+import os
 from mat.logger_controller import LoggerController
-from mat.logger_controller import DELAY_COMMANDS
+from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
-class Delegate(btle.DefaultDelegate):
+class MyDelegate(btle.DefaultDelegate):
     def __init__(self):
         btle.DefaultDelegate.__init__(self)
         self.buffer = bytes()
-        self.read_buffer = []
-        self.xmodem_mode = False
         self.x_buffer = bytes()
+        self.file_mode = False
 
-    # receive data from BLE logger, discern ascii or xmodem mode
-    def handleNotification(self, handler, data):
-        if not self.xmodem_mode:
-            self._handle_notifications_ascii_mode(data)
+    def handleNotification(self, c_handle, data):
+        if not self.file_mode:
+            self.buffer += data
         else:
             self.x_buffer += data
 
-    # receive data from BLE logger, ascii mode
-    def _handle_notifications_ascii_mode(self, data):
-        # required, some times changes its type
-        if self.buffer == '':
-            self.buffer = bytes()
-        self.buffer += data
-        self.buffer = self.buffer.replace(b'\n', b'')
-        self._handle_notifications_ascii_mode_extract_buffer()
+    def clear_delegate_buffer(self):
+        self.buffer = bytes()
 
-    # extract data from ascii buffer
-    def _handle_notifications_ascii_mode_extract_buffer(self):
-        while b'\r' in self.buffer:
-            # make sure ascii received doesn't start with CR
-            if self.buffer.startswith(b'\r'):
-                self.buffer = self.buffer[1:]
-                continue
-            pos = self.buffer.find(b'\r')
-            in_str = self.buffer[:pos]
-            self.buffer = self.buffer[pos + 1:]
-            if in_str:
-                # if complete string received, add to read_buffer
-                self.read_buffer.append(in_str)
+    def clear_delegate_x_buffer(self):
+        self.x_buffer = bytes()
 
-    @property
-    def in_waiting(self):
-        return True if self.read_buffer else False
+    def set_file_mode(self):
+        self.file_mode = True
 
-    # obtain single line from ascii buffer, complements append() above
-    def read_line(self):
-        if not self.read_buffer:
-            raise IndexError('Read buffer is empty')
-        return self.read_buffer.pop(0)
+    def clear_file_mode(self):
+        self.file_mode = False
 
 
 class LoggerControllerBLE(LoggerController):
@@ -62,174 +37,126 @@ class LoggerControllerBLE(LoggerController):
         self.peripheral_mac = mac
         self.peripheral = None
         self.delegate = None
-        self.mldp_service = None
-        self.mldp_data = None
+        self.service = None
+        self.characteristic = None
 
-    # called by __enter__ from class LoggerController
     def open(self):
         try:
             self.peripheral = btle.Peripheral()
+            self.delegate = MyDelegate()
+            self.peripheral.setDelegate(self.delegate)
             self.peripheral.connect(self.peripheral_mac)
             # one second required by RN4020
             time.sleep(1)
-            self.delegate = Delegate()
-            self.peripheral.setDelegate(self.delegate)
-            UUID_SERV = '00035b03-58e6-07dd-021a-08123a000300'
-            UUID_CHAR = '00035b03-58e6-07dd-021a-08123a000301'
-            self.mldp_service = self.peripheral.getServiceByUUID(UUID_SERV)
-            self.mldp_data = self.mldp_service.getCharacteristics(UUID_CHAR)[0]
-            CCCD = self.mldp_data.valHandle + 1
-            self.peripheral.writeCharacteristic(CCCD, b'\x01\x00')
+            uuid_serv = '00035b03-58e6-07dd-021a-08123a000300'
+            uuid_char = '00035b03-58e6-07dd-021a-08123a000301'
+            self.service = self.peripheral.getServiceByUUID(uuid_serv)
+            self.characteristic = self.service.getCharacteristics(uuid_char)[0]
+            descriptor = self.characteristic.valHandle + 1
+            self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
             return True
         except AttributeError:
             return False
 
-    # called by __exit__ & __del__ (overriden here) in LoggerController class
     def close(self):
         try:
             self.peripheral.disconnect()
-            time.sleep(1)
             return True
         except AttributeError:
             return False
 
-    # build and send command, same interface as other logger_controller_*
+    def ble_write(self, data, response=False):
+        binary_data = [data[i:i + 1] for i in range(len(data))]
+        for each in binary_data:
+            self.characteristic.write(each, withResponse=response)
+
     def command(self, *args):
-        self.delegate.buffer = ''
-        self.delegate.read_buffer = []
-        out_str = tag = args[0]
-        data = str(args[1]) if len(args) == 2 else ''
-        length = '{:02x}'.format(len(data))
+        # prepare reception vars
+        self.delegate.clear_delegate_buffer()
+        self.delegate.clear_file_mode()
 
-        # format
-        if tag not in ('sleep', 'RFN'):
-            out_str = tag + ' ' + length + data
-        self.write((out_str + chr(13)).encode())
+        # prepare transmission vars
+        cmd = str(args[0])
+        cmd_data = str(args[1]) if len(args) == 2 else ''
+        cmd_data_len = '{:02x}'.format(len(cmd_data)) if cmd_data else ''
+        cmd_to_send = cmd + ' ' + cmd_data_len + cmd_data
 
-        # answer: RST, BSL and sleep don't return any
-        if tag in ['RST', 'sleep', 'BSL']:
+        # format command as binary
+        if cmd in ('sleep', 'RFN'):
+            cmd_to_send = cmd
+        cmd_to_send += chr(13)
+        cmd_to_send = cmd_to_send.encode()
+
+        # send command as binary
+        print('Command being sent = {}'.format(cmd_to_send))
+        self.ble_write(cmd_to_send)
+
+        # check if this command will wait for an answer
+        if cmd in ('RST', 'sleep', 'BSL'):
             return None
 
-        # answer: commands that do
-        result = self._command_result(tag)
-        if result:
-            result = result.decode()
-        return result
+        # answer is a list of b'xxx'
+        cmd_answer = self._command_answer(cmd).split()
+        return cmd_answer
 
-    # see command result
-    def _command_result(self, tag):
-        timeout = time.time() + 3
+    def _command_answer(self, cmd):
+        cmd_timeouts = {'BTC': 3}
+        end_time = cmd_timeouts[cmd[:3]] if cmd[:3] in cmd_timeouts else 1
+        timeout = time.time() + end_time
         while time.time() < timeout:
             self.peripheral.waitForNotifications(0.1)
-            if self.delegate.in_waiting:
-                return self._command_parse_back(tag)
-        raise LCBLEException('Logger timeout waiting: ' + tag)
-
-    # parse command result
-    def _command_parse_back(self, tag):
-        result = self.delegate.read_line()
-        if result.startswith(tag.encode()):
-            if tag in DELAY_COMMANDS:
-                time.sleep(2)
-            return result
-        elif result.startswith(b'ERR') or result.startswith(b'INV'):
-            raise LCBLEException('Logger returned {}'.format(result[:3]))
-
-    # build and send control_command destined to RN4020 not MSP430
-    def control_command(self, data):
-        # build and send control command
-        self.delegate.buffer = ''
-        self.delegate.read_buffer = []
-        out_str = ('BTC 00' + data + chr(13)).encode()
-        self.write(out_str)
-        time.sleep(1)
-        return self._control_command_result()
-
-    # see control command result
-    def _control_command_result(self):
-        last_rx = time.time()
-        result = ''
-        while not result.endswith('MLDP') and time.time() < last_rx + 3:
-            result, last_rx = self._control_command_parse_back(result, last_rx)
-        return result
-
-    # parse control command result
-    def _control_command_parse_back(self, result, last_rx):
-        if self.peripheral.waitForNotifications(0.05):
-            last_rx = time.time()
-        if self.delegate.in_waiting:
-            result += self.delegate.read_line().decode()
-        return result, last_rx
-
-    # write to logger BLE serial port characteristic
-    def write(self, data, response=False):
-        data2 = [data[i:i + 1] for i in range(len(data))]
-        for c in data2:
-            self.mldp_data.write(c, withResponse=response)
-
-    # know which files are in remote logger
-    def dir_command(self):
-        self.delegate.buffer = ''
-        self.delegate.read_buffer = []
-        self.write(('DIR 00' + chr(13)).encode())
-        return self._dir_command_result()
-
-    # grab dir_command() answer
-    def _dir_command_result(self):
-        files = []
-        timeout = time.time() + 2
-
-        while time.time() < timeout:
-            self.peripheral.waitForNotifications(0.1)
-
-        for each in self.delegate.read_buffer:
-            try:
-                re_obj = re.search(r'([\x20-\x7E]+)\t+(\d*)', each.decode())
-                files.append((re_obj.group(1), int(re_obj.group(2))))
-            except AttributeError:
-                # decode() protection
-                pass
-        return files
+        return self.delegate.buffer
 
     # obtain a file from the logger via BLE using xmodem
-    def get_file(self, filename, dfolder):  # pragma: no cover
-        self.delegate.buffer = ''
-        self.delegate.read_buffer = []
-        self.delegate.x_buffer = bytes()
-        self.delegate.xmodem_mode = False
-        self.command('GET', filename)
+    def get_file(self, filename, size):  # pragma: no cover
+        self.delegate.clear_delegate_buffer()
+        self.delegate.clear_delegate_x_buffer()
 
-        # try to receive binary file using xmodem
-        self.delegate.xmodem_mode = True
-        result, bytes_received = xmodem_get_file(self)
-        self.delegate.xmodem_mode = False
-        if result:
-            full_file_path = dfolder + '/' + filename
-            with open(full_file_path, 'wb') as f:
-                f.write(bytes_received)
-            return True
-        return False
+        self.delegate.clear_file_mode()
+        answer_get = self.command('GET', filename)
 
-    # prevent garbage collector closing logger_controller_ble
-    def __del__(self):
-        pass
-
-    def get_time(self):
-        self.write(('GTM' + chr(13)).encode())
-        timeout = time.time() + 1
-        while time.time() < timeout:
-            self.peripheral.waitForNotifications(0.1)
         try:
-            if self.delegate.in_waiting:
-                logger_time = self.delegate.read_line().decode()
-                logger_time = logger_time[6:]
-                time_format = '%Y/%m/%d %H:%M:%S'
-                return datetime.datetime.strptime(logger_time, time_format)
-        except Exception:
-            pass
-        return None
+            if answer_get[0] == b'GET':
+                self.delegate.set_file_mode()
+                result, bytes_received = xmodem_get_file(self)
+                if result:
+                    mac = self.peripheral_mac
+                    folder = mac.replace(':', '-').lower()
+                    os.makedirs(folder, exist_ok=False)
+                    full_file_path = folder + '/' + filename
+                    with open(full_file_path, 'wb') as f:
+                        f.write(bytes_received)
+                        f.truncate(size)
+                file_dl = True
+            else:
+                print('File NOT downloaded.')
+                file_dl = False
+        except XModemException as xme:
+            print('XModemException caught at lc_ble --> {}'.format(xme))
+            file_dl = False
+        finally:
+            self.delegate.clear_file_mode()
+
+        return file_dl
 
 
-# todo: Jeff is PR mat-73, this is mat-73-cleanup
-class LCBLEException(Exception):
-    pass
+#
+#     def get_time(self):
+#         self.write(('GTM' + chr(13)).encode())
+#         timeout = time.time() + 1
+#         while time.time() < timeout:
+#             self.peripheral.waitForNotifications(0.1)
+#         try:
+#             if self.delegate.in_waiting:
+#                 logger_time = self.delegate.read_line().decode()
+#                 logger_time = logger_time[6:]
+#                 time_format = '%Y/%m/%d %H:%M:%S'
+#                 return datetime.datetime.strptime(logger_time, time_format)
+#         except Exception:
+#             pass
+#         return None
+#
+#
+# # todo: Jeff is PR mat-73, this is mat-73-cleanup
+# class LCBLEException(Exception):
+#     pass
