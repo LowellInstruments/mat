@@ -71,6 +71,16 @@ class LoggerControllerBLE(LoggerController):
             self.characteristic.write(each, withResponse=response)
 
     def command(self, *args):
+        for retries in range(3):
+            try:
+                result = self._command(*args)
+                if result:
+                    break
+            except Exception:
+                time.sleep(1)
+        return result
+
+    def _command(self, *args):
         # prepare reception vars
         self.delegate.clear_delegate_buffer()
         self.delegate.clear_file_mode()
@@ -122,7 +132,7 @@ class LoggerControllerBLE(LoggerController):
                 if result:
                     mac = self.peripheral_mac
                     folder = mac.replace(':', '-').lower()
-                    os.makedirs(folder, exist_ok=False)
+                    os.makedirs(folder, exist_ok=True)
                     full_file_path = folder + '/' + filename
                     with open(full_file_path, 'wb') as f:
                         f.write(bytes_received)
