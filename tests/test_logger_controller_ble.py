@@ -1,28 +1,12 @@
 from contextlib import contextmanager
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from unittest import TestCase
 from mat.logger_controller_ble import (
     LoggerControllerBLE,
     Delegate,
-    LCBLEException,
 )
 import datetime
-
-
-class FakeOutStream:
-    def seek(self, a, b):
-        pass
-
-    def tell(self):
-        return 12345
-
-    def truncate(self, size):
-        pass
-
-
-class FakeOutStreamTellIsWrong(FakeOutStream):
-    def tell(self):
-        return 0
+import bluepy.btle as btle
 
 
 class FakeData:
@@ -33,38 +17,14 @@ class FakeData:
         pass
 
 
-class FakeDataException(FakeData):
-    def write(self, data, withResponse=False):
-        raise LCBLEException
-
-
 class FakeDataIndexable:
     def __getitem__(self, index):
         return FakeData(index)
 
 
-class FakeDataIndexableException(FakeDataIndexable):
-    def __getitem__(self, index):
-        return FakeDataException(index)
-
-
 class FakeService:
     def getCharacteristics(self, charact):
         return FakeDataIndexable()
-
-
-class FakeServiceException(FakeService):
-    def getCharacteristics(self, charact):
-        return FakeDataIndexableException()
-
-
-class FakeDelegateAscii:
-
-    def __init__(self):
-        self.xmodem_mode = False
-
-    def handleNotification(self, handle, data):
-        pass
 
 
 class FakePeripheral:
@@ -91,44 +51,39 @@ class FakePeripheral:
 
 
 class FakePeripheralException(FakePeripheral):
-    def getServiceByUUID(self, uuid):
-        return FakeServiceException()
-
     def connect(self, mac):
         raise AttributeError
 
 
-class FakePeripheralCmdTimeout(FakePeripheral):
-    def waitForNotifications(self, value):
-        return False
-
-
 class TestLoggerControllerBLE(TestCase):
 
-    # test for parsing while in ascii mode
-    def test_read_line_no_read_buffer(self):
-        self.assertRaises(IndexError, Delegate().read_line)
-
-    # test for parsing while in ascii mode
-    def test_read_line_read_buffer(self):
+    # test for receiving BLE data
+    def test_notification_to_buffers(self):
         d = Delegate()
-        d.handleNotification(None, b'\n\rany_ascii_string\r\n')
-        assert d.read_line() == b'any_ascii_string'
+        d.handleNotification(None, b'\n\rany_data\r\n')
+        assert d.buffer == b'\n\rany_data\r\n'
+        d.file_mode = True
+        d.handleNotification(None, b'\n\rany_data\r\n')
+        assert d.x_buffer == b'\n\rany_data\r\n'
 
-    # test buffer is not string but bytes, changed from python v2 to v3
-    def test_buffer_is_bytes_not_str(self):
+    # test buffers can be cleared
+    def test_buffer_clear(self):
         d = Delegate()
-        d.buffer = ''
-        d.xmodem_mode = False
-        d.handleNotification(None, b'\n\rignored_ascii_string\r\n')
-        assert type(d.buffer) is bytes
+        d.buffer = b'\n\rany_data\r\n'
+        d.x_buffer = b'\n\rany_data\r\n'
+        d.clear_delegate_buffer()
+        d.clear_delegate_x_buffer()
+        assert d.buffer == b''
+        assert d.x_buffer == b''
 
-    # test x_buffer collects xmodem bytes properly
-    def test_x_buffer_collects(self):
+    # test switch between command and file mode
+    def test_switch_to_file_mode(self):
         d = Delegate()
-        d.xmodem_mode = True
-        d.handleNotification(None, b'thing_received')
-        assert d.x_buffer == b'thing_received'
+        assert not d.file_mode
+        d.clear_file_mode()
+        assert not d.file_mode
+        d.set_file_mode()
+        assert d.file_mode
 
     # test for open method, went ok
     def test_open_ok(self):
@@ -141,7 +96,7 @@ class TestLoggerControllerBLE(TestCase):
     def test_open_bad(self):
         with _peripheral_exception_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            assert lc_ble.open() is False
+            assert not lc_ble.open()
 
     # test for close method
     def test_close_ok(self):
@@ -154,103 +109,60 @@ class TestLoggerControllerBLE(TestCase):
     def test_close_not_ok(self):
         with _peripheral_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.peripheral = None
             assert not lc_ble.close()
 
     # test for a command which requires no answer
     def test_command_no_answer_required(self):
-        with _command_patch(None, ''):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.command('sleep', None) is None
-
-    # test for a command which requires answer but timeouts
-    def test_command_timeout(self):
-        with _command_patch_timeout():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.command, 'STS', None)
-
-    # test for a command which performs perfectly
-    def test_command_answer_ok(self):
-        with _command_patch(True, b'STP'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.command('STP') == 'STP'
-
-    # test for exception when logger answering 'INV' to a command
-    def test_command_answer_inv(self):
-        with _command_patch(True, b'INV'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.command, 'STS')
-
-    # test for exception when logger answering 'ERR' to a command
-    def test_command_answer_err(self):
-        with _command_patch(True, b'ERR'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            self.assertRaises(LCBLEException, lc_ble.command, 'STS')
-
-    # test for a control_command to RN4020 which performs perfectly
-    def test_control_command_answer_ok(self):
-        with _command_patch(True, b'CMDAOKMLDP'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.control_command('data_X') == 'CMDAOKMLDP'
-
-    # test for a control_command to RN4020 with new fw which does not goes well
-    def test_control_command_answer_empty(self):
-        with _command_patch_timeout():
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.control_command('data_X') == ''
-
-    # test for writing characteristics, used by command(), must do nothing
-    def test_write(self):
         with _peripheral_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            lc_ble.write('hello')
+            assert lc_ble._command('sleep') is None
 
-    # test for the special command 'DIR' when logger answers an empty list
-    def test_dir_command_answer_empty(self):
-        with _command_patch(True, b'\x04'):
+    # test for a command which performs perfectly
+    def test_command_answer_ok(self):
+        with _command_answer_patch(b'STS\t\t\t0201'):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.dir_command() == []
+            assert lc_ble.command('STS') == [b'STS', b'0201']
 
-    # test for command 'DIR' when logger answers timeouts
-    def test_dir_command_answer_timeout(self):
-        with _command_patch_dir():
+    # test for parsing command answer
+    def test_command_answer_internal(self):
+        with _peripheral_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            assert lc_ble.dir_command() == []
+            lc_ble.delegate.buffer = b'STS\t\t\t0201'
+            assert lc_ble._command_answer('STS') == b'STS\t\t\t0201'
 
-    # test for command 'DIR' when logger answers a populated file list
-    def test_dir_command_answer_ok(self):
-        with _command_patch_dir():
+    # test for listing logger files
+    def test_list_files(self):
+        with _command_patch([b'bean.lid', b'76']):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            lc_ble.delegate.read_buffer = [b'a.lid\t12', b'b.lid\t34', b'\x04']
-            expected = [('a.lid', 12), ('b.lid', 34)]
-            assert lc_ble._dir_command_result() == expected
+            assert lc_ble.list_files() == {b'bean.lid': b'76'}
 
-    # test for get_time()
-    def test_command_get_time(self):
-        with _command_patch(True, b'GTM 132019/03/18 13:32:22'):
+    # test for listing an empty logger
+    def test_list_files_empty(self):
+        with _command_patch([]):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
-            expected = datetime.datetime(2019, 3, 18, 13, 32, 22)
+            assert lc_ble.list_files() == {}
+
+    # test for getting logger time
+    def test_get_time(self):
+        with _command_patch([b'GTM', b'001999/12/12', b'11:12:13']):
+            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
+            lc_ble.open()
+            expected = datetime.datetime(1999, 12, 12, 11, 12, 13)
             assert lc_ble.get_time() == expected
-        with _command_patch(False, ''):
+
+    # test for command provoking BLE error
+    def test_command_exception(self):
+        def _command_exception():
+            raise btle.BTLEException('')
+        with _peripheral_patch():
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.get_time() is None
-        with _command_patch(True, b'strangetimeanswer'):
-            lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
-            lc_ble.open()
-            assert lc_ble.get_time() is None
+            lc_ble._command = _command_exception
+            lc_ble.command()
 
 
 # ----------------------------------
@@ -258,39 +170,30 @@ class TestLoggerControllerBLE(TestCase):
 # ----------------------------------
 
 peripheral_class = 'bluepy.btle.Peripheral'
-lc_ble_write_method = 'mat.logger_controller_ble.LoggerControllerBLE.write'
-d_in_waiting_property = 'mat.logger_controller_ble.Delegate.in_waiting'
-d_read_line_method = 'mat.logger_controller_ble.Delegate.read_line'
+write_method = 'mat.logger_controller_ble.LoggerControllerBLE.ble_write'
+cmd_method = 'mat.logger_controller_ble.LoggerControllerBLE.command'
+_cmd_answer_m = 'mat.logger_controller_ble.LoggerControllerBLE._command_answer'
+
+
+@contextmanager
+def _command_patch(rv_cmd):
+    with patch(peripheral_class, FakePeripheral):
+        with patch(cmd_method, return_value=rv_cmd):
+            yield
+
+
+@contextmanager
+def _command_answer_patch(rv_cmd_answer):
+    with patch(peripheral_class, FakePeripheral):
+        with patch(write_method):
+            with patch(_cmd_answer_m, return_value=rv_cmd_answer):
+                yield
 
 
 @contextmanager
 def _peripheral_patch():
     with patch(peripheral_class, FakePeripheral):
         yield
-
-
-@contextmanager
-def _command_patch(rv_in_waiting, rv_read_line):
-    with patch(peripheral_class, FakePeripheral):
-        with patch(lc_ble_write_method):
-            with patch(d_in_waiting_property, return_value=rv_in_waiting):
-                with patch(d_read_line_method, return_value=rv_read_line):
-                    yield
-
-
-# this one provides different answers on successive calls of read_line()
-@contextmanager
-def _command_patch_dir():
-    with patch(peripheral_class, FakePeripheral):
-        with patch(lc_ble_write_method):
-            yield
-
-
-@contextmanager
-def _command_patch_timeout():
-    with patch(peripheral_class, FakePeripheralCmdTimeout):
-        with patch(lc_ble_write_method):
-            yield
 
 
 @contextmanager
