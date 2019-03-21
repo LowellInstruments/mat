@@ -32,7 +32,7 @@ def epoch(time):
 def epoch_from_timestamp(date_string):
     """ Return posix timestamp """
     epoch_time = datetime(1970, 1, 1)
-    date_time = datetime.strptime(date_string, '%Y/%m/%d %H:%M:%S')
+    date_time = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S')
     return (date_time - epoch_time).total_seconds()
 
 
