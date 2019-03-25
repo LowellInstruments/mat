@@ -172,7 +172,8 @@ class TestLoggerControllerBLE(TestCase):
 peripheral_class = 'bluepy.btle.Peripheral'
 write_method = 'mat.logger_controller_ble.LoggerControllerBLE.ble_write'
 cmd_method = 'mat.logger_controller_ble.LoggerControllerBLE.command'
-_cmd_answer_m = 'mat.logger_controller_ble.LoggerControllerBLE._wait_for_command_answer'
+_cmd_answer_m = 'mat.logger_controller_ble.LoggerControllerBLE.'
+_cmd_answer_m += '_wait_for_command_answer'
 
 
 @contextmanager
