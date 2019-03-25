@@ -7,3 +7,5 @@ pytest-cov
 numpy
 pyserial
 pytest-mock
+crc16
+bluepy
