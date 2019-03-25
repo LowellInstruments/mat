@@ -80,9 +80,9 @@ class TestLoggerControllerBLE(TestCase):
     def test_switch_to_file_mode(self):
         d = Delegate()
         assert not d.file_mode
-        d.clear_file_mode()
+        d.set_file_mode(False)
         assert not d.file_mode
-        d.set_file_mode()
+        d.set_file_mode(True)
         assert d.file_mode
 
     # test for open method, went ok
@@ -131,7 +131,7 @@ class TestLoggerControllerBLE(TestCase):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
             lc_ble.delegate.buffer = b'STS\t\t\t0201'
-            assert lc_ble._command_answer('STS') == b'STS\t\t\t0201'
+            assert lc_ble._wait_for_command_answer('STS') == b'STS\t\t\t0201'
 
     # test for listing logger files
     def test_list_files(self):
@@ -172,7 +172,7 @@ class TestLoggerControllerBLE(TestCase):
 peripheral_class = 'bluepy.btle.Peripheral'
 write_method = 'mat.logger_controller_ble.LoggerControllerBLE.ble_write'
 cmd_method = 'mat.logger_controller_ble.LoggerControllerBLE.command'
-_cmd_answer_m = 'mat.logger_controller_ble.LoggerControllerBLE._command_answer'
+_cmd_answer_m = 'mat.logger_controller_ble.LoggerControllerBLE._wait_for_command_answer'
 
 
 @contextmanager

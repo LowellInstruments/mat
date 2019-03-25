@@ -24,17 +24,16 @@ class Delegate(btle.DefaultDelegate):
     def clear_delegate_x_buffer(self):
         self.x_buffer = bytes()
 
-    def set_file_mode(self):
-        self.file_mode = True
-
-    def clear_file_mode(self):
-        self.file_mode = False
+    def set_file_mode(self, state):
+        self.file_mode = state
 
 
 class LoggerControllerBLE(LoggerController):
+
+    WAIT_TIME = {'BTC': 3, 'GET': 3}
+
     def __init__(self, mac):
-        super(LoggerController, self).__init__()
-        self.peripheral_mac = mac
+        super().__init__(mac)
         self.peripheral = None
         self.delegate = None
         self.service = None
@@ -45,7 +44,7 @@ class LoggerControllerBLE(LoggerController):
             self.peripheral = btle.Peripheral()
             self.delegate = Delegate()
             self.peripheral.setDelegate(self.delegate)
-            self.peripheral.connect(self.peripheral_mac)
+            self.peripheral.connect(self.address)
             # one second required by RN4020
             time.sleep(1)
             uuid_service = '00035b03-58e6-07dd-021a-08123a000300'
@@ -82,7 +81,7 @@ class LoggerControllerBLE(LoggerController):
     def _command(self, *args):
         # prepare reception vars
         self.delegate.clear_delegate_buffer()
-        self.delegate.clear_file_mode()
+        self.delegate.set_file_mode(False)
 
         # prepare transmission vars
         cmd = str(args[0])
@@ -102,14 +101,13 @@ class LoggerControllerBLE(LoggerController):
             return None
 
         # collect and return answer as list of bytes() objects
-        cmd_answer = self._command_answer(cmd).split()
+        cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
-    def _command_answer(self, cmd):
-        cmd_timeouts = {'BTC': 3, 'GET': 3}
-        end_time = cmd_timeouts[cmd[:3]] if cmd[:3] in cmd_timeouts else 1
-        timeout = time.time() + end_time
-        while time.time() < timeout:
+    def _wait_for_command_answer(self, cmd):
+        end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
+        wait_time = time.time() + end_time
+        while time.time() < wait_time:
             self.peripheral.waitForNotifications(0.1)
         return self.delegate.buffer
 
@@ -125,9 +123,11 @@ class LoggerControllerBLE(LoggerController):
     def list_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
+        # example answer_dir
+        # [b'a.lid', b'1234', b'd.lid', b'10000', b'MAT.cfg', b'216', b'\x04']
         if answer_dir:
-            files = answer_dir[0:][::2]
-            sizes = answer_dir[1:][::2]
+            files = answer_dir[0::2]
+            sizes = answer_dir[1::2]
             return dict(zip(files, sizes))
         return dict()
 
@@ -135,7 +135,7 @@ class LoggerControllerBLE(LoggerController):
         self.delegate.clear_delegate_buffer()
         self.delegate.clear_delegate_x_buffer()
 
-        self.delegate.clear_file_mode()
+        self.delegate.set_file_mode(False)
         answer_get = self.command('GET', filename)
 
         try:
@@ -144,13 +144,13 @@ class LoggerControllerBLE(LoggerController):
             print('XModemException caught at lc_ble --> {}'.format(xme))
             file_dl = False
         finally:
-            self.delegate.clear_file_mode()
+            self.delegate.set_file_mode(False)
 
         return file_dl
 
     def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
         if answer_get[0] == b'GET':
-            self.delegate.set_file_mode()
+            self.delegate.set_file_mode(True)
             result, bytes_received = xmodem_get_file(self)
             if result:
                 full_file_path = folder + '/' + filename
@@ -158,5 +158,4 @@ class LoggerControllerBLE(LoggerController):
                     f.write(bytes_received)
                     f.truncate(int(s))
             return True
-        print('File NOT downloaded.')
         return False
