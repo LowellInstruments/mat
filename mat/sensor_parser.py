@@ -25,12 +25,12 @@ REFINEMENTS = {
     'temp_raw': lambda x: x or 1,
 }
 
+# Convertername, target channels, include temperature
 SENSOR_CONVERTERS = [
-    ('accelerometer', ('ax', 'ay', 'az')),
-    ('magnetometer', ('mx', 'my', 'mz')),
-    ('temperature', ('temp',)),
-    ('light', ('light',)),
-    ('pressure', ('pressure',)),
+    ('accelerometer', ('ax', 'ay', 'az'), True),
+    ('magnetometer', ('mx', 'my', 'mz'), True),
+    ('light', ('light',), False),
+    ('pressure', ('pressure',), False),
 ]
 
 
@@ -72,15 +72,18 @@ class SensorParser:
         return value
 
     def add_converted_sensors(self, count):
-        for convert_method, targets in SENSOR_CONVERTERS:
+        temp = self.converter.temperature(self._sensors['temp_raw'])
+        self._sensors['temp'] = temp
+
+        for convert_method, targets, temp_comp in SENSOR_CONVERTERS:
             sources = [target + "_raw" for target in targets]
-            input = array([[self._sensors[source]]
-                           for source in sources])
+            input = array([[self._sensors[source]] for source in sources])
+            input = [input, array([temp])] if temp_comp else [input]
             if any([source in RAW_SENSOR_NAMES[:count]
                     for source in sources]):
                 self.convert(convert_method, input, targets)
 
     def convert(self, convert_method, input, targets):
-        result = getattr(self.converter, convert_method)(input)
+        result = getattr(self.converter, convert_method)(*input)
         for i, target in enumerate(targets):
             self._sensors[target] = result[i]
