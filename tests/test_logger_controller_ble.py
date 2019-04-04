@@ -149,7 +149,7 @@ class TestLoggerControllerBLE(TestCase):
 
     # test for getting logger time
     def test_get_time(self):
-        with _command_patch([b'GTM', b'001999/12/12', b'11:12:13']):
+        with _command_patch([b'GTM', b'131999/12/12', b'11:12:13']):
             lc_ble = LoggerControllerBLE('ff:ff:ff:ff:ff:ff')
             lc_ble.open()
             expected = datetime.datetime(1999, 12, 12, 11, 12, 13)
