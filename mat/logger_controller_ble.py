@@ -86,6 +86,8 @@ class LoggerControllerBLE(LoggerController, ABC):
             return None
 
         # collect and return answer as list of bytes() objects
+        # todo: remove this
+        print(cmd_to_send)
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 

@@ -11,8 +11,13 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             self.delegate = Delegate()
             self.peripheral.setDelegate(self.delegate)
             self.peripheral.connect(self.address)
-            uuid_service = '0000fff0-0000-1000-8000-00805f9b34fb'
-            uuid_char = '0000fff5-0000-1000-8000-00805f9b34fb'
+            # bluepy needs some time to set mtu
+            self.peripheral.setMTU(50)
+            time.sleep(1)
+            uuid_service = 'f0001130-0451-4000-b000-000000000000'   # p0
+            # uuid_service = '0000fff0-0000-1000-8000-00805f9b34fb'
+            # uuid_char = '0000fff5-0000-1000-8000-00805f9b34fb'
+            uuid_char = 'f0001131-0451-4000-b000-000000000000'  # p0
             self.service = self.peripheral.getServiceByUUID(uuid_service)
             self.characteristic = self.service.getCharacteristics(uuid_char)[0]
             return True
