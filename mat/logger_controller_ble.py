@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
-import bluepy.btle as btle
+import bluepy.btle as ble
 import datetime
+import time
 from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
-class Delegate(btle.DefaultDelegate):
+class Delegate(ble.DefaultDelegate):
     def __init__(self):
-        btle.DefaultDelegate.__init__(self)
+        ble.DefaultDelegate.__init__(self)
         self.buffer = bytes()
         self.x_buffer = bytes()
         self.file_mode = False
@@ -54,14 +55,14 @@ class LoggerControllerBLE(LoggerController, ABC):
     def ble_write(self, data, response=False):  # pragma: no cover
         pass
 
-    def command(self, *args):
-        for retries in range(3):
+    def command(self, *args, retries=3):
+        for retry in range(retries):
             try:
                 result = self._command(*args)
                 if result:
                     return result
-            except btle.BTLEException:
-                raise btle.BTLEException('BTLEException during command()')
+            except ble.BTLEException:
+                raise ble.BTLEException('BTLEException during command()')
 
     def _command(self, *args):
         # prepare reception vars
@@ -91,9 +92,13 @@ class LoggerControllerBLE(LoggerController, ABC):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
-    @abstractmethod
     def _wait_for_command_answer(self, cmd):
-        pass
+        # todo: according to docs this should always be 250 ms?
+        end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
+        wait_time = time.time() + end_time
+        while time.time() < wait_time:
+            self.peripheral.waitForNotifications(0.1)
+        return self.delegate.buffer
 
     def get_time(self):
         self.delegate.clear_delegate_buffer()

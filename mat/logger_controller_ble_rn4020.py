@@ -23,13 +23,6 @@ class LoggerControllerBLERN4020(LoggerControllerBLE):
         except AttributeError:
             return False
 
-    def _wait_for_command_answer(self, cmd):
-        end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
-        wait_time = time.time() + end_time
-        while time.time() < wait_time:
-            self.peripheral.waitForNotifications(0.1)
-        return self.delegate.buffer
-
     def ble_write(self, data, response=False):  # pragma: no cover
         binary_data = [data[i:i + 1] for i in range(len(data))]
         for each in binary_data:
