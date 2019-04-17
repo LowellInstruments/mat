@@ -34,3 +34,6 @@ class V2Calibration(Calibration):
             value = str(self.coefficients[key])
             length_hex = '%x' % len(value)
             yield key + length_hex + value
+
+    def write_to_file(self, path):
+        raise NotImplementedError('Feature not implemented for V2Calibration')

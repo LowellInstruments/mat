@@ -68,3 +68,7 @@ class Calibration(ABC):
             raise ValueError('Calibration string is empty')
         if calibration_string.find('HSE') == -1:
             raise ValueError('Host storage string must contain HSE tag')
+
+    @abstractmethod
+    def write_to_file(self, path):
+        pass  # pragma: no cover
