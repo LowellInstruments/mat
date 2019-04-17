@@ -1,5 +1,6 @@
 import bluepy.btle as ble
 import json
+import time
 from mat.logger_controller_ble import LoggerControllerBLE, Delegate
 
 
@@ -11,6 +12,9 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             self.delegate = Delegate()
             self.peripheral.setDelegate(self.delegate)
             self.peripheral.connect(self.address)
+            # set_mtu() needs some time as of documentation / forums
+            self.peripheral.setMTU(200)
+            time.sleep(1)
             # project_zero DS_STREAM characteristic notification
             uuid_service = 'f0001130-0451-4000-b000-000000000000'
             uuid_char = 'f0001132-0451-4000-b000-000000000000'
@@ -31,4 +35,5 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             self.characteristic.write(data, withResponse=response)
 
     def send_cfg(self, cfg_file_as_json_dict):
-        self.command("CFG ", json.dumps(cfg_file_as_json_dict), retries=1)
+        cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
+        return self.command("CFG", cfg_file_as_string, retries=1)
