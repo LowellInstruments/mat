@@ -35,8 +35,19 @@ class V3Calibration(Calibration):
 
     def make_serial_string(self):
         yield 'RVN13'
+        for key, value in self._key_value():
+            yield key + value
+
+    def write_to_file(self, path):
+        with open(path, 'w') as f:
+            f.write('RVN 3\n')
+            for key, value in self._key_value():
+                value_str = ascii85_to_num(value)
+                f.write('{} {}  // {}\n'.format(key, value, value_str))
+
+    def _key_value(self):
         for key in self.coefficients:
             if key == 'RVN':
                 continue
             value = num_to_ascii85(self.coefficients[key])
-            yield key + value
+            yield key, value
