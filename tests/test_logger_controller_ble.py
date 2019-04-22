@@ -1,12 +1,17 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 from unittest import TestCase
-from mat.logger_controller_ble import (
-    LoggerControllerBLE,
-    Delegate,
-)
+
+import pytest
 import datetime
-import bluepy.btle as btle
+import sys
+
+if sys.platform != 'win32':
+    import bluepy.btle as btle
+    from mat.logger_controller_ble import (
+        LoggerControllerBLE,
+        Delegate,
+    )
 
 
 class FakeData:
@@ -55,6 +60,7 @@ class FakePeripheralException(FakePeripheral):
         raise AttributeError
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class TestLoggerControllerBLE(TestCase):
 
     # test for receiving BLE data

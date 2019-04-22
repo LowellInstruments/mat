@@ -112,13 +112,6 @@ class TestDataConverter(TestCase):
         assert_compare_expected_file('test_Temperature.csv',
                                      'test_Temperature-elapsed.csv.expect')
 
-    def test_two_page_file(self):
-        full_file_path = reference_file('two_page_file.lid')
-        dc = DataConverter(full_file_path, default_parameters())
-        dc.convert()
-        assert_compare_expected_file('two_page_file_AccelMag.csv')
-        assert_compare_expected_file('two_page_file_Temperature.csv')
-
     def test_current_no_accel(self):
         full_file_path = reference_file('temp_mag_no_accel.lid')
         parameters = default_parameters()
