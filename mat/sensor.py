@@ -154,6 +154,7 @@ class TempDependantSensor(Sensor):
         if not self.temperature:
             return super().convert(data_page, average, page_time)
         raw_data, time = self._parse_page(data_page)
+        time += page_time
         temp, temp_time = self.temperature.convert(data_page,
                                                    average,
                                                    page_time)
@@ -161,5 +162,4 @@ class TempDependantSensor(Sensor):
         data = self.converter.convert(raw_data, temp_interp)
         if average:
             data, time = self._average_bursts(data, time)
-        time += page_time
         return data, time
