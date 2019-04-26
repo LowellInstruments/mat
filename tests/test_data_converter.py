@@ -146,3 +146,14 @@ class TestDataConverter(TestCase):
         dc.convert()
         compare_files(reference_file('test_YawPitchRoll.csv'),
                       reference_file('test_ypr_GS.txt'))
+
+    def test_specify_file_name(self):
+        full_file_path = reference_file('test.lid')
+        parameters = default_parameters()
+        parameters['file_name'] = 'calley'
+        dc = DataConverter(full_file_path, parameters)
+        dc.convert()
+        compare_files(reference_file('calley_AccelMag.csv'),
+                      reference_file('test_AccelMag-posix.csv.expect'))
+        compare_files(reference_file('calley_Temperature.csv'),
+                      reference_file('test_Temperature-posix.csv.expect'))

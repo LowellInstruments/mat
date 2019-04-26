@@ -8,6 +8,7 @@ def default_parameters():
     would need to remember to copy the dictionary each time as it is mutable
     """
     return {'output_directory': None,
+            'file_name': None,
             'output_type': 'discrete',
             'output_format': 'csv',
             'average': True,
