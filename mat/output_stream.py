@@ -54,7 +54,10 @@ class CsvFile:
     def next_file_path(self):
         dir_name = path.dirname(self.file_path)
         destination = self.parameters['output_directory'] or dir_name
-        file_prefix = path.basename(self.file_path).split('.')[0]
+        if self.parameters['file_name']:
+            file_prefix = self.parameters['file_name']
+        else:
+            file_prefix = path.basename(self.file_path).split('.')[0]
         file_num = self.write_count // self.split
         file_num_str = '_{}'.format(file_num) if self.split != 100000 else ''
         output_file_name = '{}_{}{}.csv'.format(file_prefix,

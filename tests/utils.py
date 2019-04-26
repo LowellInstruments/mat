@@ -30,6 +30,7 @@ def compare_files(path1, path2):
         assert _n_lines(fid1) == _n_lines(fid2)
         assert _n_columns(fid1) == _n_columns(fid2)
         _values_are_close(zip(fid1, fid2))
+    os.remove(path1)
 
 
 def _n_lines(fid):
