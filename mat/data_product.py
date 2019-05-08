@@ -15,8 +15,7 @@ from numpy import (
     reshape,
     sin,
     sqrt,
-    vstack,
-    mod
+    vstack
 )
 
 
