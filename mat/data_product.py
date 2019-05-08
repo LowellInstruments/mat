@@ -224,6 +224,7 @@ class Compass(DataProduct):
         mag = dot(m, mag)
         roll, pitch, heading = roll_pitch_yaw(accel, mag)
         heading = apply_declination(degrees(heading), self.declination)
+        heading = mod(heading, 360)
         heading = reshape(heading, (1, -1))
         self.output_stream.write(self.stream_name(),
                                  heading,
