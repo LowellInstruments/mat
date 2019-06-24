@@ -133,6 +133,8 @@ class LoggerControllerBLE(LoggerController, ABC):
         finally:
             self.delegate.set_file_mode(False)
 
+        # do not remove, this gives time remote XMODEM to end
+        time.sleep(2)
         return file_dl
 
     def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
