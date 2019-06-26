@@ -12,9 +12,10 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             self.delegate = Delegate()
             self.peripheral.setDelegate(self.delegate)
             self.peripheral.connect(self.address)
-            # set_mtu() needs some time as of documentation / forums
-            self.peripheral.setMTU(200)
+            # set_mtu() needs some time
+            # https://github.com/IanHarvey/bluepy/issues/325
             time.sleep(1)
+            self.peripheral.setMTU(200)
             # project_zero DS_STREAM characteristic notification
             uuid_service = 'f0001130-0451-4000-b000-000000000000'
             uuid_char = 'f0001132-0451-4000-b000-000000000000'
