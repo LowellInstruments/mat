@@ -15,7 +15,7 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             # set_mtu() needs some time
             # https://github.com/IanHarvey/bluepy/issues/325
             time.sleep(1)
-            self.peripheral.setMTU(200)
+            self.peripheral.setMTU(240)
             # project_zero DS_STREAM characteristic notification
             uuid_service = 'f0001130-0451-4000-b000-000000000000'
             uuid_char = 'f0001132-0451-4000-b000-000000000000'
@@ -38,3 +38,7 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
     def send_cfg(self, cfg_file_as_json_dict):
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
+
+    def know_mtu(self):
+        return self.peripheral.status()['mtu'][0]
+
