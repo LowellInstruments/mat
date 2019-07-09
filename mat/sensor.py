@@ -3,6 +3,7 @@ import numpy as np
 from math import floor
 from heapq import merge
 from itertools import chain
+from mat.header import Header, ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
 
 
 def create_sensors(header, calibration, seconds):
@@ -64,6 +65,22 @@ def _add_temperature_dependency(sensors):
             sensor.temperature = sensors[temp_index]
 
 
+def major_interval_bytes(header_dict):
+    """
+    This is a helper function that will determine the number of bytes in
+    a major interval.
+    """
+    header = Header({})
+    header._header = header_dict
+    major_interval = max(header.tag(TEMPERATURE_INTERVAL),
+                         header.tag(ORIENTATION_INTERVAL))
+    sensors = create_sensors(header, None, major_interval)
+    bytes = 0
+    for s in sensors:
+        bytes += s.samples_per_page() * 2
+    return bytes
+
+
 class Sensor:
     def __init__(self, sensor_spec, header, calibration, seconds):
         self.sensor_spec = sensor_spec
@@ -76,9 +93,10 @@ class Sensor:
         self.is_sample = None
         self.seconds = seconds
         self.order = sensor_spec.order
-        self.converter = sensor_spec.converter(calibration)
         self.cache = {'page_time': None, 'data': None}
         self._full_sample_times_cache = None
+        if calibration:
+            self.converter = sensor_spec.converter(calibration)
 
     def full_sample_times(self):
         """
