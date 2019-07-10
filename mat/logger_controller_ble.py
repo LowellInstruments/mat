@@ -55,7 +55,7 @@ class LoggerControllerBLE(LoggerController, ABC):
     def ble_write(self, data, response=False):  # pragma: no cover
         pass
 
-    def command(self, *args, retries=3):
+    def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
             try:
                 result = self._command(*args)
@@ -90,7 +90,7 @@ class LoggerControllerBLE(LoggerController, ABC):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
-    def _wait_for_command_answer(self, cmd):
+    def _wait_for_command_answer(self, cmd):    # pragma: no cover
         # todo: according to docs this should always be 250 ms?
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time

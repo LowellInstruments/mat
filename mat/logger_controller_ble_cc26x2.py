@@ -35,7 +35,7 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
         if len(data) < 200:
             self.characteristic.write(data, withResponse=response)
 
-    def send_cfg(self, cfg_file_as_json_dict):
+    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
 

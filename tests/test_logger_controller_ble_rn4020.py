@@ -1,14 +1,13 @@
 import pytest
 import datetime
-from mat.logger_controller_ble_cc26x2 import (
-    LoggerControllerBLECC26X2,
+from mat.logger_controller_ble_rn4020 import (
+    LoggerControllerBLERN4020,
     Delegate,
 )
 
 
 f_mac = 'ff:ff:ff:ff:ff:ff'
-cmd = 'mat.logger_controller_ble_cc26x2.LoggerControllerBLECC26X2.command'
-k_mtu = 'mat.logger_controller_ble_cc26x2.LoggerControllerBLECC26X2.know_mtu'
+cmd = 'mat.logger_controller_ble_rn4020.LoggerControllerBLERN4020.command'
 _wait_answer = 'mat.logger_controller_ble.LoggerControllerBLE'\
                '._wait_for_command_answer'
 
@@ -19,7 +18,7 @@ def fake_ble_factory(mocker):
         mocker.patch('bluepy.btle.Peripheral', p)
         if m:
             mocker.patch(m, return_value=rv)
-        return LoggerControllerBLECC26X2
+        return LoggerControllerBLERN4020
     return patched_logger_controller
 
 
@@ -72,7 +71,7 @@ class FakePeripheralEx(FakePeripheral):
         raise AttributeError
 
 
-class TestLoggerControllerBLECC26X2:
+class TestLoggerControllerRN4020:
     # test for receiving BLE data
     def test_notification_to_buffers(self):
         d = Delegate()
@@ -170,9 +169,3 @@ class TestLoggerControllerBLECC26X2:
         lc_ble.open()
         expected = datetime.datetime(1999, 12, 12, 11, 12, 13)
         assert lc_ble.get_time() == expected
-
-    # test to know mtu
-    def test_know_mtu(self, fake_ble_factory):
-        lc_ble = (fake_ble_factory())(f_mac)
-        lc_ble.open()
-        assert lc_ble.know_mtu() == 240
