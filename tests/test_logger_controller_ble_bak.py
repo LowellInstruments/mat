@@ -1,8 +1,12 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 from unittest import TestCase
-from mat.logger_controller_ble import (
-    LoggerControllerBLE,
+# from mat.logger_controller_ble import (
+#     LoggerControllerBLE,
+#     Delegate,
+# )
+from mat.logger_controller_ble_cc26x2 import (
+    LoggerControllerBLECC26X2 as LoggerControllerBLE,
     Delegate,
 )
 import datetime
