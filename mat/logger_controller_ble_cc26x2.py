@@ -16,14 +16,14 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
             # https://github.com/IanHarvey/bluepy/issues/325
             time.sleep(1)
             self.peripheral.setMTU(240)
-            # project_zero DS_STREAM characteristic notification
+            # enable cc26x2_project_zero DS_STREAM characteristic notification
             uuid_service = 'f0001130-0451-4000-b000-000000000000'
             uuid_char = 'f0001132-0451-4000-b000-000000000000'
             self.service = self.peripheral.getServiceByUUID(uuid_service)
             self.characteristic = self.service.getCharacteristics(uuid_char)[0]
             descriptor = self.characteristic.valHandle + 1
             self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
-            # project_zero DS_STRING characteristic
+            # will receive from cc26x2_project_zero DS_STRING characteristic
             uuid_char = 'f0001131-0451-4000-b000-000000000000'
             self.characteristic = self.service.getCharacteristics(uuid_char)[0]
             return True
