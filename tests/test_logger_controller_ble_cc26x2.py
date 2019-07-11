@@ -1,9 +1,11 @@
 import pytest
+import sys
 import datetime
-from mat.logger_controller_ble_cc26x2 import (
-    LoggerControllerBLECC26X2,
-    Delegate,
-)
+if sys.platform != 'win32':
+    from mat.logger_controller_ble_cc26x2 import (
+        LoggerControllerBLECC26X2,
+        Delegate,
+    )
 
 
 f_mac = 'ff:ff:ff:ff:ff:ff'
@@ -72,6 +74,7 @@ class FakePeripheralEx(FakePeripheral):
         raise AttributeError
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
 class TestLoggerControllerBLECC26X2:
     # test for receiving BLE data
     def test_notification_to_buffers(self):
