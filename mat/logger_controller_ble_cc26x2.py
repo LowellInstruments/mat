@@ -41,4 +41,3 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
 
     def know_mtu(self):
         return self.peripheral.status()['mtu'][0]
-
