@@ -4,12 +4,6 @@
 from mat.utils import cut_out, parse_tags
 
 
-def header_factory(file_path):
-    with open(file_path, 'rb') as fid:
-        header_string = fid.read(500).decode('IBM437')
-    return Header(header_string)
-
-
 DATA_FILE_START = 'DFS'
 DEPLOYMENT_NUMBER = 'DPL'
 IS_ACCELEROMETER = 'ACL'
@@ -29,28 +23,42 @@ TEMPERATURE_INTERVAL = 'TRI'
 HEADER_START_TAG = 'HDS\r\n'
 HEADER_END_TAG = 'HDE\r\n'
 
+TYPE_INT = [
+    DEPLOYMENT_NUMBER,
+    ORIENTATION_BURST_COUNT,
+    ORIENTATION_BURST_RATE,
+    ORIENTATION_INTERVAL,
+    PRESSURE_BURST_COUNT,
+    PRESSURE_BURST_RATE,
+    STATUS,
+    TEMPERATURE_INTERVAL
+    ]
+
+TYPE_BOOL = [
+    IS_ACCELEROMETER,
+    IS_LED,
+    IS_MAGNETOMETER,
+    IS_PHOTO_DIODE,
+    IS_PRESSURE,
+    IS_TEMPERATURE,
+]
+
+TYPE_HEX = [DATA_FILE_START]
+
+CONVERSION_FUNC = [
+    (TYPE_INT, lambda x: int(x)),
+    (TYPE_BOOL, lambda x: x == '1'),
+    (TYPE_HEX, lambda x: int(x, 16))
+]
+
+
+def header_factory(file_path):
+    with open(file_path, 'rb') as fid:
+        header_string = fid.read(500).decode('IBM437')
+    return Header(header_string)
+
 
 class Header:
-    type_int = [
-        DEPLOYMENT_NUMBER,
-        ORIENTATION_BURST_COUNT,
-        ORIENTATION_BURST_RATE,
-        ORIENTATION_INTERVAL,
-        PRESSURE_BURST_COUNT,
-        PRESSURE_BURST_RATE,
-        STATUS,
-        TEMPERATURE_INTERVAL,
-    ]
-    type_bool = [
-        IS_ACCELEROMETER,
-        IS_LED,
-        IS_MAGNETOMETER,
-        IS_PHOTO_DIODE,
-        IS_PRESSURE,
-        IS_TEMPERATURE,
-    ]
-    type_hex = [DATA_FILE_START]
-
     def __init__(self, header_string):
         self.header_string = header_string
         self._header = {}
@@ -95,13 +103,15 @@ class Header:
 
     def _convert_to_type(self, dictionary):
         for tag, value in dictionary.items():
-            if tag in self.type_bool:
-                dictionary[tag] = value == '1'
-            if tag in self.type_int:
-                dictionary[tag] = int(value)
-            if tag in self.type_hex:
-                dictionary[tag] = int(value, 16)
+            converted_value = self._convert_value(tag, value)
+            if converted_value is not None:
+                dictionary[tag] = converted_value
         return dictionary
+
+    def _convert_value(self, tag, value):
+        for type_list, conversion_func in CONVERSION_FUNC:
+            if tag in type_list:
+                return conversion_func(value)
 
     def major_interval(self):
         orientation_interval = self.tag(ORIENTATION_INTERVAL) or 0
