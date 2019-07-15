@@ -10,6 +10,7 @@ def header_factory(file_path):
     return Header(header_string)
 
 
+DATA_FILE_START = 'DFS'
 DEPLOYMENT_NUMBER = 'DPL'
 IS_ACCELEROMETER = 'ACL'
 IS_LED = 'LED'
@@ -48,6 +49,7 @@ class Header:
         IS_PRESSURE,
         IS_TEMPERATURE,
     ]
+    type_hex = [DATA_FILE_START]
 
     def __init__(self, header_string):
         self.header_string = header_string
@@ -97,6 +99,8 @@ class Header:
                 dictionary[tag] = value == '1'
             if tag in self.type_int:
                 dictionary[tag] = int(value)
+            if tag in self.type_hex:
+                dictionary[tag] = int(value, 16)
         return dictionary
 
     def major_interval(self):
