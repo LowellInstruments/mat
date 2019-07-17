@@ -10,4 +10,8 @@ def load_data_file(file_path, calibration=None):
         klass = DATA_FILE_TYPES.get(extension)
         return klass(file_path, calibration)
     except TypeError:
-        raise ValueError('Invalid Filename or extension')
+        raise WrongFileTypeError('Invalid Filename or extension')
+
+
+class WrongFileTypeError(Exception):
+    pass
