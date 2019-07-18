@@ -73,16 +73,16 @@ class GPS:
         return True if calculated == checksum_in_decimal else False
 
     def _on_rmc(self, args):
-        valid = args[1] == 'A'
-        if valid:
-            timestamp = datetime.datetime.strptime(args[8] + args[0],
-                                                   '%d%m%y%H%M%S.%f')
-            latitude = GPS._to_decimal_degrees(args[2], args[3])
-            longitude = GPS._to_decimal_degrees(args[4], args[5])
-            knots = parse_float(args[6])
-            course = parse_float(args[7])
-            self.last_rmc = GPS.RMC_Frame(
-                valid, timestamp, latitude, longitude, knots, course)
+        if args[1] != 'A':
+            return
+        timestamp = datetime.datetime.strptime(args[8] + args[0],
+                                               '%d%m%y%H%M%S.%f')
+        latitude = GPS._to_decimal_degrees(args[2], args[3])
+        longitude = GPS._to_decimal_degrees(args[4], args[5])
+        knots = parse_float(args[6])
+        course = parse_float(args[7])
+        self.last_rmc = GPS.RMC_Frame(
+            'A', timestamp, latitude, longitude, knots, course)
 
     @staticmethod
     def _to_decimal_degrees(value, nsew):

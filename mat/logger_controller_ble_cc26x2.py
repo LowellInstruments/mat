@@ -1,7 +1,8 @@
-import bluepy.btle as ble
 import json
-import time
-from mat.logger_controller_ble import LoggerControllerBLE, Delegate
+from mat.logger_controller_ble import (
+    LoggerControllerBLE,
+    Delegate
+)
 
 
 class LoggerControllerBLECC26X2(LoggerControllerBLE):

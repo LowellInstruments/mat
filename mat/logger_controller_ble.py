@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import bluepy.btle as ble
 import datetime
 import time
@@ -62,10 +61,6 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    @abstractmethod
-    def ble_write(self, data, response=False):  # pragma: no cover
-        pass
-
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
             try:
@@ -118,18 +113,6 @@ class LoggerControllerBLE(LoggerController):
             time_format = '%Y/%m/%d %H:%M:%S'
             return datetime.datetime.strptime(logger_time, time_format)
 
-    def list_files(self):
-        self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
-        # before: [b'MAT.cfg', b'172', b'a.lid', b'480', b'\x04']
-        files = dict()
-        for index, value in enumerate(answer_dir):
-            name = value.decode()
-            if name.endswith('lid'):
-                files[name] = int(answer_dir[index + 1].decode())
-        # after: {'a.lid': 480}
-        return files
-
     def get_file(self, filename, folder, size):  # pragma: no cover
         self.delegate.clear_delegate_buffer()
         self.delegate.clear_delegate_x_buffer()
@@ -160,3 +143,18 @@ class LoggerControllerBLE(LoggerController):
                     f.truncate(int(s))
             return True
         return False
+
+    def list_files(self):
+        self.delegate.clear_delegate_buffer()
+        answer_dir = self.command('DIR 00')
+        # before: [b'MAT.cfg', b'172', b'a.lid', b'480', b'\x04']
+        files = dict()
+        for index, value in enumerate(answer_dir):
+            name = value.decode()
+            if name.endswith('lid'):
+                size = answer_dir[index + 1]
+                if type(size) is bytes:
+                    files[name] = size.decode()
+                files[name] = int(size)
+        # after: {'a.lid': 480}
+        return files
