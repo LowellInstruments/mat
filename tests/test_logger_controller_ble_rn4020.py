@@ -157,7 +157,7 @@ class TestLoggerControllerRN4020:
     def test_list_files(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=cmd, rv=[b'bean.lid', b'76']))(f_mac)
         lc_ble.open()
-        assert lc_ble.list_files() == {b'bean.lid': b'76'}
+        assert lc_ble.list_files() == {'bean.lid': 76}
 
     # test for listing a logger containing no files
     def test_list_files_empty(self, fake_ble_factory):

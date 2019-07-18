@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import bluepy.btle as ble
 import datetime
 import time
@@ -29,20 +29,31 @@ class Delegate(ble.DefaultDelegate):
         self.file_mode = state
 
 
-class LoggerControllerBLE(LoggerController, ABC):
+class LoggerControllerBLE(LoggerController):
 
     WAIT_TIME = {'BTC': 3, 'GET': 3}
+    UUID_C = ''
+    UUID_S = ''
 
     def __init__(self, mac):
         super().__init__(mac)
         self.peripheral = None
         self.delegate = None
-        self.service = None
-        self.characteristic = None
+        self.svc = None
+        self.cha = None
 
-    @abstractmethod
     def open(self):
-        pass  # pragma: no cover
+        # this method is to be called from child classes
+        self.peripheral = ble.Peripheral()
+        self.delegate = Delegate()
+        self.peripheral.setDelegate(self.delegate)
+        self.peripheral.connect(self.address)
+        # do not remove, RN4020 needs this and bluepy setMTU() also
+        time.sleep(1)
+        self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
+        self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
+        descriptor = self.cha.valHandle + 1
+        self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
 
     def close(self):
         try:
@@ -110,13 +121,14 @@ class LoggerControllerBLE(LoggerController, ABC):
     def list_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
-        # example answer_dir
-        # [b'a.lid', b'1234', b'd.lid', b'10000', b'MAT.cfg', b'216', b'\x04']
-        if answer_dir:
-            files = answer_dir[0::2]
-            sizes = answer_dir[1::2]
-            return dict(zip(files, sizes))
-        return dict()
+        # before: [b'MAT.cfg', b'172', b'a.lid', b'480', b'\x04']
+        files = dict()
+        for index, value in enumerate(answer_dir):
+            name = value.decode()
+            if name.endswith('lid'):
+                files[name] = int(answer_dir[index + 1].decode())
+        # after: {'a.lid': 480}
+        return files
 
     def get_file(self, filename, folder, size):  # pragma: no cover
         self.delegate.clear_delegate_buffer()
