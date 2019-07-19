@@ -1,5 +1,5 @@
 from unittest import TestCase
-from mat.data_file_factory import load_data_file
+from mat.data_file_factory import load_data_file, WrongFileTypeError
 from mat.lid_data_file import LidDataFile
 from tests.utils import reference_file
 from mat.v3_calibration import V3Calibration
@@ -12,7 +12,7 @@ class TestSensorDataFile(TestCase):
         assert isinstance(data_file, LidDataFile)
 
     def test_create_bad_file(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(WrongFileTypeError):
             load_data_file(reference_file('test.xyz'))
 
     def test_n_pages_lid(self):
