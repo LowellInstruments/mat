@@ -1,13 +1,16 @@
-import bluepy.btle as btle
-import time
+import bluepy.btle as ble
 import datetime
+import time
 from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
-class Delegate(btle.DefaultDelegate):
+# temp
+
+
+class Delegate(ble.DefaultDelegate):
     def __init__(self):
-        btle.DefaultDelegate.__init__(self)
+        ble.DefaultDelegate.__init__(self)
         self.buffer = bytes()
         self.x_buffer = bytes()
         self.file_mode = False
@@ -31,31 +34,37 @@ class Delegate(btle.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     WAIT_TIME = {'BTC': 3, 'GET': 3}
+    UUID_C = ''
+    UUID_S = ''
 
     def __init__(self, mac):
         super().__init__(mac)
         self.peripheral = None
         self.delegate = None
-        self.service = None
-        self.characteristic = None
+        self.svc = None
+        self.cha = None
 
     def open(self):
         try:
-            self.peripheral = btle.Peripheral()
+            # this method is to be called from child classes
+            self.peripheral = ble.Peripheral()
             self.delegate = Delegate()
             self.peripheral.setDelegate(self.delegate)
             self.peripheral.connect(self.address)
-            # one second required by RN4020
+            # do not remove, RN4020 needs this and bluepy setMTU() also
             time.sleep(1)
-            uuid_service = '00035b03-58e6-07dd-021a-08123a000300'
-            uuid_char = '00035b03-58e6-07dd-021a-08123a000301'
-            self.service = self.peripheral.getServiceByUUID(uuid_service)
-            self.characteristic = self.service.getCharacteristics(uuid_char)[0]
-            descriptor = self.characteristic.valHandle + 1
+            self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
+            self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
+            descriptor = self.cha.valHandle + 1
             self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+            self.open_after()
             return True
         except AttributeError:
             return False
+
+    def open_after(self):   # pragma: no cover
+        # for loggers that do extra stuff after opening
+        pass
 
     def close(self):
         try:
@@ -64,19 +73,14 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def ble_write(self, data, response=False):  # pragma: no cover
-        binary_data = [data[i:i + 1] for i in range(len(data))]
-        for each in binary_data:
-            self.characteristic.write(each, withResponse=response)
-
-    def command(self, *args):
-        for retries in range(3):
+    def command(self, *args, retries=3):    # pragma: no cover
+        for retry in range(retries):
             try:
                 result = self._command(*args)
                 if result:
                     return result
-            except btle.BTLEException:
-                time.sleep(1)
+            except ble.BTLEException:
+                raise ble.BTLEException('BTLEException during command()')
 
     def _command(self, *args):
         # prepare reception vars
@@ -104,7 +108,8 @@ class LoggerControllerBLE(LoggerController):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
-    def _wait_for_command_answer(self, cmd):
+    def _wait_for_command_answer(self, cmd):    # pragma: no cover
+        # todo: according to docs this should always be 250 ms?
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
@@ -120,17 +125,6 @@ class LoggerControllerBLE(LoggerController):
             time_format = '%Y/%m/%d %H:%M:%S'
             return datetime.datetime.strptime(logger_time, time_format)
 
-    def list_files(self):
-        self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
-        # example answer_dir
-        # [b'a.lid', b'1234', b'd.lid', b'10000', b'MAT.cfg', b'216', b'\x04']
-        if answer_dir:
-            files = answer_dir[0::2]
-            sizes = answer_dir[1::2]
-            return dict(zip(files, sizes))
-        return dict()
-
     def get_file(self, filename, folder, size):  # pragma: no cover
         self.delegate.clear_delegate_buffer()
         self.delegate.clear_delegate_x_buffer()
@@ -140,12 +134,13 @@ class LoggerControllerBLE(LoggerController):
 
         try:
             file_dl = self._save_file(answer_get, filename, folder, size)
-        except XModemException as xme:
-            print('XModemException caught at lc_ble --> {}'.format(xme))
+        except XModemException:
             file_dl = False
         finally:
             self.delegate.set_file_mode(False)
 
+        # do not remove, this gives time remote XMODEM to end
+        time.sleep(2)
         return file_dl
 
     def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
@@ -159,3 +154,20 @@ class LoggerControllerBLE(LoggerController):
                     f.truncate(int(s))
             return True
         return False
+
+    # wrapper function for DIR command
+    def list_lid_files(self):
+        self.delegate.clear_delegate_buffer()
+        answer_dir = self.command('DIR 00')
+        files = dict()
+        index = 0
+        while index < len(answer_dir):
+            name = answer_dir[index]
+            if type(name) is bytes and name.endswith(b'lid'):
+                files[name.decode()] = int(answer_dir[index + 1])
+                index += 1
+            index += 1
+        return files
+
+    def know_mtu(self):
+        return self.peripheral.status()['mtu'][0]

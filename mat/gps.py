@@ -26,6 +26,13 @@ class GPS:
         }
         self.last_rmc = None
 
+    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
+        if self._wait_for_frame_type('$GPRMC', timeout):
+            # decide fields needed to consider RMC frame as valid
+            if self.last_rmc and self.last_rmc.timestamp:
+                return self.last_rmc
+        return None
+
     # waits for frame_type + checksum OK -> populates self.last_*
     def _wait_for_frame_type(self, frame_type, timeout=TIMEOUT_PORT_READS):
         end_time = time.time() + timeout
@@ -66,7 +73,9 @@ class GPS:
         return True if calculated == checksum_in_decimal else False
 
     def _on_rmc(self, args):
-        valid = args[1] == 'A'
+        print(args)
+        if args[1] != 'A':
+            return
         timestamp = datetime.datetime.strptime(args[8] + args[0],
                                                '%d%m%y%H%M%S.%f')
         latitude = GPS._to_decimal_degrees(args[2], args[3])
@@ -74,7 +83,7 @@ class GPS:
         knots = parse_float(args[6])
         course = parse_float(args[7])
         self.last_rmc = GPS.RMC_Frame(
-            valid, timestamp, latitude, longitude, knots, course)
+            args[1], timestamp, latitude, longitude, knots, course)
 
     @staticmethod
     def _to_decimal_degrees(value, nsew):
@@ -91,9 +100,3 @@ class GPS:
         if nsew in 'SW':
             result = -result
         return result
-
-    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
-        if self._wait_for_frame_type('$GPRMC', timeout):
-            if self.last_rmc and self.last_rmc.timestamp:
-                return self.last_rmc
-        return None
