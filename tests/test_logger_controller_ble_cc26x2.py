@@ -6,7 +6,6 @@ if sys.platform != 'win32':
     from mat.logger_controller_ble import Delegate
 
 
-
 f_mac = 'ff:ff:ff:ff:ff:ff'
 cmd = 'mat.logger_controller_ble_cc26x2.LoggerControllerBLECC26X2.command'
 k_mtu = 'mat.logger_controller_ble_cc26x2.LoggerControllerBLECC26X2.know_mtu'
