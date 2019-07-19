@@ -4,7 +4,7 @@
 
 from unittest import TestCase
 from mat.data_converter import DataConverter, default_parameters
-from mat.data_file_factory import load_data_file
+from mat.data_file_factory import load_data_file, WrongFileTypeError
 from tests.utils import reference_file, compare_files
 from tests.utils import assert_compare_expected_file
 from mat.tiltcurve import TiltCurve
@@ -16,7 +16,7 @@ class TestDataConverter(TestCase):
         assert DataConverter('no file', default_parameters())
 
     def test_factory_no_filename(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(WrongFileTypeError):
             load_data_file('')
 
     def test_conversion(self):

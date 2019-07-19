@@ -11,7 +11,7 @@ PAGE_SIZE = 1024**2
 class LidDataFile(SensorDataFile):
     @property
     def data_start(self):
-        return 32768
+        return self.header().tag('DFS') or 32768
 
     def n_pages(self):
         return ceil((self.file_size() - self.data_start) / PAGE_SIZE)
