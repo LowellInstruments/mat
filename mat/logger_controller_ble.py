@@ -134,7 +134,7 @@ class LoggerControllerBLE(LoggerController):
 
         try:
             file_dl = self._save_file(answer_get, filename, folder, size)
-        except XModemException as xme:
+        except XModemException:
             file_dl = False
         finally:
             self.delegate.set_file_mode(False)
