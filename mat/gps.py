@@ -100,4 +100,3 @@ class GPS:
         if nsew in 'SW':
             result = -result
         return result
-
