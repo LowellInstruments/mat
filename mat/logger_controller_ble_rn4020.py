@@ -1,6 +1,5 @@
 from mat.logger_controller_ble import (
-    LoggerControllerBLE,
-    Delegate
+    LoggerControllerBLE
 )
 
 

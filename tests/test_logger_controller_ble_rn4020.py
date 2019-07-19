@@ -2,10 +2,8 @@ import pytest
 import sys
 import datetime
 if sys.platform != 'win32':
-    from mat.logger_controller_ble_rn4020 import (
-        LoggerControllerBLERN4020,
-        Delegate,
-    )
+    from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
+    from mat.logger_controller_ble import Delegate
 
 
 f_mac = 'ff:ff:ff:ff:ff:ff'

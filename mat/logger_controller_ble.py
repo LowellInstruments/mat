@@ -153,6 +153,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
+    # wrapper function for DIR command
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
@@ -164,7 +165,6 @@ class LoggerControllerBLE(LoggerController):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
-        # after: {'name.lid': 480}
         print(files)
         return files
 
