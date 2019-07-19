@@ -66,6 +66,10 @@ class TestGPS(TestCase):
     def test_convert_none_to_decimal_degrees(self):
         assert GPS._to_decimal_degrees('', 'SW') is None
 
+    def test_bad_on_rmc(self):
+        with _patch_serial(FakeSerial):
+            assert GPS('any', 57600)._on_rmc([None, 'V']) is None
+
     def test_parse_int(self):
         assert parse_int('3') == 3
 

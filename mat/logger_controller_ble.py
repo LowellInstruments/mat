@@ -42,17 +42,26 @@ class LoggerControllerBLE(LoggerController):
         self.cha = None
 
     def open(self):
-        # this method is to be called from child classes
-        self.peripheral = ble.Peripheral()
-        self.delegate = Delegate()
-        self.peripheral.setDelegate(self.delegate)
-        self.peripheral.connect(self.address)
-        # do not remove, RN4020 needs this and bluepy setMTU() also
-        time.sleep(1)
-        self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
-        self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
-        descriptor = self.cha.valHandle + 1
-        self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+        try:
+            # this method is to be called from child classes
+            self.peripheral = ble.Peripheral()
+            self.delegate = Delegate()
+            self.peripheral.setDelegate(self.delegate)
+            self.peripheral.connect(self.address)
+            # do not remove, RN4020 needs this and bluepy setMTU() also
+            time.sleep(1)
+            self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
+            self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
+            descriptor = self.cha.valHandle + 1
+            self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+            self.open_after()
+            return True
+        except AttributeError:
+            return False
+
+    def open_after(self):   # pragma: no cover
+        # for loggers that do extra stuff after opening
+        pass
 
     def close(self):
         try:
@@ -144,17 +153,20 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
-    def list_files(self):
+    def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
-        # before: [b'MAT.cfg', b'172', b'a.lid', b'480', b'\x04']
         files = dict()
-        for index, value in enumerate(answer_dir):
-            name = value.decode()
-            if name.endswith('lid'):
-                size = answer_dir[index + 1]
-                if type(size) is bytes:
-                    files[name] = size.decode()
-                files[name] = int(size)
-        # after: {'a.lid': 480}
+        index = 0
+        while index < len(answer_dir):
+            name = answer_dir[index]
+            if type(name) is bytes and name.endswith(b'lid'):
+                files[name.decode()] = int(answer_dir[index + 1])
+                index += 1
+            index += 1
+        # after: {'name.lid': 480}
+        print(files)
         return files
+
+    def know_mtu(self):
+        return self.peripheral.status()['mtu'][0]

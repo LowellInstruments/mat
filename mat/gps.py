@@ -73,6 +73,7 @@ class GPS:
         return True if calculated == checksum_in_decimal else False
 
     def _on_rmc(self, args):
+        print(args)
         if args[1] != 'A':
             return
         timestamp = datetime.datetime.strptime(args[8] + args[0],
@@ -82,7 +83,7 @@ class GPS:
         knots = parse_float(args[6])
         course = parse_float(args[7])
         self.last_rmc = GPS.RMC_Frame(
-            'A', timestamp, latitude, longitude, knots, course)
+            args[1], timestamp, latitude, longitude, knots, course)
 
     @staticmethod
     def _to_decimal_degrees(value, nsew):

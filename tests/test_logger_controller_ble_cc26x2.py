@@ -158,13 +158,13 @@ class TestLoggerControllerBLECC26X2:
     def test_list_files(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=cmd, rv=[b'bean.lid', b'76']))(f_mac)
         lc_ble.open()
-        assert lc_ble.list_files() == {'bean.lid': 76}
+        assert lc_ble.list_lid_files() == {'bean.lid': 76}
 
     # test for listing a logger containing no files
     def test_list_files_empty(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=cmd, rv=[]))(f_mac)
         lc_ble.open()
-        assert lc_ble.list_files() == {}
+        assert lc_ble.list_lid_files() == {}
 
     # test for getting logger time
     def test_get_time(self, fake_ble_factory):
@@ -179,3 +179,9 @@ class TestLoggerControllerBLECC26X2:
         lc_ble = (fake_ble_factory())(f_mac)
         lc_ble.open()
         assert lc_ble.know_mtu() == 240
+
+    def test_open_after(self, fake_ble_factory):
+        # not proper call sequence but ok for the sake of test
+        lc_ble = (fake_ble_factory())(f_mac)
+        lc_ble.open()
+        lc_ble.open_after()
