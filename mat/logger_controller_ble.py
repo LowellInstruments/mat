@@ -5,6 +5,9 @@ from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
+# temp
+
+
 class Delegate(ble.DefaultDelegate):
     def __init__(self):
         ble.DefaultDelegate.__init__(self)
@@ -132,7 +135,6 @@ class LoggerControllerBLE(LoggerController):
         try:
             file_dl = self._save_file(answer_get, filename, folder, size)
         except XModemException as xme:
-            print('XModemException caught at lc_ble --> {}'.format(xme))
             file_dl = False
         finally:
             self.delegate.set_file_mode(False)
@@ -165,7 +167,6 @@ class LoggerControllerBLE(LoggerController):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
-        print(files)
         return files
 
     def know_mtu(self):
