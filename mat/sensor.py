@@ -104,7 +104,7 @@ class Sensor:
         self.interval = header.tag(sensor_spec.interval_tag)
         self.burst_rate = header.tag(sensor_spec.burst_rate_tag) or 1
         self.burst_count = header.tag(sensor_spec.burst_count_tag) or 1
-        self.data_type = type_factory(sensor_spec.data_type)
+        self.data_type = sensor_spec.data_type
         self.is_sample = None
         self.seconds = seconds
         self.order = sensor_spec.order
@@ -132,7 +132,7 @@ class Sensor:
         index = self.is_sample[:len(data_page)]
         sensor_data = self._remove_partial_burst(data_page[index])
         sensor_data = self._reshape_to_n_channels(sensor_data)
-        sensor_data = self.data_type.convert(sensor_data)
+        sensor_data = sensor_data.astype(self.data_type)
         n_samples = sensor_data.shape[1]
         time = self._sample_times()[:n_samples]
         return sensor_data, time
