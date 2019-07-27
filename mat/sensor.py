@@ -11,7 +11,6 @@ from mat.header import (
     IS_MAGNETOMETER,
     IS_TEMPERATURE
 )
-from mat.type_converter import type_factory
 
 
 def create_sensors(header, calibration, seconds):
