@@ -8,6 +8,7 @@ from mat.magnetometer_factory import magnetometer_factory
 from mat.light import Light
 from mat.pressure import Pressure
 from mat.temperature import Temperature
+from mat.dissolved_oxygen import DissolvedOxygen
 
 
 SensorSpec = namedtuple('SensorSpec', [
@@ -89,5 +90,18 @@ AVAILABLE_SENSORS = [
                header='Mx (mG),My (mG),Mz (mG)',
                converter=magnetometer_factory,
                format='{:0.2f},{:0.2f},{:0.2f}',
-               temp_dependant=True)
+               temp_dependant=True),
+
+    SensorSpec(name='DissolvedOxygen',
+               enabled_tag='DOS',
+               order=6,
+               channels=1,
+               interval_tag='ORI',
+               burst_rate_tag=None,
+               burst_count_tag=None,
+               data_type='int16',
+               header='Dissolved Oxygen (mg/l)',
+               converter=DissolvedOxygen,
+               format='{:0.2f}',
+               temp_dependant=False)
 ]

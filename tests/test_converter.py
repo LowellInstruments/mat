@@ -8,6 +8,7 @@ from mat.light import DEFAULT_PDA
 from mat.linear_accelerometer import LinearAccelerometer
 from mat.pressure import DEFAULT_PRA
 from mat.temp_compensated_magnetometer import TempCompensatedMagnetometer
+from mat.dissolved_oxygen import DissolvedOxygen
 from mat.v3_calibration import V3Calibration
 from tests.utils import calibration_from_file
 
@@ -106,3 +107,9 @@ class TestConverter(TestCase):
         assert_array_almost_equal(converter.magnetometer(EXAMPLE_RAW_DATA,
                                                          EXAMPLE_TEMP_ARRAY),
                                   TCM_EXPECTATION)
+
+    def test_dissolved_oxygen(self):
+        data = array([6400, 9847, 39321])
+        expected = array([19.00, 26.77, 99.99])
+        converter = DissolvedOxygen()
+        assert_array_almost_equal(converter.convert(data), expected)

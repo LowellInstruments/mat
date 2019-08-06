@@ -25,7 +25,7 @@ def xmodem_get_file(lc_ble):
         # control stage: one byte required to be received
         _xmodem_wait_control_byte(lc_ble)
 
-        # good: no timeout during control byte
+        # good: no timeout during control byte, otherwise, exception raised
         control_byte, frame_len = _xmodem_get_control_byte(lc_ble)
         if control_byte == EOT:
             return True, whole_file
@@ -45,7 +45,7 @@ def xmodem_get_file(lc_ble):
 def _xmodem_send_c_if_required(lc_ble, sending_c):
     lc_ble.delegate.x_buffer = bytes()
     if sending_c:
-        print('c', end='')
+        print('c')
         lc_ble.ble_write(b'C')
 
 
@@ -77,6 +77,7 @@ def _xmodem_get_control_byte(lc_ble):
         return EOT, None
     # bad: received CAN or strange control byte
     else:
+        print(control_byte)
         print('W')
         _xmodem_can(lc_ble)
         raise XModemException('xmodem exception: getting control byte.')
@@ -116,6 +117,7 @@ def _xmodem_frame_timeout(lc_ble, sending_c, retries, timeout):
 
 # collect the frame with enough data if its CRC is ok
 def _xmodem_get_frame(lc_ble, sending_c, retries, whole_file):
+    print(lc_ble.delegate.x_buffer)
     if _xmodem_check_crc(lc_ble):
         sending_c = False
         retries = 0
@@ -155,6 +157,7 @@ def _xmodem_check_crc(lc_ble):
     received_crc_bytes = lc_ble.delegate.x_buffer[-2:]
     calculated_crc_int = crc16.crc16xmodem(data)
     calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
+    print(len(lc_ble.delegate.x_buffer))
     if calculated_crc_bytes == received_crc_bytes:
         return True
     else:

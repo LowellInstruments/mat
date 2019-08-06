@@ -3,7 +3,14 @@ import numpy as np
 from math import floor
 from heapq import merge
 from itertools import chain
-from mat.header import Header, ORIENTATION_INTERVAL, TEMPERATURE_INTERVAL
+from mat.header import (
+    Header,
+    ORIENTATION_INTERVAL,
+    TEMPERATURE_INTERVAL,
+    IS_ACCELEROMETER,
+    IS_MAGNETOMETER,
+    IS_TEMPERATURE
+)
 
 
 def create_sensors(header, calibration, seconds):
@@ -72,8 +79,15 @@ def major_interval_bytes(header_dict):
     """
     header = Header({})
     header._header = header_dict
-    major_interval = max(header.tag(TEMPERATURE_INTERVAL),
-                         header.tag(ORIENTATION_INTERVAL))
+
+    orient_interval = 0
+    temperature_interval = 0
+    if header.tag(IS_ACCELEROMETER) or header.tag(IS_MAGNETOMETER):
+        orient_interval = header.tag(ORIENTATION_INTERVAL)
+    if header.tag(IS_TEMPERATURE):
+        temperature_interval = header.tag(TEMPERATURE_INTERVAL)
+    major_interval = max(orient_interval, temperature_interval)
+
     sensors = create_sensors(header, None, major_interval)
     bytes = 0
     for s in sensors:
