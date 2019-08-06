@@ -50,6 +50,8 @@ class CsvFile:
         self.data_format = ''
         self.split = parameters['split'] or 100000
         self.write_count = 0
+        self.output_path = ''
+        self.overwrite_file = True
 
     def next_file_path(self):
         dir_name = path.dirname(self.file_path)
@@ -65,20 +67,22 @@ class CsvFile:
                                                 file_num_str)
         self.output_path = path.join(destination, output_file_name)
 
-    def write_header(self):
-        with open(self.output_path, 'w') as fid:
-            fid.write(self.column_header + '\n')
-
     def write(self, data, time):
         if self.write_count % self.split == 0:
             self.next_file_path()
-            self.write_header()
+            if path.exists(self.output_path) and not self.overwrite_file:
+                raise FileExistsError(self.output_path + ' already exits')
+            self._write_header()
 
         data_format = '{},' + self.data_format + '\n'
         with open(self.output_path, 'a') as fid:
             for i in range(data.shape[1]):
                 fid.write(data_format.format(time[i], *data[:, i]))
         self.write_count += 1
+
+    def _write_header(self):
+        with open(self.output_path, 'w') as fid:
+            fid.write(self.column_header + '\n')
 
 
 class HdfFile(OutputStream):
