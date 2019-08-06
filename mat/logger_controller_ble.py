@@ -46,13 +46,9 @@ class LoggerControllerBLE(LoggerController):
 
     def open(self):
         try:
-            # this method is to be called from child classes
-            self.peripheral = ble.Peripheral()
             self.delegate = Delegate()
+            self.peripheral = ble.Peripheral(self.address)
             self.peripheral.setDelegate(self.delegate)
-            self.peripheral.connect(self.address)
-            # do not remove, RN4020 needs this and bluepy setMTU() also
-            time.sleep(1)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
             descriptor = self.cha.valHandle + 1
@@ -80,6 +76,7 @@ class LoggerControllerBLE(LoggerController):
                 if result:
                     return result
             except ble.BTLEException:
+                # to be managed by app
                 raise ble.BTLEException('BTLEException during command()')
 
     def _command(self, *args):
