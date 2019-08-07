@@ -71,7 +71,7 @@ class CsvFile:
         file_num_str = '_{}'.format(file_num) if self.split != 100000 else ''
         self.output_file_name = '{}_{}{}.csv'.format(file_prefix,
                                                      self.stream_name,
-                                                    file_num_str)
+                                                     file_num_str)
         self.output_path = path.join(destination, self.output_file_name)
 
     def write(self, data, time):
