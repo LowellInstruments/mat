@@ -26,6 +26,7 @@ class DataConverter:
         self.source_file = None
         self.observers = []
         self._is_running = None
+        self.overwrite = True
 
     def _load_source_file(self):
         if not self.source_file:
@@ -42,6 +43,9 @@ class DataConverter:
         outputs = data_product_factory(self.path,
                                        self.source_file.sensors(),
                                        self.parameters)
+        for output in outputs:
+            output.set_overwrite(self.overwrite)
+
         page_times = self.source_file.page_times()
         for i in range(self.source_file.n_pages()):
             if not self._is_running:
