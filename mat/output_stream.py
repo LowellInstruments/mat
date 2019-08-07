@@ -16,6 +16,7 @@ class OutputStream:
         self.parameters = parameters
         self.streams = {}
         self.time_converter = create_time_converter(parameters['time_format'])
+        self.overwrite = True
 
     def add_stream(self, data_product):
         pass  # pragma: no cover
@@ -30,6 +31,11 @@ class OutputStream:
     def write(self, stream, data, time):
         time = self.time_converter.convert(time)
         self.streams[stream].write(data, time)
+
+    def set_overwrite(self, state):
+        self.overwrite = state
+        for name in self.streams:
+            self.streams[name].overwrite = state
 
 
 class CsvStream(OutputStream):
@@ -50,8 +56,9 @@ class CsvFile:
         self.data_format = ''
         self.split = parameters['split'] or 100000
         self.write_count = 0
+        self.output_file_name = ''
         self.output_path = ''
-        self.overwrite_file = True
+        self.overwrite = True
 
     def next_file_path(self):
         dir_name = path.dirname(self.file_path)
@@ -62,16 +69,16 @@ class CsvFile:
             file_prefix = path.basename(self.file_path).split('.')[0]
         file_num = self.write_count // self.split
         file_num_str = '_{}'.format(file_num) if self.split != 100000 else ''
-        output_file_name = '{}_{}{}.csv'.format(file_prefix,
-                                                self.stream_name,
-                                                file_num_str)
-        self.output_path = path.join(destination, output_file_name)
+        self.output_file_name = '{}_{}{}.csv'.format(file_prefix,
+                                                     self.stream_name,
+                                                     file_num_str)
+        self.output_path = path.join(destination, self.output_file_name)
 
     def write(self, data, time):
         if self.write_count % self.split == 0:
             self.next_file_path()
-            if path.exists(self.output_path) and not self.overwrite_file:
-                raise FileExistsError(self.output_path + ' already exits')
+            if path.exists(self.output_path) and not self.overwrite:
+                raise FileExistsError(self.output_file_name)
             self._write_header()
 
         data_format = '{},' + self.data_format + '\n'
