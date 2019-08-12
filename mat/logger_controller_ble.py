@@ -47,7 +47,7 @@ class LoggerControllerBLE(LoggerController):
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address, ble.ADDR_TYPE_PUBLIC)
+            self.peripheral = ble.Peripheral(self.address, addrType=ble.ADDR_TYPE_PUBLIC)
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
