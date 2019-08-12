@@ -47,7 +47,7 @@ class LoggerControllerBLE(LoggerController):
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address, addrType=ble.ADDR_TYPE_PUBLIC)
+            self.peripheral = ble.Peripheral(self.address, addrType='public')
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
@@ -116,11 +116,16 @@ class LoggerControllerBLE(LoggerController):
     def get_time(self):
         self.delegate.clear_delegate_buffer()
         answer_gtm = self.command('GTM')
-        if answer_gtm:
-            logger_time = answer_gtm[1].decode()
-            logger_time = logger_time[2:] + ' ' + answer_gtm[2].decode()
-            time_format = '%Y/%m/%d %H:%M:%S'
+        if not answer_gtm:
+            return False
+        logger_time = answer_gtm[1].decode()
+        logger_time = logger_time[2:] + ' ' + answer_gtm[2].decode()
+        time_format = '%Y/%m/%d %H:%M:%S'
+        try:
+            # we may receive a truncated answer (e.g. '2019/08/12 12')
             return datetime.datetime.strptime(logger_time, time_format)
+        except ValueError:
+            return False
 
     def get_file(self, filename, folder, size):  # pragma: no cover
         self.delegate.clear_delegate_buffer()
