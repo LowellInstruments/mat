@@ -33,7 +33,7 @@ class Delegate(ble.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3}
+    WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2}
     UUID_C = ''
     UUID_S = ''
 
