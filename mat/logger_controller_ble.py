@@ -40,14 +40,14 @@ class LoggerControllerBLE(LoggerController):
     def __init__(self, mac):
         super().__init__(mac)
         self.peripheral = None
-        self.delegate = None
+        self.delegate = Delegate()
         self.svc = None
         self.cha = None
+        time.sleep(1)
 
     def open(self):
         try:
-            self.delegate = Delegate()
-            self.peripheral = ble.Peripheral(self.address)
+            self.peripheral = ble.Peripheral(self.address, ble.ADDR_TYPE_PUBLIC)
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
