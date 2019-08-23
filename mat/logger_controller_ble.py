@@ -146,7 +146,7 @@ class LoggerControllerBLE(LoggerController):
         return file_dl
 
     def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
-        if answer_get[0] == b'GET':
+        if answer_get is not None and answer_get[0] == b'GET':
             self.delegate.set_file_mode(True)
             result, bytes_received = xmodem_get_file(self)
             if result:
@@ -157,7 +157,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
-    # wrapper function for DIR command
+    # wrapper function for DIR command to list lid files
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
@@ -165,10 +165,27 @@ class LoggerControllerBLE(LoggerController):
         index = 0
         while index < len(answer_dir):
             name = answer_dir[index]
-            if type(name) is bytes and name.endswith(b'lid'):
+            if name.endswith(b'lid'):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
+        return files
+
+    def list_all_files_but_lid(self):
+        self.delegate.clear_delegate_buffer()
+        answer_dir = self.command('DIR 00')
+        files = dict()
+        index = 0
+        while index < len(answer_dir):
+            name = answer_dir[index]
+            if name.endswith(b'lid'):
+                index += 2
+                continue
+            if name == b'\04':
+                index += 1
+                continue
+            files[name.decode()] = int(answer_dir[index + 1])
+            index += 2
         return files
 
     def know_mtu(self):
