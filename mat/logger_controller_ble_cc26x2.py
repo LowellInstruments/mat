@@ -14,8 +14,8 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
 
     def open_after(self):
         # set_mtu() needs some time (bluepy issue 325)
-        time.sleep(1)
         self.peripheral.setMTU(self.MTU_SIZE)
+        time.sleep(1)
         self.cha = self.svc.getCharacteristics(self.UUID_W)[0]
 
     def ble_write(self, data, response=False):  # pragma: no cover

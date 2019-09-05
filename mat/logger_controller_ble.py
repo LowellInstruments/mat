@@ -1,11 +1,9 @@
+from abc import abstractmethod
 import bluepy.btle as ble
 import datetime
 import time
 from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
-
-
-# temp
 
 
 class Delegate(ble.DefaultDelegate):
@@ -47,7 +45,8 @@ class LoggerControllerBLE(LoggerController):
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address, addrType='public')
+            self.peripheral = ble.Peripheral(self.address)
+            time.sleep(1)
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
@@ -68,6 +67,10 @@ class LoggerControllerBLE(LoggerController):
             return True
         except AttributeError:
             return False
+
+    @abstractmethod
+    def ble_write(self, data, response=False):  # pragma: no cover
+        pass  # pragma: no cover
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
