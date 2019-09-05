@@ -3,6 +3,8 @@
 
 import os
 import pickle
+from distutils.version import LooseVersion
+
 
 NT_SUBDIR = 'Lowell Instruments\\'
 POSIX_SUBDIR = '.Lowell'
@@ -26,6 +28,18 @@ def set_userdata(filename, field, data):
 
     with open(os.path.join(path, filename), 'wb') as h:
         pickle.dump(userdata, h)
+
+
+def delete_if_version_not_equal(filename, version):
+    """
+    Looks in appdata for a version field. If it is less than version, or
+    if it doesn't exist, delete the appdata file
+    """
+    userdata = get_userdata(filename)
+    userdata_version = userdata['version'] if 'version' in userdata else '0'
+    if LooseVersion(userdata_version) != LooseVersion(version):
+        if os.path.exists(userdata_path(filename)):
+            os.remove(userdata_path(filename))
 
 
 def userdata_path(filename=""):
