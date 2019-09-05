@@ -25,3 +25,8 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
+
+    # bat function, only ccs26x2
+    def get_bat(self):
+        self.delegate.clear_delegate_buffer()
+        return self.command('BAT')
