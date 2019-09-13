@@ -4,6 +4,7 @@ from mat.lid_data_file import LidDataFile
 from tests.utils import reference_file
 from mat.v3_calibration import V3Calibration
 from mat.header import Header
+from mat.sensor_data_file import NoDataError
 
 
 class TestSensorDataFile(TestCase):
@@ -54,3 +55,8 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('mhs_wrong_place.lid'))
         with self.assertRaises(ValueError):
             data_file.page_times()
+
+    def test_no_data_in_lid_file(self):
+        data_file = load_data_file(reference_file('No_Channels_Enabled.lid'))
+        with self.assertRaises(NoDataError):
+            data_file.page(0)
