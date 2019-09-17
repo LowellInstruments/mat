@@ -37,9 +37,15 @@ def data_product_factory(file_path, sensors, parameters):
         klass = special_cases[parameters['output_type']]
         data_products.append(klass(sensors, parameters, output_stream))
 
-    # no special cases, but were accel and mag enabled? If so bundle them
+    # Check if any sensors need bundling
     elif set(AccelMag.REQUIRED_SENSORS).issubset([s.name for s in sensors]):
         data_products.append(AccelMag(sensors, parameters, output_stream))
+
+    elif set(DissolvedOxygen.REQUIRED_SENSORS).issubset(
+            [s.name for s in sensors]):
+        data_products.append(DissolvedOxygen(sensors,
+                                             parameters,
+                                             output_stream))
 
     # Convert remaining sensors as discrete channels
     remaining_sensors = _remaining_sensors(sensors, data_products)
@@ -235,6 +241,33 @@ class Compass(DataProduct):
         self.output_stream.write(self.stream_name(),
                                  heading,
                                  converted[0].time)
+
+
+class DissolvedOxygen(DataProduct):
+    OUTPUT_TYPE = 'dissolved_oxygen'
+    REQUIRED_SENSORS = ['DissolvedOxygen',
+                        'DissolvedOxygenPercentage',
+                        'DissolvedOxygenTemperature']
+
+    def stream_name(self):
+        return 'DissolvedOxygen'
+
+    def data_format(self):
+        return self._join_spec_fields('format')
+
+    def column_header(self):
+        return self._join_spec_fields('header')
+
+    def process_page(self, data_page, page_time):
+        converted = self.convert_sensors(data_page, page_time)
+        data = vstack((converted[0].data,
+                       converted[1].data,
+                       converted[2].data))
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
+
+    def _join_spec_fields(self, field):
+        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
+        return ','.join(fields)
 
 
 class YawPitchRoll(DataProduct):
