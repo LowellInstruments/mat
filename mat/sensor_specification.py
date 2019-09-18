@@ -8,7 +8,7 @@ from mat.magnetometer_factory import magnetometer_factory
 from mat.light import Light
 from mat.pressure import Pressure
 from mat.temperature import Temperature
-from mat.dissolved_oxygen import DissolvedOxygen
+from mat.binary_coded_decimal import BinaryCodedDecimal
 
 
 SensorSpec = namedtuple('SensorSpec', [
@@ -101,7 +101,7 @@ AVAILABLE_SENSORS = [
                burst_count_tag=None,
                data_type='int16',
                header='Dissolved Oxygen (mg/l)',
-               converter=DissolvedOxygen,
+               converter=BinaryCodedDecimal,
                format='{:0.2f}',
                temp_dependant=False),
 
@@ -114,7 +114,7 @@ AVAILABLE_SENSORS = [
                burst_count_tag=None,
                data_type='int16',
                header='Dissolved Oxygen (%)',
-               converter=DissolvedOxygen,
+               converter=BinaryCodedDecimal,
                format='{:0.2f}',
                temp_dependant=False),
 
@@ -127,7 +127,7 @@ AVAILABLE_SENSORS = [
                burst_count_tag=None,
                data_type='int16',
                header='Temperature (C)',
-               converter=DissolvedOxygen,
+               converter=BinaryCodedDecimal,
                format='{:0.2f}',
                temp_dependant=False),
 ]
