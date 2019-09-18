@@ -106,7 +106,7 @@ class TestConverter(TestCase):
                           TempCompensatedMagnetometer)
         assert_array_almost_equal(converter.magnetometer(EXAMPLE_RAW_DATA,
                                                          EXAMPLE_TEMP_ARRAY),
-                                                         TCM_EXPECTATION)
+                                  TCM_EXPECTATION)
 
     def test_dissolved_oxygen(self):
         data = array([6400, 9847, 39321])
