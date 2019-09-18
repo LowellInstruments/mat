@@ -142,29 +142,6 @@ class DiscreteChannel(DataProduct):
                                  converted[0].time)
 
 
-class AccelMag(DataProduct):
-    OUTPUT_TYPE = 'accelmag'
-    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
-
-    def stream_name(self):
-        return 'AccelMag'
-
-    def data_format(self):
-        return self._join_spec_fields('format')
-
-    def column_header(self):
-        return self._join_spec_fields('header')
-
-    def process_page(self, data_page, page_time):
-        converted = self.convert_sensors(data_page, page_time)
-        data = vstack((converted[0].data, converted[1].data))
-        self.output_stream.write(self.stream_name(), data, converted[0].time)
-
-    def _join_spec_fields(self, field):
-        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
-        return ','.join(fields)
-
-
 class Current(DataProduct):
     OUTPUT_TYPE = 'current'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
@@ -243,33 +220,6 @@ class Compass(DataProduct):
                                  converted[0].time)
 
 
-class DissolvedOxygen(DataProduct):
-    OUTPUT_TYPE = 'dissolved_oxygen'
-    REQUIRED_SENSORS = ['DissolvedOxygen',
-                        'DissolvedOxygenPercentage',
-                        'DissolvedOxygenTemperature']
-
-    def stream_name(self):
-        return 'DissolvedOxygen'
-
-    def data_format(self):
-        return self._join_spec_fields('format')
-
-    def column_header(self):
-        return self._join_spec_fields('header')
-
-    def process_page(self, data_page, page_time):
-        converted = self.convert_sensors(data_page, page_time)
-        data = vstack((converted[0].data,
-                       converted[1].data,
-                       converted[2].data))
-        self.output_stream.write(self.stream_name(), data, converted[0].time)
-
-    def _join_spec_fields(self, field):
-        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
-        return ','.join(fields)
-
-
 class YawPitchRoll(DataProduct):
     OUTPUT_TYPE = 'ypr'
     REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
@@ -292,3 +242,42 @@ class YawPitchRoll(DataProduct):
         yaw = reshape(yaw, (1, -1))
         data = vstack((yaw, degrees(pitch), degrees(roll)))
         self.output_stream.write(self.stream_name(), data, converted[0].time)
+
+
+class CompoundProduct(DataProduct):
+    """
+    CompoundProducts present multiple sensors in the same output file.
+    """
+
+    def _join_spec_fields(self, field):
+        fields = [getattr(x.sensor_spec, field) for x in self.sensors]
+        return ','.join(fields)
+
+    def process_page(self, data_page, page_time):
+        converted = self.convert_sensors(data_page, page_time)
+        data = vstack(vstack([x.data for x in converted]))
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
+
+    def data_format(self):
+        return self._join_spec_fields('format')
+
+    def column_header(self):
+        return self._join_spec_fields('header')
+
+
+class DissolvedOxygen(CompoundProduct):
+    OUTPUT_TYPE = 'dissolved_oxygen'
+    REQUIRED_SENSORS = ['DissolvedOxygen',
+                        'DissolvedOxygenPercentage',
+                        'DissolvedOxygenTemperature']
+
+    def stream_name(self):
+        return 'DissolvedOxygen'
+
+
+class AccelMag(CompoundProduct):
+    OUTPUT_TYPE = 'accelmag'
+    REQUIRED_SENSORS = ['Accelerometer', 'Magnetometer']
+
+    def stream_name(self):
+        return 'AccelMag'
