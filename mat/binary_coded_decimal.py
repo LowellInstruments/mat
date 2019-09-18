@@ -5,8 +5,8 @@ from mat.meter import Meter
 class BinaryCodedDecimal(Meter):
     """
     Convert a two byte BCD of format xx.xx
-    The decimal is the first byte, the integer is the second byte
-    e.g. 0x2677 converts to 77.26
+    The integer is the first byte, the decimal is the second byte
+    e.g. 0x2677 converts to 26.77
     """
     def __init__(self, hs=None):
         self._convert_fcn = np.vectorize(self._dec_to_bcd)
