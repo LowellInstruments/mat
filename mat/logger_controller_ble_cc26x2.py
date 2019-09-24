@@ -15,10 +15,11 @@ class LoggerControllerBLECC26X2(LoggerControllerBLE):
     def open_after(self):
         # set_mtu() needs some time (bluepy issue 325)
         self.peripheral.setMTU(self.MTU_SIZE)
-        time.sleep(1)
+        # time.sleep(1)
+        # time.sleep(0.5)
 
         # extra sleep to receive connection update request from cc26x2
-        time.sleep(1)
+        # time.sleep(1)
 
         # this is where we write to when talking to cc26x2 loggers
         self.cha = self.svc.getCharacteristics(self.UUID_W)[0]

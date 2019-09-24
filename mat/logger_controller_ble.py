@@ -41,12 +41,11 @@ class LoggerControllerBLE(LoggerController):
         self.delegate = Delegate()
         self.svc = None
         self.cha = None
-        time.sleep(1)
 
     def open(self):
         try:
             self.peripheral = ble.Peripheral(self.address)
-            time.sleep(1)
+            time.sleep(0.1)
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
