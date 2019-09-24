@@ -1,5 +1,4 @@
 import json
-import time
 from mat.logger_controller_ble import (
     LoggerControllerBLE
 )
