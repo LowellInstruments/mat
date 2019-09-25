@@ -90,6 +90,8 @@ class SensorDataFile(ABC):
         return self._file
 
     def sensors(self):
+        if self.data_bytes() == 0:
+            raise NoDataError('There is no data in the file')
         return create_sensors(self.header(),
                               self.calibration(),
                               self.seconds_per_page())
@@ -103,6 +105,9 @@ class SensorDataFile(ABC):
         self.file().seek(file_pos)
         return self._file_size
 
+    def data_bytes(self):
+        return self.file_size() - self.data_start - self.mini_header_length()
+
     def _partial_page_seconds(self):
         # create a temporary set of sensors and tell them the page is equal
         # to the major interval. Then query each sensor to get the total
@@ -114,9 +119,7 @@ class SensorDataFile(ABC):
                                  maj_interval)
 
         n_samples_per_interval = self._count_samples(sensors)
-        remaining_bytes = (self.file_size()
-                           - self.data_start
-                           - self.mini_header_length())
+        remaining_bytes = (self.data_bytes())
         samples = floor(remaining_bytes/2)
         n_intervals = floor(samples / n_samples_per_interval)
         return n_intervals * maj_interval
@@ -136,3 +139,7 @@ class SensorDataFile(ABC):
     def __del__(self):
         if self._file:
             self.close()
+
+
+class NoDataError(Exception):
+    pass
