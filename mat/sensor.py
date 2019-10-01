@@ -58,8 +58,9 @@ def _time_and_order(sensors):
 
 def _load_sequence_into_sensors(sensors, time_and_order):
     for sensor in sensors:
-        is_sample = [s[1] == sensor.order for s in time_and_order]
-        sensor.is_sample = np.array(is_sample)
+        sample_ind = [i for i, s in enumerate(time_and_order)
+                      if s[1] == sensor.order]
+        sensor.sample_ind = np.array(sample_ind)
 
 
 def _add_temperature_dependency(sensors):
@@ -72,14 +73,11 @@ def _add_temperature_dependency(sensors):
             sensor.temperature = sensors[temp_index]
 
 
-def major_interval_bytes(header_dict):
+def major_interval_info(header):
     """
     This is a helper function that will determine the number of bytes in
     a major interval.
     """
-    header = Header({})
-    header._header = header_dict
-
     orient_interval = 0
     temperature_interval = 0
     if header.tag(IS_ACCELEROMETER) or header.tag(IS_MAGNETOMETER):
@@ -89,10 +87,10 @@ def major_interval_bytes(header_dict):
     major_interval = max(orient_interval, temperature_interval)
 
     sensors = create_sensors(header, None, major_interval)
-    bytes = 0
+    n_bytes = 0
     for s in sensors:
-        bytes += s.samples_per_page() * 2
-    return bytes
+        n_bytes += s.samples_per_page() * 2
+    return major_interval, n_bytes
 
 
 class Sensor:
@@ -104,7 +102,7 @@ class Sensor:
         self.burst_rate = header.tag(sensor_spec.burst_rate_tag) or 1
         self.burst_count = header.tag(sensor_spec.burst_count_tag) or 1
         self.data_type = sensor_spec.data_type
-        self.is_sample = None
+        self.sample_ind = None
         self.seconds = seconds
         self.order = sensor_spec.order
         self.cache = {'page_time': None, 'data': None}
@@ -128,8 +126,9 @@ class Sensor:
         """
         Return raw data and time as a tuple
         """
-        index = self.is_sample[:len(data_page)]
-        sensor_data = self._remove_partial_burst(data_page[index])
+        index = np.searchsorted(self.sample_ind, len(data_page))
+        sample_ind = self.sample_ind[:index]
+        sensor_data = self._remove_partial_burst(data_page[sample_ind])
         sensor_data = self._reshape_to_n_channels(sensor_data)
         sensor_data = sensor_data.astype(self.data_type)
         n_samples = sensor_data.shape[1]
@@ -163,7 +162,7 @@ class Sensor:
         return np.reshape(data, (self.channels, -1), order='F')
 
     def samples_per_page(self):
-        return np.sum(self.is_sample)
+        return len(self.sample_ind)
 
     def convert(self, data_page, average, page_time):
         if self.cache['page_time'] == page_time:
