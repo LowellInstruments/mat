@@ -1,11 +1,9 @@
+from abc import abstractmethod
 import bluepy.btle as ble
 import datetime
 import time
 from mat.logger_controller import LoggerController
 from mat.xmodem_ble import xmodem_get_file, XModemException
-
-
-# temp
 
 
 class Delegate(ble.DefaultDelegate):
@@ -43,11 +41,11 @@ class LoggerControllerBLE(LoggerController):
         self.delegate = Delegate()
         self.svc = None
         self.cha = None
-        time.sleep(1)
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address, addrType='public')
+            self.peripheral = ble.Peripheral(self.address)
+            time.sleep(0.1)
             self.peripheral.setDelegate(self.delegate)
             self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
             self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
@@ -68,6 +66,10 @@ class LoggerControllerBLE(LoggerController):
             return True
         except AttributeError:
             return False
+
+    @abstractmethod
+    def ble_write(self, data, response=False):  # pragma: no cover
+        pass  # pragma: no cover
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
@@ -146,7 +148,7 @@ class LoggerControllerBLE(LoggerController):
         return file_dl
 
     def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
-        if answer_get[0] == b'GET':
+        if answer_get is not None and answer_get[0] == b'GET':
             self.delegate.set_file_mode(True)
             result, bytes_received = xmodem_get_file(self)
             if result:
@@ -157,7 +159,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
-    # wrapper function for DIR command
+    # wrapper function for DIR command to list lid files
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
@@ -165,10 +167,27 @@ class LoggerControllerBLE(LoggerController):
         index = 0
         while index < len(answer_dir):
             name = answer_dir[index]
-            if type(name) is bytes and name.endswith(b'lid'):
+            if name.endswith(b'lid'):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
+        return files
+
+    def list_all_files_but_lid(self):
+        self.delegate.clear_delegate_buffer()
+        answer_dir = self.command('DIR 00')
+        files = dict()
+        index = 0
+        while index < len(answer_dir):
+            name = answer_dir[index]
+            if name.endswith(b'lid'):
+                index += 2
+                continue
+            if name == b'\04':
+                index += 1
+                continue
+            files[name.decode()] = int(answer_dir[index + 1])
+            index += 2
         return files
 
     def know_mtu(self):
