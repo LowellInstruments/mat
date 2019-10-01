@@ -80,10 +80,10 @@ def major_interval_info(header):
     """
     orient_interval = 0
     temperature_interval = 0
-    if header.tag(IS_ACCELEROMETER) or header.tag(IS_MAGNETOMETER):
-        orient_interval = header.tag(ORIENTATION_INTERVAL)
-    if header.tag(IS_TEMPERATURE):
-        temperature_interval = header.tag(TEMPERATURE_INTERVAL)
+    # if header.tag(IS_ACCELEROMETER) or header.tag(IS_MAGNETOMETER):
+    orient_interval = header.tag(ORIENTATION_INTERVAL)
+    # if header.tag(IS_TEMPERATURE):
+    temperature_interval = header.tag(TEMPERATURE_INTERVAL)
     major_interval = max(orient_interval, temperature_interval)
 
     sensors = create_sensors(header, None, major_interval)
