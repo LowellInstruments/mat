@@ -78,14 +78,7 @@ def major_interval_info(header):
     This is a helper function that will determine the number of bytes in
     a major interval.
     """
-    orient_interval = 0
-    temperature_interval = 0
-    # if header.tag(IS_ACCELEROMETER) or header.tag(IS_MAGNETOMETER):
-    orient_interval = header.tag(ORIENTATION_INTERVAL)
-    # if header.tag(IS_TEMPERATURE):
-    temperature_interval = header.tag(TEMPERATURE_INTERVAL)
-    major_interval = max(orient_interval, temperature_interval)
-
+    major_interval = header.major_interval()
     sensors = create_sensors(header, None, major_interval)
     n_bytes = 0
     for s in sensors:

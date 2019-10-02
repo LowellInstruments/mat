@@ -1,9 +1,10 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 
+import re
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-import re
 from mat.calibration_factories import calibration_from_string
 from mat.converter import Converter
 from mat.logger_info_parser import LoggerInfoParser
@@ -107,6 +108,7 @@ class LoggerController(ABC):
                 in_str += this_read
             else:
                 break
+            time.sleep(0.05)
         return in_str
 
     def get_logger_settings(self):
@@ -130,7 +132,6 @@ class LoggerController(ABC):
                 'PRR': int(gls_string[24:26], 16),
                 'PRN': four_byte_int(gls_string[26:30]),
             })
-
         return logger_settings
 
     def stop_with_string(self, data):
