@@ -3,14 +3,6 @@ import numpy as np
 from math import floor
 from heapq import merge
 from itertools import chain
-from mat.header import (
-    Header,
-    ORIENTATION_INTERVAL,
-    TEMPERATURE_INTERVAL,
-    IS_ACCELEROMETER,
-    IS_MAGNETOMETER,
-    IS_TEMPERATURE
-)
 
 
 def create_sensors(header, calibration, seconds):

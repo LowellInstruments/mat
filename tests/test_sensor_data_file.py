@@ -49,9 +49,8 @@ class TestSensorDataFile(TestCase):
 
     def test_mhs_wrong_place(self):
         with self.assertRaises(ValueError):
-            data_file = load_data_file(reference_file('mhs_wrong_place.lid'))
+            load_data_file(reference_file('mhs_wrong_place.lid'))
 
     def test_no_data_in_lid_file(self):
         with self.assertRaises(NoDataError):
-            data_file = load_data_file(
-                reference_file('No_Channels_Enabled.lid'))
+            load_data_file(reference_file('No_Channels_Enabled.lid'))
