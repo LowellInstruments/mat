@@ -257,7 +257,7 @@ class CompoundProduct(DataProduct):
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
         shortest = min([size(x.data) for x in converted])
-        data = vstack([x.data[0, :shortest] for x in converted])
+        data = vstack([x.data[:, :shortest] for x in converted])
         self.output_stream.write(self.stream_name(),
                                  data,
                                  converted[0].time[:shortest])
