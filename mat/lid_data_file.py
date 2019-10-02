@@ -5,26 +5,37 @@ from datetime import datetime
 import numpy as np
 
 
-PAGE_SIZE = 1024**2
-
-
 class LidDataFile(SensorDataFile):
+    PAGE_SIZE = 1024 ** 2
+
     @property
     def data_start(self):
         return self.header().tag('DFS') or 32768
 
     def n_pages(self):
-        return ceil((self.file_size() - self.data_start) / PAGE_SIZE)
+        if self._n_pages is not None:
+            return self._n_pages
+        ideal_n = ceil((self.file_size() - self.data_start) / self.PAGE_SIZE)
+        successful_reads = 0
+        try:
+            for n in range(ideal_n):
+                self._read_mini_header(n)
+                successful_reads += 1
+        except ValueError:
+            self.header_error = (successful_reads, ideal_n)
+        self._n_pages = successful_reads
+        return self._n_pages
 
     def _load_page(self, i):
         if i >= self.n_pages():
             raise ValueError('page {} exceeds number of pages'.format(i))
 
-        ind = (self.data_start + (i * PAGE_SIZE) + self.mini_header_length())
+        ind = (self.data_start
+               + (i * self.PAGE_SIZE) + self.mini_header_length())
         self._file.seek(ind)
         return np.fromfile(self.file(),
                            dtype='<i2',
-                           count=self.samples_per_page())
+                           count=(self.PAGE_SIZE-self.mini_header_length())//2)
 
     def page_times(self):
         if self._page_times:
@@ -46,11 +57,13 @@ class LidDataFile(SensorDataFile):
 
     def _read_mini_header(self, page):
         file_position = self.file().tell()
-        self.file().seek(self.data_start + PAGE_SIZE * page)
+        self.file().seek(self.data_start + self.PAGE_SIZE * page)
         header_string = self.file().read(self.mini_header_length())
-        header_string = header_string.decode('IBM437')
-        header_string = header_string[5:-5]  # remove HDE\r\n and HDS\r\n
         self.file().seek(file_position)
+        header_string = header_string.decode('IBM437')
+        if not header_string.startswith('MHS'):
+            raise ValueError('MHS tag missing from mini-header')
+        header_string = header_string[5:-5]  # remove HDE\r\n and HDS\r\n
         return header_string
 
     def mini_header_length(self):

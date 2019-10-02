@@ -15,7 +15,8 @@ from numpy import (
     reshape,
     sin,
     sqrt,
-    vstack
+    vstack,
+    size
 )
 
 
@@ -255,8 +256,11 @@ class CompoundProduct(DataProduct):
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
-        data = vstack(vstack([x.data for x in converted]))
-        self.output_stream.write(self.stream_name(), data, converted[0].time)
+        shortest = min([size(x.data) for x in converted])
+        data = vstack([x.data[:, :shortest] for x in converted])
+        self.output_stream.write(self.stream_name(),
+                                 data,
+                                 converted[0].time[:shortest])
 
     def data_format(self):
         return self._join_spec_fields('format')
