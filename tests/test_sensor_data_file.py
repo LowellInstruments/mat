@@ -20,10 +20,6 @@ class TestSensorDataFile(TestCase):
         data_file = load_data_file(reference_file('test.lid'))
         assert data_file.n_pages() == 1
 
-    def test_sensors(self):
-        data_file = load_data_file(reference_file('test.lid'))
-        data_file.sensors()
-
     def test_load_page_twice(self):
         data_file = load_data_file(reference_file('test.lid'))
         data_file.page(0)
@@ -52,11 +48,9 @@ class TestSensorDataFile(TestCase):
             data_file.page(3)
 
     def test_mhs_wrong_place(self):
-        data_file = load_data_file(reference_file('mhs_wrong_place.lid'))
         with self.assertRaises(ValueError):
-            data_file.page_times()
+            load_data_file(reference_file('mhs_wrong_place.lid'))
 
     def test_no_data_in_lid_file(self):
-        data_file = load_data_file(reference_file('No_Channels_Enabled.lid'))
         with self.assertRaises(NoDataError):
-            data_file.page(0)
+            load_data_file(reference_file('No_Channels_Enabled.lid'))

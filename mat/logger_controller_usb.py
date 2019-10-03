@@ -73,7 +73,7 @@ class LoggerControllerUSB(LoggerController):
             return
         while True:
             cmd = LoggerCmd(self.__port)
-            if cmd.tag == expected_tag or cmd.tag == 'ERR':
+            if cmd.tag == expected_tag or cmd.tag in ['ERR', 'INV']:
                 self.callback('rx', cmd.cmd_str())
                 return cmd.result()
 
