@@ -1,23 +1,11 @@
+import numpy as np
 from mat.output_stream import output_stream_factory
 from abc import ABC, abstractmethod
 from mat.utils import roll_pitch_yaw, apply_declination
 from collections import namedtuple
-from numpy import (
-    arccos,
-    arctan2,
-    array,
-    cos,
-    deg2rad,
-    degrees,
-    dot,
-    mod,
-    pi,
-    reshape,
-    sin,
-    sqrt,
-    vstack,
-    size
-)
+
+
+# TODO does OUTPUT_TYPE get used anywhere?
 
 
 SensorDataTime = namedtuple('SensorDataTime', ['data', 'time'])
@@ -29,7 +17,8 @@ def data_product_factory(file_path, sensors, parameters):
     """
     special_cases = {'compass': Compass,
                      'current': Current,
-                     'ypr': YawPitchRoll}
+                     'ypr': YawPitchRoll,
+                     'cable': Cable}
     data_products = []
     output_stream = output_stream_factory(file_path, parameters)
 
@@ -165,16 +154,16 @@ class Current(DataProduct):
 
     def _calc_tilt_and_heading(self, accel, mag):
         roll, pitch, yaw = roll_pitch_yaw(accel, mag)
-        x = -cos(roll) * sin(pitch)
-        y = sin(roll)
+        x = -np.cos(roll) * np.sin(pitch)
+        y = np.sin(roll)
 
-        tilt = arccos(
-            accel[2] / sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
-        is_usd = tilt > pi / 2
-        tilt[is_usd] = pi - tilt[is_usd]
+        tilt = np.arccos(
+            accel[2] / np.sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
+        is_usd = tilt > np.pi / 2
+        tilt[is_usd] = np.pi - tilt[is_usd]
 
-        heading = arctan2(y, x) + yaw
-        heading = mod(heading + deg2rad(self.declination), 2 * pi)
+        heading = np.arctan2(y, x) + yaw
+        heading = np.mod(heading + np.deg2rad(self.declination), 2 * np.pi)
         return tilt, heading
 
     def process_page(self, data_page, page_time):
@@ -182,12 +171,12 @@ class Current(DataProduct):
         accel = converted[0].data
         mag = converted[1].data
         tilt, heading = self._calc_tilt_and_heading(accel, mag)
-        speed = self.tilt_curve.speed_from_tilt(degrees(tilt))
+        speed = self.tilt_curve.speed_from_tilt(np.degrees(tilt))
 
-        velocity_n = speed * cos(heading)
-        velocity_e = speed * sin(heading)
+        velocity_n = speed * np.cos(heading)
+        velocity_e = speed * np.sin(heading)
 
-        data = vstack((speed, degrees(heading), velocity_n, velocity_e))
+        data = np.vstack((speed, np.degrees(heading), velocity_n, velocity_e))
 
         self.output_stream.write(self.stream_name(), data, converted[0].time)
 
@@ -209,13 +198,13 @@ class Compass(DataProduct):
         converted = self.convert_sensors(data_page, page_time)
         accel = converted[0].data
         mag = converted[1].data
-        m = array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
-        accel = dot(m, accel)
-        mag = dot(m, mag)
+        m = np.array([[0, 0, 1], [0, -1, 0], [1, 0, 0]])
+        accel = np.dot(m, accel)
+        mag = np.dot(m, mag)
         roll, pitch, heading = roll_pitch_yaw(accel, mag)
-        heading = apply_declination(degrees(heading), self.declination)
-        heading = mod(heading, 360)
-        heading = reshape(heading, (1, -1))
+        heading = apply_declination(np.degrees(heading), self.declination)
+        heading = np.mod(heading, 360)
+        heading = np.reshape(heading, (1, -1))
         self.output_stream.write(self.stream_name(),
                                  heading,
                                  converted[0].time)
@@ -239,9 +228,34 @@ class YawPitchRoll(DataProduct):
         accel = converted[0].data
         mag = converted[1].data
         roll, pitch, yaw = roll_pitch_yaw(accel, mag)
-        yaw = apply_declination(degrees(yaw), self.declination)
-        yaw = reshape(yaw, (1, -1))
-        data = vstack((yaw, degrees(pitch), degrees(roll)))
+        yaw = apply_declination(np.degrees(yaw), self.declination)
+        yaw = np.reshape(yaw, (1, -1))
+        data = np.vstack((yaw, np.degrees(pitch), np.degrees(roll)))
+        self.output_stream.write(self.stream_name(), data, converted[0].time)
+
+
+class Cable(DataProduct):
+    OUTPUT_TYPE = 'cable'
+    REQUIRED_SENSORS = ['Accelerometer']
+
+    def stream_name(self):
+        return 'CableAttitude'
+
+    def data_format(self):
+        return '{:0.2f},{:0.2f}'
+
+    def column_header(self):
+        return 'Rotation From Level (degrees),Axial Rotation (degrees)'
+
+    def process_page(self, data_page, page_time):
+        converted = self.convert_sensors(data_page, page_time)
+        accel = converted[0].data
+        axial = np.arctan2(-accel[0, :], accel[1, :])
+        pitch = np.arctan2(
+            accel[2, :],
+            -(accel[0, :] * np.sin(axial) - accel[1, :] * np.cos(axial))
+        )
+        data = np.vstack((np.degrees(pitch), np.degrees(axial)))
         self.output_stream.write(self.stream_name(), data, converted[0].time)
 
 
@@ -256,8 +270,8 @@ class CompoundProduct(DataProduct):
 
     def process_page(self, data_page, page_time):
         converted = self.convert_sensors(data_page, page_time)
-        shortest = min([size(x.data) for x in converted])
-        data = vstack([x.data[:, :shortest] for x in converted])
+        shortest = min([np.size(x.data) for x in converted])
+        data = np.vstack([x.data[:, :shortest] for x in converted])
         self.output_stream.write(self.stream_name(),
                                  data,
                                  converted[0].time[:shortest])
