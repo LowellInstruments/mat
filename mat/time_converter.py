@@ -1,6 +1,8 @@
-from datetime import datetime
 from abc import ABC, abstractmethod
-from numpy import vectorize
+import numpy as np
+
+
+EPOCH = np.datetime64('1970-01-01T00:00:00.000')
 
 
 def create_time_converter(time_format):
@@ -12,49 +14,42 @@ def create_time_converter(time_format):
 
 
 class TimeConverter(ABC):
-    def __init__(self):
-        self.converter = vectorize(lambda t: self._process(t))
-
     @abstractmethod
     def header_str(self):
         pass  # pragma: no cover
 
     @abstractmethod
-    def _process(self, posix_time):
-        pass  # pragma: no cover
-
-    def _format_time(self, posix_time, time_format):
-        time = datetime.utcfromtimestamp(float(posix_time))
-        return time.strftime(time_format)
-
-    def convert(self, posix_time):
-        return self.converter(posix_time)
+    def convert(self, time):
+        pass
 
 
 class Iso8601(TimeConverter):
     def header_str(self):
         return 'ISO 8601 Time'
 
-    def _process(self, posix_time):
-        column_header = self._format_time(posix_time, '%Y-%m-%dT%H:%M:%S.%f')
-        return column_header[:-3]
+    def convert(self, time):
+        time_objects = EPOCH + (time * 1000).astype('timedelta64[ms]')
+        time_strings = np.datetime_as_string(time_objects)
+        return time_strings
 
 
-class Legacy(TimeConverter):
+class Legacy(Iso8601):
     def header_str(self):
         return 'Date,Time'
 
-    def _process(self, posix_time):
-        column_header = self._format_time(posix_time, '%Y-%m-%d,%H:%M:%S.%f')
-        return column_header[:-3]
+    def convert(self, time):
+        time_strings = super().convert(time)
+        # replace the "T" with a ","
+        time_strings[..., None].view('U1')[..., 10] = ','
+        return time_strings
 
 
 class Posix(TimeConverter):
     def header_str(self):
         return 'POSIX Time'
 
-    def _process(self, posix_time):
-        return '{:.3f}'.format(float(posix_time))
+    def convert(self, time):
+        return ['{:0.3f}'.format(x) for x in time]
 
 
 class Elapsed:
@@ -62,17 +57,12 @@ class Elapsed:
     Doesn't inherit from TimeConverter but has same interface
     """
     def __init__(self):
-        self.converter = None
         self.start_time = None
 
     def header_str(self):
         return 'Elapsed Seconds'
 
-    def _process(self, posix_time):
-        return '{:.3f}'.format(float(posix_time) - self.start_time)
-
-    def convert(self, posix_time):
-        if self.converter is None:
-            self.start_time = float(posix_time[0])
-            self.converter = vectorize(lambda t: self._process(t))
-        return self.converter(posix_time)
+    def convert(self, time):
+        if self.start_time is None:
+            self.start_time = time[0]
+        return ['{:0.3f}'.format(x-self.start_time) for x in time]
