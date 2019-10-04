@@ -53,52 +53,61 @@ class HDF5Stream(OutputStream):
 
     def __init__(self, file_path, parameters):
         super().__init__(file_path, parameters)
-        self.time_converter = create_time_converter('iso8601')
         if HDF5Stream.hdf_file:
             return
         path = Path(file_path)
         hdf_path = (path.parent / path.stem).with_suffix('.hdf5')
         if hdf_path.exists() and not self.overwrite:
             raise FileExistsError(str(path.name))
-        HDF5Stream.hdf_file = h5py.File(hdf_path, 'w')
+        HDF5Stream.hdf_file = str(hdf_path)
+        h5py.File(hdf_path, 'w').close()
 
     def file(self):
-        return HDF5Stream.hdf_file
+        return h5py.File(HDF5Stream.hdf_file, 'r+')
 
     def add_stream(self, data_product):
-        self.streams[data_product] = self.file().create_group(data_product)
+        with self.file() as file:
+            file.create_group(data_product)
 
     def set_column_header(self, stream, column_header):
-        self.streams[stream].create_dataset(
-            'Time', (0, ),
-            maxshape=(None, ),
-            dtype='S23',
-            compression='gzip',
-            shuffle=True
-        )
-        self.streams[stream]['Time'].attrs['Columns'] = 'ISO 8601 Time'
+        with self.file() as file:
+            file[stream].create_dataset(
+                'Time',
+                (0, ),
+                maxshape=(None, ),
+                dtype='S23',
+                compression='gzip',
+                shuffle=True
+            )
+            file[stream]['Time'].attrs['Columns'] = \
+                self.time_converter.header_str()
 
-        channels = column_header.split(',')
-        self.streams[stream].create_dataset(
-            'Data',
-            (0, len(channels)),
-            maxshape=(None, len(channels)),
-            compression='gzip',
-            shuffle=True
-        )
-        self.streams[stream]['Data'].attrs['Columns'] = column_header
+            channels = column_header.split(',')
+            file[stream].create_dataset(
+                'Data',
+                (0, len(channels)),
+                maxshape=(None, len(channels)),
+                compression='gzip',
+                shuffle=True
+            )
+            file[stream]['Data'].attrs['Columns'] = column_header
 
     def write(self, stream, data, time):
-        ds_data = self.streams[stream]['Data']
-        ds_time = self.streams[stream]['Time']
+        with self.file() as file:
+            ds_data = file[stream]['Data']
+            ds_time = file[stream]['Time']
 
-        ds_shape = ds_data.shape
-        new_length = ds_shape[0] + data.shape[1]
+            ds_shape = ds_data.shape
+            new_length = ds_shape[0] + data.shape[1]
 
-        ds_data.resize((new_length, ds_shape[1]))
-        ds_time.resize((new_length, ))
-        ds_data[ds_shape[0]:, :] = data.T
-        ds_time[ds_shape[0]:] = np.string_(self.time_converter.convert(time))
+            ds_data.resize((new_length, ds_shape[1]))
+            ds_time.resize((new_length, ))
+            ds_data[ds_shape[0]:, :] = data.T
+            ds_time[ds_shape[0]:] = np.string_(self.time_converter.convert(time))
+
+    def set_data_format(self, stream, data_format):
+        # not required in hdf5
+        pass
 
 
 class CsvFile:
