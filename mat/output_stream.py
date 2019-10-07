@@ -2,7 +2,7 @@ from os import path
 from .time_converter import create_time_converter
 from pathlib import Path
 import h5py
-import numpy as np
+from datetime import datetime
 
 
 def output_stream_factory(file_path, parameters):
@@ -49,38 +49,38 @@ class CsvStream(OutputStream):
 
 
 class HDF5Stream(OutputStream):
-    hdf_file = None
-
     def __init__(self, file_path, parameters):
         super().__init__(file_path, parameters)
-        if HDF5Stream.hdf_file:
-            return
         path = Path(file_path)
         hdf_path = (path.parent / path.stem).with_suffix('.hdf5')
         if hdf_path.exists() and not self.overwrite:
             raise FileExistsError(str(path.name))
-        HDF5Stream.hdf_file = str(hdf_path)
-        h5py.File(hdf_path, 'w').close()
+        self.hdf_file = str(hdf_path)
+        file = h5py.File(hdf_path, 'w')
+        file.attrs['Source File'] = path.name
+        file.attrs['Conversion Date'] = datetime.now().isoformat()[:-7]
+        file.close()
 
     def file(self):
-        return h5py.File(HDF5Stream.hdf_file, 'r+')
+        return h5py.File(self.hdf_file, 'r+')
 
     def add_stream(self, data_product):
-        with self.file() as file:
+        with h5py.File(self.hdf_file, 'r+') as file:
             file.create_group(data_product)
 
     def set_column_header(self, stream, column_header):
-        with self.file() as file:
+        with h5py.File(self.hdf_file, 'r+') as file:
             file[stream].create_dataset(
                 'Time',
                 (0, ),
                 maxshape=(None, ),
-                dtype='S23',
+                dtype='float64',
+                # dtype='S23',
                 compression='gzip',
                 shuffle=True
             )
-            file[stream]['Time'].attrs['Columns'] = \
-                self.time_converter.header_str()
+            file[stream]['Time'].attrs['Time format'] = \
+                'Seconds since 1970-01-01T00:00:00'
 
             channels = column_header.split(',')
             file[stream].create_dataset(
@@ -93,7 +93,7 @@ class HDF5Stream(OutputStream):
             file[stream]['Data'].attrs['Columns'] = column_header
 
     def write(self, stream, data, time):
-        with self.file() as file:
+        with h5py.File(self.hdf_file, 'r+') as file:
             ds_data = file[stream]['Data']
             ds_time = file[stream]['Time']
 
@@ -103,7 +103,9 @@ class HDF5Stream(OutputStream):
             ds_data.resize((new_length, ds_shape[1]))
             ds_time.resize((new_length, ))
             ds_data[ds_shape[0]:, :] = data.T
-            ds_time[ds_shape[0]:] = np.string_(self.time_converter.convert(time))
+            # ds_time[ds_shape[0]:] = \
+            #     np.string_(self.time_converter.convert(time))
+            ds_time[ds_shape[0]:] = time
 
     def set_data_format(self, stream, data_format):
         # not required in hdf5
