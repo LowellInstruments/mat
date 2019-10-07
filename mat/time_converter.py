@@ -52,10 +52,7 @@ class Posix(TimeConverter):
         return ['{:0.3f}'.format(x) for x in time]
 
 
-class Elapsed:
-    """
-    Doesn't inherit from TimeConverter but has same interface
-    """
+class Elapsed(TimeConverter):
     def __init__(self):
         self.start_time = None
 
