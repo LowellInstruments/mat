@@ -49,20 +49,23 @@ class HDF5Stream(OutputStream):
 
     def file(self):
         if not self.hdf_file:
-            file_path = Path(self.file_path)
-            if self.parameters['output_directory']:
-                parent = Path(self.parameters['output_directory'])
-            else:
-                parent = file_path.parent
-            hdf_path = (parent / file_path.stem).with_suffix('.hdf5')
-            if hdf_path.exists() and not self.parameters['overwrite']:
-                raise FileExistsError(str(file_path.name))
-            self.hdf_file = str(hdf_path)
-            file = h5py.File(hdf_path, 'w')
-            file.attrs['Source File'] = file_path.name
-            file.attrs['Conversion Date'] = datetime.now().isoformat()[:-7]
-            file.close()
+            self.create_hdf_file()
         return h5py.File(self.hdf_file, 'r+')
+
+    def create_hdf_file(self):
+        file_path = Path(self.file_path)
+        if self.parameters['output_directory']:
+            parent = Path(self.parameters['output_directory'])
+        else:
+            parent = file_path.parent
+        hdf_path = (parent / file_path.stem).with_suffix('.hdf5')
+        if hdf_path.exists() and not self.parameters['overwrite']:
+            raise FileExistsError(str(file_path.name))
+        file = h5py.File(hdf_path, 'w')
+        file.attrs['Source File'] = file_path.name
+        file.attrs['Conversion Date'] = datetime.now().isoformat()[:-7]
+        file.close()
+        self.hdf_file = hdf_path
 
     def add_stream(self, data_product):
         with self.file() as file:
