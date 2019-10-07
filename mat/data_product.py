@@ -61,7 +61,6 @@ class DataProduct(ABC):
         self.output_stream = output_stream
         self.average = parameters['average']
         self.split = parameters['split']
-        self.overwrite = True
         self.declination = self.parameters['declination']
         self.configure_output_stream()
 
@@ -76,7 +75,6 @@ class DataProduct(ABC):
         self.output_stream.add_stream(name)
         self.output_stream.set_data_format(name, self.data_format())
         self.output_stream.set_column_header(name, self.column_header())
-        self.output_stream.set_overwrite(self.overwrite)
 
     def convert_sensors(self, data_page, page_time):
         converted = []
@@ -84,10 +82,6 @@ class DataProduct(ABC):
             data, time = sensor.convert(data_page, self.average, page_time)
             converted.append(SensorDataTime(data, time))
         return converted
-
-    def set_overwrite(self, state):
-        self.overwrite = state
-        self.output_stream.set_overwrite(self.overwrite)
 
     @abstractmethod
     def stream_name(self):

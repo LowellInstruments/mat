@@ -1,9 +1,12 @@
 from os import path
 from .time_converter import create_time_converter
+from pathlib import Path
+import h5py
+from datetime import datetime
 
 
 def output_stream_factory(file_path, parameters):
-    output_types = {'csv': CsvStream}
+    output_types = {'csv': CsvStream, 'hdf5': HDF5Stream}
     stream_class = output_types.get(parameters['output_format'])
     if stream_class is None:
         raise ValueError('Unknown output type' + parameters['output_format'])
@@ -16,7 +19,6 @@ class OutputStream:
         self.parameters = parameters
         self.streams = {}
         self.time_converter = create_time_converter(parameters['time_format'])
-        self.overwrite = True
 
     def add_stream(self, data_product):
         pass  # pragma: no cover
@@ -32,22 +34,87 @@ class OutputStream:
         time = self.time_converter.convert(time)
         self.streams[stream].write(data, time)
 
-    def set_overwrite(self, state):
-        self.overwrite = state
-        for name in self.streams:
-            self.streams[name].overwrite = state
-
 
 class CsvStream(OutputStream):
     def add_stream(self, data_product):
-        self.streams[data_product] = CsvFile(self.file_path,
-                                             data_product,
-                                             self.parameters)
+        self.streams[data_product] = CsvFile(
+            self.file_path, data_product, self.parameters
+        )
+
+
+class HDF5Stream(OutputStream):
+    def __init__(self, file_path, parameters):
+        super().__init__(file_path, parameters)
+        self.hdf_file = None
+
+    def file(self):
+        if not self.hdf_file:
+            self.create_hdf_file()
+        return h5py.File(self.hdf_file, 'r+')
+
+    def create_hdf_file(self):
+        file_path = Path(self.file_path)
+        if self.parameters['output_directory']:
+            parent = Path(self.parameters['output_directory'])
+        else:
+            parent = file_path.parent
+        hdf_path = (parent / file_path.stem).with_suffix('.hdf5')
+        if hdf_path.exists() and not self.parameters['overwrite']:
+            raise FileExistsError(str(file_path.name))
+        with h5py.File(hdf_path, 'w') as file:
+            file.attrs['Source File'] = file_path.name
+            file.attrs['Conversion Date'] = datetime.now().isoformat()[:-7]
+        self.hdf_file = hdf_path
+
+    def add_stream(self, data_product):
+        with self.file() as file:
+            file.create_group(data_product)
+
+    def set_column_header(self, stream, column_header):
+        with self.file() as file:
+            file[stream].create_dataset(
+                'Time',
+                (0, ),
+                maxshape=(None, ),
+                dtype='float64',
+                # dtype='S23',
+                compression='gzip',
+                shuffle=True
+            )
+            file[stream]['Time'].attrs['Time format'] = \
+                'Seconds since 1970-01-01T00:00:00'
+
+            channels = column_header.split(',')
+            file[stream].create_dataset(
+                'Data',
+                (0, len(channels)),
+                maxshape=(None, len(channels)),
+                compression='gzip',
+                shuffle=True
+            )
+            file[stream]['Data'].attrs['Columns'] = column_header
+
+    def write(self, stream, data, time):
+        with self.file() as file:
+            ds_data = file[stream]['Data']
+            ds_time = file[stream]['Time']
+
+            ds_shape = ds_data.shape
+            new_length = ds_shape[0] + data.shape[1]
+
+            ds_data.resize((new_length, ds_shape[1]))
+            ds_time.resize((new_length, ))
+            ds_data[ds_shape[0]:, :] = data.T
+            # ds_time[ds_shape[0]:] = \
+            #     np.string_(self.time_converter.convert(time))
+            ds_time[ds_shape[0]:] = time
+
+    def set_data_format(self, stream, data_format):
+        # not required in hdf5
+        pass
 
 
 class CsvFile:
-    EXTENSION = '.csv'
-
     def __init__(self, file_path, stream_name, parameters):
         self.file_path = file_path
         self.stream_name = stream_name
@@ -58,7 +125,6 @@ class CsvFile:
         self.write_count = 0
         self.output_file_name = ''
         self.output_path = ''
-        self.overwrite = True
 
     def next_file_path(self):
         dir_name = path.dirname(self.file_path)
@@ -77,7 +143,8 @@ class CsvFile:
     def write(self, data, time):
         if self.write_count % self.split == 0:
             self.next_file_path()
-            if path.exists(self.output_path) and not self.overwrite:
+            if path.exists(self.output_path) \
+                    and not self.parameters['overwrite']:
                 raise FileExistsError(self.output_file_name)
             self._write_header()
 
@@ -90,10 +157,3 @@ class CsvFile:
     def _write_header(self):
         with open(self.output_path, 'w') as fid:
             fid.write(self.column_header + '\n')
-
-
-class HdfFile(OutputStream):
-    """
-    Create a single file with each stream as a separate data set
-    """
-    pass
