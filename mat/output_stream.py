@@ -144,7 +144,8 @@ class CsvFile:
     def write(self, data, time):
         if self.write_count % self.split == 0:
             self.next_file_path()
-            if path.exists(self.output_path) and not self.parameters['overwrite']:
+            if path.exists(self.output_path) \
+                    and not self.parameters['overwrite']:
                 raise FileExistsError(self.output_file_name)
             self._write_header()
 
