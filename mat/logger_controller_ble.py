@@ -1,14 +1,16 @@
-from abc import abstractmethod
-import bluepy.btle as ble
+import bluepy.btle as bluepy
+import json
 import datetime
 import time
 from mat.logger_controller import LoggerController
+from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
+from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
-class Delegate(ble.DefaultDelegate):
+class Delegate(bluepy.DefaultDelegate):
     def __init__(self):
-        ble.DefaultDelegate.__init__(self)
+        bluepy.DefaultDelegate.__init__(self)
         self.buffer = bytes()
         self.x_buffer = bytes()
         self.file_mode = False
@@ -32,44 +34,50 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2}
-    UUID_C = ''
-    UUID_S = ''
+
+    @staticmethod
+    def is_manufacturer_ti(mac):
+        return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
+
+    @staticmethod
+    def is_manufacturer_microchip(mac):
+        return mac.startswith('00:1e:c0:')
 
     def __init__(self, mac):
         super().__init__(mac)
-        self.peripheral = None
+        # set underlying (u) python BLE module being used
+        if self.is_manufacturer_ti(mac):
+            self.u = LoggerControllerBLECC26X2(mac)
+        elif self.is_manufacturer_microchip(mac):
+            self.u = LoggerControllerBLERN4020(mac)
         self.delegate = Delegate()
-        self.svc = None
-        self.cha = None
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address)
+            self.u.peripheral = bluepy.Peripheral(self.u.address)
             time.sleep(0.1)
-            self.peripheral.setDelegate(self.delegate)
-            self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
-            self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
-            descriptor = self.cha.valHandle + 1
-            self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+            self.u.peripheral.setDelegate(self.delegate)
+            self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
+            self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
+            descriptor = self.u.cha.valHandle + 1
+            self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
             self.open_after()
             return True
         except AttributeError:
             return False
 
-    def open_after(self):   # pragma: no cover
-        # for loggers that do extra stuff after opening
-        pass
+    def ble_write(self, data, response=False):  # pragma: no cover
+        self.u.ble_write(data, response)
+
+    def open_after(self):
+        self.u.open_after()
 
     def close(self):
         try:
-            self.peripheral.disconnect()
+            self.u.peripheral.disconnect()
             return True
         except AttributeError:
             return False
-
-    @abstractmethod
-    def ble_write(self, data, response=False):  # pragma: no cover
-        pass  # pragma: no cover
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
@@ -77,9 +85,9 @@ class LoggerControllerBLE(LoggerController):
                 result = self._command(*args)
                 if result:
                     return result
-            except ble.BTLEException:
+            except bluepy.BTLEException:
                 # to be managed by app
-                raise ble.BTLEException('BTLEException during command()')
+                raise bluepy.BTLEException('BTLEException during command()')
 
     def _command(self, *args):
         # prepare reception vars
@@ -108,11 +116,10 @@ class LoggerControllerBLE(LoggerController):
         return cmd_answer
 
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
-        # todo: according to docs this should always be 250 ms?
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            self.peripheral.waitForNotifications(0.1)
+            self.u.peripheral.waitForNotifications(0.1)
         return self.delegate.buffer
 
     def get_time(self):
@@ -190,5 +197,11 @@ class LoggerControllerBLE(LoggerController):
             index += 2
         return files
 
-    def know_mtu(self):
-        return self.peripheral.status()['mtu'][0]
+    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
+        cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
+        return self.command("CFG", cfg_file_as_string, retries=1)
+
+    # bat function, only cc26x2
+    def get_bat(self):
+        self.delegate.clear_delegate_buffer()
+        return self.command('BAT')
