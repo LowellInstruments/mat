@@ -13,11 +13,12 @@ To convert tilt angle to speed, call speed_from_tilt() with the tilt angle
 """
 
 import numpy as np
+from pathlib import Path
 
 
 class TiltCurve:
     def __init__(self, path):
-        self.path = path
+        self.path = Path(path)
         self.table = None
         self._deployment_configuration = {}
         self.parse()
@@ -35,7 +36,7 @@ class TiltCurve:
         return self._deployment_configuration['SAL']
 
     def parse(self):
-        with open(self.path, 'r') as fid:
+        with self.path.open('r') as fid:
             fid = self._skip_comments(fid)
             self._parse_deployment_config(fid)
             self._parse_tilt_table(fid)
@@ -69,3 +70,15 @@ class TiltCurve:
 
     def speed_from_tilt(self, tilt):
         return np.interp(tilt, self.table[:, 0], self.table[:, 1])
+
+    def _model_ballast(self):
+        return self.model, self.ballast
+
+    def __lt__(self, other):
+        return self._model_ballast() < other._model_ballast()
+
+    def __gt__(self, other):
+        return self._model_ballast() > other._model_ballast()
+
+    def __eq__(self, other):
+        return self._model_ballast() == other._model_ballast()
