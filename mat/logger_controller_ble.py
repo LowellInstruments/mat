@@ -178,6 +178,9 @@ class LoggerControllerBLE(LoggerController):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
+
+        # allow logger multi-step answer to timeout
+        time.sleep(1)
         return files
 
     def list_all_files_but_lid(self):
@@ -195,6 +198,9 @@ class LoggerControllerBLE(LoggerController):
                 continue
             files[name.decode()] = int(answer_dir[index + 1])
             index += 2
+
+        # allow logger multi-step answer to timeout
+        time.sleep(1)
         return files
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
