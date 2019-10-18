@@ -37,10 +37,12 @@ class LoggerControllerBLE(LoggerController):
 
     @staticmethod
     def is_manufacturer_ti(mac):
+        mac = mac.lower()
         return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
 
     @staticmethod
     def is_manufacturer_microchip(mac):
+        mac = mac.lower()
         return mac.startswith('00:1e:c0:')
 
     def __init__(self, mac):

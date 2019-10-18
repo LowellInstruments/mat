@@ -41,7 +41,7 @@ def _xmodem_send_c_if_required(lc_ble, sending_c):
     lc_ble.delegate.x_buffer = bytes()
     if sending_c:
         # print('c')
-        lc_ble.u.ble_write(b'C')
+        lc_ble.ble_write(b'C')
 
 
 def _xmodem_wait_control_byte(lc_ble):
@@ -51,7 +51,7 @@ def _xmodem_wait_control_byte(lc_ble):
             # happens very rarely but it does
             # print('K')
             raise XModemException('xmodem exception: waiting control byte.')
-        lc_ble.u.peripheral.waitForNotifications(1)
+        lc_ble.peripheral.waitForNotifications(1)
         if len(lc_ble.delegate.x_buffer) >= 1:
             break
 
@@ -78,7 +78,7 @@ def _xmodem_wait_frame(lc_ble, frame_len, retries, timeout):
         if time.time() > timeout:
             retries += 1
             break
-        lc_ble.u.peripheral.waitForNotifications(0.01)
+        lc_ble.peripheral.waitForNotifications(0.01)
         if len(lc_ble.delegate.x_buffer) >= frame_len:
             break
     return retries
@@ -121,21 +121,21 @@ def _xmodem_get_frame(lc_ble, sending_c, retries, whole_file):
 def _xmodem_purge(lc_ble, during):
     end_time = time.time() + during
     while time.time() < end_time:
-        lc_ble.u.peripheral.waitForNotifications(0.01)
+        lc_ble.peripheral.waitForNotifications(0.01)
 
 
 def _xmodem_ack(lc_ble):
-    lc_ble.u.ble_write(ACK)
+    lc_ble.ble_write(ACK)
 
 
 def _xmodem_nak(lc_ble):
-    lc_ble.u.ble_write(NAK)
+    lc_ble.ble_write(NAK)
 
 
 def _xmodem_can(lc_ble):
-    lc_ble.u.ble_write(CAN)
-    lc_ble.u.ble_write(CAN)
-    lc_ble.u.ble_write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
 
 
 # calculate CRC omitting proper fields
