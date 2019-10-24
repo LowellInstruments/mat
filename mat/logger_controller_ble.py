@@ -152,7 +152,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.delegate.set_file_mode(False)
 
-        # do not remove, this gives remote XMODEM time to end
+        # do not remove, this gives logger's XMODEM time to end
         time.sleep(2)
         return file_dl
 
