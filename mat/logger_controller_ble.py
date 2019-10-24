@@ -152,7 +152,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.delegate.set_file_mode(False)
 
-        # do not remove, this gives time remote XMODEM to end
+        # do not remove, this gives remote XMODEM time to end
         time.sleep(2)
         return file_dl
 
@@ -174,6 +174,7 @@ class LoggerControllerBLE(LoggerController):
         answer_dir = self.command('DIR 00')
         files = dict()
         index = 0
+        print(answer_dir)
         while index < len(answer_dir):
             name = answer_dir[index]
             if name.endswith(b'lid'):
@@ -181,8 +182,6 @@ class LoggerControllerBLE(LoggerController):
                 index += 1
             index += 1
 
-        # allow logger multi-step answer to timeout
-        time.sleep(1)
         return files
 
     def list_all_files_but_lid(self):
@@ -201,15 +200,8 @@ class LoggerControllerBLE(LoggerController):
             files[name.decode()] = int(answer_dir[index + 1])
             index += 2
 
-        # allow logger multi-step answer to timeout
-        time.sleep(1)
         return files
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
-
-    # bat function, only cc26x2
-    def get_bat(self):
-        self.delegate.clear_delegate_buffer()
-        return self.command('BAT')
