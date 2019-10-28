@@ -13,6 +13,7 @@ class LoggerControllerBLECC26X2:
         self.cha = None
 
     def open_after(self):
+        # e.g. MTU_SIZE = 240, notifications can be up to 237 bytes
         self.peripheral.setMTU(self.MTU_SIZE)
         self.cha = self.svc.getCharacteristics(self.UUID_W)[0]
 
