@@ -184,7 +184,7 @@ class LoggerControllerBLE(LoggerController):
 
         return files
 
-    def list_all_files_but_lid(self):
+    def list_all_files_not_lid(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00')
         files = dict()
