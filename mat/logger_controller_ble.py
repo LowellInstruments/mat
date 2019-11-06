@@ -129,8 +129,8 @@ class LoggerControllerBLE(LoggerController):
         answer_gtm = self.command('GTM')
         if not answer_gtm:
             return False
-        logger_time = answer_gtm[1].decode()
-        logger_time = logger_time[2:] + ' ' + answer_gtm[2].decode()
+        logger_time = answer_gtm[1].decode()[2:] + ' '
+        logger_time += answer_gtm[2].decode()
         time_format = '%Y/%m/%d %H:%M:%S'
         try:
             # we may receive a truncated answer (e.g. '2019/08/12 12')
