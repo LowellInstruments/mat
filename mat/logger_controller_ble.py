@@ -174,7 +174,6 @@ class LoggerControllerBLE(LoggerController):
         answer_dir = self.command('DIR 00')
         files = dict()
         index = 0
-        print(answer_dir)
         while index < len(answer_dir):
             name = answer_dir[index]
             if name.endswith(b'lid'):
