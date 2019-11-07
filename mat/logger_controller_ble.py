@@ -88,6 +88,7 @@ class LoggerControllerBLE(LoggerController):
                 if result:
                     return result
             except bluepy.BTLEException:
+                print('happens')
                 # to be managed by app
                 raise bluepy.BTLEException('BTLEException during command()')
 
@@ -117,11 +118,17 @@ class LoggerControllerBLE(LoggerController):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
+    def _shortcut_command_answer(self, cmd):
+        if cmd == 'GET' and self.delegate.buffer == b'GET 00':
+            return True
+
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
             self.u.peripheral.waitForNotifications(0.1)
+            if (self._shortcut_command_answer(cmd)):
+                break
         return self.delegate.buffer
 
     def get_time(self):
