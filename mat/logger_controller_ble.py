@@ -121,14 +121,19 @@ class LoggerControllerBLE(LoggerController):
     def _shortcut_command_answer(self, cmd):
         if cmd == 'GET' and self.delegate.buffer == b'GET 00':
             return True
+        if cmd == 'DIR' and self.delegate.buffer == b'\x04':
+            return True
 
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            self.u.peripheral.waitForNotifications(0.1)
-            if (self._shortcut_command_answer(cmd)):
+            rv = self.u.peripheral.waitForNotifications(0.1)
+            if self._shortcut_command_answer(cmd):
                 break
+            # todo: this may need to be adjusted depending on logger SPI HW MEM
+            if rv and cmd[:3] == 'DIR':
+                wait_time += 0.3
         return self.delegate.buffer
 
     def get_time(self):
@@ -178,7 +183,7 @@ class LoggerControllerBLE(LoggerController):
     # wrapper function for DIR command to list lid files
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
+        answer_dir = self.command('DIR 00', retries=1)
         files = dict()
         index = 0
         while index < len(answer_dir):
@@ -187,25 +192,24 @@ class LoggerControllerBLE(LoggerController):
                 files[name.decode()] = int(answer_dir[index + 1])
                 index += 1
             index += 1
-
         return files
 
     def list_all_files_not_lid(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
+        answer_dir = self.command('DIR 00', retries=1)
+        print(answer_dir)
         files = dict()
         index = 0
         while index < len(answer_dir):
             name = answer_dir[index]
+            if name == b'\x04':
+                break
             if name.endswith(b'lid'):
                 index += 2
                 continue
-            if name == b'\04':
-                index += 1
-                continue
-            files[name.decode()] = int(answer_dir[index + 1])
-            index += 2
-
+            if not name.endswith(b'lid'):
+                files[name.decode()] = int(answer_dir[index + 1])
+                index += 2
         return files
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
