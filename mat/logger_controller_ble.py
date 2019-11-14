@@ -57,7 +57,8 @@ class LoggerControllerBLE(LoggerController):
     def open(self):
         try:
             self.u.peripheral = bluepy.Peripheral(self.u.address)
-            time.sleep(0.1)
+            # to give time connection update from loggers to arrive
+            time.sleep(1.1)
             self.u.peripheral.setDelegate(self.delegate)
             self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
             self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
@@ -197,7 +198,6 @@ class LoggerControllerBLE(LoggerController):
     def list_all_files_not_lid(self):
         self.delegate.clear_delegate_buffer()
         answer_dir = self.command('DIR 00', retries=1)
-        print(answer_dir)
         files = dict()
         index = 0
         while index < len(answer_dir):
