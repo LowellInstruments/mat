@@ -33,7 +33,7 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2}
+    WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2, 'DIR': 3}
 
     @staticmethod
     def is_manufacturer_ti(mac):
@@ -122,19 +122,16 @@ class LoggerControllerBLE(LoggerController):
     def _shortcut_command_answer(self, cmd):
         if cmd == 'GET' and self.delegate.buffer == b'GET 00':
             return True
-        if cmd == 'DIR' and self.delegate.buffer == b'\x04':
+        if cmd == 'DIR' and self.delegate.buffer.endswith(b'\x04\n\r'):
             return True
 
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
         end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            rv = self.u.peripheral.waitForNotifications(0.1)
-            if self._shortcut_command_answer(cmd):
+            self.u.peripheral.waitForNotifications(0.1)
+            if self._shortcut_command_answer(cmd[:3]):
                 break
-            # todo: this may need to be adjusted depending on logger SPI HW MEM
-            if rv and cmd[:3] == 'DIR':
-                wait_time += 0.3
         return self.delegate.buffer
 
     def get_time(self):
