@@ -126,11 +126,14 @@ class LoggerControllerBLE(LoggerController):
             return True
 
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
-        end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
+        tag = cmd[:3]
+        end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            self.u.peripheral.waitForNotifications(0.1)
-            if self._shortcut_command_answer(cmd[:3]):
+            rv = self.u.peripheral.waitForNotifications(0.1)
+            if rv:
+                wait_time += 0.1
+            if self._shortcut_command_answer(tag):
                 break
         return self.delegate.buffer
 
