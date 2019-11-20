@@ -33,7 +33,7 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2, 'DIR': 3}
+    WAIT_TIME = {'BTC': 3, 'GET': 3, 'RWS': 2}
 
     @staticmethod
     def is_manufacturer_ti(mac):
@@ -57,7 +57,7 @@ class LoggerControllerBLE(LoggerController):
     def open(self):
         try:
             self.u.peripheral = bluepy.Peripheral(self.u.address)
-            # to give time connection update from loggers to arrive
+            # connection update request from cc26x2 takes 1000 ms
             time.sleep(1.1)
             self.u.peripheral.setDelegate(self.delegate)
             self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
@@ -86,12 +86,16 @@ class LoggerControllerBLE(LoggerController):
         for retry in range(retries):
             try:
                 result = self._command(*args)
+                print(result)
+                if result == [b'BSY'] or None:
+                    continue
                 if result:
                     return result
             except bluepy.BTLEException:
-                print('happens')
+                s = 'BLE exception during command()'
+                print(s)
                 # to be managed by app
-                raise bluepy.BTLEException('BTLEException during command()')
+                raise bluepy.BTLEException(s)
 
     def _command(self, *args):
         # prepare reception vars
@@ -215,3 +219,24 @@ class LoggerControllerBLE(LoggerController):
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
+
+    def _ensure_cmd(self, c, s=''):
+        self.delegate.clear_delegate_buffer()
+        a = self.command(c, s)
+        if a in ['BSY', None]:
+            return False
+        return a
+
+    def ensure_stop(self):
+        rv = self._ensure_cmd('STP')
+        if rv:
+            return rv
+        self.u.peripheral.disconnect()
+        return False
+
+    def ensure_sws(self, s=''):
+        rv = self._ensure_cmd('SWS', s)
+        if rv:
+            return rv
+        self.u.peripheral.disconnect()
+        return False
