@@ -86,16 +86,14 @@ class LoggerControllerBLE(LoggerController):
         for retry in range(retries):
             try:
                 result = self._command(*args)
-                print(result)
-                if result == [b'BSY'] or None:
-                    continue
                 if result:
                     return result
             except bluepy.BTLEException:
-                s = 'BLE exception during command()'
+                s = 'BLE command() exception'
                 print(s)
                 # to be managed by app
                 raise bluepy.BTLEException(s)
+        return b'BSY'
 
     def _command(self, *args):
         # prepare reception vars
@@ -188,31 +186,33 @@ class LoggerControllerBLE(LoggerController):
     # wrapper function for DIR command to list lid files
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00', retries=1)
+        ans = self.command('DIR 00', retries=1)
         files = dict()
         index = 0
-        while index < len(answer_dir):
-            name = answer_dir[index]
+        while index < len(ans):
+            name = ans[index]
+            if name == b'\x04' or name == b'BSY':
+                break
             if name.endswith(b'lid'):
-                files[name.decode()] = int(answer_dir[index + 1])
+                files[name.decode()] = int(ans[index + 1])
                 index += 1
             index += 1
         return files
 
     def list_all_files_not_lid(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00', retries=1)
+        ans = self.command('DIR 00', retries=1)
         files = dict()
         index = 0
-        while index < len(answer_dir):
-            name = answer_dir[index]
-            if name == b'\x04':
+        while index < len(ans):
+            name = ans[index]
+            if name == b'\x04' or name == b'BSY':
                 break
             if name.endswith(b'lid'):
                 index += 2
                 continue
             if not name.endswith(b'lid'):
-                files[name.decode()] = int(answer_dir[index + 1])
+                files[name.decode()] = int(ans[index + 1])
                 index += 2
         return files
 
