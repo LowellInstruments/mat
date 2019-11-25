@@ -1,14 +1,16 @@
-from abc import abstractmethod
-import bluepy.btle as ble
+import bluepy.btle as bluepy
+import json
 import datetime
 import time
 from mat.logger_controller import LoggerController
+from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
+from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
-class Delegate(ble.DefaultDelegate):
+class Delegate(bluepy.DefaultDelegate):
     def __init__(self):
-        ble.DefaultDelegate.__init__(self)
+        bluepy.DefaultDelegate.__init__(self)
         self.buffer = bytes()
         self.x_buffer = bytes()
         self.file_mode = False
@@ -31,45 +33,72 @@ class Delegate(ble.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3, 'GTM': 2}
-    UUID_C = ''
-    UUID_S = ''
+    WAIT_TIME = {'BTC': 3, 'GET': 3, 'RWS': 2}
+
+    @staticmethod
+    def is_manufacturer_ti(mac):
+        mac = mac.lower()
+        return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
+
+    @staticmethod
+    def is_manufacturer_microchip(mac):
+        mac = mac.lower()
+        return mac.startswith('00:1e:c0:')
 
     def __init__(self, mac):
         super().__init__(mac)
-        self.peripheral = None
+        # set underlying (u) python BLE module being used
+        if self.is_manufacturer_ti(mac):
+            self.u = LoggerControllerBLECC26X2(mac)
+        elif self.is_manufacturer_microchip(mac):
+            self.u = LoggerControllerBLERN4020(mac)
         self.delegate = Delegate()
-        self.svc = None
-        self.cha = None
 
     def open(self):
         try:
-            self.peripheral = ble.Peripheral(self.address)
-            time.sleep(0.1)
-            self.peripheral.setDelegate(self.delegate)
-            self.svc = self.peripheral.getServiceByUUID(self.UUID_S)
-            self.cha = self.svc.getCharacteristics(self.UUID_C)[0]
-            descriptor = self.cha.valHandle + 1
-            self.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+            self.u.peripheral = bluepy.Peripheral(self.u.address)
+            # connection update request from cc26x2 takes 1000 ms
+            time.sleep(1.1)
+            self.u.peripheral.setDelegate(self.delegate)
+            self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
+            self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
+            descriptor = self.u.cha.valHandle + 1
+            self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
             self.open_after()
             return True
         except AttributeError:
             return False
 
-    def open_after(self):   # pragma: no cover
-        # for loggers that do extra stuff after opening
-        pass
+    # def open(self):
+    #     for counter in range(5):
+    #         try:
+    #             self.u.peripheral = bluepy.Peripheral(self.u.address)
+    #             # connection update request from cc26x2 takes 1000 ms
+    #             time.sleep(1.1)
+    #             self.u.peripheral.setDelegate(self.delegate)
+    #             self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
+    #             self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
+    #             descriptor = self.u.cha.valHandle + 1
+    #             self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+    #             self.open_after()
+    #             print(counter)
+    #             return True
+    #         except (AttributeError, bluepy.BTLEException):
+    #             counter +=1
+    #     return False
+
+    def ble_write(self, data, response=False):  # pragma: no cover
+        self.u.ble_write(data, response)
+
+    def open_after(self):
+        self.u.open_after()
 
     def close(self):
         try:
-            self.peripheral.disconnect()
+            self.u.peripheral.disconnect()
             return True
         except AttributeError:
             return False
-
-    @abstractmethod
-    def ble_write(self, data, response=False):  # pragma: no cover
-        pass  # pragma: no cover
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
@@ -77,9 +106,12 @@ class LoggerControllerBLE(LoggerController):
                 result = self._command(*args)
                 if result:
                     return result
-            except ble.BTLEException:
+            except bluepy.BTLEException:
+                s = 'BLE command() exception'
+                print(s)
                 # to be managed by app
-                raise ble.BTLEException('BTLEException during command()')
+                raise bluepy.BTLEException(s)
+        return b'BSY'
 
     def _command(self, *args):
         # prepare reception vars
@@ -107,12 +139,22 @@ class LoggerControllerBLE(LoggerController):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
+    def _shortcut_command_answer(self, cmd):
+        if cmd == 'GET' and self.delegate.buffer == b'GET 00':
+            return True
+        if cmd == 'DIR' and self.delegate.buffer.endswith(b'\x04\n\r'):
+            return True
+
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
-        # todo: according to docs this should always be 250 ms?
-        end_time = self.WAIT_TIME[cmd[:3]] if cmd[:3] in self.WAIT_TIME else 1
+        tag = cmd[:3]
+        end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            self.peripheral.waitForNotifications(0.1)
+            rv = self.u.peripheral.waitForNotifications(0.1)
+            if rv:
+                wait_time += 0.1
+            if self._shortcut_command_answer(tag):
+                break
         return self.delegate.buffer
 
     def get_time(self):
@@ -120,8 +162,8 @@ class LoggerControllerBLE(LoggerController):
         answer_gtm = self.command('GTM')
         if not answer_gtm:
             return False
-        logger_time = answer_gtm[1].decode()
-        logger_time = logger_time[2:] + ' ' + answer_gtm[2].decode()
+        logger_time = answer_gtm[1].decode()[2:] + ' '
+        logger_time += answer_gtm[2].decode()
         time_format = '%Y/%m/%d %H:%M:%S'
         try:
             # we may receive a truncated answer (e.g. '2019/08/12 12')
@@ -143,7 +185,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.delegate.set_file_mode(False)
 
-        # do not remove, this gives time remote XMODEM to end
+        # do not remove, this gives logger's XMODEM time to end
         time.sleep(2)
         return file_dl
 
@@ -162,33 +204,57 @@ class LoggerControllerBLE(LoggerController):
     # wrapper function for DIR command to list lid files
     def list_lid_files(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
+        ans = self.command('DIR 00', retries=1)
         files = dict()
         index = 0
-        while index < len(answer_dir):
-            name = answer_dir[index]
+        while index < len(ans):
+            name = ans[index]
+            if name == b'\x04' or name == b'BSY':
+                break
             if name.endswith(b'lid'):
-                files[name.decode()] = int(answer_dir[index + 1])
+                files[name.decode()] = int(ans[index + 1])
                 index += 1
             index += 1
         return files
 
-    def list_all_files_but_lid(self):
+    def list_all_files_not_lid(self):
         self.delegate.clear_delegate_buffer()
-        answer_dir = self.command('DIR 00')
+        ans = self.command('DIR 00', retries=1)
         files = dict()
         index = 0
-        while index < len(answer_dir):
-            name = answer_dir[index]
+        while index < len(ans):
+            name = ans[index]
+            if name == b'\x04' or name == b'BSY':
+                break
             if name.endswith(b'lid'):
                 index += 2
                 continue
-            if name == b'\04':
-                index += 1
-                continue
-            files[name.decode()] = int(answer_dir[index + 1])
-            index += 2
+            if not name.endswith(b'lid'):
+                files[name.decode()] = int(ans[index + 1])
+                index += 2
         return files
 
-    def know_mtu(self):
-        return self.peripheral.status()['mtu'][0]
+    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
+        cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
+        return self.command("CFG", cfg_file_as_string, retries=1)
+
+    def _ensure_cmd(self, c, s=''):
+        self.delegate.clear_delegate_buffer()
+        a = self.command(c, s)
+        if a in ['BSY', None]:
+            return False
+        return a
+
+    def ensure_stop(self):
+        rv = self._ensure_cmd('STP')
+        if rv:
+            return rv
+        self.u.peripheral.disconnect()
+        return False
+
+    def ensure_sws(self, s=''):
+        rv = self._ensure_cmd('SWS', s)
+        if rv:
+            return rv
+        self.u.peripheral.disconnect()
+        return False
