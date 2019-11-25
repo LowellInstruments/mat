@@ -258,6 +258,3 @@ class LoggerControllerBLE(LoggerController):
             return rv
         self.u.peripheral.disconnect()
         return False
-
-    def know_mtu(self):
-        return self.u.peripheral.status()['mtu'][0]
