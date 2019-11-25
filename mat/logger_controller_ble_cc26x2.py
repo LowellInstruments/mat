@@ -14,7 +14,10 @@ class LoggerControllerBLECC26X2:
 
     def open_after(self):
         # e.g. MTU_SIZE = 240, notifications can be up to 237 bytes
+        pre_mtu = self.peripheral.know_mtu()
         self.peripheral.setMTU(self.MTU_SIZE)
+        post_mtu = self.peripheral.know_mtu()
+        print('pre_mtu {} post_mtu {}'.format(pre_mtu, post_mtu))
         self.cha = self.svc.getCharacteristics(self.UUID_W)[0]
 
     def ble_write(self, data, response=False):  # pragma: no cover
