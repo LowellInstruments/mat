@@ -69,6 +69,24 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
+    # def open(self):
+    #     for counter in range(5):
+    #         try:
+    #             self.u.peripheral = bluepy.Peripheral(self.u.address)
+    #             # connection update request from cc26x2 takes 1000 ms
+    #             time.sleep(1.1)
+    #             self.u.peripheral.setDelegate(self.delegate)
+    #             self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
+    #             self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
+    #             descriptor = self.u.cha.valHandle + 1
+    #             self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+    #             self.open_after()
+    #             print(counter)
+    #             return True
+    #         except (AttributeError, bluepy.BTLEException):
+    #             counter +=1
+    #     return False
+
     def ble_write(self, data, response=False):  # pragma: no cover
         self.u.ble_write(data, response)
 
