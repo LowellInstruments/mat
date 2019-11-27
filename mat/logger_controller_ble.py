@@ -202,7 +202,7 @@ class LoggerControllerBLE(LoggerController):
         return False
 
     # wrapper function for DIR command to list lid files
-    def list_lid_files(self):
+    def ls_lid(self):
         self.delegate.clear_delegate_buffer()
         ans = self.command('DIR 00', retries=1)
         files = dict()
@@ -217,7 +217,7 @@ class LoggerControllerBLE(LoggerController):
             index += 1
         return files
 
-    def list_all_files_not_lid(self):
+    def ls_not_lid(self):
         self.delegate.clear_delegate_buffer()
         ans = self.command('DIR 00', retries=1)
         files = dict()
