@@ -55,37 +55,21 @@ class LoggerControllerBLE(LoggerController):
         self.delegate = Delegate()
 
     def open(self):
-        try:
-            self.u.peripheral = bluepy.Peripheral(self.u.address)
-            # connection update request from cc26x2 takes 1000 ms
-            time.sleep(1.1)
-            self.u.peripheral.setDelegate(self.delegate)
-            self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
-            self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
-            descriptor = self.u.cha.valHandle + 1
-            self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
-            self.open_after()
-            return True
-        except AttributeError:
-            return False
-
-    # def open(self):
-    #     for counter in range(5):
-    #         try:
-    #             self.u.peripheral = bluepy.Peripheral(self.u.address)
-    #             # connection update request from cc26x2 takes 1000 ms
-    #             time.sleep(1.1)
-    #             self.u.peripheral.setDelegate(self.delegate)
-    #             self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
-    #             self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
-    #             descriptor = self.u.cha.valHandle + 1
-    #             self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
-    #             self.open_after()
-    #             print(counter)
-    #             return True
-    #         except (AttributeError, bluepy.BTLEException):
-    #             counter +=1
-    #     return False
+        for counter in range(3):
+            try:
+                self.u.peripheral = bluepy.Peripheral(self.u.address)
+                # connection update request from cc26x2 takes 1000 ms
+                time.sleep(1.1)
+                self.u.peripheral.setDelegate(self.delegate)
+                self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
+                self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
+                descriptor = self.u.cha.valHandle + 1
+                self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+                self.open_after()
+                return True
+            except (AttributeError, bluepy.BTLEException):
+                pass
+        return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
         self.u.ble_write(data, response)
@@ -107,9 +91,9 @@ class LoggerControllerBLE(LoggerController):
                 if result:
                     return result
             except bluepy.BTLEException:
+                # to be managed by app
                 s = 'BLE command() exception'
                 print(s)
-                # to be managed by app
                 raise bluepy.BTLEException(s)
         return b'BSY'
 
@@ -150,8 +134,7 @@ class LoggerControllerBLE(LoggerController):
         end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            rv = self.u.peripheral.waitForNotifications(0.1)
-            if rv:
+            if self.u.peripheral.waitForNotifications(0.1):
                 wait_time += 0.1
             if self._shortcut_command_answer(tag):
                 break
@@ -185,7 +168,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.delegate.set_file_mode(False)
 
-        # do not remove, this gives logger's XMODEM time to end
+        # do not remove, gives logger's XMODEM time to end
         time.sleep(2)
         return file_dl
 
