@@ -33,7 +33,7 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3, 'RWS': 2}
+    WAIT_TIME = {'BTC': 3, 'GET': 3, 'RWS': 2, 'DIR': 2}
 
     @staticmethod
     def is_manufacturer_ti(mac):
@@ -95,7 +95,7 @@ class LoggerControllerBLE(LoggerController):
                 s = 'BLE command() exception'
                 print(s)
                 raise bluepy.BTLEException(s)
-        return b'BSY'
+        return None
 
     def _command(self, *args):
         # prepare reception vars
@@ -135,6 +135,7 @@ class LoggerControllerBLE(LoggerController):
         wait_time = time.time() + end_time
         while time.time() < wait_time:
             if self.u.peripheral.waitForNotifications(0.1):
+                # useful for multiple answer commands
                 wait_time += 0.1
             if self._shortcut_command_answer(tag):
                 break
@@ -189,11 +190,16 @@ class LoggerControllerBLE(LoggerController):
         self.delegate.clear_delegate_buffer()
         ans = self.command('DIR 00', retries=1)
         files = dict()
+        if not ans:
+            return files
         index = 0
         while index < len(ans):
             name = ans[index]
-            if name == b'\x04' or name == b'BSY':
+            if name in [b'\x04', b'BSY']:
                 break
+            if name in [b'.', b'..']:
+                index += 2
+                continue
             if name.endswith(b'lid'):
                 files[name.decode()] = int(ans[index + 1])
                 index += 1
@@ -207,7 +213,7 @@ class LoggerControllerBLE(LoggerController):
         index = 0
         while index < len(ans):
             name = ans[index]
-            if name == b'\x04' or name == b'BSY':
+            if name == [b'\x04'] or name == b'BSY':
                 break
             if name.endswith(b'lid'):
                 index += 2
@@ -220,24 +226,3 @@ class LoggerControllerBLE(LoggerController):
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
-
-    def _ensure_cmd(self, c, s=''):
-        self.delegate.clear_delegate_buffer()
-        a = self.command(c, s)
-        if a in ['BSY', None]:
-            return False
-        return a
-
-    def ensure_stop(self):
-        rv = self._ensure_cmd('STP')
-        if rv:
-            return rv
-        self.u.peripheral.disconnect()
-        return False
-
-    def ensure_sws(self, s=''):
-        rv = self._ensure_cmd('SWS', s)
-        if rv:
-            return rv
-        self.u.peripheral.disconnect()
-        return False
