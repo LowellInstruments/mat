@@ -13,43 +13,43 @@ NAK = b'\x15'
 # download function, initial purge to start fresh, exception on error
 def xmodem_get_file(lc_ble):
     _purge(lc_ble)
-    whole_file = bytes()
+    file_built = bytes()
     retries = 0
     sending_c = True
 
     while True:
-        _send_c_ish(lc_ble, sending_c)
+        _tx_c_ish(lc_ble, sending_c)
 
         # control stage: wait 1st byte of incoming frame
-        _wait_ctrl_byte(lc_ble)
+        _rx_ctrl_byte(lc_ble)
 
         # data stage: frame arrived, check byte SOH, STX, CAN...
-        control_byte, frame_len = _parse_ctrl_byte(lc_ble)
-        if control_byte == EOT:
-            return True, whole_file
+        ctrl_byte, frame_len = _parse_ctrl_byte(lc_ble)
+        if ctrl_byte == EOT:
+            return True, file_built
 
-        # data stage: receive rest of frame, note 'end_time' is shared
+        # data stage: try to receive data, note 'end_time' is shared
         end_time = time.time() + 1
-        retries = _wait_frame(lc_ble, frame_len, retries, end_time)
-        if not _did_frame_timeout(lc_ble, sending_c, retries, end_time):
-            bunch = _parse_frame(lc_ble, sending_c, retries, whole_file)
-            sending_c, retries, whole_file = bunch
+        retries = _rx_frame(lc_ble, frame_len, retries, end_time)
+        if not _rx_frame_timeout(lc_ble, sending_c, retries, end_time):
+            bunch = _parse_frame(lc_ble, sending_c, retries, file_built)
+            sending_c, retries, file_built = bunch
 
 
-def _send_c_ish(lc_ble, sending_c):
+def _tx_c_ish(lc_ble, sending_c):
     lc_ble.delegate.x_buffer = bytes()
     if sending_c:
         # print('c')
         lc_ble.u.ble_write(b'C')
 
 
-def _wait_ctrl_byte(lc_ble):
+def _rx_ctrl_byte(lc_ble):
     timeout = time.time() + 1
     while True:
         if time.time() > timeout:
             # happens very rarely but it does
             # print('K')
-            raise XModemException('xmodem exception: waiting control byte.')
+            raise XModemException('timeout waiting XMD ctrl byte')
         lc_ble.u.peripheral.waitForNotifications(1)
         if len(lc_ble.delegate.x_buffer) >= 1:
             break
@@ -73,7 +73,7 @@ def _parse_ctrl_byte(lc_ble):
         raise XModemException('xmodem exception: getting control byte.')
 
 
-def _wait_frame(lc_ble, frame_len, retries, timeout):
+def _rx_frame(lc_ble, frame_len, retries, timeout):
     while True:
         if time.time() > timeout:
             retries += 1
@@ -84,7 +84,7 @@ def _wait_frame(lc_ble, frame_len, retries, timeout):
     return retries
 
 
-def _did_frame_timeout(lc_ble, sending_c, retries, timeout):
+def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
     # easier to restart than recover a lost 'C'
     if time.time() > timeout and sending_c:
         # print('I')
