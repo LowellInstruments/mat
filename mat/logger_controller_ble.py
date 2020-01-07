@@ -124,6 +124,7 @@ class LoggerControllerBLE(LoggerController):
         return cmd_answer
 
     def _shortcut_command_answer(self, cmd):
+        # not all commands can do this, recall race conditions
         if cmd == 'GET' and self.delegate.buffer == b'GET 00':
             return True
         if cmd == 'DIR' and self.delegate.buffer.endswith(b'\x04\n\r'):
@@ -185,14 +186,23 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
-    # wrapper function for DIR command to list lid files
-    def ls_lid(self):
+    # wrapper function for DIR command
+    def _ls(self):
         self.delegate.clear_delegate_buffer()
-        ans = self.command('DIR 00', retries=1)
-        files = dict()
+        return self.command('DIR 00', retries=1), 0, dict()
+
+
+    def ls_lid(self):
+        ans, index, files = self._ls()
+
+        if ans == [b'ERR']:
+            # e.g. logger not stopped
+            return ans
         if not ans:
-            return files
-        index = 0
+            return
+
+        # effectively build list to show
+        print(ans)
         while index < len(ans):
             name = ans[index]
             if name in [b'\x04', b'BSY']:
@@ -207,10 +217,15 @@ class LoggerControllerBLE(LoggerController):
         return files
 
     def ls_not_lid(self):
-        self.delegate.clear_delegate_buffer()
-        ans = self.command('DIR 00', retries=1)
-        files = dict()
-        index = 0
+        ans, index, files = self._ls()
+
+        if ans == [b'ERR']:
+            # e.g. logger not stopped
+            return ans
+        if not ans:
+            return
+
+        # effectively build list to show
         while index < len(ans):
             name = ans[index]
             if name == [b'\x04'] or name == b'BSY':
