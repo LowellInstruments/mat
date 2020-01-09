@@ -93,7 +93,6 @@ class LoggerControllerBLE(LoggerController):
             except bluepy.BTLEException:
                 # to be managed by app
                 s = 'BLE command() exception'
-                print(s)
                 raise bluepy.BTLEException(s)
         return None
 
@@ -191,7 +190,6 @@ class LoggerControllerBLE(LoggerController):
         self.delegate.clear_delegate_buffer()
         return self.command('DIR 00', retries=1), 0, dict()
 
-
     def ls_lid(self):
         ans, index, files = self._ls()
 
@@ -202,7 +200,6 @@ class LoggerControllerBLE(LoggerController):
             return
 
         # effectively build list to show
-        print(ans)
         while index < len(ans):
             name = ans[index]
             if name in [b'\x04', b'BSY']:
@@ -228,9 +225,9 @@ class LoggerControllerBLE(LoggerController):
         # effectively build list to show
         while index < len(ans):
             name = ans[index]
-            if name == [b'\x04'] or name == b'BSY':
+            if name in [b'\x04', b'BSY']:
                 break
-            if name.endswith(b'lid'):
+            if name.endswith(b'lid') or name in [b'.', b'..']:
                 index += 2
                 continue
             if not name.endswith(b'lid'):
