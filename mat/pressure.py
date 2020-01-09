@@ -14,4 +14,5 @@ class Pressure:
         self.pressure_offset = array([pra], dtype='float')
 
     def convert(self, raw_pressure):
-        return self.pressure_slope * raw_pressure + self.pressure_offset
+        return ((self.pressure_slope * raw_pressure + self.pressure_offset)
+                * 0.689475728)
