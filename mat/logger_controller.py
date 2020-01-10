@@ -136,7 +136,7 @@ class LoggerController(ABC):
         return logger_settings
 
     def stop_with_string(self, data):
-        return self.command(STOP_WITH_STRING_CMD, data)
+        return self.command(SWS_CMD, data)
 
     def get_sensor_readings(self):
         sensor_string = self.command(SENSOR_READINGS_CMD)
