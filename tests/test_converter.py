@@ -55,7 +55,7 @@ class TestConverter(TestCase):
     def test_calibrated_pressure(self):
         assert Converter(
             calibration_from_file("v3_calibration.txt")).pressure(
-                ZERO_ARRAY) == array([DEFAULT_PRA])
+                ZERO_ARRAY) == array([2.068427184])
 
     def test_calibrated_light(self):
         assert Converter(
