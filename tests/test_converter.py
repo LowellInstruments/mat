@@ -11,6 +11,7 @@ from mat.temp_compensated_magnetometer import TempCompensatedMagnetometer
 from mat.binary_coded_decimal import BinaryCodedDecimal
 from mat.v3_calibration import V3Calibration
 from tests.utils import calibration_from_file
+from mat.temperature import ZERO_KELVIN
 
 
 EXAMPLE_RAW_DATA = array([[1, 2, 3, 4],
@@ -51,6 +52,11 @@ class TestConverter(TestCase):
         assert_array_almost_equal(Converter(
             calibration_from_file("v3_calibration.txt")).temperature(
                 TEMP_ARRAY), TEMPERATURE_EXPECTATION)
+
+    def test_65535_temperature(self):
+        assert_array_almost_equal(Converter(
+            calibration_from_file("v3_calibration.txt")).temperature(
+            65535), ZERO_KELVIN)
 
     def test_calibrated_pressure(self):
         assert Converter(

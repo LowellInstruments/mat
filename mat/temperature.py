@@ -14,7 +14,10 @@ class Temperature:
         self.tmr = coefficients['TMR']
 
     def convert(self, raw_temperature):
-        temp = (raw_temperature * self.tmr) / (MAX_INT16 - raw_temperature)
-        return 1 / (self.tma +
-                    self.tmb * log(temp) +
-                    self.tmc * (log(temp)) ** 3) + ZERO_KELVIN
+        try:
+            temp = (raw_temperature * self.tmr) / (MAX_INT16 - raw_temperature)
+            return 1 / (self.tma +
+                        self.tmb * log(temp) +
+                        self.tmc * (log(temp)) ** 3) + ZERO_KELVIN
+        except ZeroDivisionError:
+            return ZERO_KELVIN
