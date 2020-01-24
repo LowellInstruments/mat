@@ -9,11 +9,13 @@ if sys.platform != 'win32':
     )
     from tests._test_logger_controller_ble import (
         FakePeripheral,
+        FakePeripheralEx,
         FakeCharacteristic,
     )
 
 
 mac_ti = '80:6f:b0:ff:ff:ff'
+mac_mc = '00:1e:c0:ff:ff:ff'
 mac_un = 'ff:ff:ff:ff:ff:ff'
 cmd = 'mat.logger_controller_ble.LoggerControllerBLE.command'
 w_a = 'mat.logger_controller_ble.LoggerControllerBLE._wait_for_command_answer'
@@ -66,9 +68,13 @@ class TestLoggerControllerBLECC26X2:
     def test_is_manufacturer_microchip(self):
         assert LoggerControllerBLE.is_manufacturer_microchip('00:1e:c0:')
 
-    def test_constructor(self, fake_ble_factory):
-        lc_ble = (fake_ble_factory())(mac_ti)
+    def test_constructor_ok(self, fake_ble_factory):
+        lc_ble = (fake_ble_factory())(mac_mc)
         assert lc_ble
+
+    def test_constructor_exception(self, fake_ble_factory):
+        with pytest.raises(bluepy.btle.BTLEException):
+            (fake_ble_factory())(mac_un)
 
     def test_open_ok(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
@@ -76,9 +82,9 @@ class TestLoggerControllerBLECC26X2:
         assert lc_ble.u.peripheral
 
     def test_open_bad(self, fake_ble_factory):
-        with pytest.raises(bluepy.btle.BTLEException):
-            lc_ble = (fake_ble_factory())(mac_un)
-            lc_ble.open()
+        lc_ble = (fake_ble_factory(FakePeripheralEx))(mac_ti)
+        # provokes to go to Except() line in open()
+        lc_ble.open()
 
     def test_close_ok(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
@@ -103,33 +109,71 @@ class TestLoggerControllerBLECC26X2:
 
     def test_command_answer_internal(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=w_a, rv=b'STS\t\t\t0201'))(mac_ti)
-        lc_ble.open()
         lc_ble.delegate.buffer = b'STS\t\t\t0201'
         assert lc_ble._wait_for_command_answer('STS') == b'STS\t\t\t0201'
 
     def test_command_answer_shortcut(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
-        lc_ble.open()
         lc_ble.delegate.buffer = b'GET 00'
         assert lc_ble._shortcut_command_answer('GET')
         lc_ble.delegate.buffer = b'\x04\n\r'
         assert lc_ble._shortcut_command_answer('DIR')
 
-    def test_get_time(self, fake_ble_factory):
-        lc_ble = (fake_ble_factory(m=cmd, rv=[b'GTM', b'131999/12/12',
-                                              b'11:12:13']))(mac_ti)
-        lc_ble.open()
+    def test_get_time_ok(self, fake_ble_factory):
+        _rv = [b'GTM', b'131999/12/12', b'11:12:13']
+        lc_ble = (fake_ble_factory(m=cmd, rv=_rv))(mac_ti)
         expected = datetime.datetime(1999, 12, 12, 11, 12, 13)
         assert lc_ble.get_time() == expected
 
-    def test_ls_lid(self, fake_ble_factory):
-        _rv = ([b'bean.lid', b'76', b'hello.csv', b'10'], 0, dict())
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        lc_ble.open()
-        assert lc_ble.ls_lid() == {'bean.lid': 76}
+    def test_get_time_bad(self, fake_ble_factory):
+        lc_ble = (fake_ble_factory(m=cmd, rv=False))(mac_ti)
+        assert not lc_ble.get_time()
 
-    def test_ls_not_lid(self, fake_ble_factory):
-        _rv = ([b'bean.lid', b'76', b'hello.csv', b'10'], 0, dict())
+    def test_get_time_exception(self, fake_ble_factory):
+        _rv = [b'GTM', b'130/0/0', b'11:12:13']
+        lc_ble = (fake_ble_factory(m=cmd, rv=_rv))(mac_ti)
+        assert not lc_ble.get_time()
+
+    def test_ls(self, fake_ble_factory):
+        lc_ble = (fake_ble_factory(m=cmd, rv=None))(mac_ti)
+        assert lc_ble._ls() == (None, 0, {})
+
+    def test_ls_lid_ok(self, fake_ble_factory):
+        _rv = ([b'.', b'..', b'a.lid', b'76', b'b.csv', b'10'], 0, dict())
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        lc_ble.open()
-        assert lc_ble.ls_not_lid() == {'hello.csv': 10}
+        assert lc_ble.ls_lid() == {'a.lid': 76}
+
+    def test_ls_lid_ignore(self, fake_ble_factory):
+        _rv = ([b'.', b'..', b'BSY', b'\x04'], 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc_ble.ls_lid() == {}
+
+    def test_ls_lid_bad(self, fake_ble_factory):
+        _rv = ([b'ERR'], 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc_ble.ls_lid() == [b'ERR']
+
+    def test_ls_lid_none(self, fake_ble_factory):
+        _rv = (None, 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert not lc_ble.ls_lid()
+
+    def test_ls_not_lid_ok(self, fake_ble_factory):
+        _rv = ([b'.', b'..', b'a.lid', b'76', b'b.csv', b'10'], 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc_ble.ls_not_lid() == {'b.csv': 10}
+
+    def test_ls_not_lid_ignore(self, fake_ble_factory):
+        _rv = ([b'.', b'..', b'BSY', b'\x04'], 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc_ble.ls_not_lid() == {}
+
+    def test_ls_not_lid_bad(self, fake_ble_factory):
+        _rv = ([b'ERR'], 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc_ble.ls_not_lid() == [b'ERR']
+
+    def test_ls_not_lid_none(self, fake_ble_factory):
+        _rv = (None, 0, dict())
+        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert not lc_ble.ls_not_lid()

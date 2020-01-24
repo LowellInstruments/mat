@@ -37,3 +37,9 @@ class FakePeripheral:
 
     def getServiceByUUID(self, uuid):
         return FakeService()
+
+
+class FakePeripheralEx(FakePeripheral):
+    def writeCharacteristic(self, where, value):
+        import bluepy.btle as b
+        raise b.BTLEException('ex')
