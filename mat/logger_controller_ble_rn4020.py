@@ -1,5 +1,4 @@
-# delegated from LoggerControllerBLE, some symbols might not resolve
-class LoggerControllerBLERN4020:
+class LoggerControllerBLERN4020:  # pragma: no cover
 
     UUID_S = '00035b03-58e6-07dd-021a-08123a000300'
     UUID_C = '00035b03-58e6-07dd-021a-08123a000301'

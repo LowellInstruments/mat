@@ -52,6 +52,8 @@ class LoggerControllerBLE(LoggerController):
             self.u = LoggerControllerBLECC26X2(mac)
         elif self.is_manufacturer_microchip(mac):
             self.u = LoggerControllerBLERN4020(mac)
+        else:
+            raise bluepy.BTLEException('unknown manufacturer')
         self.delegate = Delegate()
 
     def open(self):

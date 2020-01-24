@@ -1,5 +1,4 @@
-# delegated from LoggerControllerBLE, some symbols might not resolve
-class LoggerControllerBLECC26X2:
+class LoggerControllerBLECC26X2:  # pragma: no cover
 
     UUID_S = 'f0001130-0451-4000-b000-000000000000'
     UUID_C = 'f0001132-0451-4000-b000-000000000000'
@@ -18,7 +17,7 @@ class LoggerControllerBLECC26X2:
         self.cha = self.svc.getCharacteristics(self.UUID_W)[0]
         # print(self._know_mtu())
 
-    def ble_write(self, data, response=False):  # pragma: no cover
+    def ble_write(self, data, response=False):
         if len(data) <= self.MTU_SIZE:
             self.cha.write(data, withResponse=response)
 
