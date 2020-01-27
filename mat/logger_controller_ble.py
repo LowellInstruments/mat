@@ -47,11 +47,15 @@ class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac):
         super().__init__(mac)
-        # set underlying (u) python BLE module being used
+        self.address = mac
+        self.per = None
+        self.svc = None
+        self.cha = None
+        # set underlying BLE class
         if self.is_manufacturer_ti(mac):
-            self.u = LoggerControllerBLECC26X2(mac)
+            self.und = LoggerControllerBLECC26X2(self)
         elif self.is_manufacturer_microchip(mac):
-            self.u = LoggerControllerBLERN4020(mac)
+            self.und = LoggerControllerBLERN4020(self)
         else:
             raise bluepy.BTLEException('unknown manufacturer')
         self.delegate = Delegate()
@@ -59,14 +63,14 @@ class LoggerControllerBLE(LoggerController):
     def open(self):
         for counter in range(3):
             try:
-                self.u.peripheral = bluepy.Peripheral(self.u.address)
+                self.per = bluepy.Peripheral(self.address)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
-                self.u.peripheral.setDelegate(self.delegate)
-                self.u.svc = self.u.peripheral.getServiceByUUID(self.u.UUID_S)
-                self.u.cha = self.u.svc.getCharacteristics(self.u.UUID_C)[0]
-                descriptor = self.u.cha.valHandle + 1
-                self.u.peripheral.writeCharacteristic(descriptor, b'\x01\x00')
+                self.per.setDelegate(self.delegate)
+                self.svc = self.per.getServiceByUUID(self.und.UUID_S)
+                self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
+                descriptor = self.cha.valHandle + 1
+                self.per.writeCharacteristic(descriptor, b'\x01\x00')
                 self.open_after()
                 return True
             except (AttributeError, bluepy.BTLEException):
@@ -74,29 +78,17 @@ class LoggerControllerBLE(LoggerController):
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
-        self.u.ble_write(data, response)
+        self.und.ble_write(data, response)
 
     def open_after(self):
-        self.u.open_after()
+        self.und.open_after()
 
     def close(self):
         try:
-            self.u.peripheral.disconnect()
+            self.per.disconnect()
             return True
         except AttributeError:
             return False
-
-    def command(self, *args, retries=3):    # pragma: no cover
-        for retry in range(retries):
-            try:
-                result = self._command(*args)
-                if result:
-                    return result
-            except bluepy.BTLEException:
-                # to be managed by app
-                s = 'BLE command() exception'
-                raise bluepy.BTLEException(s)
-        return None
 
     def _command(self, *args):
         # prepare reception vars
@@ -124,6 +116,18 @@ class LoggerControllerBLE(LoggerController):
         cmd_answer = self._wait_for_command_answer(cmd).split()
         return cmd_answer
 
+    def command(self, *args, retries=3):    # pragma: no cover
+        for retry in range(retries):
+            try:
+                result = self._command(*args)
+                if result:
+                    return result
+            except bluepy.BTLEException:
+                # to be managed by app
+                s = 'BLE command() exception'
+                raise bluepy.BTLEException(s)
+        return None
+
     def _shortcut_command_answer(self, cmd):
         # not all commands can do this, recall race conditions
         if cmd == 'GET' and self.delegate.buffer == b'GET 00':
@@ -136,7 +140,7 @@ class LoggerControllerBLE(LoggerController):
         end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
         wait_time = time.time() + end_time
         while time.time() < wait_time:
-            if self.u.peripheral.waitForNotifications(0.1):
+            if self.per.waitForNotifications(0.1):
                 # useful for multiple answer commands
                 wait_time += 0.1
             if self._shortcut_command_answer(tag):

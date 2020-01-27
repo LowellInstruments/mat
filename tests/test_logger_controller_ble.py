@@ -79,7 +79,7 @@ class TestLoggerControllerBLECC26X2:
     def test_open_ok(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         lc_ble.open()
-        assert lc_ble.u.peripheral
+        assert lc_ble.per
 
     def test_open_bad(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(FakePeripheralEx))(mac_ti)

@@ -1,18 +1,14 @@
 class LoggerControllerBLERN4020:  # pragma: no cover
 
-    UUID_S = '00035b03-58e6-07dd-021a-08123a000300'
-    UUID_C = '00035b03-58e6-07dd-021a-08123a000301'
-
-    def __init__(self, mac):
-        self.address = mac
-        self.peripheral = None
-        self.svc = None
-        self.cha = None
+    def __init__(self, base):
+        self.base = base
+        self.UUID_S = '00035b03-58e6-07dd-021a-08123a000300'
+        self.UUID_C = '00035b03-58e6-07dd-021a-08123a000301'
 
     def open_after(self):
         pass
 
     def ble_write(self, data, response=False):  # pragma: no cover
-        binary_data = [data[i:i + 1] for i in range(len(data))]
-        for each in binary_data:
-            self.cha.write(each, withResponse=response)
+        b_data = [data[i:i + 1] for i in range(len(data))]
+        for each in b_data:
+            self.base.cha.write(each, withResponse=response)
