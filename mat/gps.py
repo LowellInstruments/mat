@@ -73,7 +73,7 @@ class GPS:
         return True if calculated == checksum_in_decimal else False
 
     def _on_rmc(self, args):
-        print(args)
+        # print(args)
         if args[1] != 'A':
             return
         timestamp = datetime.datetime.strptime(args[8] + args[0],

@@ -28,7 +28,8 @@ SERIAL_NUMBER_CMD = 'GSN'
 START_TIME_CMD = 'GST'
 STATUS_CMD = 'STS'
 STOP_CMD = 'STP'
-STOP_WITH_STRING_CMD = 'SWS'
+SWS_CMD = 'SWS'
+RWS_CMD = 'RWS'
 SET_TIME_CMD = 'STM'
 TIME_CMD = 'GTM'
 DEL_FILE_CMD = 'DEL'
@@ -135,7 +136,7 @@ class LoggerController(ABC):
         return logger_settings
 
     def stop_with_string(self, data):
-        return self.command(STOP_WITH_STRING_CMD, data)
+        return self.command(SWS_CMD, data)
 
     def get_sensor_readings(self):
         sensor_string = self.command(SENSOR_READINGS_CMD)
