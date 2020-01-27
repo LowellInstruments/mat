@@ -6,7 +6,6 @@ from mat.cubic_accelerometer import CubicAccelerometer
 from mat.cubic_magnetometer import CubicMagnetometer
 from mat.light import DEFAULT_PDA
 from mat.linear_accelerometer import LinearAccelerometer
-from mat.pressure import DEFAULT_PRA
 from mat.temp_compensated_magnetometer import TempCompensatedMagnetometer
 from mat.binary_coded_decimal import BinaryCodedDecimal
 from mat.v3_calibration import V3Calibration
