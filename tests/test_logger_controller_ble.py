@@ -15,6 +15,7 @@ if sys.platform != 'win32':
     )
 
 
+blue_per = 'bluepy.btle.Peripheral'
 mac_ti = '80:6f:b0:ff:ff:ff'
 mac_mc = '00:1e:c0:ff:ff:ff'
 mac_un = 'ff:ff:ff:ff:ff:ff'
@@ -25,13 +26,14 @@ _ls = 'mat.logger_controller_ble.LoggerControllerBLE._ls'
 
 @pytest.fixture
 def fake_ble_factory(mocker):
-    def patched_logger_controller(p=FakePeripheral, m='', rv=''):
-        mocker.patch('bluepy.btle.Peripheral', p)
+    def patch_lc_ble(p=FakePeripheral, m='', rv=''):
+        mocker.patch(blue_per, p)
         if m:
             mocker.patch(m, return_value=rv)
-        # returns a LC_BLE class w/ 1 attribute + 1 method patched
         return LoggerControllerBLE
-    return patched_logger_controller
+
+    # returns a LC_BLE class w/ 1 attribute + 1 method patched
+    return patch_lc_ble
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="does not run on windows")
