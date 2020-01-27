@@ -139,7 +139,6 @@ class LoggerControllerBLE(LoggerController):
         end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
         return time.time() + end_time
 
-
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
         tag = cmd[:3]
         wait_time = self._get_command_wait_time(tag)
@@ -203,20 +202,17 @@ class LoggerControllerBLE(LoggerController):
     def ls_lid(self):
         ans, index, files = self._ls()
 
-        if ans == [b'ERR']:
-            # e.g. logger not stopped
+        # e.g. logger not stopped
+        if ans in [[b'ERR'], None]:
             return ans
-        if not ans:
-            return
 
         # effectively build list to show
         while index < len(ans):
             name = ans[index]
-            if name in [b'\x04', b'BSY']:
+            if name in [b'\x04']:
                 break
             if name in [b'.', b'..']:
-                index += 2
-                continue
+                index += 1
             if name.endswith(b'lid'):
                 files[name.decode()] = int(ans[index + 1])
                 index += 1
