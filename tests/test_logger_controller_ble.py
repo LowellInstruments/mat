@@ -151,8 +151,7 @@ class TestLoggerControllerBLECC26X2:
     def test_ls_lid_bad(self, fake_ble_factory):
         _rv = [b'ERR']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        l = lc_ble.ls_lid()
-        assert l == [b'ERR']
+        assert lc_ble.ls_lid() == [b'ERR']
 
     def test_ls_lid_none(self, fake_ble_factory):
         _rv = None
