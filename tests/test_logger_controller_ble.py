@@ -136,45 +136,45 @@ class TestLoggerControllerBLECC26X2:
 
     def test_ls(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=cmd, rv=None))(mac_ti)
-        assert lc_ble._ls() == (None, 0, {})
+        assert not lc_ble._ls()
 
     def test_ls_lid_ok(self, fake_ble_factory):
-        _rv = ([b'.', b'..', b'a.lid', b'76', b'b.csv', b'10'], 0, dict())
+        _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert lc_ble.ls_lid() == {'a.lid': 76}
 
     def test_ls_lid_ignore(self, fake_ble_factory):
-        _rv = ([b'.', b'..', b'BSY', b'\x04'], 0, dict())
+        _rv = [b'.', b'..', b'\x04']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert lc_ble.ls_lid() == {}
 
     def test_ls_lid_bad(self, fake_ble_factory):
-        _rv = ([b'ERR'], 0, dict())
+        _rv = [b'ERR']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         l = lc_ble.ls_lid()
         assert l == [b'ERR']
 
     def test_ls_lid_none(self, fake_ble_factory):
-        _rv = (None, 0, dict())
+        _rv = None
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert not lc_ble.ls_lid()
 
     def test_ls_not_lid_ok(self, fake_ble_factory):
-        _rv = ([b'.', b'..', b'a.lid', b'76', b'b.csv', b'10'], 0, dict())
+        _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert lc_ble.ls_not_lid() == {'b.csv': 10}
 
     def test_ls_not_lid_ignore(self, fake_ble_factory):
-        _rv = ([b'.', b'..', b'BSY', b'\x04'], 0, dict())
+        _rv = [b'.', b'..', b'\x04']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert lc_ble.ls_not_lid() == {}
 
     def test_ls_not_lid_bad(self, fake_ble_factory):
-        _rv = ([b'ERR'], 0, dict())
+        _rv = [b'ERR']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert lc_ble.ls_not_lid() == [b'ERR']
 
     def test_ls_not_lid_none(self, fake_ble_factory):
-        _rv = (None, 0, dict())
+        _rv = None
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert not lc_ble.ls_not_lid()

@@ -197,50 +197,48 @@ class LoggerControllerBLE(LoggerController):
     # wrapper function for DIR command
     def _ls(self):
         self.delegate.clear_delegate_buffer()
-        return self.command('DIR 00', retries=1), 0, dict()
+        # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
+        return self.command('DIR 00', retries=1)
 
     def ls_lid(self):
-        ans, index, files = self._ls()
-
-        # e.g. logger not stopped
+        ans = self._ls()
         if ans in [[b'ERR'], None]:
-            return ans
-
-        # effectively build list to show
-        while index < len(ans):
-            name = ans[index]
-            if name in [b'\x04']:
-                break
-            if name in [b'.', b'..']:
-                index += 1
-            if name.endswith(b'lid'):
-                files[name.decode()] = int(ans[index + 1])
-                index += 1
-            index += 1
-        return files
-
-    def ls_not_lid(self):
-        ans, index, files = self._ls()
-
-        if ans == [b'ERR']:
             # e.g. logger not stopped
             return ans
-        if not ans:
-            return
+        return _ls_lid_build(ans)
 
-        # effectively build list to show
-        while index < len(ans):
-            name = ans[index]
-            if name in [b'\x04', b'BSY']:
-                break
-            if name.endswith(b'lid') or name in [b'.', b'..']:
-                index += 2
-                continue
-            if not name.endswith(b'lid'):
-                files[name.decode()] = int(ans[index + 1])
-                index += 2
-        return files
+    def ls_not_lid(self):
+        ans = self._ls()
+        if ans in [[b'ERR'], None]:
+            # e.g. logger not stopped
+            return ans
+        return _ls_not_lid_build(ans)
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
         return self.command("CFG", cfg_file_as_string, retries=1)
+
+
+# utilities
+def _ls_lid_build(lis):
+    files, idx = {}, 0
+    while idx < len(lis):
+        name = lis[idx]
+        if name in [b'\x04']:
+            break
+        if name.endswith(b'lid') and name not in [b'.', b'..']:
+            files[name.decode()] = int(lis[idx + 1])
+        idx += 2
+    return files
+
+
+def _ls_not_lid_build(lis):
+    files, idx = {}, 0
+    while idx < len(lis):
+        name = lis[idx]
+        if name in [b'\x04']:
+            break
+        if not name.endswith(b'lid') and name not in [b'.', b'..']:
+            files[name.decode()] = int(lis[idx + 1])
+        idx += 2
+    return files
