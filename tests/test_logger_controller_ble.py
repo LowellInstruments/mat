@@ -1,6 +1,7 @@
 import pytest
 import bluepy.btle
 import sys
+import time
 import datetime
 if sys.platform != 'win32':
     from mat.logger_controller_ble import (
@@ -10,7 +11,7 @@ if sys.platform != 'win32':
     from tests._test_logger_controller_ble import (
         FakePeripheral,
         FakePeripheralEx,
-        FakeCharacteristic,
+        FakeCharacteristic
     )
 
 
@@ -94,6 +95,13 @@ class TestLoggerControllerBLECC26X2:
     def test_close_bad(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         assert not lc_ble.close()
+
+    def test_get_command_wait_time(self, fake_ble_factory):
+        lc_ble = (fake_ble_factory())(mac_ti)
+        t_s = time.time()
+        t_e = lc_ble._get_command_wait_time('DIR')
+        # WAIT_TIME of this command + 1
+        assert 2 <= t_e - t_s <= 3
 
     def test_command_no_answer_required(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
