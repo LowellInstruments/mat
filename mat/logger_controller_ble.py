@@ -135,10 +135,14 @@ class LoggerControllerBLE(LoggerController):
         if cmd == 'DIR' and self.delegate.buffer.endswith(b'\x04\n\r'):
             return True
 
+    def _get_command_wait_time(self, tag):
+        end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
+        return time.time() + end_time
+
+
     def _wait_for_command_answer(self, cmd):    # pragma: no cover
         tag = cmd[:3]
-        end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
-        wait_time = time.time() + end_time
+        wait_time = self._get_command_wait_time(tag)
         while time.time() < wait_time:
             if self.per.waitForNotifications(0.1):
                 # useful for multiple answer commands
