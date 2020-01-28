@@ -6,7 +6,9 @@ import datetime
 if sys.platform != 'win32':
     from mat.logger_controller_ble import (
         LoggerControllerBLE,
-        Delegate
+        Delegate,
+        brand_ti,
+        brand_microchip
     )
     from tests._test_logger_controller_ble import (
         FakePeripheral,
@@ -20,7 +22,7 @@ mac_ti = '80:6f:b0:ff:ff:ff'
 mac_mc = '00:1e:c0:ff:ff:ff'
 mac_un = 'ff:ff:ff:ff:ff:ff'
 cmd = 'mat.logger_controller_ble.LoggerControllerBLE.command'
-w_a = 'mat.logger_controller_ble.LoggerControllerBLE._wait_for_command_answer'
+w_a = 'mat.logger_controller_ble.LoggerControllerBLE._wait_cmd_ans'
 _ls = 'mat.logger_controller_ble.LoggerControllerBLE._ls'
 
 
@@ -41,19 +43,19 @@ class TestLoggerControllerBLECC26X2:
     def test_buffer_receive_notifications(self):
         d = Delegate()
         d.handleNotification(None, b'\n\rany_data\r\n')
-        assert d.buffer == b'\n\rany_data\r\n'
+        assert d.buf == b'\n\rany_data\r\n'
         d.file_mode = True
         d.handleNotification(None, b'\n\rany_data\r\n')
-        assert d.x_buffer == b'\n\rany_data\r\n'
+        assert d.x_buf == b'\n\rany_data\r\n'
 
     def test_buffer_clear(self):
         d = Delegate()
-        d.buffer = b'\n\rany_data\r\n'
-        d.x_buffer = b'\n\rany_data\r\n'
-        d.clear_delegate_buffer()
-        d.clear_delegate_x_buffer()
-        assert d.buffer == b''
-        assert d.x_buffer == b''
+        d.buf = b'\n\rany_data\r\n'
+        d.x_buf = b'\n\rany_data\r\n'
+        d.clr_buf()
+        d.clr_x_buf()
+        assert d.buf == b''
+        assert d.x_buf == b''
 
     # test switch between command and file mode
     def test_switch_file_mode(self):
@@ -65,11 +67,11 @@ class TestLoggerControllerBLECC26X2:
         assert d.file_mode
 
     def test_is_manufacturer_ti(self):
-        assert LoggerControllerBLE.is_manufacturer_ti('80:6f:b0:')
-        assert LoggerControllerBLE.is_manufacturer_ti('04:ee:03:')
+        assert brand_ti('80:6f:b0:')
+        assert brand_ti('04:ee:03:')
 
     def test_is_manufacturer_microchip(self):
-        assert LoggerControllerBLE.is_manufacturer_microchip('00:1e:c0:')
+        assert brand_microchip('00:1e:c0:')
 
     def test_constructor_ok(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_mc)
@@ -101,7 +103,7 @@ class TestLoggerControllerBLECC26X2:
     def test_get_command_wait_time(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         t_s = time.time()
-        t_e = lc_ble._get_command_wait_time('DIR')
+        t_e = lc_ble._cmd_wait_time('DIR')
         # WAIT_TIME of this command + 1
         assert 2 <= t_e - t_s <= 3
 
@@ -119,15 +121,15 @@ class TestLoggerControllerBLECC26X2:
 
     def test_command_answer_internal(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=w_a, rv=b'STS\t\t\t0201'))(mac_ti)
-        lc_ble.delegate.buffer = b'STS\t\t\t0201'
-        assert lc_ble._wait_for_command_answer('STS') == b'STS\t\t\t0201'
+        lc_ble.delegate.buf = b'STS\t\t\t0201'
+        assert lc_ble._wait_cmd_ans('STS') == b'STS\t\t\t0201'
 
     def test_command_answer_shortcut(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
-        lc_ble.delegate.buffer = b'GET 00'
-        assert lc_ble._shortcut_command_answer('GET')
-        lc_ble.delegate.buffer = b'\x04\n\r'
-        assert lc_ble._shortcut_command_answer('DIR')
+        lc_ble.delegate.buf = b'GET 00'
+        assert lc_ble._done_cmd_ans('GET')
+        lc_ble.delegate.buf = b'\x04\n\r'
+        assert lc_ble._done_cmd_ans('DIR')
 
     def test_get_time_ok(self, fake_ble_factory):
         _rv = [b'GTM', b'131999/12/12', b'11:12:13']

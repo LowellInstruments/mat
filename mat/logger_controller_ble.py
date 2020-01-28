@@ -1,6 +1,6 @@
 import bluepy.btle as bluepy
 import json
-import datetime
+from datetime import datetime
 import time
 from mat.logger_controller import LoggerController
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
@@ -11,21 +11,21 @@ from mat.xmodem_ble import xmodem_get_file, XModemException
 class Delegate(bluepy.DefaultDelegate):
     def __init__(self):
         bluepy.DefaultDelegate.__init__(self)
-        self.buffer = bytes()
-        self.x_buffer = bytes()
+        self.buf = bytes()
+        self.x_buf = bytes()
         self.file_mode = False
 
     def handleNotification(self, c_handle, data):
         if not self.file_mode:
-            self.buffer += data
+            self.buf += data
         else:
-            self.x_buffer += data
+            self.x_buf += data
 
-    def clear_delegate_buffer(self):
-        self.buffer = bytes()
+    def clr_buf(self):
+        self.buf = bytes()
 
-    def clear_delegate_x_buffer(self):
-        self.x_buffer = bytes()
+    def clr_x_buf(self):
+        self.x_buf = bytes()
 
     def set_file_mode(self, state):
         self.file_mode = state
@@ -33,17 +33,7 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT_TIME = {'BTC': 3, 'GET': 3, 'RWS': 2, 'DIR': 2}
-
-    @staticmethod
-    def is_manufacturer_ti(mac):
-        mac = mac.lower()
-        return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
-
-    @staticmethod
-    def is_manufacturer_microchip(mac):
-        mac = mac.lower()
-        return mac.startswith('00:1e:c0:')
+    WAIT = {'BTC': 3, 'GET': 3, 'RWS': 2, 'DIR': 2, 'GDO': 3.2}
 
     def __init__(self, mac):
         super().__init__(mac)
@@ -52,12 +42,12 @@ class LoggerControllerBLE(LoggerController):
         self.svc = None
         self.cha = None
         # set underlying BLE class
-        if self.is_manufacturer_ti(mac):
+        if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
-        elif self.is_manufacturer_microchip(mac):
+        elif brand_microchip(mac):
             self.und = LoggerControllerBLERN4020(self)
         else:
-            raise bluepy.BTLEException('unknown manufacturer')
+            raise bluepy.BTLEException('unknown brand')
         self.delegate = Delegate()
 
     def open(self):
@@ -69,8 +59,8 @@ class LoggerControllerBLE(LoggerController):
                 self.per.setDelegate(self.delegate)
                 self.svc = self.per.getServiceByUUID(self.und.UUID_S)
                 self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
-                descriptor = self.cha.valHandle + 1
-                self.per.writeCharacteristic(descriptor, b'\x01\x00')
+                desc = self.cha.valHandle + 1
+                self.per.writeCharacteristic(desc, b'\x01\x00')
                 self.open_after()
                 return True
             except (AttributeError, bluepy.BTLEException):
@@ -91,88 +81,83 @@ class LoggerControllerBLE(LoggerController):
             return False
 
     def _command(self, *args):
-        # prepare reception vars
-        self.delegate.clear_delegate_buffer()
+        # reception vars
+        self.delegate.clr_buf()
         self.delegate.set_file_mode(False)
 
-        # prepare transmission vars
+        # transmission vars
         cmd = str(args[0])
-        cmd_data = str(args[1]) if len(args) == 2 else ''
-        cmd_data_len = '{:02x}'.format(len(cmd_data)) if cmd_data else ''
-        cmd_to_send = cmd + ' ' + cmd_data_len + cmd_data
+        arg = str(args[1]) if len(args) == 2 else ''
+        n = '{:02x}'.format(len(arg)) if arg else ''
+        to_send = cmd + ' ' + n + arg
 
-        # format and send binary command
+        # send binary command
         if cmd in ('sleep', 'RFN'):
-            cmd_to_send = cmd
-        cmd_to_send += chr(13)
-        cmd_to_send = cmd_to_send.encode()
-        self.ble_write(cmd_to_send)
+            to_send = cmd
+        to_send += chr(13)
+        self.ble_write(to_send.encode())
 
-        # check if this command will wait for an answer
+        # wait, or not, for command answer
         if cmd in ('RST', 'sleep', 'BSL'):
             return None
 
-        # collect and return answer as list of bytes() objects
-        cmd_answer = self._wait_for_command_answer(cmd).split()
-        return cmd_answer
+        # answer as list of bytes() objects
+        ans = self._wait_cmd_ans(cmd).split()
+        return ans
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
             try:
-                result = self._command(*args)
-                if result:
-                    return result
+                ans = self._command(*args)
+                if ans:
+                    return ans
             except bluepy.BTLEException:
                 # to be managed by app
                 s = 'BLE command() exception'
                 raise bluepy.BTLEException(s)
         return None
 
-    def _shortcut_command_answer(self, cmd):
-        # not all commands can do this, recall race conditions
-        if cmd == 'GET' and self.delegate.buffer == b'GET 00':
+    def _done_cmd_ans(self, cmd):
+        # not all commands do this, recall race conditions
+        if cmd == 'GET' and self.delegate.buf == b'GET 00':
             return True
-        if cmd == 'DIR' and self.delegate.buffer.endswith(b'\x04\n\r'):
+        if cmd == 'DIR' and self.delegate.buf.endswith(b'\x04\n\r'):
             return True
 
-    def _get_command_wait_time(self, tag):
-        end_time = self.WAIT_TIME[tag] if tag in self.WAIT_TIME else 1
-        return time.time() + end_time
+    def _cmd_wait_time(self, tag):
+        return self.WAIT[tag] if tag in self.WAIT else 1
 
-    def _wait_for_command_answer(self, cmd):    # pragma: no cover
+    def _wait_cmd_ans(self, cmd):    # pragma: no cover
         tag = cmd[:3]
-        wait_time = self._get_command_wait_time(tag)
-        while time.time() < wait_time:
+        till = time.time() + self._cmd_wait_time(tag)
+        while time.time() < till:
             if self.per.waitForNotifications(0.1):
                 # useful for multiple answer commands
-                wait_time += 0.1
-            if self._shortcut_command_answer(tag):
+                till += 0.1
+            if self._done_cmd_ans(tag):
                 break
-        return self.delegate.buffer
+        return self.delegate.buf
 
     def get_time(self):
-        self.delegate.clear_delegate_buffer()
-        answer_gtm = self.command('GTM')
-        if not answer_gtm:
+        self.delegate.clr_buf()
+        ans = self.command('GTM')
+        if not ans:
             return False
-        logger_time = answer_gtm[1].decode()[2:] + ' '
-        logger_time += answer_gtm[2].decode()
-        time_format = '%Y/%m/%d %H:%M:%S'
         try:
-            # we may receive a truncated answer (e.g. '2019/08/12 12')
-            return datetime.datetime.strptime(logger_time, time_format)
-        except ValueError:
+            _time = ans[1].decode()[2:] + ' '
+            _time += ans[2].decode()
+            return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
+        except (ValueError, IndexError):
             return False
 
     def get_file(self, filename, folder, size):  # pragma: no cover
-        self.delegate.clear_delegate_buffer()
-        self.delegate.clear_delegate_x_buffer()
-
+        self.delegate.clr_buf()
+        self.delegate.clr_x_buf()
         self.delegate.set_file_mode(False)
-        answer_get = self.command('GET', filename)
+        ans = self.command('GET', filename)
 
         try:
-            file_dl = self._save_file(answer_get, filename, folder, size)
+            file_dl = self._save_file(ans, filename, folder, size)
         except XModemException:
             file_dl = False
         finally:
@@ -182,21 +167,21 @@ class LoggerControllerBLE(LoggerController):
         time.sleep(2)
         return file_dl
 
-    def _save_file(self, answer_get, filename, folder, s):   # pragma: no cover
-        if answer_get is not None and answer_get[0] == b'GET':
+    def _save_file(self, ans_get, path, folder, s):   # pragma: no cover
+        if ans_get is not None and ans_get[0] == b'GET':
             self.delegate.set_file_mode(True)
-            result, bytes_received = xmodem_get_file(self)
-            if result:
-                full_file_path = folder + '/' + filename
-                with open(full_file_path, 'wb') as f:
-                    f.write(bytes_received)
+            r, bytes_rx = xmodem_get_file(self)
+            if r:
+                full_path = folder + '/' + path
+                with open(full_path, 'wb') as f:
+                    f.write(bytes_rx)
                     f.truncate(int(s))
             return True
         return False
 
     # wrapper function for DIR command
     def _ls(self):
-        self.delegate.clear_delegate_buffer()
+        self.delegate.clr_buf()
         # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         return self.command('DIR 00', retries=1)
 
@@ -215,8 +200,8 @@ class LoggerControllerBLE(LoggerController):
         return _ls_not_lid_build(ans)
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
-        cfg_file_as_string = json.dumps(cfg_file_as_json_dict)
-        return self.command("CFG", cfg_file_as_string, retries=1)
+        _as_string = json.dumps(cfg_file_as_json_dict)
+        return self.command("CFG", _as_string, retries=1)
 
 
 # utilities
@@ -242,3 +227,13 @@ def _ls_not_lid_build(lis):
             files[name.decode()] = int(lis[idx + 1])
         idx += 2
     return files
+
+    
+def brand_ti(mac):
+    mac = mac.lower()
+    return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
+
+
+def brand_microchip(mac):
+    mac = mac.lower()
+    return mac.startswith('00:1e:c0:')
