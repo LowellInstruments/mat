@@ -231,7 +231,7 @@ def _ls_not_lid_build(lis):
         idx += 2
     return files
 
-    
+
 def brand_ti(mac):
     mac = mac.lower()
     return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
