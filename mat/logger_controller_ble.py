@@ -33,7 +33,10 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT = {'BTC': 3, 'GET': 3, 'RWS': 2, 'DIR': 2, 'GDO': 3.2}
+    WAIT = {'BTC': 3, 'GET': 3, 'RWS': 2,
+            'DIR': 2, 'FRM': 2, 'CFG': 2,
+            'GDO': 3.2
+            }
 
     def __init__(self, mac):
         super().__init__(mac)

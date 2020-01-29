@@ -103,7 +103,7 @@ class TestLoggerControllerBLECC26X2:
     def test_get_command_wait_time(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         t_s = time.time()
-        t_e = lc_ble._cmd_wait_time('DIR')
+        t_e = time.time() + lc_ble._cmd_wait_time('DIR')
         # WAIT_TIME of this command + 1
         assert 2 <= t_e - t_s <= 3
 
