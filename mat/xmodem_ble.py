@@ -37,10 +37,10 @@ def xmodem_get_file(lc_ble):
 
 
 def _tx_c_ish(lc_ble, sending_c):
-    lc_ble.delegate.x_buffer = bytes()
+    lc_ble.delegate.x_buf = bytes()
     if sending_c:
-        # print('c')
-        lc_ble.u.ble_write(b'C')
+        # print('--> c')
+        lc_ble.ble_write(b'C')
 
 
 def _rx_ctrl_byte(lc_ble):
@@ -50,15 +50,15 @@ def _rx_ctrl_byte(lc_ble):
             # happens very rarely but it does
             # print('K')
             raise XModemException('timeout waiting XMD ctrl byte')
-        lc_ble.u.peripheral.waitForNotifications(1)
-        if len(lc_ble.delegate.x_buffer) >= 1:
+        lc_ble.per.waitForNotifications(1)
+        if len(lc_ble.delegate.x_buf) >= 1:
             break
 
 
 def _parse_ctrl_byte(lc_ble):
-    control_byte = bytes([lc_ble.delegate.x_buffer[0]])
+    control_byte = bytes([lc_ble.delegate.x_buf[0]])
     if control_byte == SOH:
-        # print('s')
+        # print('<-- s')
         return SOH, 128 + 5
     elif control_byte == STX:
         return STX, 1024 + 5
@@ -78,9 +78,10 @@ def _rx_frame(lc_ble, frame_len, retries, timeout):
         if time.time() > timeout:
             retries += 1
             break
-        lc_ble.u.peripheral.waitForNotifications(0.01)
-        if len(lc_ble.delegate.x_buffer) >= frame_len:
+        lc_ble.per.waitForNotifications(0.01)
+        if len(lc_ble.delegate.x_buf) >= frame_len:
             break
+    # print(lc_ble.delegate.x_buf)
     return retries
 
 
@@ -105,15 +106,15 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
 
 
 def _parse_frame(lc_ble, sending_c, retries, whole_file):
-    # print(lc_ble.delegate.x_buffer)
     if _frame_check_crc(lc_ble):
+        # print('<-- crc ok')
         sending_c = False
         retries = 0
-        whole_file += lc_ble.delegate.x_buffer[3:-2]
+        whole_file += lc_ble.delegate.x_buf[3:-2]
         # print('.', end='')
         _ack(lc_ble)
     else:
-        # print('x', end='')
+        print('x', end='')
         _nak(lc_ble)
     return sending_c, retries, whole_file
 
@@ -121,30 +122,31 @@ def _parse_frame(lc_ble, sending_c, retries, whole_file):
 def _purge(lc_ble):
     end_time = time.time() + 0.1
     while time.time() < end_time:
-        lc_ble.u.peripheral.waitForNotifications(0.01)
+        lc_ble.per.waitForNotifications(0.01)
 
 
 def _ack(lc_ble):
-    lc_ble.u.ble_write(ACK)
+    # print('--> a')
+    lc_ble.ble_write(ACK)
 
 
 def _nak(lc_ble):
-    lc_ble.u.ble_write(NAK)
+    lc_ble.ble_write(NAK)
 
 
 def _can(lc_ble):
-    lc_ble.u.ble_write(CAN)
-    lc_ble.u.ble_write(CAN)
-    lc_ble.u.ble_write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
+    lc_ble.ble_write(CAN)
 
 
 # calculate CRC omitting proper fields
 def _frame_check_crc(lc_ble):
-    data = lc_ble.delegate.x_buffer[3:-2]
-    received_crc_bytes = lc_ble.delegate.x_buffer[-2:]
+    data = lc_ble.delegate.x_buf[3:-2]
+    received_crc_bytes = lc_ble.delegate.x_buf[-2:]
     calculated_crc_int = crc16.crc16xmodem(data)
     calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
-    # print(len(lc_ble.delegate.x_buffer))
+    # print(len(lc_ble.delegate.x_buf))
     if calculated_crc_bytes == received_crc_bytes:
         return True
     else:
