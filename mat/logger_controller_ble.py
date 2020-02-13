@@ -33,10 +33,10 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT = {'BTC': 3, 'GET': 3, 'RWS': 2,
-            'DIR': 2, 'FRM': 2, 'CFG': 2,
-            'GDO': 3.2
-            }
+    WAIT = {
+        'BTC': 3, 'GET': 3, 'RWS': 2, 'GDO': 3.2,
+        'DIR': 2, 'FRM': 2, 'CFG': 2, '#T1': 10
+    }
 
     def __init__(self, mac):
         super().__init__(mac)
@@ -151,6 +151,7 @@ class LoggerControllerBLE(LoggerController):
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
+            print(ans)
             return False
 
     def get_file(self, filename, folder, size):  # pragma: no cover
@@ -188,12 +189,18 @@ class LoggerControllerBLE(LoggerController):
         # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         return self.command('DIR 00', retries=1)
 
-    def ls_lid(self):
+    def ls_ext(self, ext):
         ans = self._ls()
         if ans in [[b'ERR'], None]:
             # e.g. logger not stopped
             return ans
-        return _ls_lid_build(ans)
+        return _ls_ext_build(ans, ext)
+
+    def ls_lid(self):
+        return self.ls_ext(b'lid')
+
+    def ls_gps(self):
+        return self.ls_ext(b'gps')
 
     def ls_not_lid(self):
         ans = self._ls()
@@ -208,13 +215,13 @@ class LoggerControllerBLE(LoggerController):
 
 
 # utilities
-def _ls_lid_build(lis):
+def _ls_ext_build(lis, ext):
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
         if name in [b'\x04']:
             break
-        if name.endswith(b'lid') and name not in [b'.', b'..']:
+        if name.endswith(ext) and name not in [b'.', b'..']:
             files[name.decode()] = int(lis[idx + 1])
         idx += 2
     return files
