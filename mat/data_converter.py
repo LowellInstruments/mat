@@ -79,6 +79,9 @@ class DataConverter:
     def register_observer(self, observer):
         self.observers.append(observer)
 
-    def __del__(self):
+    def close_source(self):
         if self.source_file:
             self.source_file.close()
+
+    def __del__(self):
+        self.close_source()
