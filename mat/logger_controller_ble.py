@@ -54,6 +54,7 @@ class LoggerControllerBLE(LoggerController):
         self.delegate = Delegate()
 
     def open(self):
+        # todo: check bluepy new commits for BLE connection timeout
         for counter in range(3):
             try:
                 self.per = bluepy.Peripheral(self.address)
