@@ -26,12 +26,15 @@ class GPS:
         }
         self.last_rmc = None
 
-    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
-        if self._wait_for_frame_type('$GPRMC', timeout):
-            # decide fields needed to consider RMC frame as valid
-            if self.last_rmc and self.last_rmc.timestamp:
-                return self.last_rmc
-        return None
+    def get_gps_info(self, timeout=TIMEOUT_PORT_READS) -> namedtuple:
+        try:
+            if self._wait_for_frame_type('$GPRMC', timeout):
+                # decide fields needed to consider RMC frame as valid
+                if self.last_rmc and self.last_rmc.timestamp:
+                    return self.last_rmc
+            return None
+        except serial.SerialException:
+            return None
 
     # waits for frame_type + checksum OK -> populates self.last_*
     def _wait_for_frame_type(self, frame_type, timeout=TIMEOUT_PORT_READS):
