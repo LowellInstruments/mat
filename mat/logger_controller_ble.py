@@ -6,6 +6,7 @@ from mat.logger_controller import LoggerController
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
+import pathlib
 
 
 class Delegate(bluepy.DefaultDelegate):
@@ -177,8 +178,8 @@ class LoggerControllerBLE(LoggerController):
             self.delegate.set_file_mode(True)
             r, bytes_rx = xmodem_get_file(self)
             if r:
-                full_path = folder + '/' + path
-                with open(full_path, 'wb') as f:
+                p = str(pathlib.Path(folder / path))
+                with open(p, 'wb') as f:
                     f.write(bytes_rx)
                     f.truncate(int(s))
             return True
