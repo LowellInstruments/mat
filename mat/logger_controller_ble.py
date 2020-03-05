@@ -156,14 +156,29 @@ class LoggerControllerBLE(LoggerController):
             print(ans)
             return False
 
-    def get_file(self, filename, folder, size):  # pragma: no cover
+    def _save_file(self, ans_get, file, fol, s):   # pragma: no cover
+        if ans_get is not None and ans_get[0] == b'GET':
+            self.delegate.set_file_mode(True)
+            r, bytes_rx = xmodem_get_file(self)
+            if r:
+                p = '{}/{}'.format(fol, file)
+                with open(p, 'wb') as f:
+                    f.write(bytes_rx)
+                    f.truncate(int(s))
+            return True
+        return False
+
+    def get_file(self, file, fol, size):  # pragma: no cover
         self.delegate.clr_buf()
         self.delegate.clr_x_buf()
         self.delegate.set_file_mode(False)
-        ans = self.command('GET', filename)
+        ans = self.command('GET', file)
+
+        # ensure fol is string, not pathlib
+        fol = str(fol)
 
         try:
-            file_dl = self._save_file(ans, filename, folder, size)
+            file_dl = self._save_file(ans, file, fol, size)
         except XModemException:
             file_dl = False
         finally:
@@ -172,18 +187,6 @@ class LoggerControllerBLE(LoggerController):
         # do not remove, gives logger's XMODEM time to end
         time.sleep(2)
         return file_dl
-
-    def _save_file(self, ans_get, path, folder, s):   # pragma: no cover
-        if ans_get is not None and ans_get[0] == b'GET':
-            self.delegate.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self)
-            if r:
-                p = str(pathlib.Path(folder / path))
-                with open(p, 'wb') as f:
-                    f.write(bytes_rx)
-                    f.truncate(int(s))
-            return True
-        return False
 
     # wrapper function for DIR command
     def _ls(self):
