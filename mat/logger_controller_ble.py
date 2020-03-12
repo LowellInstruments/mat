@@ -156,10 +156,10 @@ class LoggerControllerBLE(LoggerController):
             print(ans)
             return False
 
-    def _save_file(self, ans_get, file, fol, s):   # pragma: no cover
+    def _save_file(self, ans_get, file, fol, s, sig):   # pragma: no cover
         if ans_get is not None and ans_get[0] == b'GET':
             self.delegate.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self)
+            r, bytes_rx = xmodem_get_file(self, sig)
             if r:
                 p = '{}/{}'.format(fol, file)
                 with open(p, 'wb') as f:
@@ -168,7 +168,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         return False
 
-    def get_file(self, file, fol, size):  # pragma: no cover
+    def get_file(self, file, fol, size, sig):  # pragma: no cover
         self.delegate.clr_buf()
         self.delegate.clr_x_buf()
         self.delegate.set_file_mode(False)
@@ -178,7 +178,7 @@ class LoggerControllerBLE(LoggerController):
         fol = str(fol)
 
         try:
-            file_dl = self._save_file(ans, file, fol, size)
+            file_dl = self._save_file(ans, file, fol, size, sig)
         except XModemException:
             file_dl = False
         finally:
