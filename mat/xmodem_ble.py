@@ -11,7 +11,7 @@ NAK = b'\x15'
 
 
 # download function, initial purge to start fresh, exception on error
-def xmodem_get_file(lc_ble, sig):
+def xmodem_get_file(lc_ble, sig=None):
     _purge(lc_ble)
     file_built = bytes()
     retries = 0
@@ -35,8 +35,9 @@ def xmodem_get_file(lc_ble, sig):
             bunch = _parse_frame(lc_ble, sending_c, retries, file_built)
             sending_c, retries, file_built = bunch
 
-        # for GUI
-        sig.emit()
+        # for GUIs feedback, if any
+        if sig:
+            sig.emit()
 
 
 def _tx_c_ish(lc_ble, sending_c):
