@@ -188,6 +188,28 @@ class LoggerControllerBLE(LoggerController):
         time.sleep(2)
         return file_dl
 
+    def dwl_chunk(self, i, sig=None):
+        self.delegate.clr_buf()
+
+        # todo: do larger chunk number 2 bytes
+        n = '{:02x}'.format(1)
+        to_send = 'DWL {}{}\r'.format(n, i)
+        self.ble_write(to_send.encode())
+
+        timeout = time.perf_counter() + .1
+        acc = bytes()
+        while True:
+            if time.perf_counter() > timeout:
+                break
+            self.per.waitForNotifications(.05)
+            if len(self.delegate.buf):
+                timeout = time.perf_counter() + .05
+                print(self.delegate.buf, flush=True)
+                acc += self.delegate.buf
+                self.delegate.clr_buf()
+
+        return acc
+
     # wrapper function for DIR command
     def _ls(self):
         self.delegate.clr_buf()
