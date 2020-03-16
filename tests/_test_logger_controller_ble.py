@@ -17,7 +17,7 @@ class FakeService:
 
 
 class FakePeripheral:
-    def __init__(self, mac):
+    def __init__(self, mac, iface=0):
         self.mac = mac
 
     def setDelegate(self, delegate_to_fxn):

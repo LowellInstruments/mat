@@ -5,7 +5,7 @@ class LoggerControllerBLERN4020:  # pragma: no cover
         self.UUID_S = '00035b03-58e6-07dd-021a-08123a000300'
         self.UUID_C = '00035b03-58e6-07dd-021a-08123a000301'
 
-    def open_after(self):
+    def open_post(self):
         pass
 
     def ble_write(self, data, response=False):  # pragma: no cover

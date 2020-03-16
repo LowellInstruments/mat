@@ -1,4 +1,4 @@
-import bluepy.btle as bluepy
+import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
@@ -6,12 +6,11 @@ from mat.logger_controller import LoggerController
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
-import pathlib
 
 
-class Delegate(bluepy.DefaultDelegate):
+class Delegate(ble.DefaultDelegate):
     def __init__(self):
-        bluepy.DefaultDelegate.__init__(self)
+        ble.DefaultDelegate.__init__(self)
         self.buf = bytes()
         self.x_buf = bytes()
         self.file_mode = False
@@ -39,9 +38,10 @@ class LoggerControllerBLE(LoggerController):
         'DIR': 2, 'FRM': 2, 'CFG': 2, '#T1': 10
     }
 
-    def __init__(self, mac):
+    def __init__(self, mac, hci_if=0):
         super().__init__(mac)
         self.address = mac
+        self.hci_if = hci_if
         self.per = None
         self.svc = None
         self.cha = None
@@ -51,32 +51,32 @@ class LoggerControllerBLE(LoggerController):
         elif brand_microchip(mac):
             self.und = LoggerControllerBLERN4020(self)
         else:
-            raise bluepy.BTLEException('unknown brand')
-        self.delegate = Delegate()
+            raise ble.BTLEException('unknown brand')
+        self.dlg = Delegate()
 
     def open(self):
         # todo: check bluepy new commits for BLE connection timeout
         for counter in range(3):
             try:
-                self.per = bluepy.Peripheral(self.address)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
-                self.per.setDelegate(self.delegate)
+                self.per.setDelegate(self.dlg)
                 self.svc = self.per.getServiceByUUID(self.und.UUID_S)
                 self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
-                self.open_after()
+                self.open_post()
                 return True
-            except (AttributeError, bluepy.BTLEException):
+            except (AttributeError, ble.BTLEException):
                 pass
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
         self.und.ble_write(data, response)
 
-    def open_after(self):
-        self.und.open_after()
+    def open_post(self):
+        self.und.open_post()
 
     def close(self):
         try:
@@ -87,8 +87,8 @@ class LoggerControllerBLE(LoggerController):
 
     def _command(self, *args):
         # reception vars
-        self.delegate.clr_buf()
-        self.delegate.set_file_mode(False)
+        self.dlg.clr_buf()
+        self.dlg.set_file_mode(False)
 
         # transmission vars
         cmd = str(args[0])
@@ -116,21 +116,21 @@ class LoggerControllerBLE(LoggerController):
                 ans = self._command(*args)
                 if ans:
                     return ans
-            except bluepy.BTLEException:
+            except ble.BTLEException as ex:
                 # to be managed by app
-                s = 'BLE command() exception'
-                raise bluepy.BTLEException(s)
+                s = 'BLE: command() exception {}'.format(ex)
+                raise ble.BTLEException(s)
         return None
-
-    def _done_cmd_ans(self, cmd):
-        # not all commands do this, recall race conditions
-        if cmd == 'GET' and self.delegate.buf == b'GET 00':
-            return True
-        if cmd == 'DIR' and self.delegate.buf.endswith(b'\x04\n\r'):
-            return True
 
     def _cmd_wait_time(self, tag):
         return self.WAIT[tag] if tag in self.WAIT else 1
+
+    def _done_cmd_ans(self, cmd):
+        # not all commands do this, recall race conditions
+        if cmd == 'GET' and self.dlg.buf == b'GET 00':
+            return True
+        if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
+            return True
 
     def _wait_cmd_ans(self, cmd):    # pragma: no cover
         tag = cmd[:3]
@@ -141,10 +141,10 @@ class LoggerControllerBLE(LoggerController):
                 till += 0.1
             if self._done_cmd_ans(tag):
                 break
-        return self.delegate.buf
+        return self.dlg.buf
 
     def get_time(self):
-        self.delegate.clr_buf()
+        self.dlg.clr_buf()
         ans = self.command('GTM')
         if not ans:
             return False
@@ -158,7 +158,7 @@ class LoggerControllerBLE(LoggerController):
 
     def _save_file(self, ans_get, file, fol, s, sig):   # pragma: no cover
         if ans_get is not None and ans_get[0] == b'GET':
-            self.delegate.set_file_mode(True)
+            self.dlg.set_file_mode(True)
             r, bytes_rx = xmodem_get_file(self, sig)
             if r:
                 p = '{}/{}'.format(fol, file)
@@ -169,9 +169,9 @@ class LoggerControllerBLE(LoggerController):
         return False
 
     def get_file(self, file, fol, size, sig):  # pragma: no cover
-        self.delegate.clr_buf()
-        self.delegate.clr_x_buf()
-        self.delegate.set_file_mode(False)
+        self.dlg.clr_buf()
+        self.dlg.clr_x_buf()
+        self.dlg.set_file_mode(False)
         ans = self.command('GET', file)
 
         # ensure fol is string, not pathlib
@@ -182,14 +182,14 @@ class LoggerControllerBLE(LoggerController):
         except XModemException:
             file_dl = False
         finally:
-            self.delegate.set_file_mode(False)
+            self.dlg.set_file_mode(False)
 
         # do not remove, gives logger's XMODEM time to end
         time.sleep(2)
         return file_dl
 
     def dwl_chunk(self, i, sig=None):
-        self.delegate.clr_buf()
+        self.dlg.clr_buf()
 
         # todo: do larger chunk number 2 bytes
         n = '{:02x}'.format(1)
@@ -202,17 +202,17 @@ class LoggerControllerBLE(LoggerController):
             if time.perf_counter() > timeout:
                 break
             self.per.waitForNotifications(.05)
-            if len(self.delegate.buf):
+            if len(self.dlg.buf):
                 timeout = time.perf_counter() + .05
-                print(self.delegate.buf, flush=True)
-                acc += self.delegate.buf
-                self.delegate.clr_buf()
+                print(self.dlg.buf, flush=True)
+                acc += self.dlg.buf
+                self.dlg.clr_buf()
 
         return acc
 
     # wrapper function for DIR command
     def _ls(self):
-        self.delegate.clr_buf()
+        self.dlg.clr_buf()
         # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         return self.command('DIR 00', retries=1)
 
@@ -221,7 +221,7 @@ class LoggerControllerBLE(LoggerController):
         if ans in [[b'ERR'], None]:
             # e.g. logger not stopped
             return ans
-        return _ls_ext_build(ans, ext)
+        return _ls_keep_these(ans, ext)
 
     def ls_lid(self):
         return self.ls_ext(b'lid')
@@ -234,7 +234,7 @@ class LoggerControllerBLE(LoggerController):
         if ans in [[b'ERR'], None]:
             # e.g. logger not stopped
             return ans
-        return _ls_not_lid_build(ans)
+        return _ls_keep_not_these(ans, b'lid')
 
     def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
         _as_string = json.dumps(cfg_file_as_json_dict)
@@ -242,28 +242,20 @@ class LoggerControllerBLE(LoggerController):
 
 
 # utilities
-def _ls_ext_build(lis, ext):
+def _ls_keep_these(lis, ext, match=True):
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
         if name in [b'\x04']:
             break
-        if name.endswith(ext) and name not in [b'.', b'..']:
+        if name.endswith(ext) == match and name not in [b'.', b'..']:
             files[name.decode()] = int(lis[idx + 1])
         idx += 2
     return files
 
 
-def _ls_not_lid_build(lis):
-    files, idx = {}, 0
-    while idx < len(lis):
-        name = lis[idx]
-        if name in [b'\x04']:
-            break
-        if not name.endswith(b'lid') and name not in [b'.', b'..']:
-            files[name.decode()] = int(lis[idx + 1])
-        idx += 2
-    return files
+def _ls_keep_not_these(lis, ext):
+    return _ls_keep_these(lis, ext, match=False)
 
 
 def brand_ti(mac):
@@ -274,3 +266,15 @@ def brand_ti(mac):
 def brand_microchip(mac):
     mac = mac.lower()
     return mac.startswith('00:1e:c0:')
+
+
+def ble_scan(hci_if, my_to=3.0):
+    # iface = hciX
+    import sys
+    try:
+        s = ble.Scanner(iface=hci_if)
+        return s.scan(timeout=my_to)
+    except OverflowError:
+        e = 'SYS: overflow on BLE scan, maybe date time error'
+        print(e)
+        sys.exit(1)

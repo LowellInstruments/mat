@@ -121,14 +121,14 @@ class TestLoggerControllerBLECC26X2:
 
     def test_command_answer_internal(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=w_a, rv=b'STS\t\t\t0201'))(mac_ti)
-        lc_ble.delegate.buf = b'STS\t\t\t0201'
+        lc_ble.dlg.buf = b'STS\t\t\t0201'
         assert lc_ble._wait_cmd_ans('STS') == b'STS\t\t\t0201'
 
     def test_command_answer_shortcut(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
-        lc_ble.delegate.buf = b'GET 00'
+        lc_ble.dlg.buf = b'GET 00'
         assert lc_ble._done_cmd_ans('GET')
-        lc_ble.delegate.buf = b'\x04\n\r'
+        lc_ble.dlg.buf = b'\x04\n\r'
         assert lc_ble._done_cmd_ans('DIR')
 
     def test_get_time_ok(self, fake_ble_factory):
@@ -173,6 +173,7 @@ class TestLoggerControllerBLECC26X2:
     def test_ls_not_lid_ok(self, fake_ble_factory):
         _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        print(lc_ble.ls_not_lid())
         assert lc_ble.ls_not_lid() == {'b.csv': 10}
 
     def test_ls_not_lid_ignore(self, fake_ble_factory):
