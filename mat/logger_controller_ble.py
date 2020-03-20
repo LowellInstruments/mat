@@ -120,7 +120,6 @@ class LoggerControllerBLE(LoggerController):
                 # to be managed by app
                 s = 'BLE: command() exception {}'.format(ex)
                 raise ble.BTLEException(s)
-        return None
 
     def _cmd_wait_time(self, tag):
         return self.WAIT[tag] if tag in self.WAIT else 1
@@ -137,7 +136,7 @@ class LoggerControllerBLE(LoggerController):
         till = time.time() + self._cmd_wait_time(tag)
         while time.time() < till:
             if self.per.waitForNotifications(0.1):
-                # useful for multiple answer commands
+                # for multiple answer commands
                 till += 0.1
             if self._done_cmd_ans(tag):
                 break
@@ -147,14 +146,14 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         ans = self.command('GTM')
         if not ans:
-            return False
+            return
         try:
             _time = ans[1].decode()[2:] + ' '
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
             print(ans)
-            return False
+            return
 
     def _save_file(self, ans_get, file, fol, s, sig):   # pragma: no cover
         if ans_get is not None and ans_get[0] == b'GET':
@@ -269,7 +268,7 @@ def brand_microchip(mac):
 
 
 def ble_scan(hci_if, my_to=3.0):
-    # iface = hciX
+    # hci_if: hciX interface
     import sys
     try:
         s = ble.Scanner(iface=hci_if)
