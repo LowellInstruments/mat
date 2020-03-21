@@ -136,7 +136,6 @@ class LoggerControllerBLE(LoggerController):
         till = time.time() + self._cmd_wait_time(tag)
         while time.time() < till:
             if self.per.waitForNotifications(0.1):
-                # for multiple answer commands
                 till += 0.1
             if self._done_cmd_ans(tag):
                 break
