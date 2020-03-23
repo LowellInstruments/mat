@@ -234,8 +234,8 @@ class LoggerControllerBLE(LoggerController):
             return ans
         return _ls_keep_not_these(ans, b'lid')
 
-    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
-        _as_string = json.dumps(cfg_file_as_json_dict)
+    def send_cfg(self, cfg_json_dict: dict):  # pragma: no cover
+        _as_string = json.dumps(cfg_json_dict)
         return self.command("CFG", _as_string, retries=1)
 
 
