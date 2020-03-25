@@ -8,6 +8,13 @@ from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
+# commands not present in USB loggers
+HW_TEST_CMD = '#T1'
+FORMAT_CMD = 'FRM'
+CONFIG_CMD = 'CFG'
+UP_TIME_CMD = 'UTM'
+
+
 class Delegate(ble.DefaultDelegate):
     def __init__(self):
         ble.DefaultDelegate.__init__(self)
