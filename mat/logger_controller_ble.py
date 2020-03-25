@@ -8,6 +8,13 @@ from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
 
 
+# commands not present in USB loggers
+HW_TEST_CMD = '#T1'
+FORMAT_CMD = 'FRM'
+CONFIG_CMD = 'CFG'
+UP_TIME_CMD = 'UTM'
+
+
 class Delegate(ble.DefaultDelegate):
     def __init__(self):
         ble.DefaultDelegate.__init__(self)
@@ -234,8 +241,8 @@ class LoggerControllerBLE(LoggerController):
             return ans
         return _ls_keep_not_these(ans, b'lid')
 
-    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
-        _as_string = json.dumps(cfg_file_as_json_dict)
+    def send_cfg(self, cfg_json_dict: dict):  # pragma: no cover
+        _as_string = json.dumps(cfg_json_dict)
         return self.command("CFG", _as_string, retries=1)
 
 
