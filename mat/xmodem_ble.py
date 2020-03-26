@@ -41,7 +41,7 @@ def xmodem_get_file(lc_ble, sig=None):
 
 
 def _tx_c_ish(lc_ble, sending_c):
-    lc_ble.delegate.x_buf = bytes()
+    lc_ble.dlg.x_buf = bytes()
     if sending_c:
         # print('--> c')
         lc_ble.ble_write(b'C')
@@ -55,12 +55,12 @@ def _rx_ctrl_byte(lc_ble):
             # print('K')
             raise XModemException('timeout waiting XMD ctrl byte')
         lc_ble.per.waitForNotifications(1)
-        if len(lc_ble.delegate.x_buf) >= 1:
+        if len(lc_ble.dlg.x_buf) >= 1:
             break
 
 
 def _parse_ctrl_byte(lc_ble):
-    control_byte = bytes([lc_ble.delegate.x_buf[0]])
+    control_byte = bytes([lc_ble.dlg.x_buf[0]])
     if control_byte == SOH:
         # print('<-- s')
         return SOH, 128 + 5
@@ -83,9 +83,9 @@ def _rx_frame(lc_ble, frame_len, retries, timeout):
             retries += 1
             break
         lc_ble.per.waitForNotifications(0.01)
-        if len(lc_ble.delegate.x_buf) >= frame_len:
+        if len(lc_ble.dlg.x_buf) >= frame_len:
             break
-    # print(lc_ble.delegate.x_buf)
+    # print(lc_ble.dlg.x_buf)
     return retries
 
 
@@ -114,7 +114,7 @@ def _parse_frame(lc_ble, sending_c, retries, whole_file):
         # print('<-- crc ok')
         sending_c = False
         retries = 0
-        whole_file += lc_ble.delegate.x_buf[3:-2]
+        whole_file += lc_ble.dlg.x_buf[3:-2]
         # print('.', end='')
         _ack(lc_ble)
     else:
@@ -146,11 +146,11 @@ def _can(lc_ble):
 
 # calculate CRC omitting proper fields
 def _frame_check_crc(lc_ble):
-    data = lc_ble.delegate.x_buf[3:-2]
-    received_crc_bytes = lc_ble.delegate.x_buf[-2:]
+    data = lc_ble.dlg.x_buf[3:-2]
+    received_crc_bytes = lc_ble.dlg.x_buf[-2:]
     calculated_crc_int = crc16.crc16xmodem(data)
     calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
-    # print(len(lc_ble.delegate.x_buf))
+    # print(len(lc_ble.dlg.x_buf))
     if calculated_crc_bytes == received_crc_bytes:
         return True
     else:
