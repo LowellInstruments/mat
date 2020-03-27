@@ -223,7 +223,7 @@ class LoggerControllerBLE(LoggerController):
 
     def ls_ext(self, ext):
         ans = self._ls()
-        if ans in [[b'ERR'], None]:
+        if ans in [[b'ERR'], [b'BSY'], None]:
             # e.g. logger not stopped
             return ans
         return _ls_keep_these(ans, ext)
@@ -231,12 +231,9 @@ class LoggerControllerBLE(LoggerController):
     def ls_lid(self):
         return self.ls_ext(b'lid')
 
-    def ls_gps(self):
-        return self.ls_ext(b'gps')
-
     def ls_not_lid(self):
         ans = self._ls()
-        if ans in [[b'ERR'], None]:
+        if ans in [[b'ERR'], [b'BSY'], None]:
             # e.g. logger not stopped
             return ans
         return _ls_keep_not_these(ans, b'lid')
