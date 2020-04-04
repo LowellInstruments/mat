@@ -137,6 +137,10 @@ class LoggerControllerBLE(LoggerController):
             return True
         if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
             return True
+        if cmd == 'STS' and b'STS' in self.dlg.buf:
+            return True
+        if cmd == 'RLI' and b'RLI' in self.dlg.buf:
+            return True
 
     def _wait_cmd_ans(self, cmd):    # pragma: no cover
         tag = cmd[:3]
