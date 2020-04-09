@@ -40,8 +40,8 @@ class Delegate(ble.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT = {
-        'BTC': 3, 'GET': 3, 'RWS': 2, 'GDO': 3.2,
+    ANS_WAIT = {
+        'BTC': 3, 'GET': 2, 'RWS': 2, 'GDO': 3.2,
         'DIR': 2, 'FRM': 2, 'CFG': 2, '#T1': 10
     }
 
@@ -92,7 +92,30 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _command(self, *args):
+    def _ans_done(self, cmd):
+        # todo: DWL case
+        # compound command GET: GET + n interactions XMD
+        if cmd == 'GET':
+            return
+        # compound command DIR: DIR + n answers
+        if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
+            return True
+        # rest of commands
+        if cmd != 'DIR' and cmd.encode() in self.dlg.buf:
+            return True
+
+    def _ans_wait(self, cmd):    # pragma: no cover
+        tag = cmd[:3]
+        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else 1
+        till += time.time()
+        while time.time() < till:
+            if self.per.waitForNotifications(0.1):
+                till += 0.1
+            if self._ans_done(tag):
+                break
+        return self.dlg.buf
+
+    def _cmd(self, *args):
         # reception vars
         self.dlg.clr_buf()
         self.dlg.set_file_mode(False)
@@ -114,13 +137,13 @@ class LoggerControllerBLE(LoggerController):
             return None
 
         # answer as list of bytes() objects
-        ans = self._wait_cmd_ans(cmd).split()
+        ans = self._ans_wait(cmd).split()
         return ans
 
     def command(self, *args, retries=3):    # pragma: no cover
         for retry in range(retries):
             try:
-                ans = self._command(*args)
+                ans = self._cmd(*args)
                 if ans:
                     return ans
             except ble.BTLEException as ex:
@@ -128,55 +151,15 @@ class LoggerControllerBLE(LoggerController):
                 s = 'BLE: command() exception {}'.format(ex)
                 raise ble.BTLEException(s)
 
-    def _cmd_wait_time(self, tag):
-        return self.WAIT[tag] if tag in self.WAIT else 1
-
-    def _done_cmd_ans(self, cmd):
-        # todo: DWL case
-        # compound command GET: GET + n interactions XMD
-        if cmd == 'GET':
-            return
-        # compound command DIR: DIR + n answers
-        if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
-            return True
-        # rest of commands
-        if cmd != 'DIR' and cmd.encode() in self.dlg.buf:
-            return True
-
-    def _wait_cmd_ans(self, cmd):    # pragma: no cover
-        tag = cmd[:3]
-        till = time.time() + self._cmd_wait_time(tag)
-        while time.time() < till:
-            if self.per.waitForNotifications(0.1):
-                till += 0.1
-            if self._done_cmd_ans(tag):
-                break
-        return self.dlg.buf
-
-    def get_time(self):
-        self.dlg.clr_buf()
-        ans = self.command('GTM')
-        if not ans:
-            return
-        try:
-            _time = ans[1].decode()[2:] + ' '
-            _time += ans[2].decode()
-            return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
-        except (ValueError, IndexError):
-            print(ans)
-            return
-
-    def _save_file(self, ans_get, file, fol, s, sig=None):   # pragma: no cover
-        if ans_get is not None and ans_get[0] == b'GET':
-            self.dlg.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self, sig)
-            if r:
-                p = '{}/{}'.format(fol, file)
-                with open(p, 'wb') as f:
-                    f.write(bytes_rx)
-                    f.truncate(int(s))
-            return True
-        return False
+    def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
+        self.dlg.set_file_mode(True)
+        r, bytes_rx = xmodem_get_file(self, sig)
+        if r:
+            p = '{}/{}'.format(fol, file)
+            with open(p, 'wb') as f:
+                f.write(bytes_rx)
+                f.truncate(int(s))
+        return True
 
     def get_file(self, file, fol, size, sig=None):  # pragma: no cover
         self.dlg.clr_buf()
@@ -184,19 +167,20 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.set_file_mode(False)
         ans = self.command('GET', file)
 
-        # ensure fol is string, not pathlib
+        # ensure fol is string, not path_lib
         fol = str(fol)
 
+        dl = True
         try:
-            file_dl = self._save_file(ans, file, fol, size, sig)
+            if ans == [b'GET', b'00']:
+                self._save_file(file, fol, size, sig)
         except XModemException:
-            file_dl = False
-        finally:
-            self.dlg.set_file_mode(False)
+            dl = False
 
         # do not remove, gives logger's XMODEM time to end
+        self.dlg.set_file_mode(False)
         time.sleep(2)
-        return file_dl
+        return dl
 
     def dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
@@ -219,6 +203,19 @@ class LoggerControllerBLE(LoggerController):
                 self.dlg.clr_buf()
 
         return acc
+
+    def get_time(self):
+        self.dlg.clr_buf()
+        ans = self.command('GTM')
+        if not ans:
+            return
+        try:
+            _time = ans[1].decode()[2:] + ' '
+            _time += ans[2].decode()
+            return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
+        except (ValueError, IndexError):
+            print(ans)
+            return
 
     # wrapper function for DIR command
     def _ls(self):

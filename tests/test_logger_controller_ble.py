@@ -111,25 +111,25 @@ class TestLoggerControllerBLECC26X2:
         lc_ble = (fake_ble_factory())(mac_ti)
         lc_ble.open()
         lc_ble.characteristic = FakeCharacteristic()
-        assert lc_ble._command('sleep') is None
+        assert lc_ble._cmd('sleep') is None
 
     def test_command_yes_answer_required(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=w_a, rv=b'STS\t\t\t0201'))(mac_ti)
         lc_ble.open()
         lc_ble.characteristic = FakeCharacteristic()
-        assert lc_ble._command('STS') is not None
+        assert lc_ble._cmd('STS') is not None
 
     def test_command_answer_internal(self, fake_ble_factory):
         lc_ble = (fake_ble_factory(m=w_a, rv=b'STS\t\t\t0201'))(mac_ti)
         lc_ble.dlg.buf = b'STS\t\t\t0201'
-        assert lc_ble._wait_cmd_ans('STS') == b'STS\t\t\t0201'
+        assert lc_ble._ans_wait('STS') == b'STS\t\t\t0201'
 
     def test_command_answer_shortcut(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         lc_ble.dlg.buf = b'GET 00'
-        assert lc_ble._done_cmd_ans('GET')
+        assert lc_ble._ans_done('GET')
         lc_ble.dlg.buf = b'\x04\n\r'
-        assert lc_ble._done_cmd_ans('DIR')
+        assert lc_ble._ans_done('DIR')
 
     def test_get_time_ok(self, fake_ble_factory):
         _rv = [b'GTM', b'131999/12/12', b'11:12:13']
