@@ -132,20 +132,16 @@ class LoggerControllerBLE(LoggerController):
         return self.WAIT[tag] if tag in self.WAIT else 1
 
     def _done_cmd_ans(self, cmd):
-        if cmd != 'DIR' and cmd.encode() in self.dlg.buf:
-            return True
+        # todo: DWL case
+        # compound command GET: GET + n interactions XMD
+        if cmd == 'GET':
+            return
+        # compound command DIR: DIR + n answers
         if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
             return True
-
-        # not all commands do this, recall race conditions
-        # if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
-        #     return True
-        # if cmd == 'GET' and self.dlg.buf == b'GET 00':
-        #     return True
-        # if cmd == 'STS' and b'STS' in self.dlg.buf:
-        #     return True
-        # if cmd == 'RLI' and b'RLI' in self.dlg.buf:
-        #     return True
+        # rest of commands
+        if cmd != 'DIR' and cmd.encode() in self.dlg.buf:
+            return True
 
     def _wait_cmd_ans(self, cmd):    # pragma: no cover
         tag = cmd[:3]
