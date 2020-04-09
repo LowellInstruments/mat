@@ -2,7 +2,7 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.logger_controller import LoggerController
+from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -39,11 +39,6 @@ class Delegate(ble.DefaultDelegate):
 
 
 class LoggerControllerBLE(LoggerController):
-
-    ANS_WAIT = {
-        'BTC': 3, 'GET': 2, 'RWS': 2, 'GDO': 3.2,
-        'DIR': 2, 'FRM': 2, 'CFG': 2, '#T1': 10
-    }
 
     def __init__(self, mac, hci_if=0):
         super().__init__(mac)
@@ -92,27 +87,35 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _ans_done(self, cmd):
-        # todo: DWL case
-        # compound command GET: GET + n interactions XMD
-        if cmd == 'GET':
-            return
-        # compound command DIR: DIR + n answers
-        if cmd == 'DIR' and self.dlg.buf.endswith(b'\x04\n\r'):
-            return True
-        # rest of commands
-        if cmd != 'DIR' and cmd.encode() in self.dlg.buf:
-            return True
+    def _done(self, tag):
+        d = self.dlg.buf.decode()
+        # if tag == 'GET' and d.startswith(b'GET 00'):
+            # compound command GET: GET + n interactions XMD
+            # time.sleep(.5)
+            # return True
+        # elif tag == 'DIR' and d.endswith(b'\x04\n\r'):
+            # compound command DIR: DIR + n answers
+            # return True
+        if tag == STATUS_CMD and d.startswith(tag):
+            return True if len(d) == 8 else False
 
-    def _ans_wait(self, cmd):    # pragma: no cover
-        tag = cmd[:3]
-        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else 1
+    ANS_WAIT = {
+        'BTC': 3, 'GDO': 3.2, '#T1': 10,
+        STOP_CMD: '2'
+    }
+
+    def _ans_wait(self, tag: str):    # pragma: no cover
+        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else .2
         till += time.time()
-        while time.time() < till:
+        done = False
+        while 1:
             if self.per.waitForNotifications(0.1):
                 till += 0.1
-            if self._ans_done(tag):
+            if time.time() > till:
                 break
+            if self._done(tag):
+                break
+        # e.g. b'STS 00'
         return self.dlg.buf
 
     def _cmd(self, *args):
@@ -132,12 +135,11 @@ class LoggerControllerBLE(LoggerController):
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
-        # wait, or not, for command answer
-        if cmd in ('RST', 'sleep', 'BSL'):
-            return None
-
         # answer as list of bytes() objects
-        ans = self._ans_wait(cmd).split()
+        tag = cmd[:3]
+        ans = self._ans_wait(tag).split()
+
+        # e.g. [b'STS', b'0201']
         return ans
 
     def command(self, *args, retries=3):    # pragma: no cover

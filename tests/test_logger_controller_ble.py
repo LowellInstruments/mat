@@ -127,9 +127,9 @@ class TestLoggerControllerBLECC26X2:
     def test_command_answer_shortcut(self, fake_ble_factory):
         lc_ble = (fake_ble_factory())(mac_ti)
         lc_ble.dlg.buf = b'GET 00'
-        assert lc_ble._ans_done('GET')
+        assert lc_ble._done('GET')
         lc_ble.dlg.buf = b'\x04\n\r'
-        assert lc_ble._ans_done('DIR')
+        assert lc_ble._done('DIR')
 
     def test_get_time_ok(self, fake_ble_factory):
         _rv = [b'GTM', b'131999/12/12', b'11:12:13']
