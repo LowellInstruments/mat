@@ -2,7 +2,7 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD
+from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -100,12 +100,15 @@ class LoggerControllerBLE(LoggerController):
             return True if len(d) == 8 else False
 
     ANS_WAIT = {
-        'BTC': 3, 'GDO': 3.2, '#T1': 10,
-        STOP_CMD: '2'
+        'BTC': 3,
+        STOP_CMD: 2,
+        DO_SENSOR_READINGS_CMD: 3.2,
+        HW_TEST_CMD: 10,
+        CONFIG_CMD: 3
     }
 
     def _ans_wait(self, tag: str):    # pragma: no cover
-        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else .2
+        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else .4
         till += time.time()
         done = False
         while 1:
@@ -216,7 +219,7 @@ class LoggerControllerBLE(LoggerController):
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
-            print(ans)
+            print('GTM wrong:'.format(ans))
             return
 
     # wrapper function for DIR command
