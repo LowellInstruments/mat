@@ -88,29 +88,35 @@ class LoggerControllerBLE(LoggerController):
             return False
 
     def _done(self, tag):
-        d = self.dlg.buf.decode()
-        # if tag == 'GET' and d.startswith(b'GET 00'):
+        b = self.dlg.buf
+        d = b.decode()
+        if tag == 'GET' and d.startswith('GET 00'):
             # compound command GET: GET + n interactions XMD
-            # time.sleep(.5)
-            # return True
-        # elif tag == 'DIR' and d.endswith(b'\x04\n\r'):
+            time.sleep(.5)
+            return True
+        elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
             # compound command DIR: DIR + n answers
-            # return True
+            return True
         if tag == STATUS_CMD and d.startswith(tag):
             return True if len(d) == 8 else False
 
+    DEF_WAIT = .4
     ANS_WAIT = {
+        # _done() overrides ANS_WAIT overrides DEF_WAIT
         'BTC': 3,
         STOP_CMD: 2,
         DO_SENSOR_READINGS_CMD: 3.2,
         HW_TEST_CMD: 10,
-        CONFIG_CMD: 3
+        CONFIG_CMD: 3,
+        'GET': 3,
+        'DIR': 3,
     }
 
     def _ans_wait(self, tag: str):    # pragma: no cover
-        till = self.ANS_WAIT[tag] if tag in self.ANS_WAIT else .4
+        aw = self.ANS_WAIT
+        dw = self.DEF_WAIT
+        till = aw[tag] if tag in aw else dw
         till += time.time()
-        done = False
         while 1:
             if self.per.waitForNotifications(0.1):
                 till += 0.1
@@ -151,36 +157,37 @@ class LoggerControllerBLE(LoggerController):
                 ans = self._cmd(*args)
                 if ans:
                     return ans
+                time.sleep(1)
             except ble.BTLEException as ex:
                 # to be managed by app
                 s = 'BLE: command() exception {}'.format(ex)
                 raise ble.BTLEException(s)
 
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
-        self.dlg.set_file_mode(True)
-        r, bytes_rx = xmodem_get_file(self, sig)
-        if r:
-            p = '{}/{}'.format(fol, file)
-            with open(p, 'wb') as f:
-                f.write(bytes_rx)
-                f.truncate(int(s))
-        return True
+        try:
+            self.dlg.set_file_mode(True)
+            r, bytes_rx = xmodem_get_file(self, sig)
+            if r:
+                p = '{}/{}'.format(fol, file)
+                with open(p, 'wb') as f:
+                    f.write(bytes_rx)
+                    f.truncate(int(s))
+            return True
+        except XModemException:
+            return False
 
     def get_file(self, file, fol, size, sig=None):  # pragma: no cover
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
-        ans = self.command('GET', file)
+        ans = self.command('GET', file, retries=1)
 
         # ensure fol is string, not path_lib
         fol = str(fol)
 
-        dl = True
-        try:
-            if ans == [b'GET', b'00']:
-                self._save_file(file, fol, size, sig)
-        except XModemException:
-            dl = False
+        dl = False
+        if ans == [b'GET', b'00']:
+            dl = self._save_file(file, fol, size, sig)
 
         # do not remove, gives logger's XMODEM time to end
         self.dlg.set_file_mode(False)
@@ -219,14 +226,15 @@ class LoggerControllerBLE(LoggerController):
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
-            print('GTM wrong:'.format(ans))
+            print('GTM malformed:'.format(ans))
             return
 
     # wrapper function for DIR command
     def _ls(self):
         self.dlg.clr_buf()
         # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
-        return self.command('DIR 00', retries=1)
+        rv = self.command('DIR 00', retries=1)
+        return rv
 
     def ls_ext(self, ext):
         ans = self._ls()
