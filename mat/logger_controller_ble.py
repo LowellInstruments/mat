@@ -100,7 +100,7 @@ class LoggerControllerBLE(LoggerController):
         if tag == STATUS_CMD and d.startswith(tag):
             return True if len(d) == 8 else False
 
-    DEF_WAIT = .4
+    DEF_WAIT = 1
     ANS_WAIT = {
         # _done() overrides ANS_WAIT overrides DEF_WAIT
         'BTC': 3,
@@ -115,6 +115,8 @@ class LoggerControllerBLE(LoggerController):
     def _ans_wait(self, tag: str):    # pragma: no cover
         aw = self.ANS_WAIT
         dw = self.DEF_WAIT
+
+        # few time: C -> / A <- / C -> / peer buffers A
         till = aw[tag] if tag in aw else dw
         till += time.time()
         while 1:
