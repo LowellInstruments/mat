@@ -2,7 +2,7 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD
+from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -57,7 +57,6 @@ class LoggerControllerBLE(LoggerController):
         self.dlg = Delegate()
 
     def open(self):
-        # todo: check bluepy new commits for BLE connection timeout
         for counter in range(3):
             try:
                 self.per = ble.Peripheral(self.address, iface=self.hci_if)
@@ -87,7 +86,9 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _done(self, tag):
+    def cmd_ans_done(self, tag):
+        """" ends an answer timeout after a command """
+
         b = self.dlg.buf
         d = b.decode()
         if tag == 'GET' and d.startswith('GET 00'):
@@ -100,33 +101,18 @@ class LoggerControllerBLE(LoggerController):
         if tag == STATUS_CMD and d.startswith(tag):
             return True if len(d) == 8 else False
 
-    DEF_WAIT = 1
-    ANS_WAIT = {
-        # _done() overrides ANS_WAIT overrides DEF_WAIT
-        'BTC': 3,
-        STOP_CMD: 2,
-        DO_SENSOR_READINGS_CMD: 3.2,
-        HW_TEST_CMD: 10,
-        CONFIG_CMD: 3,
-        'GET': 3,
-        'DIR': 3,
-    }
+    def cmd_ans_wait(self, tag: str):    # pragma: no cover
+        """ starts answer timeout after sending command """
 
-    def _ans_wait(self, tag: str):    # pragma: no cover
-        aw = self.ANS_WAIT
-        dw = self.DEF_WAIT
-
-        # few time: C -> / A <- / C -> / peer buffers A
-        till = aw[tag] if tag in aw else dw
-        till += time.time()
+        till = time.perf_counter() + 5
         while 1:
             if self.per.waitForNotifications(0.1):
                 till += 0.1
-            if time.time() > till:
+            if time.perf_counter() > till:
                 break
-            if self._done(tag):
+            if self.cmd_ans_done(tag):
                 break
-        # e.g. b'STS 00'
+        # e.g. b'STS 00' / b''
         return self.dlg.buf
 
     def _cmd(self, *args):
@@ -146,26 +132,35 @@ class LoggerControllerBLE(LoggerController):
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
-        # answer as list of bytes() objects
+        # wait for an answer w/ this tag string
         tag = cmd[:3]
-        ans = self._ans_wait(tag).split()
+        ans = self.cmd_ans_wait(tag).split()
 
         # e.g. [b'STS', b'0201']
         return ans
 
-    def command(self, *args, retries=3):    # pragma: no cover
-        for retry in range(retries):
-            try:
-                ans = self._cmd(*args)
-                if ans:
-                    return ans
-                time.sleep(1)
-            except ble.BTLEException as ex:
-                # to be managed by app
-                s = 'BLE: command() exception {}'.format(ex)
-                raise ble.BTLEException(s)
+    def command(self, *args):    # pragma: no cover
+        try:
+            ans = self._cmd(*args)
+            if ans:
+                return ans
+            time.sleep(1)
+        except ble.BTLEException as ex:
+            # to be managed by app
+            s = 'BLE: command() exception {}'.format(ex)
+            raise ble.BTLEException(s)
+
+    def flood(self):
+        """ test command for logger robustness check """
+
+        for i in range(10):
+            cmd = STATUS_CMD
+            cmd += chr(13)
+            self.ble_write(cmd.encode())
 
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
+        """ called after _get_file(), downloads file w/ x-modem """
+
         try:
             self.dlg.set_file_mode(True)
             r, bytes_rx = xmodem_get_file(self, sig)
@@ -182,16 +177,19 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
-        ans = self.command('GET', file, retries=1)
+
+        # send GET command
+        ans = self.command('GET', file)
 
         # ensure fol is string, not path_lib
         fol = str(fol)
 
+        # did GET command went OK
         dl = False
         if ans == [b'GET', b'00']:
             dl = self._save_file(file, fol, size, sig)
 
-        # do not remove, gives logger's XMODEM time to end
+        # do not remove, gives logger's x-modem time to end
         self.dlg.set_file_mode(False)
         time.sleep(2)
         return dl
@@ -220,7 +218,7 @@ class LoggerControllerBLE(LoggerController):
 
     def get_time(self):
         self.dlg.clr_buf()
-        ans = self.command('GTM')
+        ans = self.command(TIME_CMD)
         if not ans:
             return
         try:
@@ -228,14 +226,14 @@ class LoggerControllerBLE(LoggerController):
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
-            print('GTM malformed:'.format(ans))
+            print('GTM malformed: {}'.format(ans))
             return
 
     # wrapper function for DIR command
     def _ls(self):
         self.dlg.clr_buf()
         # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
-        rv = self.command('DIR 00', retries=1)
+        rv = self.command('DIR 00')
         return rv
 
     def ls_ext(self, ext):
@@ -243,7 +241,7 @@ class LoggerControllerBLE(LoggerController):
         if ans in [[b'ERR'], [b'BSY'], None]:
             # e.g. logger not stopped
             return ans
-        return _ls_keep_these(ans, ext)
+        return _ls_wildcard(ans, ext, match=True)
 
     def ls_lid(self):
         return self.ls_ext(b'lid')
@@ -253,15 +251,15 @@ class LoggerControllerBLE(LoggerController):
         if ans in [[b'ERR'], [b'BSY'], None]:
             # e.g. logger not stopped
             return ans
-        return _ls_keep_not_these(ans, b'lid')
+        return _ls_wildcard(ans, b'lid', match=False)
 
     def send_cfg(self, cfg_json_dict: dict):  # pragma: no cover
         _as_string = json.dumps(cfg_json_dict)
-        return self.command("CFG", _as_string, retries=1)
+        return self.command(CONFIG_CMD, _as_string)
 
 
 # utilities
-def _ls_keep_these(lis, ext, match=True):
+def _ls_wildcard(lis, ext, match=True):
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
@@ -271,10 +269,6 @@ def _ls_keep_these(lis, ext, match=True):
             files[name.decode()] = int(lis[idx + 1])
         idx += 2
     return files
-
-
-def _ls_keep_not_these(lis, ext):
-    return _ls_keep_these(lis, ext, match=False)
 
 
 def brand_ti(mac):
