@@ -2,7 +2,8 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD
+from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
+    FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -98,8 +99,23 @@ class LoggerControllerBLE(LoggerController):
         elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
             # compound command DIR: DIR + n answers
             return True
-        if tag == STATUS_CMD and d.startswith(tag):
+        elif tag == STATUS_CMD and d.startswith(tag):
             return True if len(d) == 8 else False
+        # todo: from here, add some more fast quit waiting rules
+        elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
+            return True if len(d) == 6 + 6 else False
+        elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
+            return True if len(d) == 6 + 7 else False
+        elif tag == UP_TIME_CMD and d.startswith(tag):
+            time.sleep(.1)
+            return True
+        elif tag == TIME_CMD and d.startswith(tag):
+            return True if len(d) == 6 + 19 else False
+        elif tag == REQ_FILE_NAME_CMD and d.startswith(tag):
+            cond = d.startswith('RFN 00') or d.endswith('.lid')
+            return cond
+
+
 
     def cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout after sending command """
