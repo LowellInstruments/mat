@@ -8,6 +8,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SEN
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
+import pathlib
 
 
 # commands not present in USB loggers
@@ -15,6 +16,7 @@ HW_TEST_CMD = '#T1'
 FORMAT_CMD = 'FRM'
 CONFIG_CMD = 'CFG'
 UP_TIME_CMD = 'UTM'
+MY_TOOL_SET_CMD = 'MTS'
 
 
 class Delegate(ble.DefaultDelegate):
@@ -58,6 +60,17 @@ class LoggerControllerBLE(LoggerController):
             raise ble.BTLEException('unknown brand')
         self.dlg = Delegate()
 
+    @staticmethod
+    def _is_connection_recent(mac):
+        mac = str(mac).replace(':', '')
+        path = pathlib.Path('/dev/shm/{}'.format(mac))
+        if path.exists():
+            print('mac found cached')
+            return True
+        print('mac not cached, caching it...')
+        path.touch()
+        return False
+
     def open(self):
         for counter in range(3):
             try:
@@ -70,9 +83,13 @@ class LoggerControllerBLE(LoggerController):
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
 
-                # todo: hack, if first time, no open_post and reconnect() w/ open_post()
-                self.open_post()
-                return True
+                # hack for linux or it hangs first time ever
+                r = self._is_connection_recent(self.address)
+                if r:
+                    self.open_post()
+                    return True
+                self.per.disconnect()
+                time.sleep(1)
             except (AttributeError, ble.BTLEException):
                 pass
         return False
@@ -136,10 +153,12 @@ class LoggerControllerBLE(LoggerController):
             cond = d.startswith('{} 00'.format(tag))
             time.sleep(1)
             return cond
+        elif tag == MY_TOOL_SET_CMD:
+            cond = d.startswith('{} 00'.format(tag))
+            return cond
         elif d.startswith('BSY') or d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
             return True
-
 
     def cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout after sending command """
