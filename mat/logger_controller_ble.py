@@ -3,7 +3,8 @@ import json
 from datetime import datetime
 import time
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
-    FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD
+    FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -68,6 +69,8 @@ class LoggerControllerBLE(LoggerController):
                 self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
+
+                # todo: hack, if first time, no open_post and reconnect() w/ open_post()
                 self.open_post()
                 return True
             except (AttributeError, ble.BTLEException):
@@ -107,20 +110,41 @@ class LoggerControllerBLE(LoggerController):
         elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
             return True if len(d) == 6 + 7 else False
         elif tag == UP_TIME_CMD and d.startswith(tag):
-            time.sleep(.1)
             return True
         elif tag == TIME_CMD and d.startswith(tag):
             return True if len(d) == 6 + 19 else False
-        elif tag == REQ_FILE_NAME_CMD and d.startswith(tag):
+        elif tag == SET_TIME_CMD:
+            cond = d.startswith('STM 00')
+            return cond
+        elif tag == REQ_FILE_NAME_CMD:
             cond = d.startswith('RFN 00') or d.endswith('.lid')
             return cond
-
+        elif tag == LOGGER_INFO_CMD and d.startswith(tag):
+            cond = (len(d) <= 6 + 7)
+            return cond
+        elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
+            cond = (len(d) == 6 + 8)
+            return cond
+        elif tag == CONFIG_CMD and d.startswith(tag):
+            cond = d.startswith('CFG 00')
+            time.sleep(.5)
+            return cond
+        elif tag == DEL_FILE_CMD and d.startswith(tag):
+            cond = d.startswith('DEL 00')
+            return cond
+        elif tag in [RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD]:
+            cond = d.startswith('{} 00'.format(tag))
+            time.sleep(1)
+            return cond
+        elif d.startswith('BSY') or d.startswith('ERR') or d.startswith('INV'):
+            time.sleep(.5)
+            return True
 
 
     def cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout after sending command """
-
-        till = time.perf_counter() + 5
+        w = 50 if tag in [RUN_CMD, RWS_CMD] else 5
+        till = time.perf_counter() + w
         while 1:
             if self.per.waitForNotifications(0.1):
                 till += 0.1
@@ -166,10 +190,10 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: command() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-    def flood(self):
-        """ test command for logger robustness check """
+    def flood(self, n):
+        """ robust check: sends command burst w/o caring answers """
 
-        for i in range(10):
+        for i in range(n):
             cmd = STATUS_CMD
             cmd += chr(13)
             self.ble_write(cmd.encode())
