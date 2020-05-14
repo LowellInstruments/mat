@@ -149,11 +149,14 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(1)
         elif tag == MY_TOOL_SET_CMD:
             rv = d.startswith('{} 00'.format(tag))
+        elif tag == DO_SENSOR_READINGS_CMD:
+            rv = d.startswith('{} '.format(tag))
+            rv = rv and (len(d) <= 6 + 12)
         elif d.startswith('BSY') or d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
             rv = True
         else:
-            # this happens while answer being collected
+            # here while answer being collected
             pass
         return rv
 
