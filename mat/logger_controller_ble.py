@@ -108,60 +108,57 @@ class LoggerControllerBLE(LoggerController):
             return False
 
     def cmd_ans_done(self, tag):
-        """" ends an answer timeout after a command """
+        """ interrupts answer timeout for last sent command """
 
+        rv = None
         b = self.dlg.buf
         d = b.decode()
         if tag == 'GET' and d.startswith('GET 00'):
             # compound command GET: GET + n interactions XMD
             time.sleep(.5)
-            return True
+            rv = True
         elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
             # compound command DIR: DIR + n answers
-            return True
+            rv = True
         elif tag == STATUS_CMD and d.startswith(tag):
-            return True if len(d) == 8 else False
+            rv = True if len(d) == 8 else False
         # todo: from here, add some more fast quit waiting rules
         elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
-            return True if len(d) == 6 + 6 else False
+            rv = True if len(d) == 6 + 6 else False
         elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
-            return True if len(d) == 6 + 7 else False
+            rv = True if len(d) == 6 + 7 else False
         elif tag == UP_TIME_CMD and d.startswith(tag):
-            return True
+            rv = True
         elif tag == TIME_CMD and d.startswith(tag):
-            return True if len(d) == 6 + 19 else False
+            rv = True if len(d) == 6 + 19 else False
         elif tag == SET_TIME_CMD:
-            cond = d.startswith('STM 00')
-            return cond
+            rv = d.startswith('STM 00')
         elif tag == REQ_FILE_NAME_CMD:
-            cond = d.startswith('RFN 00') or d.endswith('.lid')
-            return cond
+            rv = d.startswith('RFN 00') or d.endswith('.lid')
         elif tag == LOGGER_INFO_CMD and d.startswith(tag):
-            cond = (len(d) <= 6 + 7)
-            return cond
+            rv = (len(d) <= 6 + 7)
         elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
-            cond = (len(d) == 6 + 8)
-            return cond
+            rv = (len(d) == 6 + 8)
         elif tag == CONFIG_CMD and d.startswith(tag):
-            cond = d.startswith('CFG 00')
+            rv = d.startswith('CFG 00')
             time.sleep(.5)
-            return cond
         elif tag == DEL_FILE_CMD and d.startswith(tag):
-            cond = d.startswith('DEL 00')
-            return cond
+            rv = d.startswith('DEL 00')
         elif tag in [RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD]:
-            cond = d.startswith('{} 00'.format(tag))
+            rv = d.startswith('{} 00'.format(tag))
             time.sleep(1)
-            return cond
         elif tag == MY_TOOL_SET_CMD:
-            cond = d.startswith('{} 00'.format(tag))
-            return cond
+            rv = d.startswith('{} 00'.format(tag))
         elif d.startswith('BSY') or d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
-            return True
+            rv = True
+        else:
+            # this happens while answer being collected
+            pass
+        return rv
 
     def cmd_ans_wait(self, tag: str):    # pragma: no cover
-        """ starts answer timeout after sending command """
+        """ starts answer timeout for last sent command """
         w = 50 if tag in [RUN_CMD, RWS_CMD] else 5
         till = time.perf_counter() + w
         while 1:
@@ -291,26 +288,20 @@ class LoggerControllerBLE(LoggerController):
     # wrapper function for DIR command
     def _ls(self):
         self.dlg.clr_buf()
-        # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
         rv = self.command('DIR 00')
+        # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
         return rv
 
     def ls_ext(self, ext):
-        ans = self._ls()
-        if ans in [[b'ERR'], [b'BSY'], None]:
-            # e.g. logger not stopped
-            return ans
-        return _ls_wildcard(ans, ext, match=True)
+        return _ls_wildcard(self._ls(), ext, match=True)
 
     def ls_lid(self):
-        return self.ls_ext(b'lid')
+        ext = b'lid'
+        return self.ls_ext(ext)
 
     def ls_not_lid(self):
-        ans = self._ls()
-        if ans in [[b'ERR'], [b'BSY'], None]:
-            # e.g. logger not stopped
-            return ans
-        return _ls_wildcard(ans, b'lid', match=False)
+        ext = b'lid'
+        return _ls_wildcard(self._ls(), ext, match=False)
 
     def send_cfg(self, cfg_json_dict: dict):  # pragma: no cover
         _as_string = json.dumps(cfg_json_dict)
@@ -322,7 +313,7 @@ def _ls_wildcard(lis, ext, match=True):
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
-        if name in [b'\x04']:
+        if name in [b'\x04', b'ERR']:
             break
         if name.endswith(ext) == match and name not in [b'.', b'..']:
             files[name.decode()] = int(lis[idx + 1])
