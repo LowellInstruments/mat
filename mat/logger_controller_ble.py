@@ -112,17 +112,24 @@ class LoggerControllerBLE(LoggerController):
 
         rv = None
         b = self.dlg.buf
-        d = b.decode()
-        if tag == 'GET' and d.startswith('GET 00'):
-            # compound command GET: GET + n interactions XMD
-            time.sleep(.5)
+
+        try:
+            # normal commands
+            d = b.decode()
+        except UnicodeError:
+            tag = 'DWL'
+            d = b
+
+        if tag == 'DWL':
+            return True
+        elif tag == 'GET' and d.startswith('GET 00'):
+            # do not remove, gives logger time to open file
+            time.sleep(1)
             rv = True
         elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
-            # compound command DIR: DIR + n answers
             rv = True
         elif tag == STATUS_CMD and d.startswith(tag):
             rv = True if len(d) == 8 else False
-        # todo: from here, add some more fast quit waiting rules
         elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
             rv = True if len(d) == 6 + 6 else False
         elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
@@ -152,7 +159,10 @@ class LoggerControllerBLE(LoggerController):
         elif tag == DO_SENSOR_READINGS_CMD:
             rv = d.startswith('{} '.format(tag))
             rv = rv and (len(d) <= 6 + 12)
-        elif d.startswith('BSY') or d.startswith('ERR') or d.startswith('INV'):
+        elif tag == 'DWG' and d.startswith('DWG'):
+            rv = True
+        # todo: add any missing fast quit waiting rules
+        elif d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
             rv = True
         else:
@@ -200,10 +210,7 @@ class LoggerControllerBLE(LoggerController):
 
     def command(self, *args):    # pragma: no cover
         try:
-            ans = self._cmd(*args)
-            if ans:
-                return ans
-            time.sleep(1)
+            return self._cmd(*args)
         except ble.BTLEException as ex:
             # to be managed by app
             s = 'BLE: command() exception {}'.format(ex)
@@ -248,28 +255,30 @@ class LoggerControllerBLE(LoggerController):
         if ans == [b'GET', b'00']:
             dl = self._save_file(file, fol, size, sig)
 
-        # do not remove, gives logger's x-modem time to end
-        self.dlg.set_file_mode(False)
+        # do not remove, gives peer's x-modem time to end
         time.sleep(2)
+        self.dlg.set_file_mode(False)
+        self.dlg.clr_buf()
+        self.dlg.clr_x_buf()
         return dl
 
     def dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
-
-        # todo: do larger chunk number 2 bytes
-        n = '{:02x}'.format(1)
-        to_send = 'DWL {}{}\r'.format(n, i)
+        i = str(i)
+        to_send = 'DWL {:02x}{}\r'.format(len(i), i)
+        print(to_send)
         self.ble_write(to_send.encode())
 
-        timeout = time.perf_counter() + .1
+        t_o = time.perf_counter() + .1
         acc = bytes()
         while True:
-            if time.perf_counter() > timeout:
+            if time.perf_counter() > t_o:
                 break
             self.per.waitForNotifications(.05)
             if len(self.dlg.buf):
-                timeout = time.perf_counter() + .05
+                t_o = time.perf_counter() + .05
                 print(self.dlg.buf, flush=True)
+                print(self.dlg.buf)
                 acc += self.dlg.buf
                 self.dlg.clr_buf()
 
