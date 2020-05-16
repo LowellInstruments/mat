@@ -2,6 +2,7 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
+import math
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
     SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD
@@ -114,9 +115,10 @@ class LoggerControllerBLE(LoggerController):
         b = self.dlg.buf
 
         try:
-            # normal commands
+            # normal ASCII commands
             d = b.decode()
         except UnicodeError:
+            # DWL ASCII command, not binary as XMD
             tag = 'DWL'
             d = b
 
@@ -262,30 +264,34 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_x_buf()
         return dl
 
-    def dwg_file(self, file, fol, size, sig=None):  # pragma: no cover
+    def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
         self.dlg.clr_buf()
 
         # send DWG command
         ans = self.command('DWG', file)
-
-        # ensure fol is string, not path_lib
-        fol = str(fol)
-
-        # did DWG command went OK
         if ans != [b'DWG', b'00']:
             return False
 
-        # doing and result
-        print('calling dwg_file()')
-        acc = self.dwl_chunk(0, sig)
-        # return acc == size
-        return True
+        # download file
+        acc = bytes()
+        n = math.ceil(s / 2048)
+        for i in range(n):
+            acc += self.dwl_chunk(i, sig)
+
+        # write file, ensure fol not path_lib
+        fol = str(fol)
+        p = '{}/{}'.format(fol, file)
+        with open(p, 'wb') as f:
+            f.write(acc)
+            f.truncate(int(s))
+
+        # did everything went ok
+        return len(acc) == s
 
     def dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
         i = str(i)
         to_send = 'DWL {:02x}{}\r'.format(len(i), i)
-        print(to_send)
         self.ble_write(to_send.encode())
 
         t_o = time.perf_counter() + .1
@@ -293,12 +299,15 @@ class LoggerControllerBLE(LoggerController):
         while True:
             if time.perf_counter() > t_o:
                 break
-            self.per.waitForNotifications(.05)
-            if len(self.dlg.buf):
-                t_o = time.perf_counter() + .05
-                print(self.dlg.buf, flush=True)
-                print(self.dlg.buf)
-                acc += self.dlg.buf
+            if len(acc) == 2048:
+                break
+            if self.per.waitForNotifications(.1):
+                t_o = time.perf_counter() + .1
+                # skip chunk length byte
+                n = int(self.dlg.buf[0])
+                c = self.dlg.buf[1:]
+                acc += c
+                sig.emit(n)
                 self.dlg.clr_buf()
 
         return acc
