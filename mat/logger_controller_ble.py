@@ -262,6 +262,25 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_x_buf()
         return dl
 
+    def dwg_file(self, file, fol, size, sig=None):  # pragma: no cover
+        self.dlg.clr_buf()
+
+        # send DWG command
+        ans = self.command('DWG', file)
+
+        # ensure fol is string, not path_lib
+        fol = str(fol)
+
+        # did DWG command went OK
+        if ans != [b'DWG', b'00']:
+            return False
+
+        # doing and result
+        print('calling dwg_file()')
+        acc = self.dwl_chunk(0, sig)
+        # return acc == size
+        return True
+
     def dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
         i = str(i)
