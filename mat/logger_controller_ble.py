@@ -61,17 +61,6 @@ class LoggerControllerBLE(LoggerController):
             raise ble.BTLEException('unknown brand')
         self.dlg = Delegate()
 
-    @staticmethod
-    def _is_connection_recent(mac):
-        mac = str(mac).replace(':', '')
-        path = pathlib.Path('/dev/shm/{}'.format(mac))
-        if path.exists():
-            print('mac found cached')
-            return True
-        print('mac not cached, caching it...')
-        path.touch()
-        return False
-
     def open(self):
         for counter in range(3):
             try:
@@ -84,8 +73,8 @@ class LoggerControllerBLE(LoggerController):
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
 
-                # hack for linux or it hangs first time ever
-                r = self._is_connection_recent(self.address)
+                # hack for linux, or hangs at first BLE connection
+                r = is_connection_recent(self.address)
                 if r:
                     self.open_post()
                     return True
@@ -108,7 +97,7 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def cmd_ans_done(self, tag):
+    def __cmd_ans_done(self, tag):
         """ interrupts answer timeout for last sent command """
 
         rv = None
@@ -172,8 +161,9 @@ class LoggerControllerBLE(LoggerController):
             pass
         return rv
 
-    def cmd_ans_wait(self, tag: str):    # pragma: no cover
+    def __cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
+
         w = 50 if tag in [RUN_CMD, RWS_CMD] else 5
         till = time.perf_counter() + w
         while 1:
@@ -181,7 +171,7 @@ class LoggerControllerBLE(LoggerController):
                 till += 0.1
             if time.perf_counter() > till:
                 break
-            if self.cmd_ans_done(tag):
+            if self.__cmd_ans_done(tag):
                 break
         # e.g. b'STS 00' / b''
         return self.dlg.buf
@@ -205,7 +195,7 @@ class LoggerControllerBLE(LoggerController):
 
         # wait for an answer w/ this tag string
         tag = cmd[:3]
-        ans = self.cmd_ans_wait(tag).split()
+        ans = self.__cmd_ans_wait(tag).split()
 
         # e.g. [b'STS', b'0201']
         return ans
@@ -277,7 +267,7 @@ class LoggerControllerBLE(LoggerController):
         acc = bytes()
         n = math.ceil(s / 2048)
         for i in range(n):
-            acc += self.dwl_chunk(i, sig)
+            acc += self._dwl_chunk(i, sig)
 
         # write file, ensure fol not path_lib
         fol = str(fol)
@@ -293,7 +283,7 @@ class LoggerControllerBLE(LoggerController):
         time.sleep(1)
         return len(acc) == s
 
-    def dwl_chunk(self, i, sig=None):
+    def _dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
         i = str(i)
         to_send = 'DWL {:02x}{}\r'.format(len(i), i)
@@ -389,3 +379,14 @@ def ble_scan(hci_if, my_to=3.0):
         e = 'SYS: overflow on BLE scan, maybe date time error'
         print(e)
         sys.exit(1)
+
+
+def is_connection_recent(mac):
+    mac = str(mac).replace(':', '')
+    path = pathlib.Path('/dev/shm/{}'.format(mac))
+    if path.exists():
+        print('mac found cached')
+        return True
+    print('mac not cached, caching it...')
+    path.touch()
+    return False
