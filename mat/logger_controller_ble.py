@@ -278,6 +278,8 @@ class LoggerControllerBLE(LoggerController):
             f.write(acc)
             f.truncate(int(s))
 
+        # separate batch file downloads
+        time.sleep(1)
         return len(acc) == s
 
     def _dwl_chunk(self, i, sig=None):
