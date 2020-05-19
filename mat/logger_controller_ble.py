@@ -263,7 +263,6 @@ class LoggerControllerBLE(LoggerController):
         # send DWG command
         ans = self.command('DWG', file)
         if ans != [b'DWG', b'00']:
-            print('no dwg 00')
             return False
 
         # download file
@@ -279,11 +278,6 @@ class LoggerControllerBLE(LoggerController):
             f.write(acc)
             f.truncate(int(s))
 
-        # did everything went ok
-        print(len(acc))
-
-        #~ times
-        time.sleep(1)
         return len(acc) == s
 
     def _dwl_chunk(self, i, sig=None):
@@ -292,7 +286,6 @@ class LoggerControllerBLE(LoggerController):
         to_send = 'DWL {:02x}{}\r'.format(len(i), i)
         self.ble_write(to_send.encode())
 
-        print(to_send)
         t_o = time.perf_counter() + .1
         acc = bytes()
         while True:
@@ -300,7 +293,6 @@ class LoggerControllerBLE(LoggerController):
                 break
             if len(acc) >= 2048:
                 break
-            #~ times
             if self.per.waitForNotifications(.5):
                 t_o = time.perf_counter() + .5
                 # skip chunk length byte
