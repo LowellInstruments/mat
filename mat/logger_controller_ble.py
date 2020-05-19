@@ -18,6 +18,7 @@ FORMAT_CMD = 'FRM'
 CONFIG_CMD = 'CFG'
 UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
+LOG_EN_CMD = 'LOG'
 
 
 class Delegate(ble.DefaultDelegate):
@@ -120,6 +121,8 @@ class LoggerControllerBLE(LoggerController):
         elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
             rv = True
         elif tag == STATUS_CMD and d.startswith(tag):
+            rv = True if len(d) == 8 else False
+        elif tag == LOG_EN_CMD and d.startswith(tag):
             rv = True if len(d) == 8 else False
         elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
             rv = True if len(d) == 6 + 6 else False
