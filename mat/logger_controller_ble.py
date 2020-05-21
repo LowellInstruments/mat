@@ -359,7 +359,10 @@ def _ls_wildcard(lis, ext, match=True):
 
 def brand_ti(mac):
     mac = mac.lower()
-    return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
+    cond = mac.startswith('80:6f:b0:')
+    cond = cond or mac.startswith('04:ee:03:')
+    cond = cond or mac.startswith('60:77:71:')
+    return cond
 
 
 def brand_microchip(mac):
