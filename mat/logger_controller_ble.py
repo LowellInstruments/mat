@@ -116,7 +116,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         elif tag == 'GET' and d.startswith('GET 00'):
             # do not remove, gives logger time to open file
-            time.sleep(1)
+            time.sleep(.5)
             rv = True
         elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
             rv = True
@@ -280,6 +280,7 @@ class LoggerControllerBLE(LoggerController):
 
         # separate batch file downloads
         time.sleep(1)
+        print('DWL {} of {} bytes'.format(acc, s))
         return len(acc) == s
 
     def _dwl_chunk(self, i, sig=None):
