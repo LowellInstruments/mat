@@ -280,8 +280,8 @@ class LoggerControllerBLE(LoggerController):
 
         # separate batch file downloads
         time.sleep(1)
-        print('DWL {} of {} bytes'.format(acc, s))
-        return len(acc) == s
+        self.dlg.clr_buf()
+        return len(acc)
 
     def _dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
