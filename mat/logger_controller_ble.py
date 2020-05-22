@@ -5,7 +5,7 @@ import time
 import math
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -112,6 +112,9 @@ class LoggerControllerBLE(LoggerController):
             tag = 'DWL'
             d = b
 
+        # useful to debug
+        print(d, len(d))
+
         if tag == 'DWL':
             return True
         elif tag == 'GET' and d.startswith('GET 00'):
@@ -138,6 +141,10 @@ class LoggerControllerBLE(LoggerController):
             rv = d.startswith('RFN 00') or d.endswith('.lid')
         elif tag == LOGGER_INFO_CMD and d.startswith(tag):
             rv = (len(d) <= 6 + 7)
+            time.sleep(.1)
+        elif tag == LOGGER_INFO_CMD_W and d.startswith(tag):
+            rv = d.startswith('{} 00'.format(tag))
+            time.sleep(.1)
         elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
             rv = (len(d) == 6 + 8)
         elif tag == CONFIG_CMD and d.startswith(tag):
@@ -145,7 +152,7 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.5)
         elif tag == DEL_FILE_CMD and d.startswith(tag):
             rv = d.startswith('DEL 00')
-        elif tag in [RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD]:
+        elif tag in (RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD):
             rv = d.startswith('{} 00'.format(tag))
             time.sleep(1)
         elif tag == MY_TOOL_SET_CMD:
@@ -153,10 +160,12 @@ class LoggerControllerBLE(LoggerController):
         elif tag == DO_SENSOR_READINGS_CMD:
             rv = d.startswith('{} '.format(tag))
             rv = rv and (len(d) <= 6 + 12)
-        elif tag == 'DWG' and d.startswith('DWG'):
-            rv = True
+        elif tag in ('DWG', CONFIG_CMD, FORMAT_CMD):
+            rv = d.startswith('{} 00'.format(tag))
+
         # todo: add any missing fast quit waiting rules
         elif d.startswith('ERR') or d.startswith('INV'):
+            print('issue with answer')
             time.sleep(.5)
             rv = True
         else:

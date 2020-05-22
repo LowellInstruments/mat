@@ -7,7 +7,6 @@ pytest
 numpy
 pyserial
 pytest-mock
-wheel
 crc16
 bluepy
 h5py
