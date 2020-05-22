@@ -5,7 +5,7 @@ import time
 import math
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -19,6 +19,7 @@ CONFIG_CMD = 'CFG'
 UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
+ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 
 
 class Delegate(ble.DefaultDelegate):
@@ -118,18 +119,17 @@ class LoggerControllerBLE(LoggerController):
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
-            rv = True
+            return True
 
-        # todo: add any missing fast quit waiting rules
         # early leave for command answers
         if tag == 'DWL':
             return True
-        elif tag == 'GET' and d.startswith('GET 00'):
-            # do not remove, gives logger time to open file
-            time.sleep(.5)
-            rv = True
-        elif tag == 'DIR' and b.endswith(b'\x04\n\r'):
-            rv = True
+        elif tag == 'GET':
+            wait_to_file_open = .5
+            time.sleep(wait_to_file_open)
+            rv = d.startswith('{} 00'.format(tag))
+        elif tag == DIR_CMD:
+            rv = b.endswith(b'\x04\n\r')
         elif tag == STATUS_CMD and d.startswith(tag):
             rv = True if len(d) == 8 else False
         elif tag == LOG_EN_CMD and d.startswith(tag):
@@ -143,9 +143,10 @@ class LoggerControllerBLE(LoggerController):
         elif tag == TIME_CMD and d.startswith(tag):
             rv = True if len(d) == 6 + 19 else False
         elif tag == SET_TIME_CMD:
-            rv = d.startswith('STM 00')
+            rv = d.startswith('{} 00'.format(tag))
         elif tag == REQ_FILE_NAME_CMD:
-            rv = d.startswith('RFN 00') or d.endswith('.lid')
+            rv = d.startswith('{} 00'.format(tag))
+            rv = rv or d.endswith('.lid')
         elif tag == LOGGER_INFO_CMD and d.startswith(tag):
             rv = (len(d) <= 6 + 7)
             time.sleep(.1)
@@ -154,8 +155,8 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.1)
         elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
             rv = (len(d) == 6 + 8)
-        elif tag == CONFIG_CMD and d.startswith(tag):
-            rv = d.startswith('CFG 00')
+        elif tag == CONFIG_CMD:
+            rv = d.startswith('{} 00'.format(tag))
             time.sleep(.5)
         elif tag == DEL_FILE_CMD and d.startswith(tag):
             rv = d.startswith('DEL 00')
@@ -169,6 +170,9 @@ class LoggerControllerBLE(LoggerController):
             rv = rv and (len(d) <= 6 + 12)
         elif tag in ('DWG', CONFIG_CMD, FORMAT_CMD):
             rv = d.startswith('{} 00'.format(tag))
+        elif tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
+            rv = d.startswith('{} 05'.format(tag))
+            rv = rv and (len(d) <= 6 + 5)
         else:
             # here while answer being collected
             pass
