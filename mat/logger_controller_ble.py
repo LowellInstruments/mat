@@ -115,6 +115,13 @@ class LoggerControllerBLE(LoggerController):
         # useful to debug
         print(d, len(d))
 
+        # early leave when error or invalid command
+        if d.startswith('ERR') or d.startswith('INV'):
+            time.sleep(.5)
+            rv = True
+
+        # todo: add any missing fast quit waiting rules
+        # early leave for command answers
         if tag == 'DWL':
             return True
         elif tag == 'GET' and d.startswith('GET 00'):
@@ -162,12 +169,6 @@ class LoggerControllerBLE(LoggerController):
             rv = rv and (len(d) <= 6 + 12)
         elif tag in ('DWG', CONFIG_CMD, FORMAT_CMD):
             rv = d.startswith('{} 00'.format(tag))
-
-        # todo: add any missing fast quit waiting rules
-        elif d.startswith('ERR') or d.startswith('INV'):
-            print('issue with answer')
-            time.sleep(.5)
-            rv = True
         else:
             # here while answer being collected
             pass
