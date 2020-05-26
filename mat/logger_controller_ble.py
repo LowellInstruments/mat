@@ -64,9 +64,10 @@ class LoggerControllerBLE(LoggerController):
         self.dlg = Delegate()
 
     def open(self):
-        for counter in range(3):
+        retries = 3
+        for i in range(retries):
             try:
-                self.per = ble.Peripheral(self.address, iface=self.hci_if)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=5)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
                 self.per.setDelegate(self.dlg)
@@ -81,9 +82,9 @@ class LoggerControllerBLE(LoggerController):
                     self.open_post()
                     return True
                 self.per.disconnect()
-                time.sleep(1)
             except (AttributeError, ble.BTLEException):
-                pass
+                e = 'failed connection attempt {} of {}'
+                print(e.format(i + 1, retries))
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
@@ -112,9 +113,6 @@ class LoggerControllerBLE(LoggerController):
             # DWL ASCII command, not binary as XMD
             tag = 'DWL'
             d = b
-
-        # useful to debug
-        print(d, len(d))
 
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):

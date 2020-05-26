@@ -8,5 +8,5 @@ numpy
 pyserial
 pytest-mock
 crc16
-bluepy
 h5py
+# bluepy mod w/ conn timeout
