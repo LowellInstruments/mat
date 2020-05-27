@@ -196,19 +196,15 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         self.dlg.set_file_mode(False)
 
-        # transmission vars
+        # build and send binary command
         cmd = str(args[0])
         arg = str(args[1]) if len(args) == 2 else ''
         n = '{:02x}'.format(len(arg)) if arg else ''
         to_send = cmd + ' ' + n + arg
-
-        # send binary command
-        if cmd in ('sleep', 'RFN'):
-            to_send = cmd
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
-        # wait for an answer w/ this tag string
+        # wait answer w/ this tag string
         tag = cmd[:3]
         ans = self.__cmd_ans_wait(tag).split()
 
