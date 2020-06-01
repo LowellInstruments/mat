@@ -55,12 +55,16 @@ class LoggerControllerBLE(LoggerController):
         self.svc = None
         self.cha = None
         # set underlying BLE class
-        if brand_ti(mac):
-            self.und = LoggerControllerBLECC26X2(self)
-        elif brand_microchip(mac):
-            self.und = LoggerControllerBLERN4020(self)
-        else:
-            raise ble.BTLEException('unknown brand')
+        # if brand_ti(mac):
+        #     self.und = LoggerControllerBLECC26X2(self)
+        # elif brand_microchip(mac):
+        #     self.und = LoggerControllerBLERN4020(self)
+        # else:
+        #     raise ble.BTLEException('unknown brand')
+
+        # todo: remove this
+        self.und = LoggerControllerBLECC26X2(self)
+
         self.dlg = Delegate()
 
     def open(self):
