@@ -10,3 +10,4 @@ pytest-mock
 crc16
 h5py
 # bluepy mod w/ conn timeout
+git+https://kazola@bitbucket.org/kazola/bluepy_mod.git@easy
