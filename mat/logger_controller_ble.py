@@ -68,6 +68,8 @@ class LoggerControllerBLE(LoggerController):
         self.dlg = Delegate()
 
     def open(self):
+        # todo: hack bluetooth/sys entries conn_max_timeout here
+
         retries = 3
         for i in range(retries):
             try:
