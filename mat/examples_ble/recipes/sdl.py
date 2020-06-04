@@ -5,7 +5,7 @@ import os
 from pprint import pprint
 import time
 import sys
-from mat.examples_ble._sn import mac
+from mat.examples_ble._sn import (mac, sn_full)
 
 
 # allows mac override

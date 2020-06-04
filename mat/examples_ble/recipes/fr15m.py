@@ -7,7 +7,7 @@ from mat.logger_controller import (LOGGER_INFO_CMD_W,
                                    RUN_CMD,
                                    DO_SENSOR_READINGS_CMD)
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples_ble._sn import mac
+from mat.examples_ble._sn import (mac, sn_full)
 
 
 # allows mac override
@@ -64,7 +64,6 @@ def frm_n_run():
 
 
 if __name__ == '__main__':
-    assert len(sn) == 3
     print('APP: start')
     frm_n_run()
     print('APP: done')
