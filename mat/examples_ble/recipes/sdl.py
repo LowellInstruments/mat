@@ -1,19 +1,53 @@
-import time
-
 import bluepy.btle as ble
-
-from mat.data_converter import default_parameters, DataConverter
+from mat.data_converter import DataConverter, default_parameters
 from mat.logger_controller_ble import LoggerControllerBLE
-import sys
+import os
 from pprint import pprint
-from mat.examples.ble.simple import _macs
+import time
+import sys
+from mat.examples_ble._sn import mac
 
-# mac = _macs.puz
-mac = _macs.sxt050
+
+# allows mac override
+# mac = '04:ee:03:6c:ef:e0'
+
+
+# stops a logger and download its gps files
+def stp_n_dl_gps():
+    try:
+        with LoggerControllerBLE(mac) as lc_ble:
+
+            # stop the logger
+            rv = lc_ble.command('STP')
+            print('\tSTP --> {}'.format(rv))
+
+            # obtain the list of .gps files
+            files = lc_ble.ls_ext(b'gps')
+            print('\tDIR -->')
+            pprint(files)
+
+            # precaution
+            if files == [b'ERR']:
+                print('ls() returned ERR, try again')
+                sys.exit(1)
+
+
+            # download gps files
+            for name, size in files.items():
+                if os.path.exists(name):
+                    print('\t\talready have {}'.format(name))
+                    continue
+                print('\tDownloading {}...', name)
+                rv = lc_ble.get_file(name, '.', size)
+                if rv:
+                    print('\t\tgot {}, size {}'.format(name, size))
+
+    except ble.BTLEException as ex:
+        print('BLE: connect exception --> {}'.format(ex))
 
 
 # stops a logger and download its data files
-def ls_dl_convert():
+def stp_n_dl_lid():
     try:
         with LoggerControllerBLE(mac) as lc_ble:
 
@@ -30,6 +64,7 @@ def ls_dl_convert():
             if files == [b'ERR']:
                 print('ls() returned ERR, try again')
                 sys.exit(1)
+
 
             # download and convert such files
             for name, size in files.items():
@@ -57,4 +92,6 @@ def ls_dl_convert():
 
 
 if __name__ == '__main__':
-    ls_dl_convert()
+    stp_n_dl_lid()
+    stp_n_dl_gps()
+

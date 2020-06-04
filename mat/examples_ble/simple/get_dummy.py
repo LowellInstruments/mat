@@ -1,10 +1,10 @@
 import bluepy.btle as ble
-from mat.examples.ble.simple._utils import ensure_stop
+from mat.examples_ble.simple._utils import ensure_stop
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple import _macs
+from mat.examples_ble._macs import _macs
 
-# mac = _macs.puz
-mac = _macs.sxt050
+# used in these examples
+mac = _macs['lp2']
 
 
 def get_dummy():

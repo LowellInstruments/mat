@@ -2,12 +2,16 @@ import bluepy.btle as ble
 from mat.logger_controller import (LOGGER_INFO_CMD_W,
                                    LOGGER_INFO_CMD)
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple._macs import mac
+from mat.examples_ble._macs import _macs
 
+# used in these examples
+mac = _macs['lp2']
 
 # e.g. 1920 mV = 0x0780 --> 'BA8007'
 # e.g. 2500 mV = 0x09c4 --> 'BAC409'
 # e.g. 5000 mV = 0x1388 --> 'BA8813'
+
+
 def bat():
     try:
         with LoggerControllerBLE(mac) as lc_ble:

@@ -1,7 +1,10 @@
 import bluepy.btle as ble
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple._macs import mac
 from mat.logger_controller import LOGGER_INFO_CMD_W, LOGGER_INFO_CMD
+from mat.examples_ble._macs import _macs
+
+# used in these examples
+mac = _macs['lp2']
 
 
 def wli():

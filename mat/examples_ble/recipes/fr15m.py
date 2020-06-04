@@ -4,11 +4,10 @@ from mat.logger_controller import (LOGGER_INFO_CMD_W,
                                    LOGGER_INFO_CMD,
                                    STOP_CMD,
                                    STATUS_CMD,
-                                   RUN_CMD)
+                                   RUN_CMD,
+                                   DO_SENSOR_READINGS_CMD)
 from mat.logger_controller_ble import LoggerControllerBLE
-from _sn import (mac,
-                 sn,
-                 sn_full)
+from mat.examples_ble._sn import mac
 
 
 # allows mac override
@@ -19,23 +18,22 @@ from _sn import (mac,
 def frm_n_run():
     try:
         with LoggerControllerBLE(mac) as lc_ble:
-
             # sets up logger time, memory, serial number
             rv = lc_ble.command(STATUS_CMD)
             print('\t\tSTS --> {}'.format(rv))
-            rv = lc_ble.command(STOP_CMD, retries=1)
+            rv = lc_ble.command(STOP_CMD)
             print('\t\tSTP --> {}'.format(rv))
             rv = lc_ble.sync_time()
             print('\t\tSTM --> {}'.format(rv))
             rv = lc_ble.get_time()
             print('\t\tGTM --> {}'.format(rv))
-            rv = lc_ble.command('FRM', retries=1)
+            rv = lc_ble.command('FRM')
             print('\t\tFRM --> {}'.format(rv))
             cfg_file = {
                 'DFN': 'sxt',
                 'TMP': 0, 'PRS': 0,
                 'DOS': 1, 'DOP': 1, 'DOT': 1,
-                'TRI': 10, 'ORI': 10, 'DRI': 10,
+                'TRI': 10, 'ORI': 10, 'DRI': 900,
                 'PRR': 8,
                 'PRN': 4,
                 'STM': '2012-11-12 12:14:00',
@@ -53,9 +51,11 @@ def frm_n_run():
             print('\t\tWLI (SN) --> {}'.format(rv))
             rv = lc_ble.command(LOGGER_INFO_CMD, 'SN')
             print('\t\tRLI (SN) --> {}'.format(rv))
+            result = lc_ble.command(DO_SENSOR_READINGS_CMD)
+            print('\t\tGDO --> {}'.format(result))
 
             # starts the logger
-            time.sleep(2)
+            time.sleep(1)
             rv = lc_ble.command(RUN_CMD)
             print('\t\tRUN --> {}'.format(rv))
 

@@ -1,12 +1,12 @@
 import time
 import bluepy.btle as ble
 import pprint
-from mat.examples.ble.simple._utils import ensure_stop
+from mat.examples_ble.simple._utils import ensure_stop
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple import _macs
+from mat.examples_ble._macs import _macs
 
-# mac = _macs.puz
-mac = _macs.sxt050
+# used in these examples
+mac = _macs['lp2']
 
 
 # ext: b'lid' or b'gps'

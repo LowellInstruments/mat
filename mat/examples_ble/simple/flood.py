@@ -2,12 +2,12 @@ import bluepy.btle as ble
 
 from mat.logger_controller import STATUS_CMD
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple import _macs
+from mat.examples_ble import _macs
 import time
+from mat.examples_ble._macs import _macs
 
-
-# mac = _macs.lp2
-mac = _macs.sxt050
+# used in these examples
+mac = _macs['lp2']
 
 
 def attack():

@@ -5,7 +5,10 @@ from mat.logger_controller import (
     SD_FREE_SPACE_CMD
 )
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple._macs import mac
+from mat.examples_ble._macs import _macs
+
+# used in these examples
+mac = _macs['lp2']
 
 
 def sense():

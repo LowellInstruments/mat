@@ -1,7 +1,10 @@
 import bluepy.btle as ble
 from mat.logger_controller import HW_TEST_CMD
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple._macs import mac
+from mat.examples_ble._macs import _macs
+
+# used in these examples
+mac = _macs['lp2']
 
 
 def hw_test():

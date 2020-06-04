@@ -2,11 +2,12 @@ import bluepy.btle as ble
 from mat.logger_controller import (LOGGER_INFO_CMD_W,
                                    LOGGER_INFO_CMD)
 from mat.logger_controller_ble import LoggerControllerBLE
-from mat.examples.ble.simple._utils import ensure_stop
-from mat.examples.ble.simple import _macs
+from mat.examples_ble.simple._utils import ensure_stop
+from mat.examples_ble._macs import _macs
 
-# mac = _macs.puz
-mac = _macs.sxt050
+
+# used in these examples
+mac = _macs['lp2']
 
 
 def fmt(dri=10):
@@ -20,7 +21,7 @@ def fmt(dri=10):
             result = lc.get_time()
             print('\t\tGTM --> {}'.format(result))
 
-            result = lc.command('FRM', retries=1)
+            result = lc.command('FRM')
             print('\t\tFRM --> {}'.format(result))
 
             # ex: PRR = 16, PRN = 65535 --> 4095 > SRI = 3600

@@ -4,7 +4,10 @@ import time
 import sys
 import os
 import datetime
-from mat.examples.ble.simple._macs import mac
+from mat.examples_ble._macs import _macs
+
+# used in these examples
+mac = _macs['lp2']
 
 
 def main():
