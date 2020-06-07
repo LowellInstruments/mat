@@ -391,12 +391,11 @@ def ble_scan(hci_if, my_to=3.0):
 
 
 def is_connection_recent(mac):
+    # /dev/shm is cleared every reboot
     mac = str(mac).replace(':', '')
     path = pathlib.Path('/dev/shm/{}'.format(mac))
     if path.exists():
-        print('mac found cached')
         return True
-    print('mac not cached, caching it...')
     path.touch()
     return False
 
@@ -429,7 +428,7 @@ def w_ble_linux_pars(l1, l2, l3):
     sp.run(c, shell=True, check=True)
     c = 'echo {} > {}'.format(l3, lat)
     sp.run(c, shell=True, check=True)
-    assert(_r_ble_linux_pars('post:') == l1, l2, l3)
+    assert _r_ble_linux_pars('post:') == (l1, l2, l3)
 
 
 def is_a_li_logger(rd: bytes):
