@@ -2,6 +2,10 @@ import serial
 import datetime
 import time
 from collections import namedtuple
+import fiona
+import cartopy.io.shapereader as shpreader
+import shapely.geometry as sgeom
+from shapely.prepared import prep
 
 
 def parse_int(x):
@@ -103,3 +107,14 @@ class GPS:
         if nsew in 'SW':
             result = -result
         return result
+
+
+def gps_in_land(lat, lon):
+    geoms = fiona.open(
+        shpreader.natural_earth(resolution='50m',
+                                category='physical', name='land'))
+    land_geom = sgeom.MultiPolygon([sgeom.shape(geom['geometry'])
+                                    for geom in geoms])
+    land = prep(land_geom)
+    # lon first
+    return land.contains(sgeom.Point(float(lon), float(lat)))
