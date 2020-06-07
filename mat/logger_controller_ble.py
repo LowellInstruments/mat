@@ -432,10 +432,13 @@ def w_ble_linux_pars(l1, l2, l3):
     assert(_r_ble_linux_pars('post:') == l1, l2, l3)
 
 
-def is_a_li_logger(rd: bytes()):
-    # parameter is a bluepy rawData
-    known = [b'DO-1']
-    for _ in known:
+def is_a_li_logger(rd: bytes):
+    """
+    identifies lowell instruments' loggers
+    :param rd: bluepy Scanner.scan() rawData object
+    """
+    known_li_types = [b'DO-1']
+    for _ in known_li_types:
         if _ in rd:
             return True
     return False
