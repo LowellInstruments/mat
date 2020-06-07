@@ -10,6 +10,7 @@ from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
 import pathlib
+import subprocess as sp
 
 
 # commands not present in USB loggers
@@ -48,28 +49,25 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
+        w_ble_linux_pars(6, 11, 0)
         super().__init__(mac)
         self.address = mac
         self.hci_if = hci_if
         self.per = None
         self.svc = None
         self.cha = None
-        # set underlying BLE class
-        # if brand_ti(mac):
-        #     self.und = LoggerControllerBLECC26X2(self)
-        # elif brand_microchip(mac):
-        #     self.und = LoggerControllerBLERN4020(self)
-        # else:
-        #     raise ble.BTLEException('unknown brand')
 
-        # todo: remove this
-        self.und = LoggerControllerBLECC26X2(self)
+        # set underlying BLE class
+        if brand_microchip(mac):
+            self.und = LoggerControllerBLERN4020(self)
+        elif brand_ti(mac):
+            self.und = LoggerControllerBLECC26X2(self)
+        else:
+            raise ble.BTLEException('unknown brand')
 
         self.dlg = Delegate()
 
     def open(self):
-        # todo: hack bluetooth/sys entries conn_max_timeout here
-
         retries = 3
         for i in range(retries):
             try:
@@ -372,11 +370,7 @@ def _ls_wildcard(lis, ext, match=True):
 
 
 def brand_ti(mac):
-    mac = mac.lower()
-    cond = mac.startswith('80:6f:b0:')
-    cond = cond or mac.startswith('04:ee:03:')
-    cond = cond or mac.startswith('60:77:71:')
-    return cond
+    return not brand_microchip(mac)
 
 
 def brand_microchip(mac):
@@ -405,3 +399,45 @@ def is_connection_recent(mac):
     print('mac not cached, caching it...')
     path.touch()
     return False
+
+
+def _r_ble_linux_pars(banner) -> (int, int, int):
+    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+    try:
+        with open(min_ce, 'r') as _:
+            l1 = _.readline().rstrip('\n')
+        with open(max_ce, 'r') as _:
+            l2 = _.readline().rstrip('\n')
+        with open(lat, 'r') as _:
+            l3 = _.readline().rstrip('\n')
+        print('{} R linux BLE pars {}'.format(banner, (l1, l2, l3)))
+        return int(l1), int(l2), int(l3)
+    except FileNotFoundError:
+        print('can\'t read /sys/kernel/bluetooth')
+
+
+def w_ble_linux_pars(l1, l2, l3):
+    _r_ble_linux_pars('pre:')
+    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+    c = 'echo {} > {}'.format(l1, min_ce)
+    sp.run(c, shell=True, check=True)
+    c = 'echo {} > {}'.format(l2, max_ce)
+    sp.run(c, shell=True, check=True)
+    c = 'echo {} > {}'.format(l3, lat)
+    sp.run(c, shell=True, check=True)
+    assert(_r_ble_linux_pars('post:') == l1, l2, l3)
+
+
+def is_a_li_logger(rd: bytes()):
+    # parameter is a bluepy rawData
+    known = [b'DO-1']
+    for _ in known:
+        if _ in rd:
+            return True
+    return False
+
+
