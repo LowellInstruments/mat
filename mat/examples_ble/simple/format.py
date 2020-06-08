@@ -4,10 +4,11 @@ from mat.logger_controller import (LOGGER_INFO_CMD_W,
 from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble.simple._utils import ensure_stop
 from mat.examples_ble._macs import _macs
+import json
 
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def fmt(dri=10):
@@ -57,7 +58,45 @@ def fmt(dri=10):
         print('BLE: connect exception --> {}'.format(ex))
 
 
+def fmt_n_cfg():
+    try:
+        with LoggerControllerBLE(mac) as lc:
+            ensure_stop(lc)
+
+            # list .cfg files
+            ext = b'.cfg'
+            rv = lc.ls_ext(ext)
+            print('\tDIR {} --> '.format(rv))
+            size = rv['MAT.cfg']
+
+            # download MAT.cfg
+            rv = lc.get_file('MAT.cfg', '.', size, None)
+            print('\t\tGET_MAT --> {}'.format(rv))
+            if not rv:
+                return
+
+            # ensure MAT.cfg suits for CFG command
+            with open('MAT.cfg') as f:
+                cfg_dict = json.load(f)
+            if not cfg_dict:
+                return
+
+            # if we reach here, we are doing ok
+            rv = lc.command('FRM')
+            print('\t\tFRM --> {}'.format(rv))
+            if not rv:
+                return
+
+            # ex: PRR = 16, PRN = 65535 --> 4095 > SRI = 3600
+            rv = lc.send_cfg(cfg_dict)
+            print('\t\tCFG --> {}'.format(rv))
+
+    except ble.BTLEException as ex:
+        print('BLE: connect exception --> {}'.format(ex))
+
+
 if __name__ == '__main__':
     print('APP: start')
-    fmt(dri=30)
+    # fmt(dri=30)
+    fmt_n_cfg()
     print('APP: done')

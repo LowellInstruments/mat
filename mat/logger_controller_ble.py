@@ -49,7 +49,8 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
-        w_ble_linux_pars(6, 11, 0)
+        # w_ble_linux_pars(6, 11, 0)
+        w_ble_linux_pars(24, 40, 0)
         super().__init__(mac)
         self.address = mac
         self.hci_if = hci_if
@@ -338,6 +339,7 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         rv = self.command('DIR 00')
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
+        time.sleep(1)
         return rv
 
     def ls_ext(self, ext):
@@ -418,13 +420,14 @@ def _r_ble_linux_pars(banner) -> (int, int, int):
 
 
 def w_ble_linux_pars(l1, l2, l3):
+    # order is important
     _r_ble_linux_pars('pre:')
     min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
     max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
     lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
-    c = 'echo {} > {}'.format(l1, min_ce)
-    sp.run(c, shell=True, check=True)
     c = 'echo {} > {}'.format(l2, max_ce)
+    sp.run(c, shell=True, check=True)
+    c = 'echo {} > {}'.format(l1, min_ce)
     sp.run(c, shell=True, check=True)
     c = 'echo {} > {}'.format(l3, lat)
     sp.run(c, shell=True, check=True)
