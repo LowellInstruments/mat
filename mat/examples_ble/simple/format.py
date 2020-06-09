@@ -97,6 +97,6 @@ def fmt_n_cfg():
 
 if __name__ == '__main__':
     print('APP: start')
-    # fmt(dri=30)
-    fmt_n_cfg()
+    fmt(dri=30)
+    # fmt_n_cfg()
     print('APP: done')

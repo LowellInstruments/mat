@@ -49,8 +49,8 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
-        # w_ble_linux_pars(6, 11, 0)
-        w_ble_linux_pars(24, 40, 0)
+        w_ble_linux_pars(6, 11, 0)
+        # w_ble_linux_pars(24, 40, 0)
         super().__init__(mac)
         self.address = mac
         self.hci_if = hci_if
@@ -128,8 +128,6 @@ class LoggerControllerBLE(LoggerController):
         if tag == 'DWL':
             return True
         elif tag == 'GET':
-            wait_to_file_open = .5
-            time.sleep(wait_to_file_open)
             rv = d.startswith('{} 00'.format(tag))
         elif tag == DIR_CMD:
             rv = b.endswith(b'\x04\n\r')
@@ -184,7 +182,7 @@ class LoggerControllerBLE(LoggerController):
     def __cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
 
-        w = 50 if tag in [RUN_CMD, RWS_CMD] else 5
+        w = 50 if tag in [RUN_CMD, RWS_CMD, 'GET'] else 5
         till = time.perf_counter() + w
         while 1:
             if self.per.waitForNotifications(0.1):
@@ -425,12 +423,25 @@ def w_ble_linux_pars(l1, l2, l3):
     min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
     max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
     lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
-    c = 'echo {} > {}'.format(l2, max_ce)
-    sp.run(c, shell=True, check=True)
-    c = 'echo {} > {}'.format(l1, min_ce)
-    sp.run(c, shell=True, check=True)
-    c = 'echo {} > {}'.format(l3, lat)
-    sp.run(c, shell=True, check=True)
+    try:
+        c = 'echo {} > {}'.format(l2, max_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l1, min_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l3, lat)
+        sp.run(c, shell=True, check=True)
+    except sp.CalledProcessError:
+        pass
+    try:
+        # invert order
+        c = 'echo {} > {}'.format(l1, min_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l2, max_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l3, lat)
+        sp.run(c, shell=True, check=True)
+    except sp.CalledProcessError:
+        pass
     assert _r_ble_linux_pars('post:') == (l1, l2, l3)
 
 

@@ -4,7 +4,7 @@ from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def get_dummy():
@@ -16,7 +16,7 @@ def get_dummy():
 
             # download
             name = 'dummy.lid'
-            size = 4096
+            size = 40960
             print('\tGetting {}...', name)
             rv = lc.get_file(name, '.', size)
             print(rv)
