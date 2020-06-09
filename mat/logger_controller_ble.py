@@ -430,6 +430,8 @@ def w_ble_linux_pars(l1, l2, l3):
         sp.run(c, shell=True, check=True)
         c = 'echo {} > {}'.format(l3, lat)
         sp.run(c, shell=True, check=True)
+        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        return
     except sp.CalledProcessError:
         pass
     try:
@@ -440,9 +442,10 @@ def w_ble_linux_pars(l1, l2, l3):
         sp.run(c, shell=True, check=True)
         c = 'echo {} > {}'.format(l3, lat)
         sp.run(c, shell=True, check=True)
+        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        return
     except sp.CalledProcessError:
         pass
-    assert _r_ble_linux_pars('post:') == (l1, l2, l3)
 
 
 def is_a_li_logger(rd: bytes):
