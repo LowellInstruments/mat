@@ -121,6 +121,7 @@ class LoggerControllerBLE(LoggerController):
 
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):
+            print(d)
             time.sleep(.5)
             return True
 
@@ -129,6 +130,7 @@ class LoggerControllerBLE(LoggerController):
             return True
         elif tag == 'GET':
             rv = d.startswith('{} 00'.format(tag))
+            print('hello {}'.format(rv))
         elif tag == DIR_CMD:
             rv = b.endswith(b'\x04\n\r')
         elif tag == STATUS_CMD and d.startswith(tag):
@@ -250,20 +252,18 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
 
-        # send GET command
-        ans = self.command('GET', file)
-
         # ensure fol is string, not path_lib
         fol = str(fol)
 
-        # did GET command went OK
+        # send GET command
         dl = False
-        if ans == [b'GET', b'00']:
+        ans = self.command('GET', file)
+        if ans:
             dl = self._save_file(file, fol, size, sig)
 
-        # do not remove, gives peer's x-modem time to end
-        time.sleep(2)
+        # do not remove, gives peer's time to end if fails
         self.dlg.set_file_mode(False)
+        time.sleep(2)
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         return dl

@@ -98,7 +98,7 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
         _can(lc_ble)
         raise XModemException('XMD: timeout rx data, 0 retries left')
     elif time.time() > timeout and retries < 3:
-        _xmd_print('f', end='')
+        _xmd_print('f')
         _purge(lc_ble)
         _nak(lc_ble)
         # bad: timeout, but still retries left
@@ -116,7 +116,7 @@ def _parse_frame(lc_ble, sending_c, retries, whole_file):
         # print('.', end='')
         _ack(lc_ble)
     else:
-        _xmd_print('bad_crc --> nak', end='')
+        _xmd_print('bad_crc --> nak')
         _nak(lc_ble)
     return sending_c, retries, whole_file
 
