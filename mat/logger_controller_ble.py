@@ -120,8 +120,8 @@ class LoggerControllerBLE(LoggerController):
             d = b
 
         # early leave when error or invalid command
+        print(tag, d)
         if d.startswith('ERR') or d.startswith('INV'):
-            print(d)
             time.sleep(.5)
             return True
 
@@ -130,7 +130,6 @@ class LoggerControllerBLE(LoggerController):
             return True
         elif tag == 'GET':
             rv = d.startswith('{} 00'.format(tag))
-            print('hello {}'.format(rv))
         elif tag == DIR_CMD:
             rv = b.endswith(b'\x04\n\r')
         elif tag == STATUS_CMD and d.startswith(tag):
@@ -184,7 +183,8 @@ class LoggerControllerBLE(LoggerController):
     def __cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
 
-        w = 50 if tag in [RUN_CMD, RWS_CMD, 'GET'] else 5
+        slow_ans = [RUN_CMD, RWS_CMD, 'GET']
+        w = 50 if tag in slow_ans else 5
         till = time.perf_counter() + w
         while 1:
             if self.per.waitForNotifications(0.1):
@@ -235,17 +235,24 @@ class LoggerControllerBLE(LoggerController):
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
 
+        rv = False
         try:
             self.dlg.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self, sig)
+            r, bytes_rx = xmodem_get_file(self, sig, verbose=True)
+            # got file ok
             if r:
                 p = '{}/{}'.format(fol, file)
                 with open(p, 'wb') as f:
                     f.write(bytes_rx)
                     f.truncate(int(s))
-            return True
+                rv = True
         except XModemException:
-            return False
+            # rv is still False
+            pass
+        finally:
+            # time between file downloads
+            time.sleep(3)
+            return rv
 
     def get_file(self, file, fol, size, sig=None):  # pragma: no cover
         self.dlg.clr_buf()
@@ -261,9 +268,7 @@ class LoggerControllerBLE(LoggerController):
         if ans:
             dl = self._save_file(file, fol, size, sig)
 
-        # do not remove, gives peer's time to end if fails
         self.dlg.set_file_mode(False)
-        time.sleep(2)
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         return dl

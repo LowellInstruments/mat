@@ -26,8 +26,10 @@ def xmodem_get_file(lc, sig=None, verbose=False):
     sending_c = True
 
     while True:
+        # steps here may raise Exception and return False
         ctrl_byte, frame_len = _ctrl_stage(lc, sending_c)
         if ctrl_byte == EOT:
+            _xmd_print('-> EOT from logger')
             return True, file_built
 
         # data stage: try to receive data, note 'end_time' is shared
@@ -109,14 +111,14 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
 
 def _parse_frame(lc_ble, sending_c, retries, whole_file):
     if _frame_check_crc(lc_ble):
-        # print('<-- crc ok')
+        # print('<- crc ok')
         sending_c = False
         retries = 0
         whole_file += lc_ble.dlg.x_buf[3:-2]
         # print('.', end='')
         _ack(lc_ble)
     else:
-        _xmd_print('bad_crc --> nak')
+        _xmd_print('bad_crc -> nak')
         _nak(lc_ble)
     return sending_c, retries, whole_file
 
@@ -128,21 +130,21 @@ def _purge(lc_ble):
 
 
 def _ack(lc_ble):
-    _xmd_print('--> ack')
+    _xmd_print('-> ack')
     lc_ble.ble_write(ACK)
 
 
 def _nak(lc_ble):
-    _xmd_print('--> nak')
+    _xmd_print('-> nak')
     lc_ble.ble_write(NAK)
 
 
 def _can(lc_ble):
-    _xmd_print('--> can')
+    _xmd_print('-> can')
     lc_ble.ble_write(CAN)
-    _xmd_print('--> can')
+    _xmd_print('-> can')
     lc_ble.ble_write(CAN)
-    _xmd_print('--> can')
+    _xmd_print('-> can')
     lc_ble.ble_write(CAN)
 
 
@@ -159,6 +161,5 @@ def _frame_check_crc(lc_ble):
         return False
 
 
-# xmodem fatal exceptions controlled on app, this file controls non fatal ones
 class XModemException(Exception):
     pass
