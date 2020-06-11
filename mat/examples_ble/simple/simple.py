@@ -6,21 +6,20 @@ from mat.examples_ble._macs import _macs
 # used in these examples
 mac = _macs['mla098']
 
+# useful to test a command that changes
+my_cmd = 'UTM'
 
-def invalid():
-    """
-    test the logger returns INV on unknown command
-    :return: None
-    """
+
+def simple():
     try:
-        with LoggerControllerBLE(mac, hci_if=0) as lc:
-            result = lc.command('XXX')
-            print('\t\tXXX --> {}'.format(result))
+        with LoggerControllerBLE(mac) as lc:
+            result = lc.command(my_cmd)
+            print('\t\t{} --> {}'.format(my_cmd, result))
     except ble.BTLEException as ex:
         print('BLE: connect exception --> {}'.format(ex))
 
 
 if __name__ == '__main__':
     print('APP: start')
-    invalid()
+    simple()
     print('APP: done')

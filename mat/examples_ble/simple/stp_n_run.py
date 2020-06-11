@@ -5,7 +5,7 @@ from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def status():
@@ -20,7 +20,7 @@ def status():
 def stop_n_run(c, s):
     try:
         with LoggerControllerBLE(mac) as lc_ble:
-            r = lc_ble.command(c, s, retries=1)
+            r = lc_ble.command(c, s)
             print('\t\t{} --> {}'.format(c, r))
     except ble.BTLEException as ex:
         print('BLE: connect exception --> {}'.format(ex))
@@ -56,12 +56,8 @@ def try_stop():
 if __name__ == '__main__':
     print('APP: start')
 
-    i = 1
-    # i = 100
-    for _ in range(i):
-        status()
-
-    # try_stop()
+    status()
+    try_stop()
     # time.sleep(2)
     # try_run()
     # time.sleep(60)

@@ -4,7 +4,7 @@ from mat.logger_controller import LOGGER_INFO_CMD_W, LOGGER_INFO_CMD
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def wli():

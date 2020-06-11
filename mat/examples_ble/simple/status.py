@@ -1,4 +1,6 @@
 import bluepy.btle as ble
+from mat.logger_controller import (STATUS_CMD,
+                                   RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD)
 from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
@@ -7,20 +9,17 @@ from mat.examples_ble._macs import _macs
 mac = _macs['mla098']
 
 
-def invalid():
-    """
-    test the logger returns INV on unknown command
-    :return: None
-    """
+def status():
     try:
-        with LoggerControllerBLE(mac, hci_if=0) as lc:
-            result = lc.command('XXX')
-            print('\t\tXXX --> {}'.format(result))
+        with LoggerControllerBLE(mac) as lc_ble:
+            result = lc_ble.command(STATUS_CMD)
+            print('\t\tSTS --> {}'.format(result))
     except ble.BTLEException as ex:
         print('BLE: connect exception --> {}'.format(ex))
 
 
 if __name__ == '__main__':
     print('APP: start')
-    invalid()
+    for _ in range(2):
+        status()
     print('APP: done')

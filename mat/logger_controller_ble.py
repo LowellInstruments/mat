@@ -110,6 +110,7 @@ class LoggerControllerBLE(LoggerController):
 
         rv = None
         b = self.dlg.buf
+        print(b)
 
         try:
             # normal ASCII commands
@@ -120,7 +121,6 @@ class LoggerControllerBLE(LoggerController):
             d = b
 
         # early leave when error or invalid command
-        print(tag, d)
         if d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
             return True
@@ -128,8 +128,6 @@ class LoggerControllerBLE(LoggerController):
         # early leave for command answers
         if tag == 'DWL':
             return True
-        elif tag == 'GET':
-            rv = d.startswith('{} 00'.format(tag))
         elif tag == DIR_CMD:
             rv = b.endswith(b'\x04\n\r')
         elif tag == STATUS_CMD and d.startswith(tag):
@@ -175,6 +173,7 @@ class LoggerControllerBLE(LoggerController):
         elif tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
             rv = d.startswith('{} 05'.format(tag))
             rv = rv and (len(d) <= 6 + 5)
+        # todo: RHS, WHS, GSR early leave
         else:
             # here while answer being collected
             pass
@@ -183,7 +182,7 @@ class LoggerControllerBLE(LoggerController):
     def __cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
 
-        slow_ans = [RUN_CMD, RWS_CMD, 'GET']
+        slow_ans = [RUN_CMD, RWS_CMD]
         w = 50 if tag in slow_ans else 5
         till = time.perf_counter() + w
         while 1:
@@ -196,8 +195,13 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'STS 00' / b''
         return self.dlg.buf
 
+    def _purge(self):
+        while self.per.waitForNotifications(0.1):
+            pass
+
     def _cmd(self, *args):
         # reception vars
+        self._purge()
         self.dlg.clr_buf()
         self.dlg.set_file_mode(False)
 
@@ -254,19 +258,30 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(3)
             return rv
 
-    def get_file(self, file, fol, size, sig=None):  # pragma: no cover
+    def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        """ returns OK or NOK instead of <CMD> 00"""
+
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
 
-        # ensure fol is string, not path_lib
+        # ensure fol string, not path_lib
         fol = str(fol)
 
         # send GET command
         dl = False
-        ans = self.command('GET', file)
-        if ans:
-            dl = self._save_file(file, fol, size, sig)
+        # ans = self.command('GET', file)
+        # if ans:
+        #     dl = self._save_file(file, fol, size, sig)
+        try:
+            cmd = 'GET {:02x}{}\r'.format(len(file), file)
+            self.ble_write(cmd.encode())
+            self.per.waitForNotifications(10)
+            if self.dlg.buf == b'GET 00':
+                dl = self._save_file(file, fol, size, sig)
+        except ble.BTLEException as ex:
+            s = 'BLE: GET() exception {}'.format(ex)
+            raise ble.BTLEException(s)
 
         self.dlg.set_file_mode(False)
         self.dlg.clr_buf()

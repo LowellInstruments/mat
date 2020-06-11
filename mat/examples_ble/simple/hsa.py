@@ -4,7 +4,7 @@ from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def hsa():
@@ -20,7 +20,8 @@ def hsa():
             print('\t\tRHS --> {}'.format(result))
             result = lc_ble.command(CALIBRATION_CMD, "TMB")
             print('\t\tRHS --> {}'.format(result))
-            # error on purpose
+
+            # error on purpose!
             result = lc_ble.command(CALIBRATION_CMD, "TMX")
             print('\t\tRHS --> {}'.format(result))
     except ble.BTLEException as ex:

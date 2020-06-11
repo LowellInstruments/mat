@@ -8,7 +8,7 @@ from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 def sense():
@@ -17,7 +17,7 @@ def sense():
             result = lc_ble.command(SENSOR_READINGS_CMD, retries=1)
             print('\t\tGSR --> {}'.format(result))
 
-            result = lc_ble.command(DO_SENSOR_READINGS_CMD, retries=1)
+            result = lc_ble.command(DO_SENSOR_READINGS_CMD)
             print('\t\tGDO --> {}'.format(result))
 
             result = lc_ble.command(SD_FREE_SPACE_CMD)
@@ -28,6 +28,6 @@ def sense():
 
 if __name__ == '__main__':
     print('APP: start')
-    for _ in range(10):
+    for _ in range(1):
         sense()
     print('APP: done')
