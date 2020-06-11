@@ -105,12 +105,11 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def __cmd_ans_done(self, tag):
+    def __cmd_ans_done(self, tag, debug=False):
         """ interrupts answer timeout for last sent command """
 
         rv = None
         b = self.dlg.buf
-        print(b)
 
         try:
             # normal ASCII commands
@@ -119,6 +118,10 @@ class LoggerControllerBLE(LoggerController):
             # DWL ASCII command, not binary as XMD
             tag = 'DWL'
             d = b
+
+        # useful when debugging
+        if debug:
+            print(b)
 
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):
@@ -190,7 +193,7 @@ class LoggerControllerBLE(LoggerController):
                 till += 0.1
             if time.perf_counter() > till:
                 break
-            if self.__cmd_ans_done(tag):
+            if self.__cmd_ans_done(tag, debug=False):
                 break
         # e.g. b'STS 00' / b''
         return self.dlg.buf
@@ -242,7 +245,7 @@ class LoggerControllerBLE(LoggerController):
         rv = False
         try:
             self.dlg.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self, sig, verbose=True)
+            r, bytes_rx = xmodem_get_file(self, sig, verbose=False)
             # got file ok
             if r:
                 p = '{}/{}'.format(fol, file)
