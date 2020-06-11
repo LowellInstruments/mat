@@ -260,7 +260,7 @@ class LoggerControllerBLE(LoggerController):
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         """ returns OK or NOK instead of <CMD> 00"""
-
+        self._purge()
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
@@ -289,6 +289,7 @@ class LoggerControllerBLE(LoggerController):
         return dl
 
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
+        self._purge()
         self.dlg.clr_buf()
 
         # send DWG command
@@ -371,9 +372,9 @@ class LoggerControllerBLE(LoggerController):
         ext = b'lid'
         return _ls_wildcard(self._ls(), ext, match=False)
 
-    def send_cfg(self, cfg_json_dict: dict):  # pragma: no cover
-        _as_string = json.dumps(cfg_json_dict)
-        return self.command(CONFIG_CMD, _as_string)
+    def send_cfg(self, cfg_d: dict):  # pragma: no cover
+        s = json.dumps(cfg_d)
+        return self.command(CONFIG_CMD, s)
 
 
 # utilities
