@@ -198,13 +198,8 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'STS 00' / b''
         return self.dlg.buf
 
-    def _purge(self):
-        while self.per.waitForNotifications(0.1):
-            pass
-
     def _cmd(self, *args):
         # reception vars
-        self._purge()
         self.dlg.clr_buf()
         self.dlg.set_file_mode(False)
 
@@ -263,7 +258,7 @@ class LoggerControllerBLE(LoggerController):
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         """ returns OK or NOK instead of <CMD> 00"""
-        self._purge()
+
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
@@ -292,7 +287,6 @@ class LoggerControllerBLE(LoggerController):
         return dl
 
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
-        self._purge()
         self.dlg.clr_buf()
 
         # send DWG command
@@ -356,12 +350,16 @@ class LoggerControllerBLE(LoggerController):
             print('GTM malformed: {}'.format(ans))
             return
 
+    def __purge(self):
+        while self.per.waitForNotifications(.1):
+            pass
+
     # wrapper function for DIR command
     def _ls(self):
         self.dlg.clr_buf()
         rv = self.command('DIR 00')
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
-        time.sleep(1)
+        self.__purge()
         return rv
 
     def ls_ext(self, ext):
