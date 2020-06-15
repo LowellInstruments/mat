@@ -83,7 +83,7 @@ def _rx_frame(lc_ble, frame_len, retries, timeout):
         if time.time() > timeout:
             retries += 1
             break
-        lc_ble.per.waitForNotifications(0.1)
+        lc_ble.per.waitForNotifications(0.001)
         if len(lc_ble.dlg.x_buf) >= frame_len:
             break
     return retries

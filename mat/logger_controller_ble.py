@@ -124,6 +124,7 @@ class LoggerControllerBLE(LoggerController):
             print(b)
 
         # early leave when error or invalid command
+        print(d)
         if d.startswith('ERR') or d.startswith('INV'):
             time.sleep(.5)
             return True
@@ -189,8 +190,8 @@ class LoggerControllerBLE(LoggerController):
         w = 50 if tag in slow_ans else 5
         till = time.perf_counter() + w
         while 1:
-            if self.per.waitForNotifications(0.1):
-                till += 0.1
+            if self.per.waitForNotifications(0.001):
+                till += 0.001
             if time.perf_counter() > till:
                 break
             if self.__cmd_ans_done(tag, debug=False):
@@ -477,7 +478,7 @@ def is_a_li_logger(rd: bytes):
     """
     known_li_types = [b'DO-1']
     for _ in known_li_types:
-        if _ in rd:
+        if _ in bytes(rd):
             return True
     return False
 
