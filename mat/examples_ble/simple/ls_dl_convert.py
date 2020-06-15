@@ -1,3 +1,4 @@
+import os
 import time
 import bluepy.btle as ble
 from mat.data_converter import default_parameters, DataConverter
@@ -7,7 +8,7 @@ from pprint import pprint
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['lp2']
+mac = _macs['mla098']
 
 
 # stops a logger and download its data files
@@ -24,10 +25,6 @@ def ls_dl_convert():
             print('\tDIR -->')
             pprint(files)
 
-            # precaution
-            if files == [b'ERR']:
-                print('ls() returned ERR, try again')
-                sys.exit(1)
 
             # download and convert such files
             for name, size in files.items():
