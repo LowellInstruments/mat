@@ -473,11 +473,14 @@ def w_ble_linux_pars(l1, l2, l3):
         pass
 
 
-def is_a_li_logger(rd: bytes):
+def is_a_li_logger(rd):
     """
     identifies lowell instruments' loggers
     :param rd: bluepy Scanner.scan() rawData object
     """
+    # todo: fix this
+    if type(rd) is not bytes:
+        return False
     known_li_types = [b'DO-1']
     for _ in known_li_types:
         if _ in bytes(rd):
