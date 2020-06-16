@@ -49,19 +49,22 @@ class GPS:
         return None
 
     def _parse_line(self, line_bytes, frame_type):
-        if line_bytes.startswith('$'.encode('ASCII')):
-            line = line_bytes.decode('ASCII')
-            data, checksum = line.split('*')
-            tokens = data.split(',')
-            gps_sentence, args = tokens[0], tokens[1:]
-            handler = self.handlers.get(gps_sentence)
-            if GPS._verify_string(data, checksum) is False \
-                    or gps_sentence != frame_type \
-                    or handler is None:
+        try:
+            if line_bytes.startswith('$'.encode('ASCII')):
+                line = line_bytes.decode('ASCII')
+                data, checksum = line.split('*')
+                tokens = data.split(',')
+                gps_sentence, args = tokens[0], tokens[1:]
+                handler = self.handlers.get(gps_sentence)
+                if not GPS._verify_string(data, checksum) \
+                        or gps_sentence != frame_type \
+                        or handler is None:
+                    return None
+                handler(args)
+                return line
+            else:
                 return None
-            handler(args)
-            return line
-        else:
+        except ValueError:
             return None
 
     @staticmethod
