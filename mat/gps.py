@@ -56,7 +56,7 @@ class GPS:
                 tokens = data.split(',')
                 gps_sentence, args = tokens[0], tokens[1:]
                 handler = self.handlers.get(gps_sentence)
-                if GPS._verify_string(data, checksum) is None\
+                if GPS._verify_string(data, checksum) is False\
                         or gps_sentence != frame_type \
                         or handler is None:
                     return None
