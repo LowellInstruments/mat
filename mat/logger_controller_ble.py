@@ -353,7 +353,7 @@ class LoggerControllerBLE(LoggerController):
             return
 
     def __purge(self):
-        while self.per.waitForNotifications(.1):
+        while self.per.waitForNotifications(1):
             pass
 
     # wrapper function for DIR command
