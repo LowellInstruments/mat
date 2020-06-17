@@ -240,7 +240,6 @@ class LoggerControllerBLE(LoggerController):
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
 
-        rv = False
         try:
             self.dlg.set_file_mode(True)
             r, bytes_rx = xmodem_get_file(self, sig, verbose=False)
@@ -250,14 +249,10 @@ class LoggerControllerBLE(LoggerController):
                 with open(p, 'wb') as f:
                     f.write(bytes_rx)
                     f.truncate(int(s))
-                rv = True
+                return True
+            return False
         except XModemException:
-            # rv is still False
-            pass
-        finally:
-            # time between file downloads
-            time.sleep(3)
-            return rv
+            return False
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         """ returns OK or NOK instead of <CMD> 00"""
@@ -284,10 +279,13 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-        self.__purge()
         self.dlg.set_file_mode(False)
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
+
+        # leave time between files
+        time.sleep(3)
+        self.__purge()
         return dl
 
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
