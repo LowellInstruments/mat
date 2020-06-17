@@ -284,6 +284,7 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
+        self.__purge()
         self.dlg.set_file_mode(False)
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
