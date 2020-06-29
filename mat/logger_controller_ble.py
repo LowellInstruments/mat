@@ -288,6 +288,12 @@ class LoggerControllerBLE(LoggerController):
         self.__purge()
         return dl
 
+    def purge(self, timeout=1):
+        try:
+            self.__purge(timeout)
+        except AttributeError:
+            pass
+
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
         self.dlg.clr_buf()
 
@@ -352,7 +358,7 @@ class LoggerControllerBLE(LoggerController):
             print('GTM malformed: {}'.format(ans))
             return
 
-    def __purge(self):
+    def __purge(self, timeout=1):
         while self.per.waitForNotifications(1):
             pass
 
