@@ -72,7 +72,7 @@ class LoggerControllerBLE(LoggerController):
         retries = 3
         for i in range(retries):
             try:
-                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=5)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=10)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
                 self.per.setDelegate(self.dlg)
