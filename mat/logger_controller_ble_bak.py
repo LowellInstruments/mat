@@ -49,8 +49,8 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
-        # default are (24, 40, 0)
         w_ble_linux_pars(6, 11, 0)
+        # w_ble_linux_pars(24, 40, 0)
         super().__init__(mac)
         self.address = mac
         self.hci_if = hci_if
@@ -63,6 +63,8 @@ class LoggerControllerBLE(LoggerController):
             self.und = LoggerControllerBLERN4020(self)
         elif brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
+        else:
+            raise ble.BTLEException('unknown brand')
 
         self.dlg = Delegate()
 
@@ -79,11 +81,12 @@ class LoggerControllerBLE(LoggerController):
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
 
-                # don't remove, Linux hack or hangs at first BLE connection ever
-                if is_connection_recent(self.address):
+                # hack for linux, or hangs at first BLE connection
+                r = is_connection_recent(self.address)
+                if r:
                     self.open_post()
                     return True
-                self.per.disconnect() # pragma: no cover
+                self.per.disconnect()
             except (AttributeError, ble.BTLEException):
                 e = 'failed connection attempt {} of {}'
                 print(e.format(i + 1, retries))
@@ -102,17 +105,17 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def __cmd_ans_done(self, tag, debug=False):  # pragma: no cover
-        """ ends answer timeout for last sent command """
+    def __cmd_ans_done(self, tag, debug=False):
+        """ interrupts answer timeout for last sent command """
 
         rv = None
         b = self.dlg.buf
 
         try:
-            # normal command answers bytes -> string
+            # normal ASCII commands
             d = b.decode()
         except UnicodeError:
-            # DWL answer cannot be decoded
+            # DWL ASCII command, not binary as XMD
             tag = 'DWL'
             d = b
 
@@ -125,8 +128,7 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.5)
             return True
 
-        # early leave when final command answers
-        # don't py.test this, use GUI application
+        # early leave for command answers
         if tag == 'DWL':
             return True
         elif tag == DIR_CMD:
@@ -190,31 +192,18 @@ class LoggerControllerBLE(LoggerController):
         w = 50 if tag in slow_ans else 5
         till = time.perf_counter() + w
         while 1:
+            if self.per.waitForNotifications(0.001):
+                till += 0.001
             if time.perf_counter() > till:
                 break
             if self.__cmd_ans_done(tag, debug=False):
                 break
-            if self.per.waitForNotifications(0.001):
-                till += 0.001
-        # e.g. b'' / b'STS 00'
+        # e.g. b'STS 00' / b''
         return self.dlg.buf
 
-    def _purge(self, timeout=.1):   # pragma: no cover
-        if self.per:
-            while self.per.waitForNotifications(timeout):
-                pass
+    def _cmd(self, *args):
+        # reception vars
         self.dlg.clr_buf()
-        self.dlg.clr_x_buf()
-
-    # for any public call, if any
-    def purge(self, timeout):   # pragma: no cover
-        try:
-            self._purge(timeout)
-        except AttributeError:
-            pass
-
-    def _cmd(self, *args):   # pragma: no cover
-        self._purge()
         self.dlg.set_file_mode(False)
 
         # build and send binary command
@@ -240,8 +229,8 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: command() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-    def flood(self, n):   # pragma: no cover
-        """ attack check: sends command burst w/o caring answers """
+    def flood(self, n):
+        """ robust check: sends command burst w/o caring answers """
 
         for i in range(n):
             cmd = STATUS_CMD
@@ -268,7 +257,8 @@ class LoggerControllerBLE(LoggerController):
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         """ returns OK or NOK instead of <CMD> 00"""
 
-        self._purge()
+        self.dlg.clr_buf()
+        self.dlg.clr_x_buf()
         self.dlg.set_file_mode(False)
 
         # ensure fol string, not path_lib
@@ -289,16 +279,25 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-        # clean-up, leave time between files
         self.dlg.set_file_mode(False)
-        time.sleep(1)
-        self._purge()
+        self.dlg.clr_buf()
+        self.dlg.clr_x_buf()
+
+        # leave time between files
+        time.sleep(3)
+        self.__purge()
         return dl
 
-    def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
-        self._purge()
+    def purge(self, timeout=1):
+        try:
+            self.__purge(timeout)
+        except AttributeError:
+            pass
 
-        # start DWG session
+    def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
+        self.dlg.clr_buf()
+
+        # send DWG command
         ans = self.command('DWG', file)
         if ans != [b'DWG', b'00']:
             return False
@@ -316,12 +315,12 @@ class LoggerControllerBLE(LoggerController):
             f.write(acc)
             f.truncate(int(s))
 
-        # separate batch DWG sessions
+        # separate batch file downloads
         time.sleep(1)
-        self._purge()
+        self.dlg.clr_buf()
         return len(acc)
 
-    def _dwl_chunk(self, i, sig=None):  # pragma: no cover
+    def _dwl_chunk(self, i, sig=None):
         self.dlg.clr_buf()
         i = str(i)
         to_send = 'DWL {:02x}{}\r'.format(len(i), i)
@@ -347,7 +346,7 @@ class LoggerControllerBLE(LoggerController):
         return acc
 
     def get_time(self):
-        self._purge()
+        self.dlg.clr_buf()
         ans = self.command(TIME_CMD)
         if not ans:
             return
@@ -359,12 +358,16 @@ class LoggerControllerBLE(LoggerController):
             print('GTM malformed: {}'.format(ans))
             return
 
+    def __purge(self, timeout=1):
+        while self.per.waitForNotifications(1):
+            pass
+
     # wrapper function for DIR command
     def _ls(self):
-        self._purge()
+        self.dlg.clr_buf()
         rv = self.command('DIR 00')
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
-        self._purge()
+        self.__purge()
         return rv
 
     def ls_ext(self, ext):
@@ -372,7 +375,7 @@ class LoggerControllerBLE(LoggerController):
 
     def ls_lid(self):
         ext = b'lid'
-        return _ls_wildcard(self._ls(), ext, match=True)
+        return self.ls_ext(ext)
 
     def ls_not_lid(self):
         ext = b'lid'
@@ -385,17 +388,10 @@ class LoggerControllerBLE(LoggerController):
 
 # utilities
 def _ls_wildcard(lis, ext, match=True):
-    if lis is None:
-        return {}
-
-    # todo: CONTROL THIS IN CODES CALLING THIS!
-    if b'ERR' in lis:
-        return b'ERR'
-
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
-        if name in [b'\x04']:
+        if name in [b'\x04', b'ERR']:
             break
         if name.endswith(ext) == match and name not in [b'.', b'..']:
             files[name.decode()] = int(lis[idx + 1])
@@ -487,6 +483,7 @@ def is_a_li_logger(rd):
     identifies lowell instruments' loggers
     :param rd: bluepy Scanner.scan() rawData object
     """
+    # todo: fix this
     if type(rd) is not bytes:
         return False
     known_li_types = [b'DO-1']

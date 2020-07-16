@@ -17,7 +17,7 @@ class FakeService:
 
 
 class FakePeripheral:
-    def __init__(self, mac, iface=0):
+    def __init__(self, mac, iface=0, timeout=10):
         self.mac = mac
 
     def setDelegate(self, delegate_to_fxn):
@@ -37,6 +37,9 @@ class FakePeripheral:
 
     def getServiceByUUID(self, uuid):
         return FakeService()
+
+    def waitForNotifications(self, timeout):
+        return False
 
 
 class FakePeripheralEx(FakePeripheral):

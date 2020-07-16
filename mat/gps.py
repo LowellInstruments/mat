@@ -7,8 +7,8 @@ from collections import namedtuple
 # how to test this with coverage:
 # python3 -m pytest
 #       tests/test_gps.py
-#       --cov mat.gps -
-#       -cov-report=html:<output_dir>
+#       --cov mat.gps
+#       --cov-report=html:<output_dir>
 
 
 def parse_int(x):
