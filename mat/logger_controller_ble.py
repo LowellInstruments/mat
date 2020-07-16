@@ -12,7 +12,6 @@ from mat.xmodem_ble import xmodem_get_file, XModemException
 import pathlib
 import subprocess as sp
 
-
 # commands not present in USB loggers
 HW_TEST_CMD = '#T1'
 FORMAT_CMD = 'FRM'
@@ -57,6 +56,7 @@ class LoggerControllerBLE(LoggerController):
         self.per = None
         self.svc = None
         self.cha = None
+        self.clean = 0
 
         # set underlying BLE class
         if brand_microchip(mac):
@@ -200,18 +200,13 @@ class LoggerControllerBLE(LoggerController):
         return self.dlg.buf
 
     def _purge(self, timeout=.1):   # pragma: no cover
-        if self.per:
+        if self.per and self.clean == 10:
+            print('purged BLE buffer')
             while self.per.waitForNotifications(timeout):
                 pass
+        self.clean = (self.clean + 1) % 11
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
-
-    # for any public call, if any
-    def purge(self, timeout):   # pragma: no cover
-        try:
-            self._purge(timeout)
-        except AttributeError:
-            pass
 
     def _cmd(self, *args):   # pragma: no cover
         self._purge()
@@ -274,11 +269,8 @@ class LoggerControllerBLE(LoggerController):
         # ensure fol string, not path_lib
         fol = str(fol)
 
-        # send GET command
+        # send our own GET command
         dl = False
-        # ans = self.command('GET', file)
-        # if ans:
-        #     dl = self._save_file(file, fol, size, sig)
         try:
             cmd = 'GET {:02x}{}\r'.format(len(file), file)
             self.ble_write(cmd.encode())
@@ -367,7 +359,7 @@ class LoggerControllerBLE(LoggerController):
         self._purge()
         return rv
 
-    def ls_ext(self, ext):
+    def ls_ext(self, ext):  # pragma: no cover
         return _ls_wildcard(self._ls(), ext, match=True)
 
     def ls_lid(self):
@@ -412,7 +404,7 @@ def brand_microchip(mac):
     return mac.startswith('00:1e:c0:')
 
 
-def ble_scan(hci_if, my_to=3.0):
+def ble_scan(hci_if, my_to=3.0):    # pragma: no cover
     # hci_if: hciX interface
     import sys
     try:
@@ -424,7 +416,7 @@ def ble_scan(hci_if, my_to=3.0):
         sys.exit(1)
 
 
-def is_connection_recent(mac):
+def is_connection_recent(mac):  # pragma: no cover
     # /dev/shm is cleared every reboot
     mac = str(mac).replace(':', '')
     path = pathlib.Path('/dev/shm/{}'.format(mac))
@@ -434,7 +426,7 @@ def is_connection_recent(mac):
     return False
 
 
-def _r_ble_linux_pars(banner) -> (int, int, int):
+def _r_ble_linux_pars(banner) -> (int, int, int):   # pragma: no cover
     min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
     max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
     lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
@@ -451,7 +443,7 @@ def _r_ble_linux_pars(banner) -> (int, int, int):
         print('can\'t read /sys/kernel/bluetooth')
 
 
-def w_ble_linux_pars(l1, l2, l3):
+def w_ble_linux_pars(l1, l2, l3):   # pragma: no cover
     # order is important
     _r_ble_linux_pars('pre:')
     min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'

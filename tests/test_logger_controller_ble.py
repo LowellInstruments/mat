@@ -8,7 +8,8 @@ if sys.platform != 'win32':
         LoggerControllerBLE,
         Delegate,
         brand_ti,
-        brand_microchip
+        brand_microchip,
+        is_a_li_logger
     )
     from tests._test_logger_controller_ble import (
         FakePeripheral,
@@ -158,3 +159,13 @@ class TestLoggerControllerBLECC26X2:
         _rv = None
         lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
         assert not lc_ble.ls_not_lid()
+
+    def test_is_a_li_logger_yes(self):
+        name = b'DO-1'
+        assert is_a_li_logger(name)
+        name = b'DO-77'
+        assert not is_a_li_logger(name)
+
+    def test_is_a_li_logger_bad(self):
+        name = 12345
+        assert not is_a_li_logger(name)
