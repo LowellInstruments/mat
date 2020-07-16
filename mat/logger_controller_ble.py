@@ -83,7 +83,7 @@ class LoggerControllerBLE(LoggerController):
                 if is_connection_recent(self.address):
                     self.open_post()
                     return True
-                self.per.disconnect() # pragma: no cover
+                self.per.disconnect()   # pragma: no cover
             except (AttributeError, ble.BTLEException):
                 e = 'failed connection attempt {} of {}'
                 print(e.format(i + 1, retries))
@@ -122,6 +122,9 @@ class LoggerControllerBLE(LoggerController):
 
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):
+            # todo: check when RUN + DIR goes here
+            if tag == DIR_CMD:
+                print('ERROR WHILE DIR, needed to check and I did!')
             time.sleep(.5)
             return True
 
@@ -243,22 +246,39 @@ class LoggerControllerBLE(LoggerController):
             cmd += chr(13)
             self.ble_write(cmd.encode())
 
+    # def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
+    #     """ called after _get_file(), downloads file w/ x-modem """
+    #
+    #     try:
+    #         self.dlg.set_file_mode(True)
+    #         r, bytes_rx = xmodem_get_file(self, sig, verbose=False)
+    #         # got file ok
+    #         if r:
+    #             p = '{}/{}'.format(fol, file)
+    #             with open(p, 'wb') as f:
+    #                 f.write(bytes_rx)
+    #                 f.truncate(int(s))
+    #             return True
+    #         return False
+    #     except XModemException:
+    #         return False
+
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
 
+        self.dlg.set_file_mode(True)
         try:
-            self.dlg.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self, sig, verbose=False)
-            # got file ok
-            if r:
-                p = '{}/{}'.format(fol, file)
-                with open(p, 'wb') as f:
-                    f.write(bytes_rx)
-                    f.truncate(int(s))
-                return True
-            return False
+            r, n = xmodem_get_file(self, sig, verbose=False)
         except XModemException:
             return False
+
+        if not r:
+            return False
+        p = '{}/{}'.format(fol, file)
+        with open(p, 'wb') as f:
+            f.write(n)
+            f.truncate(int(s))
+        return True
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         """ returns OK or NOK instead of <CMD> 00"""
