@@ -202,9 +202,9 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'' / b'STS 00'
         return self.dlg.buf
 
-    def _purge(self, timeout=.1):   # pragma: no cover
-        if self.per and self.clean == 10:
-            print('purged BLE buffer')
+    def _purge(self, timeout=.1, forced=False):   # pragma: no cover
+        if forced or (self.per and self.clean == 10):
+            print('DBG: purged BLE buffer')
             while self.per.waitForNotifications(timeout):
                 pass
         self.clean = (self.clean + 1) % 11
@@ -246,23 +246,6 @@ class LoggerControllerBLE(LoggerController):
             cmd += chr(13)
             self.ble_write(cmd.encode())
 
-    # def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
-    #     """ called after _get_file(), downloads file w/ x-modem """
-    #
-    #     try:
-    #         self.dlg.set_file_mode(True)
-    #         r, bytes_rx = xmodem_get_file(self, sig, verbose=False)
-    #         # got file ok
-    #         if r:
-    #             p = '{}/{}'.format(fol, file)
-    #             with open(p, 'wb') as f:
-    #                 f.write(bytes_rx)
-    #                 f.truncate(int(s))
-    #             return True
-    #         return False
-    #     except XModemException:
-    #         return False
-
     def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
 
@@ -281,9 +264,8 @@ class LoggerControllerBLE(LoggerController):
         return True
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        """ returns OK or NOK instead of <CMD> 00"""
-
-        self._purge()
+        # separates file downloads, allows logger xmodem to boot
+        self._purge(timeout=1, forced=True)
         self.dlg.set_file_mode(False)
 
         # ensure fol string, not path_lib
@@ -297,18 +279,21 @@ class LoggerControllerBLE(LoggerController):
             self.per.waitForNotifications(10)
             if self.dlg.buf == b'GET 00':
                 dl = self._save_file(file, fol, size, sig)
+            else:
+                e = 'DBG: get_file() error, self.dlg.buf -> {}'
+                print(e.format(self.dlg.buf))
+
         except ble.BTLEException as ex:
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-        # clean-up, leave time between files
+        # clean-up
         self.dlg.set_file_mode(False)
-        time.sleep(1)
-        self._purge()
         return dl
 
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
-        self._purge()
+        # separates file downloads
+        self._purge(timeout=1, forced=True)
 
         # start DWG session
         ans = self.command('DWG', file)
@@ -327,10 +312,6 @@ class LoggerControllerBLE(LoggerController):
         with open(p, 'wb') as f:
             f.write(acc)
             f.truncate(int(s))
-
-        # separate batch DWG sessions
-        time.sleep(1)
-        self._purge()
         return len(acc)
 
     def _dwl_chunk(self, i, sig=None):  # pragma: no cover
@@ -376,7 +357,6 @@ class LoggerControllerBLE(LoggerController):
         self._purge()
         rv = self.command('DIR 00')
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
-        self._purge()
         return rv
 
     def ls_ext(self, ext):  # pragma: no cover
