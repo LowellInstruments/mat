@@ -279,7 +279,7 @@ class LoggerControllerBLE(LoggerController):
             cmd = 'GET {:02x}{}\r'.format(len(file), file)
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
-            if self.dlg.buf.endswith(b'GET 00'):
+            if self.dlg.buf and self.dlg.buf.endswith(b'GET 00'):
                 dl = self._save_file(file, fol, size, sig)
             else:
                 e = 'DBG: get_file() error, self.dlg.buf -> {}'
