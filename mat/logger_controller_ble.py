@@ -20,6 +20,7 @@ UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
+_DEBUG_THIS_MODULE = 0
 
 
 class Delegate(ble.DefaultDelegate):
@@ -204,7 +205,8 @@ class LoggerControllerBLE(LoggerController):
 
     def _purge(self, timeout=.1, forced=False):   # pragma: no cover
         if forced or (self.per and self.clean == 10):
-            print('DBG: purged BLE buffer')
+            if _DEBUG_THIS_MODULE:
+                print('DBG: purged BLE buffer')
             while self.per.waitForNotifications(timeout):
                 pass
         self.clean = (self.clean + 1) % 11
@@ -352,10 +354,12 @@ class LoggerControllerBLE(LoggerController):
             print('GTM malformed: {}'.format(ans))
             return
 
-    # wrapper function for DIR command
+    # wrapper for DIR command, don't remove any purge()
     def _ls(self):
         self._purge()
         rv = self.command('DIR 00')
+        self._purge(timeout=1, forced=True)
+
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
         return rv
 
