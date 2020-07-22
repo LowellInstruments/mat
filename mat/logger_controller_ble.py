@@ -203,8 +203,8 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'' / b'STS 00'
         return self.dlg.buf
 
-    def _purge(self, timeout=.1, forced=False):   # pragma: no cover
-        if forced or (self.per and self.clean == 10):
+    def _purge(self, timeout=.1):   # pragma: no cover
+        if self.per:
             if _DEBUG_THIS_MODULE:
                 print('DBG: purged BLE buffer')
             while self.per.waitForNotifications(timeout):
@@ -229,7 +229,7 @@ class LoggerControllerBLE(LoggerController):
         tag = cmd[:3]
         ans = self.__cmd_ans_wait(tag).split()
 
-        # e.g. [b'STS', b'0201']
+        # e.g. [b'STS', b'020X']
         return ans
 
     def command(self, *args):    # pragma: no cover
@@ -267,7 +267,7 @@ class LoggerControllerBLE(LoggerController):
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         # separates file downloads, allows logger xmodem to boot
-        self._purge(timeout=1, forced=True)
+        self._purge(timeout=1)
         self.dlg.set_file_mode(False)
 
         # ensure fol string, not path_lib
@@ -295,7 +295,7 @@ class LoggerControllerBLE(LoggerController):
 
     def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
         # separates file downloads
-        self._purge(timeout=1, forced=True)
+        self._purge(timeout=1)
 
         # start DWG session
         ans = self.command('DWG', file)
@@ -356,9 +356,8 @@ class LoggerControllerBLE(LoggerController):
 
     # wrapper for DIR command, don't remove any purge()
     def _ls(self):
-        self._purge()
         rv = self.command('DIR 00')
-        self._purge(timeout=1, forced=True)
+        self._purge(timeout=1)
 
         # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
         return rv
