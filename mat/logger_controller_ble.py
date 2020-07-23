@@ -123,9 +123,6 @@ class LoggerControllerBLE(LoggerController):
 
         # early leave when error or invalid command
         if d.startswith('ERR') or d.startswith('INV'):
-            # todo: check when RUN + DIR goes here
-            if tag == DIR_CMD:
-                print('ERROR WHILE DIR, needed to check and I did!')
             time.sleep(.5)
             return True
 
@@ -385,7 +382,6 @@ def _ls_wildcard(lis, ext, match=True):
     if lis is None:
         return {}
 
-    # todo: CONTROL THIS IN CODES CALLING THIS!
     if b'ERR' in lis:
         return b'ERR'
 
