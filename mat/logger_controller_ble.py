@@ -5,7 +5,7 @@ import time
 import math
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -181,6 +181,8 @@ class LoggerControllerBLE(LoggerController):
         elif tag == CALIBRATION_CMD:
             rv = d.startswith('{} 08TM'.format(tag))
             rv = rv and (len(d) <= 6 + 8)
+        elif tag == RESET_CMD:
+            rv = d.startswith('{} 00'.format(tag))
         # todo: WHS, GSR early leave
         else:
             # here while answer being collected
