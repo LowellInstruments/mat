@@ -1,4 +1,7 @@
 version: "2"         # required to adjust maintainability checks
+exclude_patterns:
+- "mat/examples_ble/"
+- "mat/examples_gps/"
 checks:
   argument-count:
     config:
@@ -30,3 +33,4 @@ checks:
   identical-code:
     config:
       threshold: # language-specific defaults. an override will affect all languages.
+
