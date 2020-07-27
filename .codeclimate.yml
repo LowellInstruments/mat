@@ -3,6 +3,7 @@ exclude_patterns:
 - "mat/examples_ble/"
 - "mat/examples_gps/"
 - "tests/"
+- "mat/sensor_specification.py"
 checks:
   argument-count:
     config:
