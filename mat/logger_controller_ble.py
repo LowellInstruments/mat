@@ -106,9 +106,7 @@ class LoggerControllerBLE(LoggerController):
     def __cmd_ans_done(self, tag, debug=False):  # pragma: no cover
         """ ends answer timeout for last sent command """
 
-        rv = None
         b = self.dlg.buf
-
         try:
             # normal command answers bytes -> string
             d = b.decode()
@@ -126,65 +124,65 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.5)
             return True
 
+        ____TEST____THIS_TOMORROW_____
+
+        # _done_checks = {
+        #     STATUS_CMD: lambda x: x.startswith(STATUS_CMD) and len(x) == 8
+        # }
+        # return _done_checks[tag](d)
+
         # early leave when final command answers
         # don't py.test this, use GUI application
         if tag == 'DWL':
             return True
-        elif tag == DIR_CMD:
-            rv = b.endswith(b'\x04\n\r')
+        if tag == DIR_CMD:
+            return b.endswith(b'\x04\n\r')
         elif tag == STATUS_CMD and d.startswith(tag):
-            rv = True if len(d) == 8 else False
+            return len(d) == 8
         elif tag == LOG_EN_CMD and d.startswith(tag):
-            rv = True if len(d) == 8 else False
+            return len(d) == 8
         elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
-            rv = True if len(d) == 6 + 6 else False
+            return len(d) == 6 + 6
         elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
-            rv = True if len(d) == 6 + 7 else False
+            return len(d) == 6 + 7
         elif tag == UP_TIME_CMD and d.startswith(tag):
-            rv = True
+            return True
         elif tag == TIME_CMD and d.startswith(tag):
-            rv = True if len(d) == 6 + 19 else False
+            return len(d) == 6 + 19
         elif tag == SET_TIME_CMD:
-            rv = d.startswith('{} 00'.format(tag))
+            return d.startswith('{} 00'.format(tag))
         elif tag == REQ_FILE_NAME_CMD:
-            rv = d.startswith('{} 00'.format(tag))
-            rv = rv or d.endswith('.lid')
+            return d.startswith('{} 00'.format(tag)) or d.endswith('.lid')
         elif tag == LOGGER_INFO_CMD and d.startswith(tag):
-            rv = (len(d) <= 6 + 7)
             time.sleep(.1)
+            return len(d) <= 6 + 7
         elif tag == LOGGER_INFO_CMD_W and d.startswith(tag):
-            rv = d.startswith('{} 00'.format(tag))
             time.sleep(.1)
+            return d.startswith('{} 00'.format(tag))
         elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
-            rv = (len(d) == 6 + 8)
+            return len(d) == 6 + 8
         elif tag == CONFIG_CMD:
-            rv = d.startswith('{} 00'.format(tag))
             time.sleep(.5)
+            return d.startswith('{} 00'.format(tag))
         elif tag == DEL_FILE_CMD and d.startswith(tag):
-            rv = d.startswith('DEL 00')
+            return d.startswith('DEL 00')
         elif tag in (RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD):
-            rv = d.startswith('{} 00'.format(tag))
             time.sleep(1)
+            return d.startswith('{} 00'.format(tag))
         elif tag == MY_TOOL_SET_CMD:
-            rv = d.startswith('{} 00'.format(tag))
+            return d.startswith('{} 00'.format(tag))
         elif tag == DO_SENSOR_READINGS_CMD:
-            rv = d.startswith('{} '.format(tag))
-            rv = rv and (len(d) <= 6 + 12)
+            return d.startswith('{} '.format(tag)) and (len(d) <= 6 + 12)
         elif tag in ('DWG', CONFIG_CMD, FORMAT_CMD):
-            rv = d.startswith('{} 00'.format(tag))
+            return d.startswith('{} 00'.format(tag))
         elif tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
-            rv = d.startswith('{} 05'.format(tag))
-            rv = rv and (len(d) <= 6 + 5)
+            return d.startswith('{} 05'.format(tag)) and (len(d) <= 6 + 5)
         elif tag == CALIBRATION_CMD:
-            rv = d.startswith('{} 08TM'.format(tag))
-            rv = rv and (len(d) <= 6 + 8)
+            return d.startswith('{} 08TM'.format(tag)) and (len(d) <= 6 + 8)
         elif tag == RESET_CMD:
-            rv = d.startswith('{} 00'.format(tag))
+            return d.startswith('{} 00'.format(tag))
         # todo: WHS, GSR early leave
-        else:
-            # here while answer being collected
-            pass
-        return rv
+        return False
 
     def __cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
