@@ -9,8 +9,8 @@ if sys.platform != 'win32':
         Delegate,
         brand_ti,
         brand_microchip,
-        is_a_li_logger
-    )
+        is_a_li_logger, _ans
+)
     from tests._test_logger_controller_ble import (
         FakePeripheral,
         FakePeripheralEx,
@@ -169,3 +169,11 @@ class TestLoggerControllerBLECC26X2:
     def test_is_a_li_logger_bad(self):
         name = 12345
         assert not is_a_li_logger(name)
+
+    def test_ans(self):
+        tag = 'RUN'
+        assert _ans(tag, 'RUN 00', None)
+
+    def test_ans_bad(self):
+        tag = 'RUN'
+        assert not _ans(tag, 'RUN 66', None)

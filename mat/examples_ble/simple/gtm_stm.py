@@ -4,7 +4,7 @@ from mat.logger_controller_ble import LoggerControllerBLE
 from mat.examples_ble._macs import _macs
 
 # used in these examples
-mac = _macs['mla098']
+mac = _macs['mla071']
 
 
 def gtm_stm():

@@ -6,7 +6,7 @@ from mat.examples_ble._macs import _macs
 
 
 # used in these examples
-mac = _macs['mla098']
+mac = _macs['mla071']
 
 
 def status():

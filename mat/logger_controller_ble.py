@@ -103,88 +103,31 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def __cmd_ans_done(self, tag, debug=False):  # pragma: no cover
-        """ ends answer timeout for last sent command """
+    def _cmd_ans_done(self, tag, debug=False):  # pragma: no cover
+        """ ends last command sent's answer timeout """
 
         b = self.dlg.buf
         try:
-            # normal command answers bytes -> string
-            d = b.decode()
+            # answer bytes -> string
+            a = b.decode()
         except UnicodeError:
-            # DWL answer cannot be decoded
+            # DWL answer remains bytes
             tag = 'DWL'
-            d = b
+            a = b
 
         # useful when debugging
-        if debug:
-            print(b)
+        # if debug:
+        #     print(b)
 
         # early leave when error or invalid command
-        if d.startswith('ERR') or d.startswith('INV'):
+        if a.startswith('ERR') or a.startswith('INV'):
             time.sleep(.5)
             return True
 
-        ____TEST____THIS_TOMORROW_____
+        # valid command, let's see
+        return _ans(tag, a, b)
 
-        # _done_checks = {
-        #     STATUS_CMD: lambda x: x.startswith(STATUS_CMD) and len(x) == 8
-        # }
-        # return _done_checks[tag](d)
-
-        # early leave when final command answers
-        # don't py.test this, use GUI application
-        if tag == 'DWL':
-            return True
-        if tag == DIR_CMD:
-            return b.endswith(b'\x04\n\r')
-        elif tag == STATUS_CMD and d.startswith(tag):
-            return len(d) == 8
-        elif tag == LOG_EN_CMD and d.startswith(tag):
-            return len(d) == 8
-        elif tag == FIRMWARE_VERSION_CMD and d.startswith(tag):
-            return len(d) == 6 + 6
-        elif tag == SERIAL_NUMBER_CMD and d.startswith(tag):
-            return len(d) == 6 + 7
-        elif tag == UP_TIME_CMD and d.startswith(tag):
-            return True
-        elif tag == TIME_CMD and d.startswith(tag):
-            return len(d) == 6 + 19
-        elif tag == SET_TIME_CMD:
-            return d.startswith('{} 00'.format(tag))
-        elif tag == REQ_FILE_NAME_CMD:
-            return d.startswith('{} 00'.format(tag)) or d.endswith('.lid')
-        elif tag == LOGGER_INFO_CMD and d.startswith(tag):
-            time.sleep(.1)
-            return len(d) <= 6 + 7
-        elif tag == LOGGER_INFO_CMD_W and d.startswith(tag):
-            time.sleep(.1)
-            return d.startswith('{} 00'.format(tag))
-        elif tag == SD_FREE_SPACE_CMD and d.startswith(tag):
-            return len(d) == 6 + 8
-        elif tag == CONFIG_CMD:
-            time.sleep(.5)
-            return d.startswith('{} 00'.format(tag))
-        elif tag == DEL_FILE_CMD and d.startswith(tag):
-            return d.startswith('DEL 00')
-        elif tag in (RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD):
-            time.sleep(1)
-            return d.startswith('{} 00'.format(tag))
-        elif tag == MY_TOOL_SET_CMD:
-            return d.startswith('{} 00'.format(tag))
-        elif tag == DO_SENSOR_READINGS_CMD:
-            return d.startswith('{} '.format(tag)) and (len(d) <= 6 + 12)
-        elif tag in ('DWG', CONFIG_CMD, FORMAT_CMD):
-            return d.startswith('{} 00'.format(tag))
-        elif tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
-            return d.startswith('{} 05'.format(tag)) and (len(d) <= 6 + 5)
-        elif tag == CALIBRATION_CMD:
-            return d.startswith('{} 08TM'.format(tag)) and (len(d) <= 6 + 8)
-        elif tag == RESET_CMD:
-            return d.startswith('{} 00'.format(tag))
-        # todo: WHS, GSR early leave
-        return False
-
-    def __cmd_ans_wait(self, tag: str):    # pragma: no cover
+    def _cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
 
         slow_ans = [RUN_CMD, RWS_CMD]
@@ -193,7 +136,7 @@ class LoggerControllerBLE(LoggerController):
         while 1:
             if time.perf_counter() > till:
                 break
-            if self.__cmd_ans_done(tag, debug=False):
+            if self._cmd_ans_done(tag, debug=False):
                 break
             if self.per.waitForNotifications(0.001):
                 till += 0.001
@@ -224,7 +167,7 @@ class LoggerControllerBLE(LoggerController):
 
         # wait answer w/ this tag string
         tag = cmd[:3]
-        ans = self.__cmd_ans_wait(tag).split()
+        ans = self._cmd_ans_wait(tag).split()
 
         # e.g. [b'STS', b'020X']
         return ans
@@ -263,7 +206,7 @@ class LoggerControllerBLE(LoggerController):
         return True
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        # separates file downloads, allows logger xmodem to boot
+        # separates file downloads, allows logger x-modem to boot
         self._purge(timeout=1)
         self.dlg.set_file_mode(False)
 
@@ -487,3 +430,53 @@ def is_a_li_logger(rd):
     return False
 
 
+def _ans(tag, a, b):
+    # helper function, starts with
+    def _sw(z=0):
+        _ = '{} 00'.format(tag) if z else tag
+        return a.startswith(_)
+
+    # early leave (el) for command answers
+    _el = {
+        STATUS_CMD: lambda: _sw() and len(a) == 8,
+        DIR_CMD: lambda: b.endswith(b'\x04\n\r'),
+        LOG_EN_CMD: lambda: _sw() and len(a) == 8,
+        FIRMWARE_VERSION_CMD: lambda: _sw() and len(a) == 6 + 6,
+        SERIAL_NUMBER_CMD: lambda: _sw() and len(a) == 6 + 7,
+        UP_TIME_CMD: lambda: _sw(),
+        TIME_CMD: lambda: _sw() and len(a) == 6 + 19,
+        SET_TIME_CMD: lambda: _sw(1),
+        RUN_CMD: lambda: _sw(1),
+        STOP_CMD: lambda: _sw(1),
+        RWS_CMD: lambda: _sw(1),
+        SWS_CMD: lambda: _sw(1),
+        REQ_FILE_NAME_CMD: lambda: _sw(1) or a.endswith('.lid'),
+        LOGGER_INFO_CMD: lambda: _sw() and len(a) <= 6 + 7,
+        LOGGER_INFO_CMD_W: lambda: _sw(1),
+        SD_FREE_SPACE_CMD: lambda: _sw() and len(a) == 6 + 8,
+        CONFIG_CMD: lambda: _sw(1),
+        DEL_FILE_CMD: lambda: _sw(1),
+        MY_TOOL_SET_CMD: lambda: _sw(1),
+        DO_SENSOR_READINGS_CMD: lambda: _sw() and (len(a) <= 6 + 12),
+        FORMAT_CMD: lambda: _sw(1),
+        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _sw() and (len(a) <= 6 + 5),
+        CALIBRATION_CMD: lambda: _sw() and (len(a) <= 6 + 8),
+        RESET_CMD: lambda: _sw(1),
+        'DWG': lambda: _sw(1),
+        'DWL': lambda: True
+    }
+    rv = _el[tag]()
+
+    # allow some slow down
+    _st = {
+        LOGGER_INFO_CMD: .1,
+        LOGGER_INFO_CMD_W: .1,
+        CONFIG_CMD: .5,
+        RUN_CMD: 1,
+        STOP_CMD: 1,
+        RWS_CMD: 1,
+        SWS_CMD: 1
+    }
+    t = _st.get(tag, 0) if rv else 0
+    time.sleep(t)
+    return rv
