@@ -1,16 +1,31 @@
-import bluepy.btle as bluepy
+import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.logger_controller import LoggerController
+import math
+from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
+    FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
+import pathlib
+import subprocess as sp
+
+# commands not present in USB loggers
+HW_TEST_CMD = '#T1'
+FORMAT_CMD = 'FRM'
+CONFIG_CMD = 'CFG'
+UP_TIME_CMD = 'UTM'
+MY_TOOL_SET_CMD = 'MTS'
+LOG_EN_CMD = 'LOG'
+ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
+_DEBUG_THIS_MODULE = 0
 
 
-class Delegate(bluepy.DefaultDelegate):
+class Delegate(ble.DefaultDelegate):
     def __init__(self):
-        bluepy.DefaultDelegate.__init__(self)
+        ble.DefaultDelegate.__init__(self)
         self.buf = bytes()
         self.x_buf = bytes()
         self.file_mode = False
@@ -33,48 +48,53 @@ class Delegate(bluepy.DefaultDelegate):
 
 class LoggerControllerBLE(LoggerController):
 
-    WAIT = {
-        'BTC': 3, 'GET': 3, 'RWS': 2, 'GDO': 3.2,
-        'DIR': 2, 'FRM': 2, 'CFG': 2, '#T1': 10
-    }
-
-    def __init__(self, mac):
+    def __init__(self, mac, hci_if=0):
+        # default are (24, 40, 0)
+        w_ble_linux_pars(6, 11, 0)
         super().__init__(mac)
         self.address = mac
+        self.hci_if = hci_if
         self.per = None
         self.svc = None
         self.cha = None
+        self.clean = 0
+
         # set underlying BLE class
-        if brand_ti(mac):
-            self.und = LoggerControllerBLECC26X2(self)
-        elif brand_microchip(mac):
+        if brand_microchip(mac):
             self.und = LoggerControllerBLERN4020(self)
-        else:
-            raise bluepy.BTLEException('unknown brand')
-        self.delegate = Delegate()
+        elif brand_ti(mac):
+            self.und = LoggerControllerBLECC26X2(self)
+
+        self.dlg = Delegate()
 
     def open(self):
-        for counter in range(3):
+        retries = 3
+        for i in range(retries):
             try:
-                self.per = bluepy.Peripheral(self.address)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=10)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
-                self.per.setDelegate(self.delegate)
+                self.per.setDelegate(self.dlg)
                 self.svc = self.per.getServiceByUUID(self.und.UUID_S)
                 self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
-                self.open_after()
-                return True
-            except (AttributeError, bluepy.BTLEException):
-                pass
+
+                # don't remove, Linux hack or hangs at first BLE connection ever
+                if is_connection_recent(self.address):
+                    self.open_post()
+                    return True
+                self.per.disconnect()   # pragma: no cover
+            except (AttributeError, ble.BTLEException):
+                e = 'failed connection attempt {} of {}'
+                print(e.format(i + 1, retries))
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
         self.und.ble_write(data, response)
 
-    def open_after(self):
-        self.und.open_after()
+    def open_post(self):
+        self.und.open_post()
 
     def close(self):
         try:
@@ -83,167 +103,380 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _command(self, *args):
-        # reception vars
-        self.delegate.clr_buf()
-        self.delegate.set_file_mode(False)
+    def _cmd_ans_done(self, tag, debug=False):  # pragma: no cover
+        """ ends last command sent's answer timeout """
 
-        # transmission vars
+        b = self.dlg.buf
+        try:
+            # answer bytes -> string
+            a = b.decode()
+        except UnicodeError:
+            # DWL answer remains bytes
+            tag = 'DWL'
+            a = b
+
+        # useful when debugging
+        # if debug:
+        #     print(b)
+
+        # early leave when error or invalid command
+        if a.startswith('ERR') or a.startswith('INV'):
+            time.sleep(.5)
+            return True
+
+        # valid command, let's see
+        return _ans(tag, a, b)
+
+    def _cmd_ans_wait(self, tag: str):    # pragma: no cover
+        """ starts answer timeout for last sent command """
+
+        slow_ans = [RUN_CMD, RWS_CMD]
+        w = 50 if tag in slow_ans else 5
+        till = time.perf_counter() + w
+        while 1:
+            if time.perf_counter() > till:
+                break
+            if self._cmd_ans_done(tag, debug=False):
+                break
+            if self.per.waitForNotifications(0.001):
+                till += 0.001
+        # e.g. b'' / b'STS 00'
+        return self.dlg.buf
+
+    def _purge(self, timeout=.1):   # pragma: no cover
+        if self.per:
+            if _DEBUG_THIS_MODULE:
+                print('DBG: purged BLE buffer')
+            while self.per.waitForNotifications(timeout):
+                pass
+        self.clean = (self.clean + 1) % 11
+        self.dlg.clr_buf()
+        self.dlg.clr_x_buf()
+
+    def _cmd(self, *args):   # pragma: no cover
+        self._purge()
+        self.dlg.set_file_mode(False)
+
+        # build and send binary command
         cmd = str(args[0])
         arg = str(args[1]) if len(args) == 2 else ''
         n = '{:02x}'.format(len(arg)) if arg else ''
         to_send = cmd + ' ' + n + arg
-
-        # send binary command
-        if cmd in ('sleep', 'RFN'):
-            to_send = cmd
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
-        # wait, or not, for command answer
-        if cmd in ('RST', 'sleep', 'BSL'):
-            return None
+        # wait answer w/ this tag string
+        tag = cmd[:3]
+        ans = self._cmd_ans_wait(tag).split()
 
-        # answer as list of bytes() objects
-        ans = self._wait_cmd_ans(cmd).split()
+        # e.g. [b'STS', b'020X']
         return ans
 
-    def command(self, *args, retries=3):    # pragma: no cover
-        for retry in range(retries):
-            try:
-                ans = self._command(*args)
-                if ans:
-                    return ans
-            except bluepy.BTLEException:
-                # to be managed by app
-                s = 'BLE command() exception'
-                raise bluepy.BTLEException(s)
-        return None
+    def command(self, *args):    # pragma: no cover
+        try:
+            return self._cmd(*args)
+        except ble.BTLEException as ex:
+            # to be managed by app
+            s = 'BLE: command() exception {}'.format(ex)
+            raise ble.BTLEException(s)
 
-    def _done_cmd_ans(self, cmd):
-        # not all commands do this, recall race conditions
-        if cmd == 'GET' and self.delegate.buf == b'GET 00':
-            return True
-        if cmd == 'DIR' and self.delegate.buf.endswith(b'\x04\n\r'):
-            return True
+    def flood(self, n):   # pragma: no cover
+        """ attack check: sends command burst w/o caring answers """
 
-    def _cmd_wait_time(self, tag):
-        return self.WAIT[tag] if tag in self.WAIT else 1
+        for i in range(n):
+            cmd = STATUS_CMD
+            cmd += chr(13)
+            self.ble_write(cmd.encode())
 
-    def _wait_cmd_ans(self, cmd):    # pragma: no cover
-        tag = cmd[:3]
-        till = time.time() + self._cmd_wait_time(tag)
-        while time.time() < till:
-            if self.per.waitForNotifications(0.1):
-                # useful for multiple answer commands
-                till += 0.1
-            if self._done_cmd_ans(tag):
+    def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
+        """ called after _get_file(), downloads file w/ x-modem """
+
+        self.dlg.set_file_mode(True)
+        try:
+            r, n = xmodem_get_file(self, sig, verbose=False)
+        except XModemException:
+            return False
+
+        if not r:
+            return False
+        p = '{}/{}'.format(fol, file)
+        with open(p, 'wb') as f:
+            f.write(n)
+            f.truncate(int(s))
+        return True
+
+    def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        # separates file downloads, allows logger x-modem to boot
+        self._purge(timeout=1)
+        self.dlg.set_file_mode(False)
+
+        # ensure fol string, not path_lib
+        fol = str(fol)
+
+        # send our own GET command
+        dl = False
+        try:
+            cmd = 'GET {:02x}{}\r'.format(len(file), file)
+            self.ble_write(cmd.encode())
+            self.per.waitForNotifications(10)
+            if self.dlg.buf and self.dlg.buf.endswith(b'GET 00'):
+                dl = self._save_file(file, fol, size, sig)
+            else:
+                e = 'DBG: get_file() error, self.dlg.buf -> {}'
+                print(e.format(self.dlg.buf))
+
+        except ble.BTLEException as ex:
+            s = 'BLE: GET() exception {}'.format(ex)
+            raise ble.BTLEException(s)
+
+        # clean-up
+        self.dlg.set_file_mode(False)
+        return dl
+
+    def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
+        # separates file downloads
+        self._purge(timeout=1)
+
+        # start DWG session
+        ans = self.command('DWG', file)
+        if ans != [b'DWG', b'00']:
+            return False
+
+        # download file
+        acc = bytes()
+        n = math.ceil(s / 2048)
+        for i in range(n):
+            acc += self._dwl_chunk(i, sig)
+
+        # write file, ensure fol not path_lib
+        fol = str(fol)
+        p = '{}/{}'.format(fol, file)
+        with open(p, 'wb') as f:
+            f.write(acc)
+            f.truncate(int(s))
+        return len(acc)
+
+    def _dwl_chunk(self, i, sig=None):  # pragma: no cover
+        self.dlg.clr_buf()
+        i = str(i)
+        to_send = 'DWL {:02x}{}\r'.format(len(i), i)
+        self.ble_write(to_send.encode())
+
+        t_o = time.perf_counter() + .1
+        acc = bytes()
+        while True:
+            if time.perf_counter() > t_o:
                 break
-        return self.delegate.buf
+            if len(acc) >= 2048:
+                break
+            if self.per.waitForNotifications(.5):
+                t_o = time.perf_counter() + .5
+                # skip chunk length byte
+                n = int(self.dlg.buf[0])
+                c = self.dlg.buf[1:]
+                acc += c
+                sig.emit(n)
+                self.dlg.clr_buf()
+
+        time.sleep(.1)
+        return acc
 
     def get_time(self):
-        self.delegate.clr_buf()
-        ans = self.command('GTM')
+        self._purge()
+        ans = self.command(TIME_CMD)
         if not ans:
-            return False
+            return
         try:
             _time = ans[1].decode()[2:] + ' '
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
-            print(ans)
-            return False
+            print('GTM malformed: {}'.format(ans))
+            return
 
-    def get_file(self, filename, folder, size):  # pragma: no cover
-        self.delegate.clr_buf()
-        self.delegate.clr_x_buf()
-        self.delegate.set_file_mode(False)
-        ans = self.command('GET', filename)
-
-        try:
-            file_dl = self._save_file(ans, filename, folder, size)
-        except XModemException:
-            file_dl = False
-        finally:
-            self.delegate.set_file_mode(False)
-
-        # do not remove, gives logger's XMODEM time to end
-        time.sleep(2)
-        return file_dl
-
-    def _save_file(self, ans_get, path, folder, s):   # pragma: no cover
-        if ans_get is not None and ans_get[0] == b'GET':
-            self.delegate.set_file_mode(True)
-            r, bytes_rx = xmodem_get_file(self)
-            if r:
-                full_path = folder + '/' + path
-                with open(full_path, 'wb') as f:
-                    f.write(bytes_rx)
-                    f.truncate(int(s))
-            return True
-        return False
-
-    # wrapper function for DIR command
+    # wrapper for DIR command, don't remove any purge()
     def _ls(self):
-        self.delegate.clr_buf()
-        # e.g. [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
-        return self.command('DIR 00', retries=1)
+        rv = self.command('DIR 00')
+        self._purge(timeout=1)
 
-    def ls_ext(self, ext):
-        ans = self._ls()
-        if ans in [[b'ERR'], None]:
-            # e.g. logger not stopped
-            return ans
-        return _ls_ext_build(ans, ext)
+        # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
+        return rv
+
+    def ls_ext(self, ext):  # pragma: no cover
+        return _ls_wildcard(self._ls(), ext, match=True)
 
     def ls_lid(self):
-        return self.ls_ext(b'lid')
-
-    def ls_gps(self):
-        return self.ls_ext(b'gps')
+        ext = b'lid'
+        return _ls_wildcard(self._ls(), ext, match=True)
 
     def ls_not_lid(self):
-        ans = self._ls()
-        if ans in [[b'ERR'], None]:
-            # e.g. logger not stopped
-            return ans
-        return _ls_not_lid_build(ans)
+        ext = b'lid'
+        return _ls_wildcard(self._ls(), ext, match=False)
 
-    def send_cfg(self, cfg_file_as_json_dict):  # pragma: no cover
-        _as_string = json.dumps(cfg_file_as_json_dict)
-        return self.command("CFG", _as_string, retries=1)
+    def send_cfg(self, cfg_d: dict):  # pragma: no cover
+        s = json.dumps(cfg_d)
+        return self.command(CONFIG_CMD, s)
 
 
 # utilities
-def _ls_ext_build(lis, ext):
+def _ls_wildcard(lis, ext, match=True):
+    if lis is None:
+        return {}
+
+    if b'ERR' in lis:
+        return b'ERR'
+
     files, idx = {}, 0
     while idx < len(lis):
         name = lis[idx]
         if name in [b'\x04']:
             break
-        if name.endswith(ext) and name not in [b'.', b'..']:
-            files[name.decode()] = int(lis[idx + 1])
-        idx += 2
-    return files
-
-
-def _ls_not_lid_build(lis):
-    files, idx = {}, 0
-    while idx < len(lis):
-        name = lis[idx]
-        if name in [b'\x04']:
-            break
-        if not name.endswith(b'lid') and name not in [b'.', b'..']:
+        if name.endswith(ext) == match and name not in [b'.', b'..']:
             files[name.decode()] = int(lis[idx + 1])
         idx += 2
     return files
 
 
 def brand_ti(mac):
-    mac = mac.lower()
-    return mac.startswith('80:6f:b0:') or mac.startswith('04:ee:03:')
+    return not brand_microchip(mac)
 
 
 def brand_microchip(mac):
     mac = mac.lower()
     return mac.startswith('00:1e:c0:')
+
+
+def ble_scan(hci_if, my_to=3.0):    # pragma: no cover
+    # hci_if: hciX interface
+    import sys
+    try:
+        s = ble.Scanner(iface=hci_if)
+        return s.scan(timeout=my_to)
+    except OverflowError:
+        e = 'SYS: overflow on BLE scan, maybe date time error'
+        print(e)
+        sys.exit(1)
+
+
+def is_connection_recent(mac):  # pragma: no cover
+    # /dev/shm is cleared every reboot
+    mac = str(mac).replace(':', '')
+    path = pathlib.Path('/dev/shm/{}'.format(mac))
+    if path.exists():
+        return True
+    path.touch()
+    return False
+
+
+def _r_ble_linux_pars(banner) -> (int, int, int):   # pragma: no cover
+    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+    try:
+        with open(min_ce, 'r') as _:
+            l1 = _.readline().rstrip('\n')
+        with open(max_ce, 'r') as _:
+            l2 = _.readline().rstrip('\n')
+        with open(lat, 'r') as _:
+            l3 = _.readline().rstrip('\n')
+        print('{} R linux BLE pars {}'.format(banner, (l1, l2, l3)))
+        return int(l1), int(l2), int(l3)
+    except FileNotFoundError:
+        print('can\'t read /sys/kernel/bluetooth')
+
+
+def w_ble_linux_pars(l1, l2, l3):   # pragma: no cover
+    # order is important
+    _r_ble_linux_pars('pre:')
+    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+    try:
+        c = 'echo {} > {}'.format(l2, max_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l1, min_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l3, lat)
+        sp.run(c, shell=True, check=True)
+        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        return
+    except sp.CalledProcessError:
+        pass
+    try:
+        # invert order
+        c = 'echo {} > {}'.format(l1, min_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l2, max_ce)
+        sp.run(c, shell=True, check=True)
+        c = 'echo {} > {}'.format(l3, lat)
+        sp.run(c, shell=True, check=True)
+        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        return
+    except sp.CalledProcessError:
+        pass
+
+
+def is_a_li_logger(rd):
+    """
+    identifies lowell instruments' loggers
+    :param rd: bluepy Scanner.scan() rawData object
+    """
+    if type(rd) is not bytes:
+        return False
+    known_li_types = [b'DO-1']
+    for _ in known_li_types:
+        if _ in bytes(rd):
+            return True
+    return False
+
+
+def _ans(tag, a, b):
+    # helper function, starts with
+    def _sw(z=0):
+        _ = '{} 00'.format(tag) if z else tag
+        return a.startswith(_)
+
+    # early leave (el) for command answers
+    _el = {
+        STATUS_CMD: lambda: _sw() and len(a) == 8,
+        DIR_CMD: lambda: b.endswith(b'\x04\n\r'),
+        LOG_EN_CMD: lambda: _sw() and len(a) == 8,
+        FIRMWARE_VERSION_CMD: lambda: _sw() and len(a) == 6 + 6,
+        SERIAL_NUMBER_CMD: lambda: _sw() and len(a) == 6 + 7,
+        UP_TIME_CMD: lambda: _sw(),
+        TIME_CMD: lambda: _sw() and len(a) == 6 + 19,
+        SET_TIME_CMD: lambda: _sw(1),
+        RUN_CMD: lambda: _sw(1),
+        STOP_CMD: lambda: _sw(1),
+        RWS_CMD: lambda: _sw(1),
+        SWS_CMD: lambda: _sw(1),
+        REQ_FILE_NAME_CMD: lambda: _sw(1) or a.endswith('.lid'),
+        LOGGER_INFO_CMD: lambda: _sw() and len(a) <= 6 + 7,
+        LOGGER_INFO_CMD_W: lambda: _sw(1),
+        SD_FREE_SPACE_CMD: lambda: _sw() and len(a) == 6 + 8,
+        CONFIG_CMD: lambda: _sw(1),
+        DEL_FILE_CMD: lambda: _sw(1),
+        MY_TOOL_SET_CMD: lambda: _sw(1),
+        DO_SENSOR_READINGS_CMD: lambda: _sw() and (len(a) <= 6 + 12),
+        FORMAT_CMD: lambda: _sw(1),
+        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _sw() and (len(a) <= 6 + 5),
+        CALIBRATION_CMD: lambda: _sw() and (len(a) <= 6 + 8),
+        RESET_CMD: lambda: _sw(1),
+        'DWG': lambda: _sw(1),
+        'DWL': lambda: True
+    }
+    rv = _el[tag]()
+
+    # allow some slow down
+    _st = {
+        LOGGER_INFO_CMD: .1,
+        LOGGER_INFO_CMD_W: .1,
+        CONFIG_CMD: .5,
+        RUN_CMD: 1,
+        STOP_CMD: 1,
+        RWS_CMD: 1,
+        SWS_CMD: 1
+    }
+    t = _st.get(tag, 0) if rv else 0
+    time.sleep(t)
+    return rv

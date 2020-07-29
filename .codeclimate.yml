@@ -1,4 +1,9 @@
 version: "2"         # required to adjust maintainability checks
+exclude_patterns:
+- "mat/examples_ble/"
+- "mat/examples_gps/"
+- "tests/"
+- "mat/sensor_specification.py"
 checks:
   argument-count:
     config:
@@ -8,10 +13,10 @@ checks:
       threshold: 4
   file-lines:
     config:
-      threshold: 250
+      threshold: 400
   method-complexity:
     config:
-      threshold: 5
+      threshold: 10
   method-count:
     config:
       threshold: 25
@@ -30,3 +35,4 @@ checks:
   identical-code:
     config:
       threshold: # language-specific defaults. an override will affect all languages.
+

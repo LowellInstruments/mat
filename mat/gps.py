@@ -4,6 +4,13 @@ import time
 from collections import namedtuple
 
 
+# how to test this with coverage:
+# python3 -m pytest
+#       tests/test_gps.py
+#       --cov mat.gps
+#       --cov-report=html:<output_dir>
+
+
 def parse_int(x):
     return int(x) if x else None
 
@@ -12,82 +19,37 @@ def parse_float(x):
     return float(x) if x else None
 
 
+RMC_ID = '$GPRMC'
+
+
 class GPS:
+    """ 
+        GPS class for USB device BU_353_S4
+        waits for and parses GPS RMC frames
+    """
 
     BAUD_RATE_BU_353_S4 = 4800
     RMC_Frame = namedtuple('RMC_Frame',
-                           'valid timestamp latitude longitude knots course')
-    TIMEOUT_PORT_READS = 3
+                           'valid timestamp '
+                           'latitude '
+                           'longitude '
+                           'knots '
+                           'course')
 
-    def __init__(self, port, baud_rate=BAUD_RATE_BU_353_S4):
-        self.port = serial.Serial(port, baud_rate, timeout=1)
+    def __init__(self, port, br=BAUD_RATE_BU_353_S4):
+        try:
+            self.port = serial.Serial(port, br)
+        except serial.SerialException:
+            print('GPS: port exception {}'.format(port))
+            self.port = None
         self.handlers = {
-            '$GPRMC': self._on_rmc,
+            RMC_ID: self._on_rmc,
         }
         self.last_rmc = None
 
-    def get_gps_info(self, timeout=TIMEOUT_PORT_READS):
-        if self._wait_for_frame_type('$GPRMC', timeout):
-            # decide fields needed to consider RMC frame as valid
-            if self.last_rmc and self.last_rmc.timestamp:
-                return self.last_rmc
-        return None
-
-    # waits for frame_type + checksum OK -> populates self.last_*
-    def _wait_for_frame_type(self, frame_type, timeout=TIMEOUT_PORT_READS):
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            line_bytes = self.port.readline().strip()
-            frame_type_received = self._parse_line(line_bytes, frame_type)
-            if frame_type_received:
-                return frame_type_received
-            else:
-                time.sleep(0.1)
-        return None
-
-    def _parse_line(self, line_bytes, frame_type):
-        if line_bytes.startswith('$'.encode('ASCII')):
-            line = line_bytes.decode('ASCII')
-            data, checksum = line.split('*')
-            tokens = data.split(',')
-            gps_sentence, args = tokens[0], tokens[1:]
-            handler = self.handlers.get(gps_sentence)
-            if GPS._verify_string(data, checksum) is False \
-                    or gps_sentence != frame_type \
-                    or handler is None:
-                return None
-            handler(args)
-            return line
-        else:
-            return None
-
     @staticmethod
-    def _verify_string(data, checksum):
-        # lose '$' character at the beginning of gps sentence
-        data = data[1:]
-        checksum_in_decimal = int(checksum, 16)
-        int_values = [ord(x) for x in data]
-        calculated = 0
-        for x in int_values:
-            calculated = calculated ^ x
-        return True if calculated == checksum_in_decimal else False
-
-    def _on_rmc(self, args):
-        # print(args)
-        if args[1] != 'A':
-            return
-        timestamp = datetime.datetime.strptime(args[8] + args[0],
-                                               '%d%m%y%H%M%S.%f')
-        latitude = GPS._to_decimal_degrees(args[2], args[3])
-        longitude = GPS._to_decimal_degrees(args[4], args[5])
-        knots = parse_float(args[6])
-        course = parse_float(args[7])
-        self.last_rmc = GPS.RMC_Frame(
-            args[1], timestamp, latitude, longitude, knots, course)
-
-    @staticmethod
-    def _to_decimal_degrees(value, nsew):
-        # BU-353-S4 lat, lon fields are DDMM.mmmm, may be empty if no coverage
+    def _to_deg(value, nsew):
+        # BU-353-S4 lat, lon: DDMM.mmmm, or empty if no coverage
         if not value:
             return None
         a, b = value.split('.')
@@ -100,3 +62,77 @@ class GPS:
         if nsew in 'SW':
             result = -result
         return result
+
+    def _on_rmc(self, a):
+        # populates self.last_rmc on success
+        if a[1] != 'A':
+            return
+        t = datetime.datetime.strptime(a[8] + a[0], '%d%m%y%H%M%S.%f')
+        lat = GPS._to_deg(a[2], a[3])
+        lon = GPS._to_deg(a[4], a[5])
+        knots = parse_float(a[6])
+        course = parse_float(a[7])
+        self.last_rmc = GPS.RMC_Frame(a[1], t, lat, lon, knots, course)
+
+    @staticmethod
+    def _verify_string(data, checksum):
+        # lose '$' character at the beginning of gps sentence
+        data = data[1:]
+        crc_as_dec = int(checksum, 16)
+        int_values = [ord(x) for x in data]
+        crc = 0
+        for x in int_values:
+            crc = crc ^ x
+        return crc == crc_as_dec
+
+    def _parse_line(self, b: bytes, f_t):
+        """
+        Parse a GPS string and call its handler, if any
+        :param b: bytes from USB
+        :param f_t: frame_type expected, e.g. '$GPRMC'
+        :return: GPS full string or None
+        """
+        try:
+            if b.startswith('$'.encode('ASCII')):
+                s = b.decode('ASCII')
+                data, checksum = s.split('*')
+                tokens = data.split(',')
+                f_t, a = tokens[0], tokens[1:]
+                h = self.handlers.get(f_t)
+                if GPS._verify_string(data, checksum) is False\
+                        or f_t != f_t \
+                        or h is None:
+                    return None
+                # try to populate self.last_rmc
+                h(a)
+                return s
+            return None
+        except (ValueError, AttributeError):
+            return None
+
+    def _wait_frame(self, f_t, timeout):
+        """
+        Listens for a GPS frame
+        :param f_t: frame_type expected, e.g. '$GPRMC'
+        :param timeout: how long till failure
+        :return: GPS string if OK else None
+        """
+        till = time.perf_counter() + timeout
+        while 1:
+            if time.perf_counter() >= till:
+                return None
+            b = self.port.readline().strip()
+            rx = self._parse_line(b, f_t)
+            if rx:
+                return rx
+            time.sleep(0.1)
+
+    def get_gps_info(self, timeout=3) -> namedtuple:
+        if not self.port:
+            return None
+
+        if self._wait_frame('$GPRMC', timeout):
+            # fields needed to consider RMC frame as valid
+            if self.last_rmc and self.last_rmc.timestamp:
+                return self.last_rmc
+        return None

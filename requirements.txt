@@ -8,5 +8,7 @@ numpy
 pyserial
 pytest-mock
 crc16
-bluepy
 h5py
+
+# archived bluepy w/ shorter connection modification
+git+https://github.com/LowellInstruments/bluepy.git
