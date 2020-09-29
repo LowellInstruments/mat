@@ -1,6 +1,7 @@
 class LoggerControllerBLERN4020:  # pragma: no cover
 
     def __init__(self, base):
+        self.type = 'rn4020'
         self.base = base
         self.UUID_S = '00035b03-58e6-07dd-021a-08123a000300'
         self.UUID_C = '00035b03-58e6-07dd-021a-08123a000301'

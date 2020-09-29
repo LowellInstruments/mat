@@ -1,4 +1,3 @@
-ipython
 pycodestyle
 flake8
 mock
@@ -7,8 +6,8 @@ pytest
 numpy
 pyserial
 pytest-mock
-crc16
-h5py
+crc16==0.1.1
+h5py==2.10.0
 
 # archived bluepy w/ shorter connection modification
 git+https://github.com/LowellInstruments/bluepy.git
