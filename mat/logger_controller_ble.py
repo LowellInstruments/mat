@@ -160,11 +160,20 @@ class LoggerControllerBLE(LoggerController):
         self._purge()
         self.dlg.set_file_mode(False)
 
-        # build and send binary command
+        # discern command format
+        tp_mode = len(str(args[0]).split(' ')) > 1
+
+        # build ASCII command
         cmd = str(args[0])
-        arg = str(args[1]) if len(args) == 2 else ''
-        n = '{:02x}'.format(len(arg)) if arg else ''
-        to_send = cmd + ' ' + n + arg
+        if tp_mode:
+            to_send = cmd
+        else:
+            cmd = str(args[0])
+            arg = str(args[1]) if len(args) == 2 else ''
+            n = '{:02x}'.format(len(arg)) if arg else ''
+            to_send = cmd + ' ' + n + arg
+
+        # end building and send binary command
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
