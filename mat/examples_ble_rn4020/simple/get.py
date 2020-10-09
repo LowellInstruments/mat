@@ -90,10 +90,10 @@ if __name__ == '__main__':
     # files in MAT_0
     # name, size = '17042DF_T&P_(0).lid',   371161
 
-    how_many = 1
+    repetitions = 100
     good_ones = 0
-    for i in range(how_many):
+    for i in range(repetitions):
         if ls_dl(name, size):
             good_ones += 1
-        time.sleep(5)
-    print('{}/{}'.format(good_ones, how_many))
+        time.sleep(10)
+    print('{}/{}'.format(good_ones, repetitions))
