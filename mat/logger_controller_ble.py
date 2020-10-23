@@ -437,47 +437,43 @@ def is_a_li_logger(rd):
 
 
 def _ans(tag, a, b):
-    # helper functions
-    def _sw(z=0):
+    # helper: function expects a 'TAG 00' answer when z is 0
+    def _exp(z=0):
         _ = '{} 00'.format(tag) if z else tag
         return a.startswith(_)
-
-    def _unk():
-        print('unknown tag {}'.format(tag))
-        return False
 
     # a command stops timeout, early leaves (el) when getting proper answer
     _el = {
         DIR_CMD: lambda: b.endswith(b'\x04\n\r') or b.endswith(b'\x04'),
-        STATUS_CMD: lambda: _sw() and len(a) == 8,
-        LOG_EN_CMD: lambda: _sw() and len(a) == 8,
-        MOBILE_CMD: lambda: _sw() and len(a) == 8,
-        FIRMWARE_VERSION_CMD: lambda: _sw() and len(a) == 6 + 6,
-        SERIAL_NUMBER_CMD: lambda: _sw() and len(a) == 6 + 7,
-        UP_TIME_CMD: lambda: _sw(),
-        TIME_CMD: lambda: _sw() and len(a) == 6 + 19,
-        SET_TIME_CMD: lambda: _sw(1),
-        RUN_CMD: lambda: _sw(1),
+        STATUS_CMD: lambda: _exp() and len(a) == 8,
+        LOG_EN_CMD: lambda: _exp() and len(a) == 8,
+        MOBILE_CMD: lambda: _exp() and len(a) == 8,
+        FIRMWARE_VERSION_CMD: lambda: _exp() and len(a) == 6 + 6,
+        SERIAL_NUMBER_CMD: lambda: _exp() and len(a) == 6 + 7,
+        UP_TIME_CMD: lambda: _exp(),
+        TIME_CMD: lambda: _exp() and len(a) == 6 + 19,
+        SET_TIME_CMD: lambda: _exp(1),
+        RUN_CMD: lambda: _exp(1),
         # rn4020 b'STP 0200', cc26x2 b'STP 00'
-        STOP_CMD: lambda: _sw(1) or (_sw(0) and len(a) == 8),
-        RWS_CMD: lambda: _sw(1),
-        SWS_CMD: lambda: _sw(1),
-        REQ_FILE_NAME_CMD: lambda: _sw(1) or a.endswith('.lid'),
-        LOGGER_INFO_CMD: lambda: _sw() and len(a) <= 6 + 7,
-        LOGGER_INFO_CMD_W: lambda: _sw(1),
-        SD_FREE_SPACE_CMD: lambda: _sw() and len(a) == 6 + 8,
-        CONFIG_CMD: lambda: _sw(1),
-        DEL_FILE_CMD: lambda: _sw(1),
-        MY_TOOL_SET_CMD: lambda: _sw(1),
-        DO_SENSOR_READINGS_CMD: lambda: _sw() and (len(a) == 6 + 12),
-        FORMAT_CMD: lambda: _sw(1),
-        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _sw() and (len(a) == 6 + 5),
-        CALIBRATION_CMD: lambda: _sw() and (len(a) == 6 + 8),
-        RESET_CMD: lambda: _sw(1),
-        SENSOR_READINGS_CMD: lambda: _sw() and (len(a) == 6 + 40),
+        STOP_CMD: lambda: _exp(1) or (_exp(0) and len(a) == 8),
+        RWS_CMD: lambda: _exp(1),
+        SWS_CMD: lambda: _exp(1),
+        REQ_FILE_NAME_CMD: lambda: _exp(1) or a.endswith('.lid'),
+        LOGGER_INFO_CMD: lambda: _exp() and len(a) <= 6 + 7,
+        LOGGER_INFO_CMD_W: lambda: _exp(1),
+        SD_FREE_SPACE_CMD: lambda: _exp() and len(a) == 6 + 8,
+        CONFIG_CMD: lambda: _exp(1),
+        DEL_FILE_CMD: lambda: _exp(1),
+        MY_TOOL_SET_CMD: lambda: _exp(1),
+        DO_SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 12),
+        FORMAT_CMD: lambda: _exp(1),
+        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _exp() and (len(a) == 6 + 5),
+        CALIBRATION_CMD: lambda: _exp() and (len(a) == 6 + 8),
+        RESET_CMD: lambda: _exp(1),
+        SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
     }
-    _el.setdefault(tag, lambda: _unk())
+    _el.setdefault(tag, lambda: _ans_unk(tag))
     rv = _el[tag]()
 
     # pause a bit, if so
@@ -497,3 +493,9 @@ def _allow_some_slow_down(rv, tag: str):
     }
     t = _st.get(tag, 0) if rv else 0
     time.sleep(t)
+
+
+# helper: function returns false if tag is unknown
+def _ans_unk(_tag):
+    print('unknown tag {}'.format(_tag))
+    return False
