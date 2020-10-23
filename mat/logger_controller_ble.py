@@ -437,11 +437,7 @@ def is_a_li_logger(rd):
 
 
 def _ans(tag, a, b):
-    def _unknown_tag():
-        print('unknown {}'.format(tag))
-        return False
-
-    # helper function, starts with
+    # helper function
     def _sw(z=0):
         _ = '{} 00'.format(tag) if z else tag
         return a.startswith(_)
@@ -477,7 +473,7 @@ def _ans(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _sw() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
     }
-    _el.setdefault(tag, lambda: _unknown_tag())
+    _el.setdefault(tag, False)
     rv = _el[tag]()
 
     # allow some slow down
