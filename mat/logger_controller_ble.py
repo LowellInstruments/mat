@@ -2,10 +2,10 @@ import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-import math
+from mat.linux import linux_is_docker
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble import xmodem_get_file, XModemException
@@ -13,6 +13,8 @@ import pathlib
 import subprocess as sp
 
 # commands not present in USB loggers
+BTC_CMD = 'BTC'
+MOBILE_CMD = 'MBL'
 HW_TEST_CMD = '#T1'
 FORMAT_CMD = 'FRM'
 CONFIG_CMD = 'CFG'
@@ -50,14 +52,14 @@ class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
         # default are (24, 40, 0)
-        w_ble_linux_pars(6, 11, 0)
+        w_ble_linux_pars(6, 11, 0, hci_if)
         super().__init__(mac)
         self.address = mac
         self.hci_if = hci_if
         self.per = None
         self.svc = None
         self.cha = None
-        self.clean = 0
+        self.type = None
 
         # set underlying BLE class
         if brand_microchip(mac):
@@ -66,6 +68,9 @@ class LoggerControllerBLE(LoggerController):
             self.und = LoggerControllerBLECC26X2(self)
 
         self.dlg = Delegate()
+
+    def get_type(self):
+        return self.und.type
 
     def open(self):
         retries = 3
@@ -107,6 +112,15 @@ class LoggerControllerBLE(LoggerController):
         """ ends last command sent's answer timeout """
 
         b = self.dlg.buf
+
+        # useful when debugging
+        # if b:
+        #     print(b)
+
+        # ex: rn4020 b'\r\n\n\rSTS 0201\r\n', cc26x2 b'\STS 0201'
+        if self.und.type == 'rn4020':
+            b = b.strip()
+
         try:
             # answer bytes -> string
             a = b.decode()
@@ -114,10 +128,6 @@ class LoggerControllerBLE(LoggerController):
             # DWL answer remains bytes
             tag = 'DWL'
             a = b
-
-        # useful when debugging
-        # if debug:
-        #     print(b)
 
         # early leave when error or invalid command
         if a.startswith('ERR') or a.startswith('INV'):
@@ -129,7 +139,6 @@ class LoggerControllerBLE(LoggerController):
 
     def _cmd_ans_wait(self, tag: str):    # pragma: no cover
         """ starts answer timeout for last sent command """
-
         slow_ans = [RUN_CMD, RWS_CMD]
         w = 50 if tag in slow_ans else 5
         till = time.perf_counter() + w
@@ -143,13 +152,7 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'' / b'STS 00'
         return self.dlg.buf
 
-    def _purge(self, timeout=.1):   # pragma: no cover
-        if self.per:
-            if _DEBUG_THIS_MODULE:
-                print('DBG: purged BLE buffer')
-            while self.per.waitForNotifications(timeout):
-                pass
-        self.clean = (self.clean + 1) % 11
+    def _purge(self):   # pragma: no cover
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
 
@@ -157,11 +160,20 @@ class LoggerControllerBLE(LoggerController):
         self._purge()
         self.dlg.set_file_mode(False)
 
-        # build and send binary command
+        # discern command format
+        tp_mode = len(str(args[0]).split(' ')) > 1
+
+        # build ASCII command
         cmd = str(args[0])
-        arg = str(args[1]) if len(args) == 2 else ''
-        n = '{:02x}'.format(len(arg)) if arg else ''
-        to_send = cmd + ' ' + n + arg
+        if tp_mode:
+            to_send = cmd
+        else:
+            cmd = str(args[0])
+            arg = str(args[1]) if len(args) == 2 else ''
+            n = '{:02x}'.format(len(arg)) if arg else ''
+            to_send = cmd + ' ' + n + arg
+
+        # end building and send binary command
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
@@ -207,7 +219,7 @@ class LoggerControllerBLE(LoggerController):
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         # separates file downloads, allows logger x-modem to boot
-        self._purge(timeout=1)
+        time.sleep(1)
         self.dlg.set_file_mode(False)
 
         # ensure fol string, not path_lib
@@ -229,60 +241,12 @@ class LoggerControllerBLE(LoggerController):
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
 
-        # clean-up
+        # clean-up, separate files download
         self.dlg.set_file_mode(False)
+        time.sleep(1)
         return dl
 
-    def dwg_file(self, file, fol, s, sig=None):  # pragma: no cover
-        # separates file downloads
-        self._purge(timeout=1)
-
-        # start DWG session
-        ans = self.command('DWG', file)
-        if ans != [b'DWG', b'00']:
-            return False
-
-        # download file
-        acc = bytes()
-        n = math.ceil(s / 2048)
-        for i in range(n):
-            acc += self._dwl_chunk(i, sig)
-
-        # write file, ensure fol not path_lib
-        fol = str(fol)
-        p = '{}/{}'.format(fol, file)
-        with open(p, 'wb') as f:
-            f.write(acc)
-            f.truncate(int(s))
-        return len(acc)
-
-    def _dwl_chunk(self, i, sig=None):  # pragma: no cover
-        self.dlg.clr_buf()
-        i = str(i)
-        to_send = 'DWL {:02x}{}\r'.format(len(i), i)
-        self.ble_write(to_send.encode())
-
-        t_o = time.perf_counter() + .1
-        acc = bytes()
-        while True:
-            if time.perf_counter() > t_o:
-                break
-            if len(acc) >= 2048:
-                break
-            if self.per.waitForNotifications(.5):
-                t_o = time.perf_counter() + .5
-                # skip chunk length byte
-                n = int(self.dlg.buf[0])
-                c = self.dlg.buf[1:]
-                acc += c
-                sig.emit(n)
-                self.dlg.clr_buf()
-
-        time.sleep(.1)
-        return acc
-
     def get_time(self):
-        self._purge()
         ans = self.command(TIME_CMD)
         if not ans:
             return
@@ -294,12 +258,23 @@ class LoggerControllerBLE(LoggerController):
             print('GTM malformed: {}'.format(ans))
             return
 
-    # wrapper for DIR command, don't remove any purge()
+    # wrapper for DIR command
     def _ls(self):
-        rv = self.command('DIR 00')
-        self._purge(timeout=1)
+        rv = []
+        c = 'DIR' if self.type == 'cc26x2' else 'DIR 00'
 
-        # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'4096', b'\x04']
+        for i in range(5):
+            rv = self.command(c)
+            # ensure DIR answer is clean
+            self.command(STATUS_CMD)
+            self.command(STATUS_CMD)
+            if rv:
+                break
+            s = 'BLE: DIR empty, retry {} of 5'.format(i)
+            print(s)
+            time.sleep(2)
+
+        # e.g. [b'.', b'0', b'..', b'0', b'dummy.lid', b'123', b'\x04']
         return rv
 
     def ls_ext(self, ext):  # pragma: no cover
@@ -316,6 +291,14 @@ class LoggerControllerBLE(LoggerController):
     def send_cfg(self, cfg_d: dict):  # pragma: no cover
         s = json.dumps(cfg_d)
         return self.command(CONFIG_CMD, s)
+
+    def send_btc(self):
+        if self.und.type == 'rn4020':
+            s = 'BTC 00T,0006,0000,0064'
+            _ = self.command(s)
+            return _
+        else:
+            return 'wrong logger type'
 
 
 # utilities
@@ -368,10 +351,21 @@ def is_connection_recent(mac):  # pragma: no cover
     return False
 
 
-def _r_ble_linux_pars(banner) -> (int, int, int):   # pragma: no cover
-    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
-    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
-    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+def _r_ble_linux_pars(banner, hci_if) -> (int, int, int):   # pragma: no cover
+    min_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci{}/conn_latency'
+    min_ce = min_ce.format(hci_if)
+    max_ce = max_ce.format(hci_if)
+    lat = lat.format(hci_if)
+
+    # must match bind mount points in docker invoking
+    if linux_is_docker():
+        min_ce = '/_{}'.format(min_ce[1:])
+        max_ce = '/_{}'.format(max_ce[1:])
+        lat = '/_{}'.format(lat[1:])
+        print('DDH Docker inherits BLE host connection parameters')
+
     try:
         with open(min_ce, 'r') as _:
             l1 = _.readline().rstrip('\n')
@@ -385,12 +379,24 @@ def _r_ble_linux_pars(banner) -> (int, int, int):   # pragma: no cover
         print('can\'t read /sys/kernel/bluetooth')
 
 
-def w_ble_linux_pars(l1, l2, l3):   # pragma: no cover
+def w_ble_linux_pars(l1, l2, l3, hci_if):   # pragma: no cover
     # order is important
-    _r_ble_linux_pars('pre:')
-    min_ce = '/sys/kernel/debug/bluetooth/hci0/conn_min_interval'
-    max_ce = '/sys/kernel/debug/bluetooth/hci0/conn_max_interval'
-    lat = '/sys/kernel/debug/bluetooth/hci0/conn_latency'
+    _r_ble_linux_pars('pre:', hci_if)
+
+    min_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_min_interval'
+    max_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_max_interval'
+    lat = '/sys/kernel/debug/bluetooth/hci{}/conn_latency'
+    min_ce = min_ce.format(hci_if)
+    max_ce = max_ce.format(hci_if)
+    lat = lat.format(hci_if)
+
+    # must match bind mount points in docker invoking
+    if linux_is_docker():
+        min_ce = '/_{}'.format(min_ce[1:])
+        max_ce = '/_{}'.format(max_ce[1:])
+        lat = '/_{}'.format(lat[1:])
+        print('DDH Docker inherits BLE host connection parameters')
+
     try:
         c = 'echo {} > {}'.format(l2, max_ce)
         sp.run(c, shell=True, check=True)
@@ -398,7 +404,7 @@ def w_ble_linux_pars(l1, l2, l3):   # pragma: no cover
         sp.run(c, shell=True, check=True)
         c = 'echo {} > {}'.format(l3, lat)
         sp.run(c, shell=True, check=True)
-        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        assert _r_ble_linux_pars('post:', hci_if) == (l1, l2, l3)
         return
     except sp.CalledProcessError:
         pass
@@ -410,7 +416,7 @@ def w_ble_linux_pars(l1, l2, l3):   # pragma: no cover
         sp.run(c, shell=True, check=True)
         c = 'echo {} > {}'.format(l3, lat)
         sp.run(c, shell=True, check=True)
-        assert _r_ble_linux_pars('post:') == (l1, l2, l3)
+        assert _r_ble_linux_pars('post:', hci_if) == (l1, l2, l3)
         return
     except sp.CalledProcessError:
         pass
@@ -431,43 +437,51 @@ def is_a_li_logger(rd):
 
 
 def _ans(tag, a, b):
-    # helper function, starts with
-    def _sw(z=0):
+    # helper: function expects a 'TAG 00' answer when z is 0
+    def _exp(z=0):
         _ = '{} 00'.format(tag) if z else tag
         return a.startswith(_)
 
-    # early leave (el) for command answers
+    # a command stops timeout, early leaves (el) when getting proper answer
     _el = {
-        STATUS_CMD: lambda: _sw() and len(a) == 8,
-        DIR_CMD: lambda: b.endswith(b'\x04\n\r'),
-        LOG_EN_CMD: lambda: _sw() and len(a) == 8,
-        FIRMWARE_VERSION_CMD: lambda: _sw() and len(a) == 6 + 6,
-        SERIAL_NUMBER_CMD: lambda: _sw() and len(a) == 6 + 7,
-        UP_TIME_CMD: lambda: _sw(),
-        TIME_CMD: lambda: _sw() and len(a) == 6 + 19,
-        SET_TIME_CMD: lambda: _sw(1),
-        RUN_CMD: lambda: _sw(1),
-        STOP_CMD: lambda: _sw(1),
-        RWS_CMD: lambda: _sw(1),
-        SWS_CMD: lambda: _sw(1),
-        REQ_FILE_NAME_CMD: lambda: _sw(1) or a.endswith('.lid'),
-        LOGGER_INFO_CMD: lambda: _sw() and len(a) <= 6 + 7,
-        LOGGER_INFO_CMD_W: lambda: _sw(1),
-        SD_FREE_SPACE_CMD: lambda: _sw() and len(a) == 6 + 8,
-        CONFIG_CMD: lambda: _sw(1),
-        DEL_FILE_CMD: lambda: _sw(1),
-        MY_TOOL_SET_CMD: lambda: _sw(1),
-        DO_SENSOR_READINGS_CMD: lambda: _sw() and (len(a) <= 6 + 12),
-        FORMAT_CMD: lambda: _sw(1),
-        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _sw() and (len(a) <= 6 + 5),
-        CALIBRATION_CMD: lambda: _sw() and (len(a) <= 6 + 8),
-        RESET_CMD: lambda: _sw(1),
-        'DWG': lambda: _sw(1),
-        'DWL': lambda: True
+        DIR_CMD: lambda: b.endswith(b'\x04\n\r') or b.endswith(b'\x04'),
+        STATUS_CMD: lambda: _exp() and len(a) == 8,
+        LOG_EN_CMD: lambda: _exp() and len(a) == 8,
+        MOBILE_CMD: lambda: _exp() and len(a) == 8,
+        FIRMWARE_VERSION_CMD: lambda: _exp() and len(a) == 6 + 6,
+        SERIAL_NUMBER_CMD: lambda: _exp() and len(a) == 6 + 7,
+        UP_TIME_CMD: lambda: _exp(),
+        TIME_CMD: lambda: _exp() and len(a) == 6 + 19,
+        SET_TIME_CMD: lambda: _exp(1),
+        RUN_CMD: lambda: _exp(1),
+        # rn4020 b'STP 0200', cc26x2 b'STP 00'
+        STOP_CMD: lambda: _exp(1) or (_exp(0) and len(a) == 8),
+        RWS_CMD: lambda: _exp(1),
+        SWS_CMD: lambda: _exp(1),
+        REQ_FILE_NAME_CMD: lambda: _exp(1) or a.endswith('.lid'),
+        LOGGER_INFO_CMD: lambda: _exp() and len(a) <= 6 + 7,
+        LOGGER_INFO_CMD_W: lambda: _exp(1),
+        SD_FREE_SPACE_CMD: lambda: _exp() and len(a) == 6 + 8,
+        CONFIG_CMD: lambda: _exp(1),
+        DEL_FILE_CMD: lambda: _exp(1),
+        MY_TOOL_SET_CMD: lambda: _exp(1),
+        DO_SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 12),
+        FORMAT_CMD: lambda: _exp(1),
+        ERROR_WHEN_BOOT_OR_RUN_CMD: lambda: _exp() and (len(a) == 6 + 5),
+        CALIBRATION_CMD: lambda: _exp() and (len(a) == 6 + 8),
+        RESET_CMD: lambda: _exp(1),
+        SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
+        BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
     }
+    _el.setdefault(tag, lambda: _ans_unk(tag))
     rv = _el[tag]()
 
-    # allow some slow down
+    # pause a bit, if so
+    _allow_some_slow_down(rv, tag)
+    return rv
+
+
+def _allow_some_slow_down(rv, tag: str):
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
@@ -479,4 +493,9 @@ def _ans(tag, a, b):
     }
     t = _st.get(tag, 0) if rv else 0
     time.sleep(t)
-    return rv
+
+
+# helper: function returns false if tag is unknown
+def _ans_unk(_tag):
+    print('unknown tag {}'.format(_tag))
+    return False

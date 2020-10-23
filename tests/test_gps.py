@@ -10,6 +10,13 @@ from unittest.mock import patch
 from unittest import TestCase
 
 
+# how to test this with coverage:
+# python3 -m pytest
+#       tests/test_gps.py
+#       --cov mat.gps
+#       --cov-report=html:<output_dir>
+
+
 class FakeSerial:
     def __init__(self, fakeport, fakebaudrate, timeout=1):
         pass

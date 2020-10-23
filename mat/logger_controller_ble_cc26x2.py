@@ -1,6 +1,7 @@
 class LoggerControllerBLECC26X2:  # pragma: no cover
 
     def __init__(self, base):
+        self.type = 'cc26x2'
         self.base = base
         self.UUID_S = 'f0001130-0451-4000-b000-000000000000'
         self.UUID_C = 'f0001132-0451-4000-b000-000000000000'
