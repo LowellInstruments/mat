@@ -437,12 +437,16 @@ def is_a_li_logger(rd):
 
 
 def _ans(tag, a, b):
-    # helper function
+    # helper functions
     def _sw(z=0):
         _ = '{} 00'.format(tag) if z else tag
         return a.startswith(_)
 
-    # early leave (el) for CC26x2 command answers
+    def _unk():
+        print('unknown tag {}'.format(tag))
+        return False
+
+    # a command stops timeout, early leaves (el) when getting proper answer
     _el = {
         DIR_CMD: lambda: b.endswith(b'\x04\n\r') or b.endswith(b'\x04'),
         STATUS_CMD: lambda: _sw() and len(a) == 8,
@@ -473,10 +477,15 @@ def _ans(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _sw() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
     }
-    _el.setdefault(tag, False)
+    _el.setdefault(tag, lambda: _unk())
     rv = _el[tag]()
 
-    # allow some slow down
+    # pause a bit, if so
+    _allow_some_slow_down(rv, tag)
+    return rv
+
+
+def _allow_some_slow_down(rv, tag: str):
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
@@ -488,4 +497,3 @@ def _ans(tag, a, b):
     }
     t = _st.get(tag, 0) if rv else 0
     time.sleep(t)
-    return rv
