@@ -1,7 +1,5 @@
 import pytest
-import bluepy.btle
 import sys
-import time
 import datetime
 if sys.platform != 'win32':
     from mat.logger_controller_ble import (
@@ -13,8 +11,7 @@ if sys.platform != 'win32':
 )
     from tests._test_logger_controller_ble import (
         FakePeripheral,
-        FakePeripheralEx,
-        FakeCharacteristic
+        FakePeripheralEx
     )
 
 
@@ -26,14 +23,16 @@ cmd = 'mat.logger_controller_ble.LoggerControllerBLE.command'
 ble_w = 'mat.logger_controller_ble.LoggerControllerBLE.ble_write'
 _ls = 'mat.logger_controller_ble.LoggerControllerBLE._ls'
 
+
 # how to test this with coverage:
 # python3 -m pytest
 #       tests/test_logger_controller_ble.py
 #       --cov mat.logger_controller_ble
 #       --cov-report=html:<output_dir>
 
+
 @pytest.fixture
-def fake_ble_factory(mocker):
+def fake_lc_ble_factory(mocker):
     def patched_lc(p=FakePeripheral, m='', rv=''):
         mocker.patch(blue_per, p)
         if m:
@@ -82,83 +81,99 @@ class TestLoggerControllerBLECC26X2:
     def test_is_manufacturer_unknown(self):
         assert brand_microchip('00:1e:c0:')
 
-    def test_constructor_ok(self, fake_ble_factory):
-        lc = (fake_ble_factory())(mac_mc)
+    def test_constructor_ok(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory())(mac_mc)
         assert lc
 
-    def test_open_ok(self, fake_ble_factory):
-        lc = (fake_ble_factory())(mac_ti)
+    def test_open_ok(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory())(mac_ti)
         lc.open()
         assert lc.per
 
-    def test_open_bad(self, fake_ble_factory):
-        lc = (fake_ble_factory(FakePeripheralEx))(mac_ti)
+    def test_open_bad(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory(FakePeripheralEx))(mac_ti)
         # provokes to go to Except() line in open()
         lc.open()
 
-    def test_close_ok(self, fake_ble_factory):
-        lc = (fake_ble_factory())(mac_ti)
+    def test_close_ok(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory())(mac_ti)
         lc.open()
         assert lc.close()
 
-    def test_close_bad(self, fake_ble_factory):
-        lc = (fake_ble_factory())(mac_ti)
+    def test_lc_und_type(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory())(mac_ti)
+        lc.open()
+        assert lc.get_type() == 'cc26x2'
+
+    def test_close_bad(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory())(mac_ti)
         assert not lc.close()
 
-    def test_get_time_ok(self, fake_ble_factory):
+    def test_get_time_ok(self, fake_lc_ble_factory):
         _rv = [b'GTM', b'131999/12/12', b'11:12:13']
-        lc_ble = (fake_ble_factory(m=cmd, rv=_rv))(mac_ti)
+        lc = (fake_lc_ble_factory(m=cmd, rv=_rv))(mac_ti)
         expected = datetime.datetime(1999, 12, 12, 11, 12, 13)
-        assert lc_ble.get_time() == expected
+        assert lc.get_time() == expected
 
-    def test_get_time_bad(self, fake_ble_factory):
-        lc_ble = (fake_ble_factory(m=cmd, rv=False))(mac_ti)
-        assert not lc_ble.get_time()
+    def test_get_time_bad(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory(m=cmd, rv=False))(mac_ti)
+        assert not lc.get_time()
 
-    def test_get_time_exception(self, fake_ble_factory):
+    def test_get_time_exception(self, fake_lc_ble_factory):
         _rv = [b'GTM', b'130/0/0', b'11:12:13']
-        lc_ble = (fake_ble_factory(m=cmd, rv=_rv))(mac_ti)
-        assert not lc_ble.get_time()
+        lc = (fake_lc_ble_factory(m=cmd, rv=_rv))(mac_ti)
+        assert not lc.get_time()
 
-    def test_ls(self, fake_ble_factory):
-        lc_ble = (fake_ble_factory(m=cmd, rv=b''))(mac_ti)
-        assert not lc_ble._ls()
+    def test_ls(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory(m=cmd, rv=b''))(mac_ti)
+        assert not lc._ls()
 
-    def test_ls_lid_ok(self, fake_ble_factory):
+    def test_ls_can_finish(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory(m=cmd, rv=True))(mac_ti)
+        assert lc._ls()
+
+    def test_ls_lid_ok(self, fake_lc_ble_factory):
         _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc_ble.ls_lid() == {'a.lid': 76}
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc.ls_lid() == {'a.lid': 76}
 
-    def test_ls_lid_ignore(self, fake_ble_factory):
+    def test_ls_lid_ignore(self, fake_lc_ble_factory):
         _rv = [b'.', b'..', b'\x04']
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc_ble.ls_lid() == {}
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc.ls_lid() == {}
 
-    def test_ls_lid_bad(self, fake_ble_factory):
+    def test_ls_lid_bad(self, fake_lc_ble_factory):
         _rv = b'ERR'
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc_ble.ls_lid() == b'ERR'
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc.ls_lid() == b'ERR'
 
-    def test_ls_not_lid_ok(self, fake_ble_factory):
+    def test_ls_not_lid_ok(self, fake_lc_ble_factory):
         _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        print(lc_ble.ls_not_lid())
-        assert lc_ble.ls_not_lid() == {'b.csv': 10}
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        print(lc.ls_not_lid())
+        assert lc.ls_not_lid() == {'b.csv': 10}
 
-    def test_ls_not_lid_ignore(self, fake_ble_factory):
+    def test_ls_not_lid_ignore(self, fake_lc_ble_factory):
         _rv = [b'.', b'..', b'\x04']
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc_ble.ls_not_lid() == {}
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc.ls_not_lid() == {}
 
-    def test_ls_not_lid_bad(self, fake_ble_factory):
+    def test_ls_not_lid_bad(self, fake_lc_ble_factory):
         _rv = b'ERR'
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc_ble.ls_not_lid() == b'ERR'
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert lc.ls_not_lid() == b'ERR'
 
-    def test_ls_not_lid_none(self, fake_ble_factory):
+    def test_ls_not_lid_none(self, fake_lc_ble_factory):
         _rv = None
-        lc_ble = (fake_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert not lc_ble.ls_not_lid()
+        lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
+        assert not lc.ls_not_lid()
+
+    def test_send_btc(self, fake_lc_ble_factory):
+        lc = (fake_lc_ble_factory(m=cmd, rv=True))(mac_ti)
+        assert lc.send_btc() == 'wrong logger type'
+        del lc
+        lc = (fake_lc_ble_factory(m=cmd, rv=True))(mac_mc)
+        assert lc.send_btc()
 
     def test_is_a_li_logger_yes(self):
         name = b'DO-1'
@@ -173,6 +188,10 @@ class TestLoggerControllerBLECC26X2:
     def test_ans(self):
         tag = 'RUN'
         assert _ans(tag, 'RUN 00', None)
+
+    def test_ans(self):
+        tag = 'XXX'
+        assert not _ans(tag, '', None)
 
     def test_ans_bad(self):
         tag = 'RUN'

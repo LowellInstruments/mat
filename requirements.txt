@@ -1,13 +1,14 @@
+# devel section
 pycodestyle
 flake8
 mock
 pytest
-# pytest-cov
+pytest-cov
+pytest-mock>=3.3.1
+
+# run section
 numpy
 pyserial
-pytest-mock
 crc16==0.1.1
 h5py==2.10.0
-
-# archived bluepy w/ shorter connection modification
 git+https://github.com/LowellInstruments/bluepy.git
