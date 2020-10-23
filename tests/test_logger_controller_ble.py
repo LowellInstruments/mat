@@ -189,10 +189,6 @@ class TestLoggerControllerBLECC26X2:
         tag = 'RUN'
         assert _ans(tag, 'RUN 00', None)
 
-    def test_ans(self):
-        tag = 'XXX'
-        assert not _ans(tag, '', None)
-
     def test_ans_bad(self):
         tag = 'RUN'
         assert not _ans(tag, 'RUN 66', None)
