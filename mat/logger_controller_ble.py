@@ -307,12 +307,21 @@ class LoggerControllerBLE(LoggerController):
 
         self.dlg.set_file_mode(True)
         file_built = bytes()
-        while 1:
-            # todo -> send logger the order to send DWL chunk
-            if not self.per.waitForNotifications(1):
-                break
-            file_built += self.dlg.x_buf
-            self.dlg.x_buf = bytes()
+
+        # download chunk by chunk
+        max_chunks = int(s / 2048)
+        for c_n in range(max_chunks):
+            _ = str(c_n)
+            cmd = 'DWL {:02x}{}\r'.format(len(_), _)
+            self.ble_write(cmd.encode())
+            till = time.perf_counter() + 1
+            while 1:
+                self.dlg.x_buf = bytes()
+                if self.per.waitForNotifications(.01):
+                    file_built += self.dlg.x_buf
+                    till = till + .01
+                if time.perf_counter() > till:
+                    break
 
         # write file to disk
         p = '{}/{}'.format(fol, file)
@@ -338,7 +347,7 @@ class LoggerControllerBLE(LoggerController):
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
                 dl = self._dwl_file(file, fol, size, sig)
             else:
-                e = 'DBG: get_file() error, self.dlg.buf -> {}'
+                e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
 
         except ble.BTLEException as ex:
