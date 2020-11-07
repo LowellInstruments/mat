@@ -22,6 +22,7 @@ UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
+CRC_CMD = 'CRC'
 _DEBUG_THIS_MODULE = 0
 
 
@@ -472,6 +473,7 @@ def _ans(tag, a, b):
         RESET_CMD: lambda: _exp(1),
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
+        CRC_CMD: lambda: _exp() and (len(a) == 6 + 8)
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     rv = _el[tag]()
