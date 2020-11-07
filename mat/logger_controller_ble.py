@@ -23,6 +23,7 @@ MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
+DWG_CMD = 'DWG'
 _DEBUG_THIS_MODULE = 0
 
 
@@ -301,6 +302,54 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
+    def _dwl_file(self, file, fol, s, sig=None):   # pragma: no cover
+        """ called by dwg_file() """
+
+        self.dlg.set_file_mode(True)
+        file_built = bytes()
+        while 1:
+            # todo -> send logger the order to send DWL chunk
+            if not self.per.waitForNotifications(1):
+                break
+            file_built += self.dlg.x_buf
+            self.dlg.x_buf = bytes()
+
+        # write file to disk
+        p = '{}/{}'.format(fol, file)
+        with open(p, 'wb') as f:
+            f.write(file_built)
+            f.truncate(int(s))
+        # todo --> add_crc check somewhre in MAT lib after downloads and gets
+        return True
+
+    def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        self.dlg.set_file_mode(False)
+
+        # ensure fol string, not path_lib
+        fol = str(fol)
+
+        # send our own DWG command
+        dl = False
+        try:
+            _ = '{} {:02x}{}\r'
+            cmd = _.format(DWG_CMD, len(file), file)
+            self.ble_write(cmd.encode())
+            self.per.waitForNotifications(10)
+            if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
+                dl = self._dwl_file(file, fol, size, sig)
+            else:
+                e = 'DBG: get_file() error, self.dlg.buf -> {}'
+                print(e.format(self.dlg.buf))
+
+        except ble.BTLEException as ex:
+            s = 'BLE: DWL() exception {}'.format(ex)
+            raise ble.BTLEException(s)
+
+        # clean-up, separate files download
+        self.dlg.set_file_mode(False)
+        time.sleep(1)
+        return dl
+
 
 # utilities
 def _ls_wildcard(lis, ext, match=True):
@@ -473,7 +522,8 @@ def _ans(tag, a, b):
         RESET_CMD: lambda: _exp(1),
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
-        CRC_CMD: lambda: _exp() and (len(a) == 6 + 8)
+        CRC_CMD: lambda: _exp() and (len(a) == 6 + 8),
+        DWG_CMD: lambda: _exp()
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     rv = _el[tag]()
