@@ -100,9 +100,9 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
         raise XModemException('XMD: timeout rx data, 0 retries left')
     elif time.time() > timeout and retries < 3:
         _xmd_print('f')
+        # purge because RX timeout, but we still have retries left
         _purge(lc_ble)
         _nak(lc_ble)
-        # bad: timeout, but still retries left
         return True
     # nice: no timeout during frame receiving
     return False
@@ -118,6 +118,8 @@ def _parse_frame(lc_ble, sending_c, retries, whole_file):
         _ack(lc_ble)
     else:
         _xmd_print('bad_crc -> nak')
+        # purge because RX bad CRC
+        _purge(lc_ble)
         _nak(lc_ble)
     return sending_c, retries, whole_file
 
@@ -126,6 +128,7 @@ def _purge(lc_ble):
     end_time = time.time() + 0.1
     while time.time() < end_time:
         lc_ble.per.waitForNotifications(0.01)
+    lc_ble.dlg.x_buf = bytes()
 
 
 def _ack(lc_ble):
@@ -154,10 +157,7 @@ def _frame_check_crc(lc_ble):
     calculated_crc_int = crc16.crc16xmodem(data)
     calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
     # print(len(lc_ble.dlg.x_buf))
-    if calculated_crc_bytes == received_crc_bytes:
-        return True
-    else:
-        return False
+    return calculated_crc_bytes == received_crc_bytes
 
 
 class XModemException(Exception):
