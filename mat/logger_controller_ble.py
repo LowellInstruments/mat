@@ -310,18 +310,27 @@ class LoggerControllerBLE(LoggerController):
 
         # download chunk by chunk
         max_chunks = int(s / 2048)
+        timeout = False
+        bef = 0
         for c_n in range(max_chunks):
             _ = str(c_n)
             cmd = 'DWL {:02x}{}\r'.format(len(_), _)
+            print(cmd)
             self.ble_write(cmd.encode())
             till = time.perf_counter() + 1
             while 1:
-                self.dlg.x_buf = bytes()
-                if self.per.waitForNotifications(.01):
+                if self.per.waitForNotifications(.1):
                     file_built += self.dlg.x_buf
-                    till = till + .01
+                    till += .1
+                self.dlg.x_buf = bytes()
                 if time.perf_counter() > till:
+                    timeout = True
                     break
+                if len(file_built) == bef + 2048:
+                    bef = len(file_built)
+                    break
+            if timeout:
+                break
 
         # write file to disk
         p = '{}/{}'.format(fol, file)
