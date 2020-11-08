@@ -110,7 +110,7 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _cmd_ans_done(self, tag, debug=False):  # pragma: no cover
+    def _cmd_ans_arrived(self, tag, debug=False):  # pragma: no cover
         """ ends last command sent's answer timeout """
 
         b = self.dlg.buf
@@ -136,18 +136,19 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.5)
             return True
 
-        # valid command, let's see
-        return _ans(tag, a, b)
+        # valid answer, parse it
+        return _ans_parse(tag, a, b)
 
-    def _cmd_ans_wait(self, tag: str):    # pragma: no cover
-        """ starts answer timeout for last sent command """
+    def _cmd_sent_now_wait_answer(self, tag: str):    # pragma: no cover
+        """ starts answer timeout for last command sent """
         slow_ans = [RUN_CMD, RWS_CMD]
-        w = 50 if tag in slow_ans else 5
+        # todo -> adaptive timeout, ex: get SIze before CRC and adapt timeout
+        w = 50 if tag in slow_ans else 10
         till = time.perf_counter() + w
         while 1:
             if time.perf_counter() > till:
                 break
-            if self._cmd_ans_done(tag, debug=False):
+            if self._cmd_ans_arrived(tag, debug=False):
                 break
             if self.per.waitForNotifications(0.001):
                 till += 0.001
@@ -158,11 +159,25 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
 
+    def _cmd_pre_slow_down_if_so(self, tag):
+        """ ensure commands are spaced """
+        _st = {
+            CRC_CMD: 2
+        }
+
+        # 0 means no extra pre slow down
+        t = _st.setdefault(tag, 0)
+        if t:
+            s = 'dbg: pre_slow_down for {} is {}'
+            print(s.format(tag, t))
+            time.sleep(t)
+
     def _cmd(self, *args):   # pragma: no cover
         self._purge()
         self.dlg.set_file_mode(False)
 
         # discern command format
+        # todo -> I dont remember, maybe smartphone, put example of this
         tp_mode = len(str(args[0]).split(' ')) > 1
 
         # build ASCII command
@@ -175,13 +190,18 @@ class LoggerControllerBLE(LoggerController):
             n = '{:02x}'.format(len(arg)) if arg else ''
             to_send = cmd + ' ' + n + arg
 
+        # obtain command tag
+        tag = cmd[:3]
+        self._cmd_pre_slow_down_if_so(tag)
+
         # end building and send binary command
         to_send += chr(13)
         self.ble_write(to_send.encode())
 
         # wait answer w/ this tag string
-        tag = cmd[:3]
-        ans = self._cmd_ans_wait(tag).split()
+        ans = self._cmd_sent_now_wait_answer(tag).split()
+
+        # todo -> maybe post slow down here
 
         # e.g. [b'STS', b'020X']
         return ans
@@ -308,6 +328,9 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.set_file_mode(True)
         file_built = bytes()
 
+        # benchmark DWL command
+        ts_start = time.perf_counter()
+
         # download chunk by chunk
         max_chunks = int(s / 2048)
         timeout = False
@@ -331,6 +354,11 @@ class LoggerControllerBLE(LoggerController):
                     break
             if timeout:
                 break
+
+        # finish benchmark
+        ts_end = time.perf_counter()
+        _ = ts_end - ts_start
+        print('DWL took {} ms'.format(_))
 
         # write file to disk
         p = '{}/{}'.format(fol, file)
@@ -504,7 +532,7 @@ def is_a_li_logger(rd):
     return False
 
 
-def _ans(tag, a, b):
+def _ans_parse(tag, a, b):
     # helper: function expects a 'TAG 00' answer when z is 0
     def _exp(z=0):
         _ = '{} 00'.format(tag) if z else tag
@@ -541,17 +569,18 @@ def _ans(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
         CRC_CMD: lambda: _exp() and (len(a) == 6 + 8),
-        DWG_CMD: lambda: _exp()
+        DWG_CMD: lambda: _exp(1)
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     rv = _el[tag]()
 
     # pause a bit, if so
-    _allow_some_slow_down(rv, tag)
+    _cmd_post_slow_down_if_so(rv, tag)
     return rv
 
 
-def _allow_some_slow_down(rv, tag: str):
+def _cmd_post_slow_down_if_so(rv, tag: str):
+    """ after answer received or timeout expired """
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
@@ -559,8 +588,10 @@ def _allow_some_slow_down(rv, tag: str):
         RUN_CMD: 1,
         STOP_CMD: 1,
         RWS_CMD: 1,
-        SWS_CMD: 1
+        SWS_CMD: 1,
     }
+
+    # 0 means no extra slow down
     t = _st.get(tag, 0) if rv else 0
     time.sleep(t)
 
