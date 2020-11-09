@@ -140,10 +140,7 @@ class LoggerControllerBLE(LoggerController):
         return _ans_parse(tag, a, b)
 
     def _cmd_sent_now_wait_answer(self, tag: str):    # pragma: no cover
-        """ starts answer timeout for last command sent """
-        slow_ans = [RUN_CMD, RWS_CMD]
-        # todo -> adaptive timeout, ex: get SIze before CRC and adapt timeout
-        w = 50 if tag in slow_ans else 10
+        w = calc_ble_cmd_ans_timeout(tag)
         till = time.perf_counter() + w
         while 1:
             if time.perf_counter() > till:
@@ -163,8 +160,7 @@ class LoggerControllerBLE(LoggerController):
         self._purge()
         self.dlg.set_file_mode(False)
 
-        # discern command format
-        # todo -> I dont remember, maybe smartphone, put example of this
+        # phone commands in aggregated, a.k.a. transparent, mode
         tp_mode = len(str(args[0]).split(' ')) > 1
 
         # build ASCII command
@@ -176,19 +172,18 @@ class LoggerControllerBLE(LoggerController):
             arg = str(args[1]) if len(args) == 2 else ''
             n = '{:02x}'.format(len(arg)) if arg else ''
             to_send = cmd + ' ' + n + arg
+        to_send += chr(13)
 
         # obtain command tag
         tag = cmd[:3]
         _cmd_pre_slow_down_if_so(tag)
 
-        # end building and send binary command
-        to_send += chr(13)
+        # send command, wait answer
         self.ble_write(to_send.encode())
-
-        # wait answer w/ this tag string
         ans = self._cmd_sent_now_wait_answer(tag).split()
 
-        # todo -> maybe post slow down here
+        # pause a bit, if so
+        _cmd_post_slow_down_if_so(tag)
 
         # e.g. [b'STS', b'020X']
         return ans
@@ -339,21 +334,31 @@ class LoggerControllerBLE(LoggerController):
                     file_built += self.dlg.x_buf[:2048]
                     self.dlg.x_buf = self.dlg.x_buf[2048:]
                     break
-            if timeout or len(file_built) == size:
+            if len(file_built) == size or timeout:
                 break
 
-        # finish benchmark
+        # clean-up
         self.dlg.x_buf = bytes()
+
+        # bad end
+        if timeout:
+            print('DWG timeout error, wait for clean-up')
+            while self.per.waitForNotifications(1):
+                print('DWL x')
+            return False
+
+        # good end, finish benchmark
         ts_end = time.perf_counter()
-        _ = ts_end - ts_start
-        print('DWL took {} ms'.format(_))
+        _took = ts_end - ts_start
+        print('DWL took {} s'.format(int(_took)))
+        speed = size / 1000 / _took
+        print('DWL speed {} KB/s'.format(int(speed)))
 
         # write file to disk
         p = '{}/{}'.format(fol, file)
         with open(p, 'wb') as f:
             f.write(file_built)
             f.truncate(int(size))
-        # todo --> add_crc check somewhre in MAT lib after downloads and gets
         return True
 
     def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
@@ -560,11 +565,7 @@ def _ans_parse(tag, a, b):
         DWG_CMD: lambda: _exp(1)
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
-    rv = _el[tag]()
-
-    # pause a bit, if so
-    _cmd_post_slow_down_if_so(rv, tag)
-    return rv
+    return _el[tag]()
 
 
 def _cmd_pre_slow_down_if_so(tag):
@@ -581,7 +582,7 @@ def _cmd_pre_slow_down_if_so(tag):
         time.sleep(t)
 
 
-def _cmd_post_slow_down_if_so(rv, tag: str):
+def _cmd_post_slow_down_if_so(tag: str):
     """ after answer received or timeout expired """
     _st = {
         LOGGER_INFO_CMD: .1,
@@ -594,7 +595,7 @@ def _cmd_post_slow_down_if_so(rv, tag: str):
     }
 
     # 0 means no extra slow down
-    t = _st.get(tag, 0) if rv else 0
+    t = _st.setdefault(tag, 0)
     time.sleep(t)
 
 
@@ -602,3 +603,14 @@ def _cmd_post_slow_down_if_so(rv, tag: str):
 def _ans_unk(_tag):
     print('unknown tag {}'.format(_tag))
     return False
+
+
+# can be called by NLE protocol client
+def calc_ble_cmd_ans_timeout(tag):
+    _timeouts = {
+        RUN_CMD: 50,
+        RWS_CMD: 50,
+        CRC_CMD: 20
+    }
+    t = _timeouts.setdefault(tag, 10)
+    return t
