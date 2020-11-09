@@ -159,19 +159,6 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
 
-    def _cmd_pre_slow_down_if_so(self, tag):
-        """ ensure commands are spaced """
-        _st = {
-            CRC_CMD: 2
-        }
-
-        # 0 means no extra pre slow down
-        t = _st.setdefault(tag, 0)
-        if t:
-            s = 'dbg: pre_slow_down for {} is {}'
-            print(s.format(tag, t))
-            time.sleep(t)
-
     def _cmd(self, *args):   # pragma: no cover
         self._purge()
         self.dlg.set_file_mode(False)
@@ -192,7 +179,7 @@ class LoggerControllerBLE(LoggerController):
 
         # obtain command tag
         tag = cmd[:3]
-        self._cmd_pre_slow_down_if_so(tag)
+        _cmd_pre_slow_down_if_so(tag)
 
         # end building and send binary command
         to_send += chr(13)
@@ -322,7 +309,7 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
-    def _dwl_file(self, file, fol, s, sig=None):   # pragma: no cover
+    def _dwl_file(self, file, fol, size, sig=None):   # pragma: no cover
         """ called by dwg_file() """
 
         self.dlg.set_file_mode(True)
@@ -332,30 +319,31 @@ class LoggerControllerBLE(LoggerController):
         ts_start = time.perf_counter()
 
         # download chunk by chunk
-        max_chunks = int(s / 2048)
         timeout = False
-        bef = 0
-        for c_n in range(max_chunks):
+        self.dlg.x_buf = bytes()
+        c_n = 0
+        while 1:
             _ = str(c_n)
             cmd = 'DWL {:02x}{}\r'.format(len(_), _)
+            c_n += 1
             print(cmd)
             self.ble_write(cmd.encode())
-            till = time.perf_counter() + 1
+            last = time.perf_counter()
             while 1:
                 if self.per.waitForNotifications(.1):
-                    file_built += self.dlg.x_buf
-                    till += .1
-                self.dlg.x_buf = bytes()
-                if time.perf_counter() > till:
+                    last = time.perf_counter()
+                if time.perf_counter() > last + 10:
                     timeout = True
                     break
-                if len(file_built) == bef + 2048:
-                    bef = len(file_built)
+                if len(self.dlg.x_buf) >= 2048:
+                    file_built += self.dlg.x_buf[:2048]
+                    self.dlg.x_buf = self.dlg.x_buf[2048:]
                     break
-            if timeout:
+            if timeout or len(file_built) == size:
                 break
 
         # finish benchmark
+        self.dlg.x_buf = bytes()
         ts_end = time.perf_counter()
         _ = ts_end - ts_start
         print('DWL took {} ms'.format(_))
@@ -364,7 +352,7 @@ class LoggerControllerBLE(LoggerController):
         p = '{}/{}'.format(fol, file)
         with open(p, 'wb') as f:
             f.write(file_built)
-            f.truncate(int(s))
+            f.truncate(int(size))
         # todo --> add_crc check somewhre in MAT lib after downloads and gets
         return True
 
@@ -577,6 +565,20 @@ def _ans_parse(tag, a, b):
     # pause a bit, if so
     _cmd_post_slow_down_if_so(rv, tag)
     return rv
+
+
+def _cmd_pre_slow_down_if_so(tag):
+    """ ensure commands are spaced """
+    _st = {
+        CRC_CMD: 2
+    }
+
+    # 0 means no extra pre slow down
+    t = _st.setdefault(tag, 0)
+    if t:
+        s = 'dbg: pre_slow_down for {} is {}'
+        print(s.format(tag, t))
+        time.sleep(t)
 
 
 def _cmd_post_slow_down_if_so(rv, tag: str):
