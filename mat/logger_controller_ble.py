@@ -13,6 +13,8 @@ import pathlib
 import subprocess as sp
 
 # commands not present in USB loggers
+SIZ_CMD = 'SIZ'
+BAT_CMD = 'BAT'
 BTC_CMD = 'BTC'
 MOBILE_CMD = 'MBL'
 HW_TEST_CMD = '#T1'
@@ -24,6 +26,7 @@ LOG_EN_CMD = 'LOG'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
+FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
 
 
@@ -527,8 +530,8 @@ def is_a_li_logger(rd):
 
 def _ans_parse(tag, a, b):
     # helper: function expects a 'TAG 00' answer when z is 0
-    def _exp(z=0):
-        _ = '{} 00'.format(tag) if z else tag
+    def _exp(fixed=0):
+        _ = '{} 00'.format(tag) if fixed else tag
         return a.startswith(_)
 
     # a command stops timeout, early leaves (el) when getting proper answer
@@ -562,7 +565,10 @@ def _ans_parse(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
         CRC_CMD: lambda: _exp() and (len(a) == 6 + 8),
-        DWG_CMD: lambda: _exp(1)
+        DWG_CMD: lambda: _exp(1),
+        FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
+        BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
+        SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10)
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()
@@ -610,7 +616,10 @@ def calc_ble_cmd_ans_timeout(tag):
     _timeouts = {
         RUN_CMD: 50,
         RWS_CMD: 50,
-        CRC_CMD: 20
+        CRC_CMD: 20,
+        # NOR memories have Write, Erase slow
+        FORMAT_CMD: 60,
+        MY_TOOL_SET_CMD: 30
     }
     t = _timeouts.setdefault(tag, 10)
     return t
