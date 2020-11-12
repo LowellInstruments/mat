@@ -83,7 +83,8 @@ def apply_declination(heading, declination):
     return mod(heading + 180 + declination, 360) - 180
 
 
-class print_colors:
+class PrintColors:
+    # ex: print(p_c.OKGREEN + "hello" + p_c.ENDC)
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
