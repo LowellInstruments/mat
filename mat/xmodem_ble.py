@@ -20,6 +20,7 @@ def _xmd_print(s):
 def xmodem_get_file(lc, sig=None, verbose=False):
     global g_verbose
     g_verbose = verbose
+    _purge(lc)
     file_built = bytes()
     _data_retries = 0
     sending_c = True
