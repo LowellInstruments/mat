@@ -225,8 +225,10 @@ class LoggerControllerBLE(LoggerController):
         return True
 
     def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        # todo: fork this, this is only for cc26x2R ones
         # separates file downloads, allows logger x-modem to boot
         time.sleep(1)
+        self._purge()
         self.dlg.set_file_mode(False)
 
         # ensure fol string, not path_lib
