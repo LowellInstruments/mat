@@ -200,7 +200,7 @@ class LoggerControllerBLE(LoggerController):
             raise ble.BTLEException(s)
 
     def flood(self, n):   # pragma: no cover
-        """ attack check: sends command burst w/o caring answers """
+        """ attack test: sends command burst w/o caring answers """
 
         for i in range(n):
             cmd = STATUS_CMD
@@ -302,6 +302,7 @@ class LoggerControllerBLE(LoggerController):
         return self.command(CONFIG_CMD, s)
 
     def send_btc(self):
+        """ only on RN4020-based loggers: set fast mode """
         if self.und.type == 'rn4020':
             s = 'BTC 00T,0006,0000,0064'
             _ = self.command(s)
@@ -423,7 +424,7 @@ def brand_microchip(mac):
     return mac.startswith('00:1e:c0:')
 
 
-def ble_scan(hci_if, my_to=3.0):    # pragma: no cover
+def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
     # hci_if: hciX interface
     import sys
     try:
@@ -445,7 +446,7 @@ def is_connection_recent(mac):  # pragma: no cover
     return False
 
 
-def _r_ble_linux_pars(banner, hci_if) -> (int, int, int):   # pragma: no cover
+def _r_ble_linux_pars(banner, hci_if: int) -> (int, int, int):   # pragma: no cover
     min_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_min_interval'
     max_ce = '/sys/kernel/debug/bluetooth/hci{}/conn_max_interval'
     lat = '/sys/kernel/debug/bluetooth/hci{}/conn_latency'
@@ -473,7 +474,7 @@ def _r_ble_linux_pars(banner, hci_if) -> (int, int, int):   # pragma: no cover
         print('can\'t read /sys/kernel/bluetooth')
 
 
-def w_ble_linux_pars(l1, l2, l3, hci_if):   # pragma: no cover
+def w_ble_linux_pars(l1, l2, l3, hci_if: int):   # pragma: no cover
     # order is important
     _r_ble_linux_pars('pre:', hci_if)
 
