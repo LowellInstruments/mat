@@ -1,3 +1,6 @@
+import time
+
+
 class LoggerControllerBLECC26X2:  # pragma: no cover
 
     def __init__(self, base):
@@ -19,3 +22,24 @@ class LoggerControllerBLECC26X2:  # pragma: no cover
 
     def _know_mtu(self):
         return self.base.per.status()['mtu'][0]
+
+    def get_file(self, lc, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        assert (lc.und.type == self.type)
+
+        # separates file downloads, allows logger x-modem to boot
+        lc.purge()
+        time.sleep(1)
+
+        # ensure fol string, not path_lib
+        fol = str(fol)
+
+        # ask for file, mind CC26x2 particular behavior to send GET answer
+        dl = False
+        cmd = 'GET {:02x}{}\r'.format(len(file), file)
+        lc.ble_write(cmd.encode())
+        lc.per.waitForNotifications(10)
+        if lc.dlg.buf and lc.dlg.buf.endswith(b'GET 00'):
+            dl = lc.xmd_rx_n_save(file, fol, size, sig)
+
+        # clean-up
+        return dl

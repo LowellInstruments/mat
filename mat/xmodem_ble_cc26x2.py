@@ -17,7 +17,7 @@ def _xmd_print(s):
 
 
 # download function, initial purge to start fresh, exception on error
-def xmodem_get_file(lc, sig=None, verbose=False):
+def xmd_get_file_cc26x2(lc, sig=None, verbose=False):
     global g_verbose
     g_verbose = verbose
     _purge(lc)

@@ -8,11 +8,13 @@ from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SEN
     SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
-from mat.xmodem_ble import xmodem_get_file, XModemException
+from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
 import pathlib
 import subprocess as sp
 
 # commands not present in USB loggers
+from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
+
 SIZ_CMD = 'SIZ'
 BAT_CMD = 'BAT'
 BTC_CMD = 'BTC'
@@ -155,12 +157,12 @@ class LoggerControllerBLE(LoggerController):
         # e.g. b'' / b'STS 00'
         return self.dlg.buf
 
-    def _purge(self):   # pragma: no cover
+    def purge(self):   # pragma: no cover
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
 
     def _cmd(self, *args):   # pragma: no cover
-        self._purge()
+        self.purge()
         self.dlg.set_file_mode(False)
 
         # phone commands in aggregated, a.k.a. transparent, mode
@@ -207,53 +209,38 @@ class LoggerControllerBLE(LoggerController):
             cmd += chr(13)
             self.ble_write(cmd.encode())
 
-    def _save_file(self, file, fol, s, sig=None):   # pragma: no cover
+    def xmd_rx_n_save(self, file, fol, size, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
+        fxn_map = {
+            'cc26x2': xmd_get_file_cc26x2,
+            'rn4020': xmd_get_file_rn4020
+        }
+        xmd_fxn = fxn_map[self.und.type]
 
         self.dlg.set_file_mode(True)
         try:
-            r, n = xmodem_get_file(self, sig, verbose=False)
+            rv, data = xmd_fxn(self, sig, verbose=False)
         except XModemException:
-            return False
+            rv, data = False, None
+        self.dlg.set_file_mode(False)
 
-        if not r:
+        if not rv or len(data) < size:
             return False
         p = '{}/{}'.format(fol, file)
         with open(p, 'wb') as f:
-            f.write(n)
-            f.truncate(int(s))
+            f.write(data)
+            f.truncate(int(size))
         return True
 
-    def get_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        # todo: fork this, this is only for cc26x2R ones
-        # separates file downloads, allows logger x-modem to boot
-        time.sleep(1)
-        self._purge()
-        self.dlg.set_file_mode(False)
-
-        # ensure fol string, not path_lib
-        fol = str(fol)
-
-        # send our own GET command
-        dl = False
+    def get_file(self, file, fol, size, sig=None):
+        rv = False
         try:
-            cmd = 'GET {:02x}{}\r'.format(len(file), file)
-            self.ble_write(cmd.encode())
-            self.per.waitForNotifications(10)
-            if self.dlg.buf and self.dlg.buf.endswith(b'GET 00'):
-                dl = self._save_file(file, fol, size, sig)
-            else:
-                e = 'DBG: get_file() error, self.dlg.buf -> {}'
-                print(e.format(self.dlg.buf))
-
+            rv = self.und.get_file(self, file, fol, size, sig)
         except ble.BTLEException as ex:
             s = 'BLE: GET() exception {}'.format(ex)
             raise ble.BTLEException(s)
-
-        # clean-up, separate files download
-        self.dlg.set_file_mode(False)
-        time.sleep(1)
-        return dl
+        finally:
+            return rv
 
     def get_time(self):
         ans = self.command(TIME_CMD)
@@ -270,10 +257,9 @@ class LoggerControllerBLE(LoggerController):
     # wrapper for DIR command
     def _ls(self):
         rv = []
-        c = 'DIR' if self.type == 'cc26x2' else 'DIR 00'
 
         for i in range(5):
-            rv = self.command(c)
+            rv = self.command(DIR_CMD)
             # ensure DIR answer is clean
             self.command(STATUS_CMD)
             self.command(STATUS_CMD)
