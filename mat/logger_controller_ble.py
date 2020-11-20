@@ -97,6 +97,7 @@ class LoggerControllerBLE(LoggerController):
                     self.open_post()
                     return True
                 self.per.disconnect()   # pragma: no cover
+
             except (AttributeError, ble.BTLEException):
                 e = 'failed connection attempt {} of {}'
                 print(e.format(i + 1, retries))
@@ -161,7 +162,7 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_buf()
         self.dlg.clr_x_buf()
 
-    def _cmd(self, *args):   # pragma: no cover
+    def command(self, *args):   # pragma: no cover
         self.purge()
         self.dlg.set_file_mode(False)
 
@@ -193,14 +194,6 @@ class LoggerControllerBLE(LoggerController):
         # e.g. [b'STS', b'020X']
         return ans
 
-    def command(self, *args):    # pragma: no cover
-        try:
-            return self._cmd(*args)
-        except ble.BTLEException as ex:
-            # to be managed by app
-            s = 'BLE: command() exception {}'.format(ex)
-            raise ble.BTLEException(s)
-
     def flood(self, n):   # pragma: no cover
         """ attack test: sends command burst w/o caring answers """
 
@@ -222,7 +215,8 @@ class LoggerControllerBLE(LoggerController):
             rv, data = xmd_fxn(self, sig, verbose=False)
         except XModemException:
             rv, data = False, None
-        self.dlg.set_file_mode(False)
+        finally:
+            self.dlg.set_file_mode(False)
 
         if not rv or len(data) < size:
             return False
@@ -237,9 +231,11 @@ class LoggerControllerBLE(LoggerController):
         try:
             rv = self.und.get_file(self, file, fol, size, sig)
         except ble.BTLEException as ex:
-            s = 'BLE: GET() exception {}'.format(ex)
-            raise ble.BTLEException(s)
+            # show this exception, app will take care of it
+            # and / or next BLE command will nicely fail
+            print('BLE: get_file() exception {}'.format(ex))
         finally:
+            self.dlg.set_file_mode(False)
             return rv
 
     def get_time(self):
@@ -251,8 +247,7 @@ class LoggerControllerBLE(LoggerController):
             _time += ans[2].decode()
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
-            print('GTM malformed: {}'.format(ans))
-            return
+            print('BLE: get_time() malformed: {}'.format(ans))
 
     # wrapper for DIR command
     def _ls(self):
@@ -297,8 +292,7 @@ class LoggerControllerBLE(LoggerController):
             return 'wrong logger type'
 
     def _dwl_file(self, file, fol, size, sig=None):   # pragma: no cover
-        """ called by dwg_file() """
-
+        """ XMODEM equivalent, called by dwg_file() """
         self.dlg.set_file_mode(True)
         file_built = bytes()
 
@@ -330,6 +324,7 @@ class LoggerControllerBLE(LoggerController):
                 break
 
         # clean-up
+        self.dlg.set_file_mode(False)
         self.dlg.x_buf = bytes()
 
         # bad end
@@ -354,8 +349,6 @@ class LoggerControllerBLE(LoggerController):
         return True
 
     def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        self.dlg.set_file_mode(False)
-
         # ensure fol string, not path_lib
         fol = str(fol)
 
@@ -373,12 +366,10 @@ class LoggerControllerBLE(LoggerController):
                 print(e.format(self.dlg.buf))
 
         except ble.BTLEException as ex:
-            s = 'BLE: DWL() exception {}'.format(ex)
-            raise ble.BTLEException(s)
+            # show this exception, app will take care of it
+            # and / or next BLE command will nicely fail
+            print('BLE: dwg_file() exception {}'.format(ex))
 
-        # clean-up, separate files download
-        self.dlg.set_file_mode(False)
-        time.sleep(1)
         return dl
 
 
