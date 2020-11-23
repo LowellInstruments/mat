@@ -25,6 +25,7 @@ CONFIG_CMD = 'CFG'
 UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
+PAU_CMD = 'PAU'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
@@ -92,11 +93,13 @@ class LoggerControllerBLE(LoggerController):
                 desc = self.cha.valHandle + 1
                 self.per.writeCharacteristic(desc, b'\x01\x00')
 
-                # don't remove, Linux hack or hangs at first BLE connection ever
-                if is_connection_recent(self.address):
-                    self.open_post()
-                    return True
-                self.per.disconnect()   # pragma: no cover
+                # first time on unknown logger, ensure BLE parameters applied
+                if not is_connection_recent(self.address):
+                    self.per.disconnect()  # pragma: no cover
+                    continue
+
+                self.open_post()
+                return True
 
             except (AttributeError, ble.BTLEException):
                 e = 'failed connection attempt {} of {}'
@@ -196,7 +199,6 @@ class LoggerControllerBLE(LoggerController):
 
     def flood(self, n):   # pragma: no cover
         """ attack test: sends command burst w/o caring answers """
-
         for i in range(n):
             cmd = STATUS_CMD
             cmd += chr(13)
@@ -548,7 +550,8 @@ def _ans_parse(tag, a, b):
         DWG_CMD: lambda: _exp(1),
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
-        SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10)
+        SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
+        PAU_CMD: lambda: _exp() and len(a) == 8
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()
