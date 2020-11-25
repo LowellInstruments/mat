@@ -25,7 +25,7 @@ CONFIG_CMD = 'CFG'
 UP_TIME_CMD = 'UTM'
 MY_TOOL_SET_CMD = 'MTS'
 LOG_EN_CMD = 'LOG'
-PAU_CMD = 'PAU'
+WAKE_CMD = 'WAK'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
@@ -551,7 +551,7 @@ def _ans_parse(tag, a, b):
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
-        PAU_CMD: lambda: _exp() and len(a) == 8
+        WAKE_CMD: lambda: _exp() and len(a) == 8
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()
