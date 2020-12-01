@@ -404,11 +404,12 @@ def brand_microchip(mac):
 
 
 def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
-    # hci_if: hciX interface
+    # hci_if: hciX interface,
     import sys
     try:
         s = ble.Scanner(iface=hci_if)
-        return s.scan(timeout=my_to)
+        # passive solves scanend error
+        return s.scan(timeout=my_to, passive=True)
     except OverflowError:
         e = 'SYS: overflow on BLE scan, maybe date time error'
         print(e)
