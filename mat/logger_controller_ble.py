@@ -293,34 +293,34 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
-    def _dwl(self, file, fol, size, sig=None):   # pragma: no cover
+    def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
+        last = time.perf_counter()
+        while 1:
+            if self.per.waitForNotifications(.1):
+                last = time.perf_counter()
+            if time.perf_counter() > last + 10:
+                return True, data
+            if len(self.dlg.x_buf) >= 2048:
+                data += self.dlg.x_buf[:2048]
+                self.dlg.x_buf = self.dlg.x_buf[2048:]
+                if sig:
+                    sig.emit()
+                return False, data
+
+    def _dwl(self, size, sig=None):   # pragma: no cover
         """ XMODEM equivalent, called by dwg_file() """
         self.dlg.set_file_mode(True)
-        file_built = bytes()
-        timeout = False
+        data = bytes()
         self.dlg.x_buf = bytes()
 
         # download chunk by chunk
         c_n = 0
         while 1:
-            _ = str(c_n)
-            cmd = 'DWL {:02x}{}\r'.format(len(_), _)
+            cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
             c_n += 1
             self.ble_write(cmd.encode())
-            last = time.perf_counter()
-            while 1:
-                if self.per.waitForNotifications(.1):
-                    last = time.perf_counter()
-                if time.perf_counter() > last + 10:
-                    timeout = True
-                    break
-                if len(self.dlg.x_buf) >= 2048:
-                    file_built += self.dlg.x_buf[:2048]
-                    self.dlg.x_buf = self.dlg.x_buf[2048:]
-                    if sig:
-                        sig.emit()
-                    break
-            if len(file_built) == size or timeout:
+            timeout, data = self._dwl_chunk_loop(sig, data)
+            if timeout or len(data) == size:
                 break
 
         # clean-up
@@ -328,13 +328,9 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.x_buf = bytes()
 
         # double return value
-        return not timeout, file_built
+        return not timeout, data
 
-    def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        # ensure fol string, not path_lib
-        fol = str(fol)
-
-        # send our own DWG command
+    def dwg_file(self, file, size, sig=None) -> bool:  # pragma: no cover
         dl = False
         try:
             _ = '{} {:02x}{}\r'
@@ -342,7 +338,7 @@ class LoggerControllerBLE(LoggerController):
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                dl = self._dwl(file, fol, size, sig)
+                dl = self._dwl(size, sig)
             else:
                 e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
