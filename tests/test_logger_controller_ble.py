@@ -1,3 +1,5 @@
+import time
+
 import pytest
 import sys
 import datetime
@@ -7,8 +9,8 @@ if sys.platform != 'win32':
         Delegate,
         brand_ti,
         brand_microchip,
-        is_a_li_logger, _ans
-)
+        is_a_li_logger, _ans_check, _cmd_pre_slow_down_if_so, _cmd_post_slow_down_if_so, calc_ble_cmd_ans_timeout
+    )
     from tests._test_logger_controller_ble import (
         FakePeripheral,
         FakePeripheralEx
@@ -187,8 +189,23 @@ class TestLoggerControllerBLECC26X2:
 
     def test_ans(self):
         tag = 'RUN'
-        assert _ans(tag, 'RUN 00', None)
+        assert _ans_check(tag, 'RUN 00', None)
 
     def test_ans_bad(self):
         tag = 'RUN'
-        assert not _ans(tag, 'RUN 66', None)
+        assert not _ans_check(tag, 'RUN 66', None)
+
+    def test_cmd_pre_slow_down_if_so(self):
+        now = time.perf_counter()
+        _cmd_pre_slow_down_if_so('CRC')
+        assert time.perf_counter() - now >= 2
+
+    def test_cmd_post_slow_down_if_so(self):
+        before = time.perf_counter()
+        _cmd_post_slow_down_if_so('CFG')
+        after = time.perf_counter()
+        assert after - before >= .5
+        assert after - before < 1
+
+    def test_calc_ble_cmd_ans_timeout(self):
+        assert calc_ble_cmd_ans_timeout('CRC') == 20

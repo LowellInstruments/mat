@@ -1,3 +1,4 @@
+import crc16
 from numpy import array, mod
 from datetime import datetime
 import numpy as np
@@ -83,7 +84,8 @@ def apply_declination(heading, declination):
     return mod(heading + 180 + declination, 360) - 180
 
 
-class print_colors:
+class PrintColors:
+    # ex: print(p_c.OKGREEN + "hello" + p_c.ENDC)
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
@@ -92,3 +94,11 @@ class print_colors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def xmd_frame_check_crc(lc):
+    data = lc.dlg.x_buf[3:-2]
+    rx_crc = lc.dlg.x_buf[-2:]
+    calc_crc_int = crc16.crc16xmodem(data)
+    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
+    return calc_crc_bytes == rx_crc

@@ -1,22 +1,21 @@
 version: "2"         # required to adjust maintainability checks
 exclude_patterns:
-- "mat/examples_ble/"
-- "mat/examples_gps/"
 - "tests/"
 - "mat/sensor_specification.py"
+- "mat/xmodem_*.py"
 checks:
   argument-count:
     config:
-      threshold: 4
+      threshold: 5
   complex-logic:
     config:
       threshold: 4
   file-lines:
     config:
-      threshold: 400
+      threshold: 500
   method-complexity:
     config:
-      threshold: 11
+      threshold: 15
   method-count:
     config:
       threshold: 25
@@ -35,4 +34,3 @@ checks:
   identical-code:
     config:
       threshold: # language-specific defaults. an override will affect all languages.
-
