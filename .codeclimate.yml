@@ -36,4 +36,4 @@ checks:
     config:
       threshold: # language-specific defaults. an override will affect all languages.
   exclude_patterns:
-  - "mat/xmodem_*.py"
+  - "mat/xmodem_ble_cc26x2.py"
