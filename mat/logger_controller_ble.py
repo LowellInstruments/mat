@@ -293,23 +293,19 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
-    def _dwl_file(self, file, fol, size, sig=None):   # pragma: no cover
+    def _dwl(self, file, fol, size, sig=None):   # pragma: no cover
         """ XMODEM equivalent, called by dwg_file() """
         self.dlg.set_file_mode(True)
         file_built = bytes()
-
-        # benchmark DWL command
-        ts_start = time.perf_counter()
-
-        # download chunk by chunk
         timeout = False
         self.dlg.x_buf = bytes()
+
+        # download chunk by chunk
         c_n = 0
         while 1:
             _ = str(c_n)
             cmd = 'DWL {:02x}{}\r'.format(len(_), _)
             c_n += 1
-            print(cmd)
             self.ble_write(cmd.encode())
             last = time.perf_counter()
             while 1:
@@ -331,26 +327,8 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.set_file_mode(False)
         self.dlg.x_buf = bytes()
 
-        # bad end
-        if timeout:
-            print('DWG timeout error, wait for clean-up')
-            while self.per.waitForNotifications(1):
-                print('DWL x')
-            return False
-
-        # good end, finish benchmark
-        ts_end = time.perf_counter()
-        _took = ts_end - ts_start
-        print('DWL took {} s'.format(int(_took)))
-        speed = size / 1000 / _took
-        print('DWL speed {} KB/s'.format(int(speed)))
-
-        # write file to disk
-        p = '{}/{}'.format(fol, file)
-        with open(p, 'wb') as f:
-            f.write(file_built)
-            f.truncate(int(size))
-        return True
+        # double return value
+        return not timeout, file_built
 
     def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         # ensure fol string, not path_lib
@@ -364,7 +342,7 @@ class LoggerControllerBLE(LoggerController):
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                dl = self._dwl_file(file, fol, size, sig)
+                dl = self._dwl(file, fol, size, sig)
             else:
                 e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
