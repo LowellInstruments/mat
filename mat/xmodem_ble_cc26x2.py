@@ -1,6 +1,5 @@
 import time
-import crc16
-
+from mat.utils import xmd_frame_check_crc
 
 SOH = b'\x01'
 STX = b'\x02'
@@ -110,7 +109,7 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
 
 
 def _parse_frame(lc_ble, sending_c, retries, whole_file):
-    if _frame_check_crc(lc_ble):
+    if xmd_frame_check_crc(lc_ble):
         # print('<- crc ok')
         sending_c = False
         retries = 0
@@ -149,16 +148,6 @@ def _can(lc_ble):
     lc_ble.ble_write(CAN)
     _xmd_print('-> can')
     lc_ble.ble_write(CAN)
-
-
-# calculate CRC omitting proper fields
-def _frame_check_crc(lc_ble):
-    data = lc_ble.dlg.x_buf[3:-2]
-    received_crc_bytes = lc_ble.dlg.x_buf[-2:]
-    calculated_crc_int = crc16.crc16xmodem(data)
-    calculated_crc_bytes = calculated_crc_int.to_bytes(2, byteorder='big')
-    # print(len(lc_ble.dlg.x_buf))
-    return calculated_crc_bytes == received_crc_bytes
 
 
 class XModemException(Exception):

@@ -1,6 +1,5 @@
 import time
-import crc16
-
+from mat.utils import xmd_frame_check_crc
 
 SOH = b'\x01'
 STX = b'\x02'
@@ -87,7 +86,7 @@ def xmd_get_file_rn4020(lc, sig=None, verbose=False):
             continue
 
         # PARSE DATA ok
-        if _frame_check_crc(lc):
+        if xmd_frame_check_crc(lc):
             file_built += lc.dlg.x_buf[3:_len - 2]
             lc.dlg.x_buf = lc.dlg.x_buf[_len:]
             _ack(lc)
@@ -114,14 +113,6 @@ def _can(lc):
     lc.ble_write(CAN)
     lc.ble_write(CAN)
     lc.ble_write(CAN)
-
-
-def _frame_check_crc(lc):
-    data = lc.dlg.x_buf[3:-2]
-    rx_crc = lc.dlg.x_buf[-2:]
-    calc_crc_int = crc16.crc16xmodem(data)
-    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
-    return calc_crc_bytes == rx_crc
 
 
 class XModemException(Exception):
