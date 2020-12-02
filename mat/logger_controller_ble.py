@@ -380,12 +380,13 @@ def brand_microchip(mac):
 
 
 def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
-    # hci_if: hciX interface,
+    # hci_if: hciX interface number
     import sys
     try:
         s = ble.Scanner(iface=hci_if)
-        # passive solves scanend error
-        return s.scan(timeout=my_to, passive=True)
+        # it'd seem external Bluetooth dongles need passive
+        _p = True if hci_if else False
+        return s.scan(timeout=my_to, passive=_p)
     except OverflowError:
         e = 'SYS: overflow on BLE scan, maybe date time error'
         print(e)
