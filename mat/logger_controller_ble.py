@@ -94,8 +94,8 @@ class LoggerControllerBLE(LoggerController):
                 self.per.writeCharacteristic(desc, b'\x01\x00')
 
                 # first time on unknown logger, ensure BLE parameters applied
-                if not is_connection_recent(self.address):
-                    self.per.disconnect()  # pragma: no cover
+                if not is_connection_recent(self.address):  # pragma: no cover
+                    self.per.disconnect()
                     continue
 
                 self.open_post()
@@ -119,8 +119,8 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _cmd_ans_arrived(self, tag, debug=False):  # pragma: no cover
-        """ ends last command sent's answer timeout """
+    def _ans_is_finished(self, tag):  # pragma: no cover
+        """ ends last command sent answer timeout """
 
         b = self.dlg.buf
 
@@ -145,16 +145,16 @@ class LoggerControllerBLE(LoggerController):
             time.sleep(.5)
             return True
 
-        # valid answer, parse it
-        return _ans_parse(tag, a, b)
+        # (partial) answer, check it
+        return _ans_check(tag, a, b)
 
-    def _cmd_sent_now_wait_answer(self, tag: str):    # pragma: no cover
+    def _wait_answer_to_ble_cmd(self, tag: str):    # pragma: no cover
         w = calc_ble_cmd_ans_timeout(tag)
         till = time.perf_counter() + w
         while 1:
             if time.perf_counter() > till:
                 break
-            if self._cmd_ans_arrived(tag, debug=False):
+            if self._ans_is_finished(tag):
                 break
             if self.per.waitForNotifications(0.001):
                 till += 0.001
@@ -189,7 +189,7 @@ class LoggerControllerBLE(LoggerController):
 
         # send command, wait answer
         self.ble_write(to_send.encode())
-        ans = self._cmd_sent_now_wait_answer(tag).split()
+        ans = self._wait_answer_to_ble_cmd(tag).split()
 
         # pause a bit, if so
         _cmd_post_slow_down_if_so(tag)
@@ -228,7 +228,7 @@ class LoggerControllerBLE(LoggerController):
             f.truncate(int(size))
         return True
 
-    def get_file(self, file, fol, size, sig=None):
+    def get_file(self, file, fol, size, sig=None):  # pragma: no cover
         rv = False
         try:
             rv = self.und.get_file(self, file, fol, size, sig)
@@ -321,6 +321,8 @@ class LoggerControllerBLE(LoggerController):
                 if len(self.dlg.x_buf) >= 2048:
                     file_built += self.dlg.x_buf[:2048]
                     self.dlg.x_buf = self.dlg.x_buf[2048:]
+                    if sig:
+                        sig.emit()
                     break
             if len(file_built) == size or timeout:
                 break
@@ -511,7 +513,7 @@ def is_a_li_logger(rd):
     return False
 
 
-def _ans_parse(tag, a, b):
+def _ans_check(tag, a, b):
     # helper: function expects a 'TAG 00' answer when z is 0
     def _exp(fixed=0):
         _ = '{} 00'.format(tag) if fixed else tag
@@ -590,7 +592,7 @@ def _cmd_post_slow_down_if_so(tag: str):
 
 
 # helper: function returns false if tag is unknown
-def _ans_unk(_tag):
+def _ans_unk(_tag):  # pragma: no cover
     print('unknown tag {}'.format(_tag))
     return False
 
