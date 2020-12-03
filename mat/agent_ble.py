@@ -25,7 +25,7 @@ class AgentBLE(threading.Thread):
             if a == mac and self.lc.per.getState() == "conn":
                 return 0, 'already connected'
 
-        # ensure we cut any last connection
+        # cut any current connection w/ different mac
         if self.lc:
             self.lc.close()
 
@@ -182,6 +182,7 @@ class TestBLEAgent:
         assert rv[0] == 0
         el = time.perf_counter() - now
         assert el > 1
+        _p('1st GTM {} took {}'.format(rv[1], el))
         # the next 2 are much faster
         now = time.perf_counter()
         rv = th.get_time(mac)
@@ -189,7 +190,7 @@ class TestBLEAgent:
         rv = th.get_time(mac)
         assert rv[0] == 0
         el = time.perf_counter() - now
-        _p(el)
+        _p('2nd & 3rd GTM {} took {}'.format(rv[1], el))
         assert el < .5
 
     def test_connect_error(self):
@@ -222,6 +223,7 @@ class TestBLEAgent:
 
     def test_disconnect_not_agent(self):
         th = AgentBLE()
+        # don't connect
         rv = th.disconnect()
         assert rv[1] == 'not agent'
 
