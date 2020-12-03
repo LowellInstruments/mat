@@ -6,12 +6,13 @@ from setuptools import setup
 requirements = [
     'numpy',
     'pyserial',
-    'h5py==2.10.0',
-    'crc16==0.1.1'
+    'h5py==2.10.0'
 ]
 if os.name == 'posix':
-    requirements.append(
-        'bluepy@git+https://github.com/LowellInstruments/bluepy.git')
+    requirements.extend([
+        'bluepy@git+https://github.com/LowellInstruments/bluepy.git',
+        'crc16==0.1.1'
+    ])
 
 setup(name='lowell-mat',
       version='1.2',
