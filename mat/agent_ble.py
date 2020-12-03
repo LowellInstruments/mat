@@ -13,6 +13,10 @@ def _mac(s):
     return s.rsplit(' ', 1)[-1]
 
 
+def _sp(s, i):
+    return s.rsplit(' ')[i]
+
+
 class AgentBLE(threading.Thread):
     def __init__(self, hci_if=0):
         super().__init__()
@@ -33,7 +37,7 @@ class AgentBLE(threading.Thread):
             'ls_lid': self.ls_lid,
             'ls_not_lid': self.ls_not_lid,
             'stop': self.stop,
-            # 'get_file': self.get_file
+            'get_file': self.get_file
         }
         fxn = fxn_map[cmd]
         # noinspection PyArgumentList
@@ -109,7 +113,8 @@ class AgentBLE(threading.Thread):
             return 0, rv
         return 1, rv
 
-    def ls_lid(self, mac):
+    def ls_lid(self, s):
+        mac = _mac(s)
         rv = self.connect(mac)
         if rv[0] == 1:
             return rv
@@ -118,7 +123,8 @@ class AgentBLE(threading.Thread):
             return 0, rv
         return 1, rv
 
-    def ls_not_lid(self, mac):
+    def ls_not_lid(self, s):
+        mac = _mac(s)
         rv = self.connect(mac)
         if rv[0] == 1:
             return rv
@@ -127,7 +133,8 @@ class AgentBLE(threading.Thread):
             return 0, rv
         return 1, rv
 
-    def stop(self, mac):
+    def stop(self, s):
+        mac = _mac(s)
         rv = self.connect(mac)
         if rv[0] == 1:
             return rv
@@ -136,22 +143,31 @@ class AgentBLE(threading.Thread):
             return 0, 'logger stopped'
         return 1, 'logger not stopped'
 
-    # def get_file(self, mac, file, fol, size):
-    #     rv = self.connect(mac)
-    #     if rv[0] == 1:
-    #         return rv
-    #     todo: pass sig as parameter
-        # rv = self.lc.get_file(file, fol, size)
-        # if rv:
-        #     return 0, 'file {} size {}'.format(file, size)
-        # return 1, 'err get_file {} size {}'.format(file, 0)
-    #
+    def get_file(self, s):
+        # s: 'get_file <file> <fol> <size> <mac>
+        mac = _mac(s)
+        file = _sp(s, 1)
+        fol = _sp(s, 2)
+        size = _sp(s, 3)
+        print(mac, file, fol, size)
+
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+
+        # todo: pass sig as parameter
+        rv = self.lc.get_file(file, fol, size)
+        if rv:
+            return 0, 'file {} size {}'.format(file, size)
+        return 1, 'err get_file {} size {}'.format(file, 0)
+
     def close(self):
         return self.disconnect()
 
 
 class TestBLEAgent:
-    m = '60:77:71:22:c8:08'
+    # m = '60:77:71:22:c8:08'
+    m = '60:77:71:22:c8:18'
 
     def test_disconnect_was_not_connected(self):
         ag = AgentBLE()
@@ -241,16 +257,20 @@ class TestBLEAgent:
         assert rv[0] == 0
         _q(ag, 'bye')
 
-    # def test_get_file(self):
-    #     # this may not output text during a long time
-    #     th = AgentBLE()
-    #     th.start()
-    #     th.disconnect()
-    #     mac = '60:77:71:22:C8:18'
-    #     file = '2006671_low_20201004_132205.lid'
-    #     size = 299950
-    #     rv = th.get_file(mac, file, '.', size)
-    #     assert rv[0] == 0
+    def test_get_file(self):
+        # this long test may take a long time
+        mac = self.m
+        ag = AgentBLE()
+        ag.start()
+        s = '{} {}'.format('disconnect', mac)
+        _q(ag, s)
+        file = '2006671_low_20201004_132205.lid'
+        size = 299950
+        fol = '.'
+        s = 'get_file {} {} {} {}'.format(file, fol, size, mac)
+        rv = _q(ag, s)
+        assert rv[0] == 0
+        _q(ag, 'bye')
 
     def test_ls_lid(self):
         mac = self.m
