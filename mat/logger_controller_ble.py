@@ -15,6 +15,7 @@ import subprocess as sp
 # commands not present in USB loggers
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
+
 SIZ_CMD = 'SIZ'
 BAT_CMD = 'BAT'
 BTC_CMD = 'BTC'
@@ -220,7 +221,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.dlg.set_file_mode(False)
 
-        if not rv or len(data) < size:
+        if not rv or len(data) < int(size):
             return False
         p = '{}/{}'.format(fol, file)
         with open(p, 'wb') as f:

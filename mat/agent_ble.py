@@ -1,3 +1,4 @@
+import re
 import threading
 import time
 from mat.logger_controller import STOP_CMD, STATUS_CMD
@@ -9,12 +10,26 @@ def _p(s):
     print(s, flush=True)
 
 
+def _stringify_dir_ans(_d_a):
+    if _d_a == b'ERR':
+        return 'ERR'
+    # _d_a: {'file.lid': 2182}
+    rv = ''
+    for k, v in _d_a.items():
+        rv += '{} {} '.format(k, v)
+    return rv
+
+
 def _mac(s):
     return s.rsplit(' ', 1)[-1]
 
 
 def _sp(s, i):
     return s.rsplit(' ')[i]
+
+
+def _e(s):
+    return 'error {}'.format(s)
 
 
 class AgentBLE(threading.Thread):
@@ -27,7 +42,7 @@ class AgentBLE(threading.Thread):
 
     def _parse(self, s):
         # s: '<cmd> <args> <mac>'
-        cmd, _ = s.split(' ', 1)
+        cmd, *_ = s.split(' ', 1)
         fxn_map = {
             'status': self.status,
             'connect': self.connect,
@@ -37,20 +52,28 @@ class AgentBLE(threading.Thread):
             'ls_lid': self.ls_lid,
             'ls_not_lid': self.ls_not_lid,
             'stop': self.stop,
-            'get_file': self.get_file
+            'get_file': self.get_file,
+            'bye!': self.bye,
+            'query': self.query
         }
         fxn = fxn_map[cmd]
         # noinspection PyArgumentList
         return fxn(s)
 
+    def _post(self, _in, _out):
+        s = _in.split(' ')
+        if s[0] == 'get_file' and _out[0] == 0:
+            file, size = s[1], int(s[3])
+            _p('sendinf gile {} {}'.format(file, size))
+
     def run(self):
         while 1:
             _in = self.q_in.get()
-            # needed because of testing threads
-            if _in == 'bye':
-                break
             _out = self._parse(_in)
             self.q_out.put(_out)
+            self._post(_in, _out)
+            if _in == 'bye!':
+                break
 
     def status(self, s):
         # s: 'status <mac>'
@@ -60,8 +83,9 @@ class AgentBLE(threading.Thread):
             return rv
         rv = self.lc.command(STATUS_CMD)
         if rv[0] == b'STS' and len(rv[1]) == 4:
-            return 0, rv
-        return 1, rv
+            a = 'STS {}'.format(rv[1].decode())
+            return 0, a
+        return 1, _e(' error STS {}'.format(rv[1].decode()))
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
@@ -97,9 +121,10 @@ class AgentBLE(threading.Thread):
         if rv[0] == 1:
             return rv
         rv = self.lc.get_time()
+        # this already is a string
         if len(str(rv)) == 19:
             return 0, str(rv)
-        return 1, rv
+        return 1, _e('error GTM {}'.format(rv[1].decode()))
 
     def set_time(self, s):
         # s: 'set_time <mac>'
@@ -110,8 +135,8 @@ class AgentBLE(threading.Thread):
         rv = self.lc.sync_time()
         print(rv)
         if rv == [b'STM', b'00']:
-            return 0, rv
-        return 1, rv
+            return 0, 'STM 00'
+        return 1, _e('error STM {}'.format(rv[1].decode()))
 
     def ls_lid(self, s):
         mac = _mac(s)
@@ -120,7 +145,7 @@ class AgentBLE(threading.Thread):
             return rv
         rv = self.lc.ls_lid()
         if type(rv) == dict:
-            return 0, rv
+            return 0, _stringify_dir_ans(rv)
         return 1, rv
 
     def ls_not_lid(self, s):
@@ -130,7 +155,7 @@ class AgentBLE(threading.Thread):
             return rv
         rv = self.lc.ls_not_lid()
         if type(rv) == dict:
-            return 0, rv
+            return 0, _stringify_dir_ans(rv)
         return 1, rv
 
     def stop(self, s):
@@ -143,19 +168,30 @@ class AgentBLE(threading.Thread):
             return 0, 'logger stopped'
         return 1, 'logger not stopped'
 
+    @staticmethod
+    def bye(_):
+        return 0, 'bye you from ble'
+
+    def query(self, _):
+        a = 'agent ble is {}'
+        if not self.lc:
+            return 0, a.format('empty')
+        if not self.lc.per:
+            return 0, a.format('empty')
+        return 0, a.format(self.lc.per.getState())
+
     def get_file(self, s):
         # s: 'get_file <file> <fol> <size> <mac>
         mac = _mac(s)
         file = _sp(s, 1)
         fol = _sp(s, 2)
         size = _sp(s, 3)
-        print(mac, file, fol, size)
 
         rv = self.connect(mac)
         if rv[0] == 1:
             return rv
 
-        # todo: pass sig as parameter
+        # todo: do this and pass sig as parameter
         rv = self.lc.get_file(file, fol, size)
         if rv:
             return 0, 'file {} size {}'.format(file, size)
@@ -172,12 +208,12 @@ class TestBLEAgent:
     def test_disconnect_was_not_connected(self):
         ag = AgentBLE()
         ag.start()
-        # skip connect on purpose
+        # skip connect() on purpose
         mac = self.m
         s = '{} {}'.format('disconnect', mac)
         rv = _q(ag, s)
         assert rv[1] == 'was not connected'
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_connect_disconnect(self):
         ag = AgentBLE()
@@ -192,7 +228,7 @@ class TestBLEAgent:
         rv = _q(ag, s)
         assert rv[0] == 0
         assert rv[1] == 'disconnected'
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_connect_error(self):
         # may take a bit more time, 3 retries connect
@@ -204,7 +240,7 @@ class TestBLEAgent:
         s = '{} {}'.format('connect', mac)
         rv = _q(ag, s)
         assert rv[0] == 1
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_connect_already(self):
         mac = self.m
@@ -217,7 +253,7 @@ class TestBLEAgent:
         s = '{} {}'.format('connect', mac)
         rv = _q(ag, s)
         assert rv[1] == 'already connected'
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_get_time_thrice_few_time_same_connection(self):
         ag = AgentBLE()
@@ -244,7 +280,7 @@ class TestBLEAgent:
         el = time.perf_counter() - now
         _p('2nd & 3rd GTM {} took {}'.format(rv[1], el))
         assert el < .5
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_set_time(self):
         mac = self.m
@@ -255,7 +291,7 @@ class TestBLEAgent:
         s = '{} {}'.format('set_time', mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_get_file(self):
         # this long test may take a long time
@@ -270,7 +306,7 @@ class TestBLEAgent:
         s = 'get_file {} {} {} {}'.format(file, fol, size, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_ls_lid(self):
         mac = self.m
@@ -282,7 +318,7 @@ class TestBLEAgent:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_ls_not_lid(self):
         mac = self.m
@@ -294,7 +330,7 @@ class TestBLEAgent:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
     def test_stop(self):
         mac = self.m
@@ -303,13 +339,13 @@ class TestBLEAgent:
         s = 'stop {}'.format(mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye')
+        _q(ag, 'bye!')
 
 
 def _q(_ag, _in):
     _ag.q_in.put(_in)
     # needed because of testing threads
-    if _in == 'bye':
+    if _in == 'bye!':
         return
     _out = _ag.q_out.get()
     return _out
