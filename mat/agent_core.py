@@ -79,6 +79,12 @@ class AgentCore:
                 th_ble.q_in.put(_in)
                 _out = th_ble.q_out.get()
                 self._out_core_ans(_out)
+
+                # more stuff, such in case of get file
+                # todo: receive file here
+                if _in.startswith('get_file') and _out[0] == 0:
+                    _p('receiving {}'.format(_in))
+
                 if _in == 'bye!':
                     break
 
@@ -93,6 +99,12 @@ class TestAgentCore:
         th_c.start()
         list_of_cmd = ['bye!']
         _fake_client_send_n_wait(self.u, list_of_cmd, 1000, self.m)
+
+    def test_core_get_file(self):
+        th_c = threading.Thread(target=AgentCore, args=(self.u,))
+        th_c.start()
+        list_of_cmd = ['get_file 2006671_low_20201004_132205.lid . 299950']
+        _fake_client_send_n_wait(self.u, list_of_cmd, 300 * 1000, self.m)
 
     def test_core_commands(self):
         th_c = threading.Thread(target=AgentCore, args=(self.u,))

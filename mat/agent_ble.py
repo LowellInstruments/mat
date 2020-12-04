@@ -1,4 +1,3 @@
-import re
 import threading
 import time
 from mat.logger_controller import STOP_CMD, STATUS_CMD
@@ -65,6 +64,7 @@ class AgentBLE(threading.Thread):
         if s[0] == 'get_file' and _out[0] == 0:
             file, size = s[1], int(s[3])
             _p('sendinf gile {} {}'.format(file, size))
+            # todo: open file and send it via self.sk
 
     def run(self):
         while 1:
