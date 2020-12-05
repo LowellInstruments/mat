@@ -1,3 +1,4 @@
+import random
 import threading
 import time
 import subprocess as sp
@@ -5,6 +6,10 @@ import pika
 from coverage.annotate import os
 from getmac import get_mac_address
 from pika.exceptions import AMQPError, ProbableAccessDeniedError
+from mat.agent_n2lh import PORT_N2LH
+
+
+PORT_NX_SERVER = 4000
 
 
 def _p(s):
@@ -67,12 +72,52 @@ def _query(_, macs):
     return 0, s
 
 
-def _start_nx(_, macs):
-    return 0, 'fake nx started at {}'.format(macs)
+def _route_ngrok(macs, port) -> str:
+    # random to avoid collisions
+    _tc = random.random() * 3
+    _p('sleeping {:.2f} s...'.format(_tc))
+    time.sleep(_tc)
+
+    # obtain proper ngrok name and kill any current local one
+    ngrok_bin = _get_ngrok_bin_name()
+    cmd = 'killall {}'.format(ngrok_bin)
+    sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    # remove any ngrok log
+    cmd = 'rm ./ngrok.log'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if b'permission denied' in _rv.stderr:
+        e = 'error: few permissions to rm ngrok'
+        return 1, e
+
+    # Popen() so it daemons ngrok, but it cannot examine returnc ode
+    cmd = './{} tcp {} -log=./ngrok.log'.format(ngrok_bin, port)
+    _p(cmd)
+    sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    # see log file, grep ngrok url
+    time.sleep(2)
+    cmd = 'cat ngrok.log | grep \'started tunnel\''
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if _rv.returncode != 0:
+        e = 'error: ngrok not grep at {}, maybe runs somewhere else?'
+        return 1, e.format(macs[0])
+
+    # grab the output of cat as ngrok url
+    g = _rv.stdout
+    u = g.decode().strip().split('url=')[1]
+    pad = ' ' * 23
+    s = 'ngrok at mac {}\n{}port {}\n{}url {}'
+    s = s.format(macs[0], pad, port, pad, u)
+    return 0, s
 
 
-def _start_agent(_, macs):
-    return 0, 'fake agent started at {}'.format(macs)
+def _route_nx(_, macs):
+    return _route_ngrok(macs, PORT_NX_SERVER)
+
+
+def _route_agent(_, macs):
+    return _route_ngrok(macs, PORT_N2LH)
 
 
 def _kill(_, macs):
@@ -107,8 +152,8 @@ def _parse(s: bytes):
         'bye!': _bye,
         'who': _who,
         'query': _query,
-        'start_nx': _start_nx,
-        'start_agent': _start_agent,
+        'route_nx': _route_nx,
+        'route_agent': _route_agent,
         'kill': _kill
     }
     fxn = fxn_map[cmd]
@@ -151,7 +196,7 @@ class AgentN2LL(threading.Thread):
 
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            print('-> slave  rx_cb: {}'.format(body))
+            _p('-> slave  rx_cb: {}'.format(body))
             ans = _parse(body)
             # ans: (0, description)
             self._pub(ans[1])
@@ -218,7 +263,7 @@ class TestLLPAgent:
         ag.start()
         # give time slave to boot
         time.sleep(1)
-        list_of_cmd = ['who', 'query']
+        list_of_cmd = ['who', 'query', 'kill', 'route_nx']
         ac = ClientLLP(self._url)
         for cmd in list_of_cmd:
             ac.tx(cmd)
