@@ -218,6 +218,7 @@ class TestBLEAgent:
         ag = AgentBLE(threaded=1)
         ag.start()
         mac = self.m
+        # todo: can we remove this disconnects in the tests?
         s = '{} {}'.format('disconnect', mac)
         _q(ag, s)
         s = '{} {}'.format('connect', mac)
