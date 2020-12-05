@@ -17,7 +17,9 @@ def _good_core_prefix(s):
         return False
     if s == 'bye!':
         return s
-    if s[:4] in ('ble ', 'gps ', 'ngr '):
+
+    # LNP stuff does not come this way
+    if s[:4] in ('ble ', 'gps '):
         return s[4:]
 
 
