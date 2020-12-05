@@ -73,10 +73,15 @@ def _query(_, macs):
 
 
 def _route_ngrok(macs, port) -> str:
+
     # random to avoid collisions
     _tc = random.random() * 3
     _p('sleeping {:.2f} s...'.format(_tc))
     time.sleep(_tc)
+
+
+    return 0, 'ojiafdoijfaoijfdasoijf'
+
 
     # obtain proper ngrok name and kill any current local one
     ngrok_bin = _get_ngrok_bin_name()
@@ -269,4 +274,6 @@ class TestLLPAgent:
             ac.tx(cmd)
             # don't end master too soon
             time.sleep(1)
+            if cmd == 'route_nx':
+                time.sleep(10)
 
