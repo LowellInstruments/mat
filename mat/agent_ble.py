@@ -59,19 +59,11 @@ class AgentBLE(threading.Thread):
         # noinspection PyArgumentList
         return fxn(s)
 
-    def _post(self, _in, _out):
-        s = _in.split(' ')
-        if s[0] == 'get_file' and _out[0] == 0:
-            file, size = s[1], int(s[3])
-            _p('sendinf gile {} {}'.format(file, size))
-            # todo: open file and send it via self.sk
-
     def run(self):
         while 1:
             _in = self.q_in.get()
             _out = self._parse(_in)
             self.q_out.put(_out)
-            self._post(_in, _out)
             if _in == 'bye!':
                 break
 

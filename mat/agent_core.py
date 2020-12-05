@@ -1,4 +1,3 @@
-import socket
 import threading
 import time
 import pynng
@@ -80,10 +79,18 @@ class AgentCore:
                 _out = th_ble.q_out.get()
                 self._out_core_ans(_out)
 
-                # more stuff, such in case of get file
-                # todo: receive file here
+                # more to do, forward file in case of get_file
                 if _in.startswith('get_file') and _out[0] == 0:
-                    _p('receiving {}'.format(_in))
+                    # _in: 'get_file <name> <fol> <size> <mac>'
+                    file = _in.split(' ')[1]
+                    with open(file, 'rb') as f:
+                        print('tx file {}'.format(file))
+                        b = f.read()
+                        # todo: decide if same socket or another
+                        sk = Pair0()
+                        u_ext = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER + 1)
+                        sk.dial(u_ext)
+                        sk.send(b)
 
                 if _in == 'bye!':
                     break
@@ -91,6 +98,7 @@ class AgentCore:
 
 class TestAgentCore:
     u = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER)
+    u_ext = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER + 1)
     m = '60:77:71:22:c8:18'
     # m = '60:77:71:22:c8:08'
 
@@ -105,6 +113,12 @@ class TestAgentCore:
         th_c.start()
         list_of_cmd = ['get_file 2006671_low_20201004_132205.lid . 299950']
         _fake_client_send_n_wait(self.u, list_of_cmd, 300 * 1000, self.m)
+        # todo: is this true that we cannot listen 2 same socket so we emulate like this
+        sk = Pair0()
+        sk.listen(self.u_ext)
+        sk.recv_timeout = 1000
+        rv = _fake_client_rx_file(sk, '2006671_low_20201004_132205.lid', 299950)
+        assert rv
 
     def test_core_commands(self):
         th_c = threading.Thread(target=AgentCore, args=(self.u,))
@@ -112,6 +126,15 @@ class TestAgentCore:
         list_of_cmd = ['query', 'status', 'get_time', 'ls_lid',
                        'query', 'bye!']
         _fake_client_send_n_wait(self.u, list_of_cmd, 20 * 1000, self.m)
+
+
+def _fake_client_rx_file(sk, filename, size):
+    b = sk.recv()
+    filename = '_rut_{}'.format(filename)
+    with open(filename, 'wb') as f:
+        f.write(b)
+        f.truncate(int(size))
+    return len(b) == int(size)
 
 
 def _fake_client_send_n_wait(_url, list_out, timeout_ms: int, mac):
