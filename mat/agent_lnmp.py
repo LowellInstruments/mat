@@ -1,5 +1,8 @@
 import threading
+import time
+import subprocess as sp
 import pika
+from coverage.annotate import os
 from getmac import get_mac_address
 from pika.exceptions import AMQPError, ProbableAccessDeniedError
 
@@ -13,6 +16,16 @@ def _u():
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
     return url.format(_user, _rest, _user)
+
+
+def _get_ngrok_bin_name() -> str:
+    _s = os.uname().nodename
+    _m = os.uname().machine
+    if _m == 'armv7l':
+        return 'ngrok_rpi'
+    if _s == 'rasberrypi' or _s == 'rpi':
+        return 'ngrok_rpi'
+    return 'ngrok_x64'
 
 
 def _mq_get_ch():
@@ -35,25 +48,72 @@ def mq_exchange_for_masters():
     return _ch
 
 
-# def _cmd_query(cmd, macs) -> str:
-#     _grep = 'ps aux | grep {} | grep -v grep'.format(cmd)
-#     _rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-#     cond = _rv.returncode == 0
-#     s = '{} {} at {}'.format(SYM_TICK, cmd, macs[0])
-#     e = '{} no {} at {}'.format(SYM_CROSS, cmd, macs[0])
-#     return s if cond else e
-#
-#
-# def _cmd_nle_query(macs) -> str:
-#     return _cmd_query('main_nle_s.py', macs)
-#
-#
-# def _cmd_nx_query(macs) -> str:
-#     return _cmd_query('nxserver', macs)
-#
-#
-# def _cmd_ngrok_query(macs) -> str:
-#     return _cmd_query(get_ngrok_bin_name(), macs)
+def _who(_, macs):
+    return 0, ' '.join([m for m in macs if m and m != '*'])
+
+
+def _bye(_, macs):
+    return 0, 'bye you from lnmp in {}'.format(macs)
+
+
+def _query(_, macs):
+    _grep = 'ps aux | grep nxserver | grep -v grep'
+    _rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    cond_nx = _rv.returncode == 0
+    _grep = 'ps aux | grep _____name___agent___ | grep -v grep'
+    _rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    cond_ag = _rv.returncode == 0
+    s = 'NX {} agent {} at {}'.format(cond_nx, cond_ag, macs)
+    return 0, s
+
+
+def _start_nx(_, macs):
+    return 0, 'fake nx started at {}'.format(macs)
+
+
+def _start_agent(_, macs):
+    return 0, 'fake agent started at {}'.format(macs)
+
+
+def _kill(_, macs):
+    ngrok_bin = _get_ngrok_bin_name()
+    cmd = 'killall {}'.format(ngrok_bin)
+    _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return 0, '{} done at {}'.format(cmd, macs)
+
+
+def _parse(s: bytes):
+    if not s:
+        return b'error lnp: cmd empty'
+
+    # parse lnp stuff
+    s = s.decode().split(' ')
+
+    # who am I
+    _my_macs = [get_mac_address(interface='wlo1'),
+                get_mac_address(interface='wlan0'),
+                '*']
+
+    # is this frame for us
+    if len(s) >= 2:
+        # todo: do this for more universal mac names
+        mac = s[1]
+        if mac not in _my_macs:
+            return b'error lnp: cmd not for us'
+
+    # search the function
+    cmd = s[0]
+    fxn_map = {
+        'bye!': _bye,
+        'who': _who,
+        'query': _query,
+        'start_nx': _start_nx,
+        'start_agent': _start_agent,
+        'kill': _kill
+    }
+    fxn = fxn_map[cmd]
+    # noinspection PyArgumentList
+    return fxn(s, _my_macs)
 
 
 class AgentLLP(threading.Thread):
@@ -62,48 +122,12 @@ class AgentLLP(threading.Thread):
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
-        # todo: do this for more universal mac names
-        self._my_macs = [get_mac_address(interface='wlo1'),
-                         get_mac_address(interface='wlan0'),
-                         '*']
 
     def _get_ch_pub(self):
         self.ch_pub = mq_exchange_for_slaves()
 
     def _get_ch_sub(self):
         self.ch_sub = mq_exchange_for_masters()
-
-    def _who(self) -> str:
-        return ' '.join([_ for _ in self._my_macs if _ and _ != '*'])
-
-    def _parse(self, s: bytes):
-        if not s:
-            return b'error lnp: cmd empty'
-
-        # parse lnp stuff
-        cmd, mac, *_ = s.split(' ', 2)
-
-        # is this frame for us
-        if mac not in self._my_macs:
-            return b'error lnp: cmd not for us'
-
-        # search the function
-        fxn_map = {
-            'bye!': self.bye,
-            'who': self._who
-            #     elif cmd == 'gr_nx':
-            #         _ = cmd_ngrok_to_nx(_my_macs, mac_wildcard)
-            #     elif cmd == 'gr_nle':
-            #         _ = cmd_ngrok_to_nle(_my_macs, mac_wildcard)
-            #     elif cmd == 'gr_stop':
-            #         _ = cmd_ngrok_kill(_my_macs)
-            #     elif cmd == 'gr_query':
-            #         _ = _cmd_ngrok_query(_my_macs)
-
-        }
-        fxn = fxn_map[cmd]
-        # noinspection PyArgumentList
-        return fxn(s)
 
     def run(self):
         while 1:
@@ -116,36 +140,22 @@ class AgentLLP(threading.Thread):
     def _pub(self, _what):
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
-        print('<- tx slave:  {}'.format(_what))
+        print('<- slave  pub: {}'.format(_what))
         self.ch_pub.close()
 
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            print('-> rx slave:  {}'.format(body))
-            ans = self._parse(body)
-            self._pub(ans)
+            print('-> slave  rx_cb: {}'.format(body))
+            ans = _parse(body)
+            # and" (0, description)
+            self._pub(ans[1])
 
-        print('q')
         self._get_ch_sub()
         rv = self.ch_sub.queue_declare(queue='', durable=True, exclusive=True)
         q = rv.method.queue
-        print('c')
         self.ch_sub.queue_bind(exchange='li_masters', queue=q)
-        print('d')
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()
-
-    @staticmethod
-    def bye(_):
-        return 0, 'bye you from ble'
-
-    def query(self, _):
-        a = 'agent ble is {}'
-        if not self.lc:
-            return 0, a.format('empty')
-        if not self.lc.per:
-            return 0, a.format('empty')
-        return 0, a.format(self.lc.per.getState())
 
 
 class ClientLLP:
@@ -169,23 +179,23 @@ class ClientLLP:
         try:
             self._get_ch_pub()
             self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<- pub master: {}'.format(_what))
+            _p('<- master pub: {}'.format(_what))
             self.tx_last = _what
             self.ch_pub.close()
         except ProbableAccessDeniedError:
             e = 'error AMQP'
             self.sig.emit(self.tx_last, e)
 
+    # careful: this may collect answers from forgotten nodes :)
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            _p(body.decode())
+            s = body.decode()
+            _p('-> master rx_cb: {}'.format(s))
 
         self._get_ch_sub()
         rv = self.ch_sub.queue_declare(queue='', exclusive=True)
         q = rv.method.queue
-        print('a')
         self.ch_sub.queue_bind(exchange='li_slaves', queue=q)
-        print('b')
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()
 
@@ -196,7 +206,8 @@ class MyTestLLPAgent:
     def my_test_llp_cmd(self):
         ag = AgentLLP(self._url)
         ag.start()
-        list_of_cmd = ['who']
+        time.sleep(2)
+        list_of_cmd = ['who', 'query']
         ac = ClientLLP(self._url)
         for cmd in list_of_cmd:
             ac.tx(cmd)

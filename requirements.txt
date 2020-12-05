@@ -10,3 +10,5 @@ crc16
 h5py
 git+https://github.com/LowellInstruments/bluepy.git
 pynng
+pika
+getmac
