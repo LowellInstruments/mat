@@ -10,6 +10,7 @@ from mat.agent_n2lh import PORT_N2LH
 
 
 PORT_NX_SERVER = 4000
+TIME_COLLISIONS_S = 3
 
 
 def _p(s):
@@ -75,13 +76,9 @@ def _query(_, macs):
 def _route_ngrok(macs, port) -> str:
 
     # random to avoid collisions
-    _tc = random.random() * 3
+    _tc = random.random() * TIME_COLLISIONS_S
     _p('sleeping {:.2f} s...'.format(_tc))
     time.sleep(_tc)
-
-
-    return 0, 'ojiafdoijfaoijfdasoijf'
-
 
     # obtain proper ngrok name and kill any current local one
     ngrok_bin = _get_ngrok_bin_name()
@@ -266,14 +263,12 @@ class TestLLPAgent:
     def test_llp_cmd(self):
         ag = AgentN2LL(self._url, threaded=1)
         ag.start()
-        # give time slave to boot
+        # give time slave to boot in this test
         time.sleep(1)
-        list_of_cmd = ['who', 'query', 'kill', 'route_nx']
+        list_of_cmd = ['who', 'query', 'kill', 'route_nx', 'bye!']
         ac = ClientLLP(self._url)
         for cmd in list_of_cmd:
             ac.tx(cmd)
             # don't end master too soon
-            time.sleep(1)
-            if cmd == 'route_nx':
-                time.sleep(10)
-
+            _t = TIME_COLLISIONS_S if cmd == 'route_nx' else 2
+            time.sleep(_t)
