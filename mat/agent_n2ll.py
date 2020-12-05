@@ -116,12 +116,14 @@ def _parse(s: bytes):
     return fxn(s, _my_macs)
 
 
-class AgentLLP(threading.Thread):
-    def __init__(self, url):
+class AgentN2LL(threading.Thread):
+    def __init__(self, url, threaded=1):
         super().__init__()
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
+        if not threaded:
+            self.loop_n2ll()
 
     def _get_ch_pub(self):
         self.ch_pub = mq_exchange_for_slaves()
@@ -130,6 +132,10 @@ class AgentLLP(threading.Thread):
         self.ch_sub = mq_exchange_for_masters()
 
     def run(self):
+        self.loop_n2ll()
+
+    def loop_n2ll(self):
+        """ agentN2LL has no threads: rx and tx back """
         while 1:
             try:
                 self._sub_n_rx()
@@ -147,7 +153,7 @@ class AgentLLP(threading.Thread):
         def _rx_cb(ch, method, properties, body):
             print('-> slave  rx_cb: {}'.format(body))
             ans = _parse(body)
-            # and" (0, description)
+            # ans: (0, description)
             self._pub(ans[1])
 
         self._get_ch_sub()
@@ -159,15 +165,18 @@ class AgentLLP(threading.Thread):
 
 
 class ClientLLP:
-    # pubs to 'li_masters', subs from 'li_slaves'
     def __init__(self, url, sig=None):
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
-        self.th_sub = threading.Thread(target=self._sub_n_rx)
-        self.th_sub.start()
         self.tx_last = None
         self.sig = sig
+        # an N2LL client tx and has a background RX thread
+        self.th_rx = threading.Thread(target=self.loop_n2ll)
+        self.th_rx.start()
+
+    def loop_n2ll(self):
+        self._sub_n_rx()
 
     def _get_ch_pub(self):
         self.ch_pub = mq_exchange_for_masters()
@@ -175,6 +184,7 @@ class ClientLLP:
     def _get_ch_sub(self):
         self.ch_sub = mq_exchange_for_slaves()
 
+    # only used by N2LL clients
     def tx(self, _what: str):
         try:
             self._get_ch_pub()
@@ -200,19 +210,18 @@ class ClientLLP:
         self.ch_sub.start_consuming()
 
 
-class MyTestLLPAgent:
+class TestLLPAgent:
     _url = _u()
 
-    def my_test_llp_cmd(self):
-        ag = AgentLLP(self._url)
+    def test_llp_cmd(self):
+        ag = AgentN2LL(self._url, threaded=1)
         ag.start()
-        time.sleep(2)
+        # give time slave to boot
+        time.sleep(1)
         list_of_cmd = ['who', 'query']
         ac = ClientLLP(self._url)
         for cmd in list_of_cmd:
             ac.tx(cmd)
+            # don't end master too soon
+            time.sleep(1)
 
-
-if __name__ == '__main__':
-    _t = MyTestLLPAgent()
-    _t.my_test_llp_cmd()

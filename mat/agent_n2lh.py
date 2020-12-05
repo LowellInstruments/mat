@@ -5,16 +5,16 @@ from mat.agent_ble import AgentBLE
 from pynng import Pair0
 
 
-PORT_CORE_SERVER = 12804
+PORT_N2LH = 12804
 
 
 def _p(s):
     print(s, flush=True)
 
 
-def _good_core_prefix(s):
+def _good_n2lh_cmd_prefix(s):
     if not s or len(s) < 4:
-        return False
+        return ''
     if s == 'bye!':
         return s
 
@@ -32,24 +32,27 @@ def _check_url_syntax(s):
     assert _transport not in ['tcp']
 
 
-class AgentCore:
-    def __init__(self, core_url):
+class AgentN2LH(threading.Thread):
+    def __init__(self, n2lh_url, threaded):
+        super().__init__()
         self.sk = None
-        self.url = core_url
-        self.core_loop()
+        self.url = n2lh_url
+        # an AgentN2LH has 1 BLE thread, 1 GPS thread...
+        if not threaded:
+            self.loop_n2lh()
 
-    def _in_core_cmd(self):
+    def _in_cmd(self):
         """ receive NLE client commands, silent timeouts """
         try:
             _in = self.sk.recv()
             if _in:
                 _in = _in.decode()
-                _p('core in -> {}'.format(_in))
+                _p('n2lh in -> {}'.format(_in))
         except pynng.Timeout:
             _in = None
         return _in
 
-    def _out_core_ans(self, a):
+    def _out_ans(self, a):
         # agents return (int_rv, s)
         try:
             self.sk.send(a[1].encode())
@@ -57,29 +60,33 @@ class AgentCore:
             # _p('_s_out timeout')
             pass
 
-    def core_loop(self):
+    def run(self):
+        self.loop_n2lh()
+
+    def loop_n2lh(self):
+        """ create BLE and GPS threads """
         while 1:
-            # create socket and BLE thread
             _check_url_syntax(self.url)
             self.sk = Pair0(send_timeout=1000)
             self.sk.listen(self.url)
             self.sk.recv_timeout = 1000
-            th_ble = AgentBLE()
+            th_ble = AgentBLE(threaded=1)
             th_ble.start()
+            # todo: create GPS thread
 
-            _p('ag_core listening on {}'.format(self.url))
+            _p('ag_n2lh listening on {}'.format(self.url))
             while 1:
                 # just parse format, not much content
-                _in = self._in_core_cmd()
-                _in = _good_core_prefix(_in)
+                _in = self._in_cmd()
+                _in = _good_n2lh_cmd_prefix(_in)
                 if not _in:
-                    # _p('bad core prefix {}'.format(_in))
+                    _p('bad n2lh prefix ({}) or timeout empty'.format(_in))
                     continue
 
-                # good core command for our threads
+                # good N2LH command for our threads
                 th_ble.q_in.put(_in)
                 _out = th_ble.q_out.get()
-                self._out_core_ans(_out)
+                self._out_ans(_out)
 
                 # more to do, forward file in case of get_file
                 if _in.startswith('get_file') and _out[0] == 0:
@@ -90,7 +97,7 @@ class AgentCore:
                         b = f.read()
                         # todo: decide if same socket or another
                         sk = Pair0()
-                        u_ext = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER + 1)
+                        u_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
                         sk.dial(u_ext)
                         sk.send(b)
 
@@ -98,21 +105,21 @@ class AgentCore:
                     break
 
 
-class TestAgentCore:
-    u = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER)
-    u_ext = 'tcp4://localhost:{}'.format(PORT_CORE_SERVER + 1)
+class TestAgentN2LH:
+    u = 'tcp4://localhost:{}'.format(PORT_N2LH)
+    u_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
     m = '60:77:71:22:c8:18'
     # m = '60:77:71:22:c8:08'
 
-    def test_core_constructor(self):
-        th_c = threading.Thread(target=AgentCore, args=(self.u,))
-        th_c.start()
+    def test_constructor(self):
+        ag = AgentN2LH(self.u, threaded=1)
+        ag.start()
         list_of_cmd = ['bye!']
         _fake_client_send_n_wait(self.u, list_of_cmd, 1000, self.m)
 
-    def test_core_get_file(self):
-        th_c = threading.Thread(target=AgentCore, args=(self.u,))
-        th_c.start()
+    def test_get_file(self):
+        ag = AgentN2LH(self.u, threaded=1)
+        ag.start()
         list_of_cmd = ['get_file 2006671_low_20201004_132205.lid . 299950']
         _fake_client_send_n_wait(self.u, list_of_cmd, 300 * 1000, self.m)
         # todo: is this true that we cannot listen 2 same socket so we emulate like this
@@ -122,9 +129,9 @@ class TestAgentCore:
         rv = _fake_client_rx_file(sk, '2006671_low_20201004_132205.lid', 299950)
         assert rv
 
-    def test_core_commands(self):
-        th_c = threading.Thread(target=AgentCore, args=(self.u,))
-        th_c.start()
+    def test_commands(self):
+        ag = AgentN2LH(self.u, threaded=1)
+        ag.start()
         list_of_cmd = ['query', 'status', 'get_time', 'ls_lid',
                        'query', 'bye!']
         _fake_client_send_n_wait(self.u, list_of_cmd, 20 * 1000, self.m)

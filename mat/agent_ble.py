@@ -31,13 +31,17 @@ def _e(s):
     return 'error {}'.format(s)
 
 
+# can be threaded
 class AgentBLE(threading.Thread):
-    def __init__(self, hci_if=0):
+    def __init__(self, threaded, hci_if=0):
         super().__init__()
         self.lc = None
         self.h = hci_if
+        # an AgentBLE has no threads
         self.q_in = queue.Queue()
         self.q_out = queue.Queue()
+        if not threaded:
+            self.loop_ble()
 
     def _parse(self, s):
         # s: '<cmd> <args> <mac>'
@@ -59,13 +63,16 @@ class AgentBLE(threading.Thread):
         # noinspection PyArgumentList
         return fxn(s)
 
-    def run(self):
+    def loop_ble(self):
         while 1:
             _in = self.q_in.get()
             _out = self._parse(_in)
             self.q_out.put(_out)
             if _in == 'bye!':
                 break
+
+    def run(self):
+        self.loop_ble()
 
     def status(self, s):
         # s: 'status <mac>'
@@ -198,7 +205,7 @@ class TestBLEAgent:
     m = '60:77:71:22:c8:18'
 
     def test_disconnect_was_not_connected(self):
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         # skip connect() on purpose
         mac = self.m
@@ -208,7 +215,7 @@ class TestBLEAgent:
         _q(ag, 'bye!')
 
     def test_connect_disconnect(self):
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         mac = self.m
         s = '{} {}'.format('disconnect', mac)
@@ -224,7 +231,7 @@ class TestBLEAgent:
 
     def test_connect_error(self):
         # may take a bit more time, 3 retries connect
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         mac = '11:22:33:44:55:66'
         s = '{} {}'.format('disconnect', mac)
@@ -236,7 +243,7 @@ class TestBLEAgent:
 
     def test_connect_already(self):
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = '{} {}'.format('disconnect', mac)
         _q(ag, s)
@@ -248,7 +255,7 @@ class TestBLEAgent:
         _q(ag, 'bye!')
 
     def test_get_time_thrice_few_time_same_connection(self):
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         mac = self.m
         s = '{} {}'.format('disconnect', mac)
@@ -276,7 +283,7 @@ class TestBLEAgent:
 
     def test_set_time(self):
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = '{} {}'.format('disconnect', mac)
         _q(ag, s)
@@ -288,7 +295,7 @@ class TestBLEAgent:
     def test_get_file(self):
         # this long test may take a long time
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = '{} {}'.format('disconnect', mac)
         _q(ag, s)
@@ -302,7 +309,7 @@ class TestBLEAgent:
 
     def test_ls_lid(self):
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = 'disconnect {}'.format(mac)
         _q(ag, s)
@@ -314,7 +321,7 @@ class TestBLEAgent:
 
     def test_ls_not_lid(self):
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = 'disconnect {}'.format(mac)
         _q(ag, s)
@@ -326,7 +333,7 @@ class TestBLEAgent:
 
     def test_stop(self):
         mac = self.m
-        ag = AgentBLE()
+        ag = AgentBLE(threaded=1)
         ag.start()
         s = 'stop {}'.format(mac)
         rv = _q(ag, s)
