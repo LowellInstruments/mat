@@ -59,7 +59,8 @@ class AgentBLE(threading.Thread):
             'get_file': self.get_file,
             'bye!': self.bye,
             'query': self.query,
-            'scan': self.scan
+            'scan': self.scan,
+            'scan_li': self.scan_li
         }
         fxn = fxn_map[cmd]
 
@@ -90,13 +91,22 @@ class AgentBLE(threading.Thread):
         return 1, _e(' error STS {}'.format(rv[1].decode()))
 
     def scan(self, s):
-        # TODO: do hci_if
         # s: scan 0 5
-        sr = logger_controller_ble.ble_scan(0, 5.0)
+        _, h, t = s.split(' ')
+        sr = logger_controller_ble.ble_scan(int(0), float(t))
         rv = ''
         for each in sr:
-            li = is_a_li_logger(each.rawData)
-            rv += '{} {} {} '.format(each.addr, each.rssi, li)
+            rv += '{} {} '.format(each.addr, each.rssi)
+        return 0, rv.strip()
+
+    def scan_li(self, s):
+        # s: scan_li 0 5
+        _, h, t = s.split(' ')
+        sr = logger_controller_ble.ble_scan(int(0), float(t))
+        rv = ''
+        for each in sr:
+            if is_a_li_logger(each.rawData):
+                rv += '{} {} '.format(each.addr, each.rssi)
         return 0, rv.strip()
 
     def connect(self, s):
@@ -358,6 +368,15 @@ class TestBLEAgent:
         ag = AgentBLE(threaded=1)
         ag.start()
         s = 'scan 0 5'
+        rv = _q(ag, s)
+        assert rv[0] == 0
+        _p(rv[1])
+        _q(ag, 'bye!')
+
+    def test_scan_li(self):
+        ag = AgentBLE(threaded=1)
+        ag.start()
+        s = 'scan_li 0 5'
         rv = _q(ag, s)
         assert rv[0] == 0
         _p(rv[1])
