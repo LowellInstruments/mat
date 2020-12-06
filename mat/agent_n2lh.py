@@ -47,7 +47,7 @@ class AgentN2LH(threading.Thread):
             _in = self.sk.recv()
             if _in:
                 _in = _in.decode()
-                _p('n2lh in -> {}'.format(_in))
+                _p('-> {}'.format(_in))
         except pynng.Timeout:
             _in = None
         return _in
@@ -80,7 +80,7 @@ class AgentN2LH(threading.Thread):
                 _in = self._in_cmd()
                 _in = _good_n2lh_cmd_prefix(_in)
                 if not _in:
-                    _p('bad n2lh prefix ({}) or timeout empty'.format(_in))
+                    # _p('bad N2LH prefix ({}) or timeout empty'.format(_in))
                     continue
 
                 # good N2LH command for our threads
@@ -93,7 +93,7 @@ class AgentN2LH(threading.Thread):
                     # _in: 'get_file <name> <fol> <size> <mac>'
                     file = _in.split(' ')[1]
                     with open(file, 'rb') as f:
-                        print('tx file {}'.format(file))
+                        _p('<- sending file {}'.format(file))
                         b = f.read()
                         # todo: decide if same socket or another
                         sk = Pair0()
@@ -117,7 +117,7 @@ class TestAgentN2LH:
         list_of_cmd = ['bye!']
         _fake_client_send_n_wait(self.u, list_of_cmd, 1000, self.m)
 
-    def test_get_file(self):
+    def test_get_ble_file_there_send_it_here(self):
         ag = AgentN2LH(self.u, threaded=1)
         ag.start()
         list_of_cmd = ['get_file 2006671_low_20201004_132205.lid . 299950']

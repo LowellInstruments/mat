@@ -3,7 +3,7 @@ import threading
 import time
 import subprocess as sp
 import pika
-from coverage.annotate import os
+import os
 from getmac import get_mac_address
 from pika.exceptions import AMQPError, ProbableAccessDeniedError
 from mat.agent_n2lh import PORT_N2LH
@@ -31,7 +31,7 @@ def _get_ngrok_bin_name() -> str:
         return 'ngrok_rpi'
     if _s == 'rasberrypi' or _s == 'rpi':
         return 'ngrok_rpi'
-    return 'ngrok_x64'
+    return 'ngrok'
 
 
 def _mq_get_ch():
@@ -59,7 +59,7 @@ def _who(_, macs):
 
 
 def _bye(_, macs):
-    return 0, 'bye you from lnmp in {}'.format(macs)
+    return 0, 'bye you by N2LL in {}'.format(macs)
 
 
 def _query(_, macs):
@@ -73,35 +73,38 @@ def _query(_, macs):
     return 0, s
 
 
-def _route_ngrok(macs, port) -> str:
+def _route_ngrok(macs, port):
 
     # random to avoid collisions
     _tc = random.random() * TIME_COLLISIONS_S
     _p('sleeping {:.2f} s...'.format(_tc))
     time.sleep(_tc)
 
+    # short_name for log file
+    log_file = '/tmp/ngrok.log'
+
     # obtain proper ngrok name and kill any current local one
     ngrok_bin = _get_ngrok_bin_name()
     cmd = 'killall {}'.format(ngrok_bin)
     sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    # remove any ngrok log
-    cmd = 'rm ./ngrok.log'
+    # remove any previous ngrok log file
+    cmd = 'rm {}'.format(log_file)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if b'permission denied' in _rv.stderr:
         e = 'error: few permissions to rm ngrok'
         return 1, e
 
-    # Popen() so it daemons ngrok, but it cannot examine returnc ode
-    cmd = './{} tcp {} -log=./ngrok.log'.format(ngrok_bin, port)
+    # Popen() daemons ngrok, although cannot check return code
+    cmd = '{} tcp {} -log={}'.format(ngrok_bin, port, log_file)
     _p(cmd)
     sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # see log file, grep ngrok url
     time.sleep(2)
-    cmd = 'cat ngrok.log | grep \'started tunnel\''
+    cmd = 'cat {} | grep \'started tunnel\''.format(log_file)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if _rv.returncode != 0:
+    if _rv.returncode:
         e = 'error: ngrok not grep at {}, maybe runs somewhere else?'
         return 1, e.format(macs[0])
 
@@ -159,6 +162,7 @@ def _parse(s: bytes):
         'kill': _kill
     }
     fxn = fxn_map[cmd]
+
     # noinspection PyArgumentList
     return fxn(s, _my_macs)
 
@@ -186,19 +190,18 @@ class AgentN2LL(threading.Thread):
         while 1:
             try:
                 self._sub_n_rx()
-                print('agent loop end')
             except (Exception, AMQPError) as e:
-                print('agent_lnmp rx_exc -> {}'.format(e))
+                _p('agent_N2LL rx_exc -> {}'.format(e))
 
     def _pub(self, _what):
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
-        print('<- slave  pub: {}'.format(_what))
+        # _p('<- slave  pub: {}'.format(_what))
         self.ch_pub.close()
 
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            _p('-> slave  rx_cb: {}'.format(body))
+            # _p('-> slave  rx_cb: {}'.format(body))
             ans = _parse(body)
             # ans: (0, description)
             self._pub(ans[1])
@@ -231,7 +234,6 @@ class ClientLLP:
     def _get_ch_sub(self):
         self.ch_sub = mq_exchange_for_slaves()
 
-    # only used by N2LL clients
     def tx(self, _what: str):
         try:
             self._get_ch_pub()
@@ -240,7 +242,7 @@ class ClientLLP:
             self.tx_last = _what
             self.ch_pub.close()
         except ProbableAccessDeniedError:
-            e = 'error AMQP'
+            e = 'error AMQP ProbableAccessDeniedError'
             self.sig.emit(self.tx_last, e)
 
     # careful: this may collect answers from forgotten nodes :)
@@ -272,3 +274,5 @@ class TestLLPAgent:
             # don't end master too soon
             _t = TIME_COLLISIONS_S if cmd == 'route_nx' else 2
             time.sleep(_t)
+        # otherwise the master gets here too fast despite rx loop
+        time.sleep(5)

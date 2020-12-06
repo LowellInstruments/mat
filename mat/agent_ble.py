@@ -60,6 +60,7 @@ class AgentBLE(threading.Thread):
             'query': self.query
         }
         fxn = fxn_map[cmd]
+
         # noinspection PyArgumentList
         return fxn(s)
 
@@ -294,7 +295,7 @@ class TestBLEAgent:
         _q(ag, 'bye!')
 
     def test_get_file(self):
-        # this long test may take a long time
+        # this long test may take a couple minutes
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
