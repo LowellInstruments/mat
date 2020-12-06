@@ -3,7 +3,8 @@ import time
 import pynng
 from mat.agent_ble import AgentBLE
 from pynng import Pair0
-
+from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
+    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_BYE, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE
 
 PORT_N2LH = 12804
 
@@ -15,11 +16,11 @@ def _p(s):
 def _good_n2lh_cmd_prefix(s):
     if not s or len(s) < 4:
         return ''
-    if s == 'bye!':
+    if s == AG_N2LH_CMD_BYE:
         return s
 
-    # LNP stuff does not come this way
-    if s[:4] in ('ble ', 'gps '):
+    # 'ble <cmd>...' -> <cmd> ...'
+    if s[:3] in (AG_N2LH_PATH_BLE, AG_N2LH_PATH_GPS):
         return s[4:]
 
 
@@ -53,8 +54,9 @@ class AgentN2LH(threading.Thread):
         return _in
 
     def _out_ans(self, a):
-        # agents return (int_rv, s)
+        # a: (int_rv, s), forward just s back
         try:
+            _p('<- N2LH {}'.format(a[1]))
             self.sk.send(a[1].encode())
         except pynng.Timeout:
             # _p('_s_out timeout')
@@ -74,7 +76,7 @@ class AgentN2LH(threading.Thread):
             th_ble.start()
             # todo: create GPS thread
 
-            _p('ag_n2lh listening on {}'.format(self.url))
+            _p('ag_N2LH listening on {}'.format(self.url))
             while 1:
                 # just parse format, not much content
                 _in = self._in_cmd()
@@ -89,11 +91,11 @@ class AgentN2LH(threading.Thread):
                 self._out_ans(_out)
 
                 # more to do, forward file in case of get_file
-                if _in.startswith('get_file') and _out[0] == 0:
+                if _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] == 0:
                     # _in: 'get_file <name> <fol> <size> <mac>'
                     file = _in.split(' ')[1]
                     with open(file, 'rb') as f:
-                        _p('<- sending file {}'.format(file))
+                        _p('<- N2LH {}'.format(file))
                         b = f.read()
                         # todo: decide if same socket or another
                         sk = Pair0()
@@ -102,7 +104,7 @@ class AgentN2LH(threading.Thread):
                         sk.send(b)
                         sk.close()
 
-                if _in == 'bye!':
+                if _in == AG_N2LH_CMD_BYE:
                     break
 
 
@@ -115,7 +117,7 @@ class TestAgentN2LH:
     def test_constructor(self):
         ag = AgentN2LH(self.u, threaded=1)
         ag.start()
-        list_of_cmd = ['bye!']
+        list_of_cmd = [AG_N2LH_CMD_BYE]
         _fake_client_send_n_wait(self.u, list_of_cmd, 1000, self.m)
 
     def test_get_ble_file_there_send_it_here(self):
@@ -131,11 +133,15 @@ class TestAgentN2LH:
         sk.close()
         assert rv
 
-    def test_commands(self):
+    def test_fw_commands(self):
         ag = AgentN2LH(self.u, threaded=1)
         ag.start()
-        list_of_cmd = ['query', 'status', 'get_time', 'ls_lid',
-                       'query', 'bye!']
+        list_of_cmd = [AG_BLE_CMD_QUERY,
+                       AG_BLE_CMD_STATUS,
+                       AG_BLE_CMD_GET_TIME,
+                       AG_BLE_CMD_LS_LID,
+                       AG_BLE_CMD_QUERY,
+                       AG_BLE_CMD_BYE]
         _fake_client_send_n_wait(self.u, list_of_cmd, 20 * 1000, self.m)
 
 
@@ -156,7 +162,7 @@ def _fake_client_send_n_wait(_url, list_out, timeout_ms: int, mac):
     _.dial(_url)
     now = time.perf_counter()
     for o in list_out:
-        o = 'ble {} {}'.format(o, mac)
+        o = '{} {} {}'.format(AG_N2LH_PATH_BLE, o, mac)
         _.send(o.encode())
         _in = _.recv()
         print('\t{}'.format(_in.decode()))

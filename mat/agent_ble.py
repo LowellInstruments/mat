@@ -1,8 +1,13 @@
 import threading
 import time
 from mat import logger_controller_ble
-from mat.logger_controller import STOP_CMD, STATUS_CMD
-from mat.logger_controller_ble import LoggerControllerBLE, ble_scan, is_a_li_logger
+from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, AG_BLE_CMD_DISCONNECT, \
+    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_SET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_LS_NOT_LID, AG_BLE_CMD_STOP, \
+    AG_BLE_CMD_GET_FILE, AG_BLE_CMD_BYE, AG_BLE_CMD_QUERY, AG_BLE_CMD_SCAN, AG_BLE_CMD_SCAN_LI, AG_BLE_ANS_CONN_ALREADY, \
+    AG_BLE_ANS_CONN_OK, AG_BLE_ANS_CONN_ERR, AG_BLE_ANS_DISC_OK, AG_BLE_ANS_DISC_ALREADY, AG_BLE_ANS_STOP_OK, \
+    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY
+from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD
+from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger
 import queue
 
 
@@ -12,7 +17,7 @@ def _p(s):
 
 def _stringify_dir_ans(_d_a):
     if _d_a == b'ERR':
-        return 'ERR'
+        return AG_BLE_ERR
     # _d_a: {'file.lid': 2182}
     rv = ''
     for k, v in _d_a.items():
@@ -48,19 +53,19 @@ class AgentBLE(threading.Thread):
         # s: '<cmd> <args> <mac>'
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
-            'status': self.status,
-            'connect': self.connect,
-            'disconnect': self.disconnect,
-            'get_time': self.get_time,
-            'set_time': self.set_time,
-            'ls_lid': self.ls_lid,
-            'ls_not_lid': self.ls_not_lid,
-            'stop': self.stop,
-            'get_file': self.get_file,
-            'bye!': self.bye,
-            'query': self.query,
-            'scan': self.scan,
-            'scan_li': self.scan_li
+            AG_BLE_CMD_STATUS: self.status,
+            AG_BLE_CMD_CONNECT: self.connect,
+            AG_BLE_CMD_DISCONNECT: self.disconnect,
+            AG_BLE_CMD_GET_TIME: self.get_time,
+            AG_BLE_CMD_SET_TIME: self.set_time,
+            AG_BLE_CMD_LS_LID: self.ls_lid,
+            AG_BLE_CMD_LS_NOT_LID: self.ls_not_lid,
+            AG_BLE_CMD_STOP: self.stop,
+            AG_BLE_CMD_GET_FILE: self.get_file,
+            AG_BLE_CMD_BYE: self.bye,
+            AG_BLE_CMD_QUERY: self.query,
+            AG_BLE_CMD_SCAN: self.scan,
+            AG_BLE_CMD_SCAN_LI: self.scan_li
         }
         fxn = fxn_map[cmd]
 
@@ -72,7 +77,7 @@ class AgentBLE(threading.Thread):
             _in = self.q_in.get()
             _out = self._parse(_in)
             self.q_out.put(_out)
-            if _in == 'bye!':
+            if _in == AG_BLE_CMD_BYE:
                 break
 
     def run(self):
@@ -86,11 +91,12 @@ class AgentBLE(threading.Thread):
             return rv
         rv = self.lc.command(STATUS_CMD)
         if rv[0] == b'STS' and len(rv[1]) == 4:
-            a = 'STS {}'.format(rv[1].decode())
+            a = '{} {}'.format(STATUS_CMD, rv[1].decode())
             return 0, a
-        return 1, _e(' error STS {}'.format(rv[1].decode()))
+        return 1, _e(' error {} {}'.format(STATUS_CMD, rv[1].decode()))
 
-    def scan(self, s):
+    @staticmethod
+    def scan(s):
         # s: scan 0 5
         _, h, t = s.split(' ')
         sr = logger_controller_ble.ble_scan(int(0), float(t))
@@ -99,7 +105,8 @@ class AgentBLE(threading.Thread):
             rv += '{} {} '.format(each.addr, each.rssi)
         return 0, rv.strip()
 
-    def scan_li(self, s):
+    @staticmethod
+    def scan_li(s):
         # s: scan_li 0 5
         _, h, t = s.split(' ')
         sr = logger_controller_ble.ble_scan(int(0), float(t))
@@ -115,26 +122,26 @@ class AgentBLE(threading.Thread):
         if self.lc:
             a = self.lc.address
             if a == mac and self.lc.per.getState() == "conn":
-                return 0, 'already connected'
+                return 0, AG_BLE_ANS_CONN_ALREADY
 
         # cut any current connection w/ different mac
         if self.lc:
             self.lc.close()
 
         # connecting asked mac
-        _p('<- connect {} {}'.format(mac, self.h))
+        _p('<- {} {} {}'.format(AG_BLE_CMD_CONNECT, mac, self.h))
         self.lc = LoggerControllerBLE(mac, self.h)
         rv = self.lc.open()
         if rv:
-            return 0, 'connected to {}'.format(mac)
-        return 1, 'connection fail'
+            return 0, '{} to {}'.format(AG_BLE_ANS_CONN_OK, mac)
+        return 1, AG_BLE_ANS_CONN_ERR
 
     def disconnect(self, _=None):
         # does not use any parameter
-        _p('<- disconnect')
+        _p('<- {}'.format(AG_BLE_CMD_DISCONNECT))
         if self.lc and self.lc.close():
-            return 0, 'disconnected'
-        return 0, 'was not connected'
+            return 0, AG_BLE_ANS_DISC_OK
+        return 0, AG_BLE_ANS_DISC_ALREADY
 
     def get_time(self, s):
         # s: 'get_time <mac>'
@@ -146,7 +153,7 @@ class AgentBLE(threading.Thread):
         # this already is a string
         if len(str(rv)) == 19:
             return 0, str(rv)
-        return 1, _e('error GTM {}'.format(rv[1].decode()))
+        return 1, _e('{} {}'.format(AG_BLE_CMD_GET_TIME, rv[1].decode()))
 
     def set_time(self, s):
         # s: 'set_time <mac>'
@@ -157,8 +164,8 @@ class AgentBLE(threading.Thread):
         rv = self.lc.sync_time()
         print(rv)
         if rv == [b'STM', b'00']:
-            return 0, 'STM 00'
-        return 1, _e('error STM {}'.format(rv[1].decode()))
+            return 0, '{} 00'.format(SET_TIME_CMD)
+        return 1, _e('{} {}'.format(AG_BLE_CMD_SET_TIME, rv[1].decode()))
 
     def ls_lid(self, s):
         mac = _mac(s)
@@ -187,19 +194,19 @@ class AgentBLE(threading.Thread):
             return rv
         rv = self.lc.command(STOP_CMD)
         if rv == [b'STP', b'00']:
-            return 0, 'logger stopped'
-        return 1, 'logger not stopped'
+            return 0, AG_BLE_ANS_STOP_OK
+        return 1, AG_BLE_ANS_STOP_ERR
 
     @staticmethod
     def bye(_):
-        return 0, 'bye you from ble'
+        return 0, AG_BLE_ANS_BYE
 
     def query(self, _):
         a = 'agent ble is {}'
         if not self.lc:
-            return 0, a.format('empty')
+            return 0, a.format(AG_BLE_EMPTY)
         if not self.lc.per:
-            return 0, a.format('empty')
+            return 0, a.format(AG_BLE_EMPTY)
         return 0, a.format(self.lc.per.getState())
 
     def get_file(self, s):
@@ -217,7 +224,7 @@ class AgentBLE(threading.Thread):
         rv = self.lc.get_file(file, fol, size)
         if rv:
             return 0, 'file {} size {}'.format(file, size)
-        return 1, 'err get_file {} size {}'.format(file, 0)
+        return 1, _e('{} {} size {}'.format(AG_BLE_CMD_GET_FILE, file, 0))
 
     def close(self):
         return self.disconnect()
@@ -232,161 +239,162 @@ class TestBLEAgent:
         ag.start()
         # skip connect() on purpose
         mac = self.m
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         rv = _q(ag, s)
-        assert rv[1] == 'was not connected'
-        _q(ag, 'bye!')
+        assert rv[1] == AG_BLE_ANS_DISC_ALREADY
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_connect_disconnect(self):
         ag = AgentBLE(threaded=1)
         ag.start()
         mac = self.m
         # todo: can we remove this disconnects in the tests?
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format('connect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        assert rv[1] == 'disconnected'
-        _q(ag, 'bye!')
+        assert rv[1] == AG_BLE_ANS_DISC_OK
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_connect_error(self):
         # may take a bit more time, 3 retries connect
         ag = AgentBLE(threaded=1)
         ag.start()
-        mac = '11:22:33:44:55:66'
-        s = '{} {}'.format('disconnect', mac)
+        bad_mac = '11:22:33:44:55:66'
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, bad_mac)
         _q(ag, s)
-        s = '{} {}'.format('connect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_CONNECT, bad_mac)
         rv = _q(ag, s)
         assert rv[0] == 1
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_connect_already(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format('connect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format('connect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
         rv = _q(ag, s)
-        assert rv[1] == 'already connected'
-        _q(ag, 'bye!')
+        assert rv[1] == AG_BLE_ANS_CONN_ALREADY
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_get_time_thrice_few_time_same_connection(self):
         ag = AgentBLE(threaded=1)
         ag.start()
         mac = self.m
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
         # the first command implicitly connects so takes > 1 second
         now = time.perf_counter()
-        s = '{} {}'.format('get_time', mac)
+        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
         el = time.perf_counter() - now
         assert el > 1
-        _p('1st GTM {} took {}'.format(rv[1], el))
+        _p('1st {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
         # the next 2 are much faster
         now = time.perf_counter()
-        s = '{} {}'.format('get_time', mac)
+        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        s = '{} {}'.format('get_time', mac)
+        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
         el = time.perf_counter() - now
-        _p('2nd & 3rd GTM {} took {}'.format(rv[1], el))
+        _p('2nd & 3rd {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
         assert el < .5
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_set_time(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format('set_time', mac)
+        s = '{} {}'.format(AG_BLE_CMD_SET_TIME, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_get_file(self):
         # this long test may take a couple minutes
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = '{} {}'.format('disconnect', mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
         file = '2006671_low_20201004_132205.lid'
         size = 299950
         fol = '.'
-        s = 'get_file {} {} {} {}'.format(file, fol, size, mac)
+        s = '{} {} {} {} {}'
+        s = s.format(AG_BLE_CMD_GET_FILE, file, fol, size, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_ls_lid(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = 'disconnect {}'.format(mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = 'ls_lid {}'.format(mac)
+        s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_ls_not_lid(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = 'disconnect {}'.format(mac)
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = 'ls_not_lid {}'.format(mac)
+        s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_stop(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = 'stop {}'.format(mac)
+        s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_scan(self):
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = 'scan 0 5'
+        s = '{} 0 5'.format(AG_BLE_CMD_SCAN)
         rv = _q(ag, s)
         assert rv[0] == 0
         _p(rv[1])
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
     def test_scan_li(self):
         ag = AgentBLE(threaded=1)
         ag.start()
-        s = 'scan_li 0 5'
+        s = '{} 0 5'.format(AG_BLE_CMD_SCAN_LI)
         rv = _q(ag, s)
         assert rv[0] == 0
         _p(rv[1])
-        _q(ag, 'bye!')
+        _q(ag, AG_BLE_CMD_BYE)
 
 
 def _q(_ag, _in):
     _ag.q_in.put(_in)
     # needed because of testing threads
-    if _in == 'bye!':
+    if _in == AG_BLE_CMD_BYE:
         return
     _out = _ag.q_out.get()
     return _out
