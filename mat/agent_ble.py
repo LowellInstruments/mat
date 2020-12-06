@@ -2,7 +2,7 @@ import threading
 import time
 from mat import logger_controller_ble
 from mat.logger_controller import STOP_CMD, STATUS_CMD
-from mat.logger_controller_ble import LoggerControllerBLE, ble_scan
+from mat.logger_controller_ble import LoggerControllerBLE, ble_scan, is_a_li_logger
 import queue
 
 
@@ -95,8 +95,9 @@ class AgentBLE(threading.Thread):
         sr = logger_controller_ble.ble_scan(0, 5.0)
         rv = ''
         for each in sr:
-            rv += '{} {} dBm '.format(each.addr, each.rssi)
-        return 0, rv
+            li = is_a_li_logger(each.rawData)
+            rv += '{} {} {} '.format(each.addr, each.rssi, li)
+        return 0, rv.strip()
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
