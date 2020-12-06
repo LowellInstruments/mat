@@ -47,7 +47,7 @@ class AgentN2LH(threading.Thread):
             _in = self.sk.recv()
             if _in:
                 _in = _in.decode()
-                _p('-> {}'.format(_in))
+                _p('-> N2LH {}'.format(_in))
         except pynng.Timeout:
             _in = None
         return _in
@@ -100,6 +100,7 @@ class AgentN2LH(threading.Thread):
                         u_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
                         sk.dial(u_ext)
                         sk.send(b)
+                        sk.close()
 
                 if _in == 'bye!':
                     break
@@ -127,6 +128,7 @@ class TestAgentN2LH:
         sk.listen(self.u_ext)
         sk.recv_timeout = 1000
         rv = _fake_client_rx_file(sk, '2006671_low_20201004_132205.lid', 299950)
+        sk.close()
         assert rv
 
     def test_commands(self):
@@ -143,6 +145,7 @@ def _fake_client_rx_file(sk, filename, size):
     with open(filename, 'wb') as f:
         f.write(b)
         f.truncate(int(size))
+    sk.close()
     return len(b) == int(size)
 
 
@@ -158,3 +161,5 @@ def _fake_client_send_n_wait(_url, list_out, timeout_ms: int, mac):
         _in = _.recv()
         print('\t{}'.format(_in.decode()))
     _p('done in {}'.format(time.perf_counter() - now))
+    _.close()
+

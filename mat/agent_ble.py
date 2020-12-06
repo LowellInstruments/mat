@@ -1,7 +1,8 @@
 import threading
 import time
+from mat import logger_controller_ble
 from mat.logger_controller import STOP_CMD, STATUS_CMD
-from mat.logger_controller_ble import LoggerControllerBLE
+from mat.logger_controller_ble import LoggerControllerBLE, ble_scan
 import queue
 
 
@@ -57,7 +58,8 @@ class AgentBLE(threading.Thread):
             'stop': self.stop,
             'get_file': self.get_file,
             'bye!': self.bye,
-            'query': self.query
+            'query': self.query,
+            'scan': self.scan
         }
         fxn = fxn_map[cmd]
 
@@ -86,6 +88,15 @@ class AgentBLE(threading.Thread):
             a = 'STS {}'.format(rv[1].decode())
             return 0, a
         return 1, _e(' error STS {}'.format(rv[1].decode()))
+
+    def scan(self, s):
+        # TODO: do hci_if
+        # s: scan 0 5
+        sr = logger_controller_ble.ble_scan(0, 5.0)
+        rv = ''
+        for each in sr:
+            rv += '{} {} dBm '.format(each.addr, each.rssi)
+        return 0, rv
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
@@ -340,6 +351,15 @@ class TestBLEAgent:
         s = 'stop {}'.format(mac)
         rv = _q(ag, s)
         assert rv[0] == 0
+        _q(ag, 'bye!')
+
+    def test_scan(self):
+        ag = AgentBLE(threaded=1)
+        ag.start()
+        s = 'scan 0 5'
+        rv = _q(ag, s)
+        assert rv[0] == 0
+        _p(rv[1])
         _q(ag, 'bye!')
 
 
