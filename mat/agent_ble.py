@@ -5,10 +5,13 @@ from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, A
     AG_BLE_CMD_GET_TIME, AG_BLE_CMD_SET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_LS_NOT_LID, AG_BLE_CMD_STOP, \
     AG_BLE_CMD_GET_FILE, AG_BLE_CMD_BYE, AG_BLE_CMD_QUERY, AG_BLE_CMD_SCAN, AG_BLE_CMD_SCAN_LI, AG_BLE_ANS_CONN_ALREADY, \
     AG_BLE_ANS_CONN_OK, AG_BLE_ANS_CONN_ERR, AG_BLE_ANS_DISC_OK, AG_BLE_ANS_DISC_ALREADY, AG_BLE_ANS_STOP_OK, \
-    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER, AG_BLE_CMD_RLI, AG_BLE_CMD_RHS
+    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER, AG_BLE_CMD_RLI, AG_BLE_CMD_RHS, \
+    AG_BLE_CMD_FORMAT, AG_BLE_CMD_EBR, AG_BLE_CMD_MBL, AG_BLE_CMD_LOG_TOGGLE, AG_BLE_CMD_GSR, AG_BLE_CMD_GSR_DO, \
+    AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS
 from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
-    CALIBRATION_CMD
-from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger
+    CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD
+from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD
 import queue
 
 
@@ -69,7 +72,18 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_SCAN_LI: self.scan_li,
             AG_BLE_CMD_GET_FW_VER: self.get_fw_ver,
             AG_BLE_CMD_RLI: self.rli,
-            AG_BLE_CMD_RHS: self.rhs
+            AG_BLE_CMD_RHS: self.rhs,
+            AG_BLE_CMD_FORMAT: self.format,
+            AG_BLE_CMD_EBR: self.ebr,
+            AG_BLE_CMD_MBL: self.mbl,
+            AG_BLE_CMD_LOG_TOGGLE: self.log_en,
+            AG_BLE_CMD_GSR: self.gsr,
+            AG_BLE_CMD_GSR_DO: self.gsr_do,
+            AG_BLE_CMD_RESET: self.reset,
+            AG_BLE_CMD_UPTIME: self.uptime,
+            AG_BLE_CMD_CFS: self.cfs,
+            AG_BLE_CMD_RFN: self.rfn,
+            AG_BLE_CMD_MTS: self.mts
         }
         fxn = fxn_map[cmd]
 
@@ -176,7 +190,7 @@ class AgentBLE(threading.Thread):
             return 1, _e(a)
         return 0, a.rstrip()
 
-    def rhs(self,s ):
+    def rhs(self, s):
         # s: 'rhs<mac>'
         mac = _mac(s)
         rv = self.connect(mac)
@@ -204,6 +218,139 @@ class AgentBLE(threading.Thread):
         if rv[0] == b'GFV' and len(rv[1]) == 8:
             return 0, a
         return 1, _e(a)
+
+    def format(self, s):
+        # s: 'format <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(FORMAT_CMD)
+        cond = rv[0].decode() == FORMAT_CMD
+        if cond:
+            return 0, 'format ok'
+        return 1, _e(AG_BLE_CMD_FORMAT)
+
+    def ebr(self, s):
+        # s: 'ebr <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
+        cond = rv[0].decode() == ERROR_WHEN_BOOT_OR_RUN_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_EBR)
+
+    def mbl(self, s):
+        # s: 'mbl <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(MOBILE_CMD)
+        cond = rv[0].decode() == MOBILE_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_MBL)
+
+    def log_en(self, s):
+        # s: 'log <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(LOG_EN_CMD)
+        cond = rv[0].decode() == LOG_EN_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_LOG_TOGGLE)
+
+    def gsr(self, s):
+        # s: 'gsr <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(SENSOR_READINGS_CMD)
+        cond = rv[0].decode() == SENSOR_READINGS_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_GSR)
+
+    def gsr_do(self, s):
+        # s: 'gsr_do <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(DO_SENSOR_READINGS_CMD)
+        cond = rv[0].decode() == DO_SENSOR_READINGS_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_GSR_DO)
+
+    def reset(self, s):
+        # s: 'reset <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(RESET_CMD)
+        cond = rv[0].decode() == RESET_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_RESET)
+
+    def uptime(self, s):
+        # s: 'uptime <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(UP_TIME_CMD)
+        cond = rv[0].decode() == UP_TIME_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_UPTIME)
+
+    def cfs(self, s):
+        # todo: check this number, is too big, 100 MB?
+        # s: 'cfs <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(SD_FREE_SPACE_CMD)
+        cond = rv[0].decode() == SD_FREE_SPACE_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_CFS)
+
+    def rfn(self, s):
+        # s: 'rfn <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(REQ_FILE_NAME_CMD)
+        cond = rv[0].decode() == REQ_FILE_NAME_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_RFN)
+
+    def mts(self, s):
+        # s: 'mts <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(MY_TOOL_SET_CMD)
+        cond = rv[0].decode() == MY_TOOL_SET_CMD
+        if cond:
+            return 0, rv[1].decode()
+        return 1, _e(AG_BLE_CMD_MTS)
 
     def set_time(self, s):
         # s: 'set_time <mac>'
@@ -280,11 +427,9 @@ class AgentBLE(threading.Thread):
         return self.disconnect()
 
 
-
-
 class TestBLEAgent:
-    # m = '60:77:71:22:c8:08'
-    m = '60:77:71:22:c8:18'
+    m = '60:77:71:22:c8:08'
+    # m = '60:77:71:22:c8:18'
 
     def test_disconnect_was_not_connected(self):
         ag = AgentBLE(threaded=1)
@@ -448,7 +593,7 @@ class TestBLEAgent:
         ag.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_RHS, mac)
+        s = '{} {}'.format(AG_BLE_CMD_GSR, mac)
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
