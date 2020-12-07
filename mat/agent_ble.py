@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from mat import logger_controller_ble
@@ -7,11 +8,13 @@ from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, A
     AG_BLE_ANS_CONN_OK, AG_BLE_ANS_CONN_ERR, AG_BLE_ANS_DISC_OK, AG_BLE_ANS_DISC_ALREADY, AG_BLE_ANS_STOP_OK, \
     AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER, AG_BLE_CMD_RLI, AG_BLE_CMD_RHS, \
     AG_BLE_CMD_FORMAT, AG_BLE_CMD_EBR, AG_BLE_CMD_MBL, AG_BLE_CMD_LOG_TOGGLE, AG_BLE_CMD_GSR, AG_BLE_CMD_GSR_DO, \
-    AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS
+    AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS, AG_BLE_CMD_CONFIG, \
+    AG_BLE_ANS_DIR_EMPTY, AG_BLE_CMD_DEL_FILE
 from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
-    CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD
+    CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
+    DEL_FILE_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD
 import queue
 
 
@@ -26,7 +29,9 @@ def _stringify_dir_ans(_d_a):
     rv = ''
     for k, v in _d_a.items():
         rv += '{} {} '.format(k, v)
-    return rv
+    if rv == '':
+        rv = AG_BLE_ANS_DIR_EMPTY
+    return rv.rstrip()
 
 
 def _mac(s):
@@ -83,7 +88,9 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_UPTIME: self.uptime,
             AG_BLE_CMD_CFS: self.cfs,
             AG_BLE_CMD_RFN: self.rfn,
-            AG_BLE_CMD_MTS: self.mts
+            AG_BLE_CMD_MTS: self.mts,
+            AG_BLE_CMD_CONFIG: self.config,
+            AG_BLE_CMD_DEL_FILE: self.del_file,
         }
         fxn = fxn_map[cmd]
 
@@ -171,7 +178,7 @@ class AgentBLE(threading.Thread):
         # in case of get_time(), this already is a string
         if len(str(rv)) == 19:
             return 0, str(rv)
-        return 1, _e('{} {}'.format(AG_BLE_CMD_GET_TIME, rv[1].decode()))
+        return 1, _e('{}'.format(AG_BLE_CMD_GET_TIME))
 
     def rli(self, s):
         # s: 'rli <mac>'
@@ -359,10 +366,39 @@ class AgentBLE(threading.Thread):
         if rv[0] == 1:
             return rv
         rv = self.lc.sync_time()
-        print(rv)
         if rv == [b'STM', b'00']:
-            return 0, '{} 00'.format(SET_TIME_CMD)
-        return 1, _e('{} {}'.format(AG_BLE_CMD_SET_TIME, rv[1].decode()))
+            return 0, '{} 00'.format(AG_BLE_CMD_SET_TIME)
+        return 1, _e('{}'.format(AG_BLE_CMD_SET_TIME))
+
+    def config(self, s):
+        # s: 'config <cfg> <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        # '$' symbol as useful guard since <cfg> has spaces
+        cfg = s.split('$')[1]
+        rv = self.lc.send_cfg(json.loads(cfg))
+        cond = rv[0].decode() == CONFIG_CMD
+        if cond:
+            return 0, AG_BLE_CMD_CONFIG
+        return 1, _e(AG_BLE_CMD_CONFIG)
+
+    def del_file(self, s):
+        # s: 'del_file <filename> <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+
+        # delete the file
+        name = s.split(' ')[1]
+        rv = self.lc.command(DEL_FILE_CMD, name)
+        cond = rv[0].decode() == DEL_FILE_CMD
+        if cond:
+            return 0, AG_BLE_CMD_DEL_FILE
+        return 1, _e(AG_BLE_CMD_DEL_FILE)
+
 
     def ls_lid(self, s):
         mac = _mac(s)
@@ -587,15 +623,56 @@ class TestBLEAgent:
         _p(rv[1])
         _q(ag, AG_BLE_CMD_BYE)
 
+    def test_config_cmd(self):
+        _cfg = {
+            "DFN": "low",
+            "TMP": 0, "PRS": 0,
+            "DOS": 1, "DOP": 1, "DOT": 1,
+            "TRI": 10, "ORI": 10, "DRI": 900,
+            "PRR": 8,
+            "PRN": 4,
+            "STM": "2012-11-12 12:14:00",
+            "ETM": "2030-11-12 12:14:20",
+            "LED": 1
+        }
+        mac = self.m
+        ag = AgentBLE(threaded=1)
+        ag.start()
+        s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
+        _q(ag, s)
+        # _cfg: dict -> string
+        _cfg = json.dumps(_cfg)
+        s = '{} ${}$ {}'.format(AG_BLE_CMD_CONFIG, _cfg, mac)
+        rv = _q(ag, s)
+        _p(rv)
+        assert rv[0] == 0
+        _q(ag, AG_BLE_CMD_BYE)
+
+    def test_mts_cmd(self):
+        mac = self.m
+        ag = AgentBLE(threaded=1)
+        ag.start()
+        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
+        _q(ag, s)
+        s = '{} {}'.format(AG_BLE_CMD_MTS, mac)
+        rv = _q(ag, s)
+        _p(rv)
+        assert rv[0] == 0
+        _q(ag, AG_BLE_CMD_BYE)
+
     def test_any_cmd(self):
         mac = self.m
         ag = AgentBLE(threaded=1)
         ag.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_GSR, mac)
+        s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
         rv = _q(ag, s)
         _p(rv)
+        s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
+        rv = _q(ag, s)
+        _p(rv)
+
         assert rv[0] == 0
         _q(ag, AG_BLE_CMD_BYE)
 
