@@ -23,6 +23,8 @@ AG_BLE_ANS_STOP_ERR = 'not stopped, error'
 AG_BLE_ANS_BYE = 'bye you from ble'
 AG_BLE_ERR = 'ERR'
 AG_BLE_EMPTY = 'empty'
+AG_BLE_CMD_RLI = 'rli'
+AG_BLE_CMD_RHS = 'rhs'
 
 AG_N2LH_CMD_BYE = 'bye!'
 AG_N2LH_PATH_BLE = 'ble'
