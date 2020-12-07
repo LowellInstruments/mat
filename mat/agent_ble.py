@@ -5,8 +5,8 @@ from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, A
     AG_BLE_CMD_GET_TIME, AG_BLE_CMD_SET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_LS_NOT_LID, AG_BLE_CMD_STOP, \
     AG_BLE_CMD_GET_FILE, AG_BLE_CMD_BYE, AG_BLE_CMD_QUERY, AG_BLE_CMD_SCAN, AG_BLE_CMD_SCAN_LI, AG_BLE_ANS_CONN_ALREADY, \
     AG_BLE_ANS_CONN_OK, AG_BLE_ANS_CONN_ERR, AG_BLE_ANS_DISC_OK, AG_BLE_ANS_DISC_ALREADY, AG_BLE_ANS_STOP_OK, \
-    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY
-from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD
+    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER
+from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger
 import queue
 
@@ -65,7 +65,8 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_BYE: self.bye,
             AG_BLE_CMD_QUERY: self.query,
             AG_BLE_CMD_SCAN: self.scan,
-            AG_BLE_CMD_SCAN_LI: self.scan_li
+            AG_BLE_CMD_SCAN_LI: self.scan_li,
+            AG_BLE_CMD_GET_FW_VER: self.get_fw_ver,
         }
         fxn = fxn_map[cmd]
 
@@ -90,10 +91,10 @@ class AgentBLE(threading.Thread):
         if rv[0] == 1:
             return rv
         rv = self.lc.command(STATUS_CMD)
+        a = '{} {}'.format(STATUS_CMD, rv[1].decode())
         if rv[0] == b'STS' and len(rv[1]) == 4:
-            a = '{} {}'.format(STATUS_CMD, rv[1].decode())
             return 0, a
-        return 1, _e(' error {} {}'.format(STATUS_CMD, rv[1].decode()))
+        return 1, _e(a)
 
     @staticmethod
     def scan(s):
@@ -150,10 +151,22 @@ class AgentBLE(threading.Thread):
         if rv[0] == 1:
             return rv
         rv = self.lc.get_time()
-        # this already is a string
+        # in case of get_time(), this already is a string
         if len(str(rv)) == 19:
             return 0, str(rv)
         return 1, _e('{} {}'.format(AG_BLE_CMD_GET_TIME, rv[1].decode()))
+
+    def get_fw_ver(self, s):
+        # s: 'get_fw_ver <mac>'
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(FIRMWARE_VERSION_CMD)
+        a = '{} {}'.format(FIRMWARE_VERSION_CMD, rv[1].decode())
+        if rv[0] == b'GFV' and len(rv[1]) == 8:
+            return 0, a
+        return 1, _e(a)
 
     def set_time(self, s):
         # s: 'set_time <mac>'
