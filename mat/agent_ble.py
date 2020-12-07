@@ -9,10 +9,11 @@ from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, A
     AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER, AG_BLE_CMD_RLI, AG_BLE_CMD_RHS, \
     AG_BLE_CMD_FORMAT, AG_BLE_CMD_EBR, AG_BLE_CMD_MBL, AG_BLE_CMD_LOG_TOGGLE, AG_BLE_CMD_GSR, AG_BLE_CMD_GSR_DO, \
     AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS, AG_BLE_CMD_CONFIG, \
-    AG_BLE_ANS_DIR_EMPTY, AG_BLE_CMD_DEL_FILE
+    AG_BLE_ANS_DIR_EMPTY, AG_BLE_CMD_DEL_FILE, AG_BLE_ANS_RUN_OK, AG_BLE_ANS_RUN_ERR, AG_BLE_CMD_RUN, AG_BLE_CMD_RWS, \
+    AG_BLE_CMD_SWS, AG_BLE_CMD_WHS, AG_BLE_CMD_WLI
 from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
-    DEL_FILE_CMD
+    DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
     MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD
 import queue
@@ -91,6 +92,11 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_MTS: self.mts,
             AG_BLE_CMD_CONFIG: self.config,
             AG_BLE_CMD_DEL_FILE: self.del_file,
+            AG_BLE_CMD_RUN: self.cmd_run,
+            AG_BLE_CMD_RWS: self.rws,
+            AG_BLE_CMD_SWS: self.sws,
+            AG_BLE_CMD_WLI: self.wli,
+            AG_BLE_CMD_WHS: self.whs
         }
         fxn = fxn_map[cmd]
 
@@ -399,7 +405,6 @@ class AgentBLE(threading.Thread):
             return 0, AG_BLE_CMD_DEL_FILE
         return 1, _e(AG_BLE_CMD_DEL_FILE)
 
-
     def ls_lid(self, s):
         mac = _mac(s)
         rv = self.connect(mac)
@@ -429,6 +434,57 @@ class AgentBLE(threading.Thread):
         if rv == [b'STP', b'00']:
             return 0, AG_BLE_ANS_STOP_OK
         return 1, AG_BLE_ANS_STOP_ERR
+
+    # prevent same name as thread function run()
+    def cmd_run(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(RUN_CMD)
+        if rv == [b'RUN', b'00']:
+            return 0, AG_BLE_ANS_RUN_OK
+        return 1, AG_BLE_ANS_RUN_ERR
+
+    def rws(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(RWS_CMD)
+        if rv == [b'RWS', b'00']:
+            return 0, AG_BLE_ANS_RUN_OK
+        return 1, AG_BLE_ANS_RUN_ERR
+
+    def sws(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(SWS_CMD)
+        if rv == [b'SWS', b'00']:
+            return 0, AG_BLE_ANS_STOP_OK
+        return 1, AG_BLE_ANS_STOP_ERR
+
+    def whs(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(LOGGER_HSA_CMD_W)
+        if rv == [b'WHS', b'00']:
+            return 0, AG_BLE_CMD_WHS
+        return 1, 'whs error'
+
+    def wli(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(LOGGER_INFO_CMD_W)
+        if rv == [b'WLI', b'00']:
+            return 0, AG_BLE_CMD_WLI
+        return 1, 'wli error'
 
     @staticmethod
     def bye(_):
