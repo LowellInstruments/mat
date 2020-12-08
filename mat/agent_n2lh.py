@@ -4,7 +4,10 @@ import pynng
 from mat.agent_ble import AgentBLE
 from pynng import Pair0
 from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
-    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_BYE, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE
+    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_BYE, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE, AG_BLE_CMD_RUN, \
+    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS
+from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
+from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
 
 PORT_N2LH = 12804
 
@@ -31,6 +34,24 @@ def _check_url_syntax(s):
         _p('careful, localhost not same as IP')
     assert _transport in ['tcp4', 'tcp6']
     assert _transport not in ['tcp']
+
+
+# used by N2LH clients such as GUIs
+def calc_n2lh_cmd_ans_timeout(tag_n2lh):
+    _tag_map = {
+        AG_BLE_CMD_RUN: RUN_CMD,
+        AG_BLE_CMD_RWS: RWS_CMD,
+        AG_BLE_CMD_CRC: CRC_CMD,
+        # NOR memories have Write, Erase slow
+        AG_BLE_CMD_FORMAT: FORMAT_CMD,
+        AG_BLE_CMD_MTS: MY_TOOL_SET_CMD
+    }
+
+    # default value is status, simplest
+    tag_mat = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
+
+    # some more time than BLE MAT library commands
+    return calc_ble_cmd_ans_timeout(tag_mat) * 1.1
 
 
 class AgentN2LH(threading.Thread):
@@ -99,7 +120,7 @@ class AgentN2LH(threading.Thread):
                     with open(file, 'rb') as f:
                         _p('<- N2LH {}'.format(file))
                         b = f.read()
-                        # todo: decide if same socket or another
+                        # let's use a separate socket for N2LH sending out
                         sk = Pair0()
                         u_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
                         sk.dial(u_ext)
@@ -127,7 +148,7 @@ class TestAgentN2LH:
         ag.start()
         list_of_cmd = ['get_file 2006671_low_20201004_132205.lid . 299950']
         _fake_client_send_n_wait(self.u, list_of_cmd, 300 * 1000, self.m)
-        # todo: is this true that we cannot listen 2 same socket so we emulate like this
+        # on testing, use 2 sockets, on production, we'll see
         sk = Pair0()
         sk.listen(self.u_ext)
         sk.recv_timeout = 1000
@@ -146,6 +167,9 @@ class TestAgentN2LH:
                        AG_BLE_CMD_BYE]
         _fake_client_send_n_wait(self.u, list_of_cmd, 20 * 1000, self.m)
 
+    def test_n2lh_cmd_ans_timeout(self):
+        t = calc_n2lh_cmd_ans_timeout()
+
 
 def _fake_client_rx_file(sk, filename, size):
     b = sk.recv()
@@ -158,7 +182,7 @@ def _fake_client_rx_file(sk, filename, size):
 
 
 def _fake_client_send_n_wait(_url, list_out, timeout_ms: int, mac):
-    # todo: do BLE_TIMEOUT_CALCULATION_CMD function
+    """ use for testing, on production, N2LH already uses a timeout-ed loop """
     _ = pynng.Pair0(send_timeout=timeout_ms)
     _.recv_timeout = timeout_ms
     _.dial(_url)
