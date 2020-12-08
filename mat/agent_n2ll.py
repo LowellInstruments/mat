@@ -68,7 +68,7 @@ def _query(_, macs):
     _grep = 'ps aux | grep nxserver | grep -v grep'
     _rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     cond_nx = _rv.returncode == 0
-    # todo: set proper ___name___ here below
+    # todo: set proper executable ___name___ here below
     _grep = 'ps aux | grep _____name___agent___ | grep -v grep'
     _rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     cond_ag = _rv.returncode == 0

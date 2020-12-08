@@ -10,12 +10,12 @@ from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, A
     AG_BLE_CMD_FORMAT, AG_BLE_CMD_EBR, AG_BLE_CMD_MBL, AG_BLE_CMD_LOG_TOGGLE, AG_BLE_CMD_GSR, AG_BLE_CMD_GSR_DO, \
     AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS, AG_BLE_CMD_CONFIG, \
     AG_BLE_ANS_DIR_EMPTY, AG_BLE_CMD_DEL_FILE, AG_BLE_ANS_RUN_OK, AG_BLE_ANS_RUN_ERR, AG_BLE_CMD_RUN, AG_BLE_CMD_RWS, \
-    AG_BLE_CMD_SWS, AG_BLE_CMD_WHS, AG_BLE_CMD_WLI
+    AG_BLE_CMD_SWS, AG_BLE_CMD_WHS, AG_BLE_CMD_WLI, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_HW_TEST
 from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, HW_TEST_CMD
 import queue
 
 
@@ -71,7 +71,6 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_LS_LID: self.ls_lid,
             AG_BLE_CMD_LS_NOT_LID: self.ls_not_lid,
             AG_BLE_CMD_STOP: self.stop,
-            AG_BLE_CMD_GET_FILE: self.get_file,
             AG_BLE_CMD_BYE: self.bye,
             AG_BLE_CMD_QUERY: self.query,
             AG_BLE_CMD_SCAN: self.scan,
@@ -96,7 +95,9 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_RWS: self.rws,
             AG_BLE_CMD_SWS: self.sws,
             AG_BLE_CMD_WLI: self.wli,
-            AG_BLE_CMD_WHS: self.whs
+            AG_BLE_CMD_WHS: self.whs,
+            AG_BLE_CMD_GET_FILE: self.get_file,
+            AG_BLE_CMD_DWG_FILE: self.dwg_file
         }
         fxn = fxn_map[cmd]
 
@@ -509,11 +510,37 @@ class AgentBLE(threading.Thread):
         if rv[0] == 1:
             return rv
 
-        # todo: do this and pass sig as parameter
         rv = self.lc.get_file(file, fol, size)
         if rv:
-            return 0, 'file {} size {}'.format(file, size)
+            return 0, 'OK file {} size {}'.format(file, size)
         return 1, _e('{} {} size {}'.format(AG_BLE_CMD_GET_FILE, file, 0))
+
+    def dwg_file(self, s):
+        # s: 'dwg_file <file> <fol> <size> <mac>
+        mac = _mac(s)
+        file = _sp(s, 1)
+        fol = _sp(s, 2)
+        size = _sp(s, 3)
+
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+
+        # todo: do this and pass sig as parameter
+        rv = self.lc.dwg_file(file, fol, size)
+        if rv:
+            return 0, 'file {} size {}'.format(file, size)
+        return 1, _e('{} {} size {}'.format(AG_BLE_CMD_DWG_FILE, file, 0))
+
+    def test_logger(self, s):
+        mac = _mac(s)
+        rv = self.connect(mac)
+        if rv[0] == 1:
+            return rv
+        rv = self.lc.command(HW_TEST_CMD)
+        if rv == [b'#T1', b'00']:
+            return 0, AG_BLE_CMD_HW_TEST
+        return 1, 'hw test error'
 
     def close(self):
         return self.disconnect()
