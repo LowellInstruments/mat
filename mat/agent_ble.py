@@ -2,20 +2,12 @@ import json
 import threading
 import time
 from mat import logger_controller_ble
-from mat.agent_utils import AG_BLE_ERR, AG_BLE_CMD_STATUS, AG_BLE_CMD_CONNECT, AG_BLE_CMD_DISCONNECT, \
-    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_SET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_LS_NOT_LID, AG_BLE_CMD_STOP, \
-    AG_BLE_CMD_GET_FILE, AG_BLE_CMD_BYE, AG_BLE_CMD_QUERY, AG_BLE_CMD_SCAN, AG_BLE_CMD_SCAN_LI, AG_BLE_ANS_CONN_ALREADY, \
-    AG_BLE_ANS_CONN_OK, AG_BLE_ANS_CONN_ERR, AG_BLE_ANS_DISC_OK, AG_BLE_ANS_DISC_ALREADY, AG_BLE_ANS_STOP_OK, \
-    AG_BLE_ANS_BYE, AG_BLE_ANS_STOP_ERR, AG_BLE_EMPTY, AG_BLE_CMD_GET_FW_VER, AG_BLE_CMD_RLI, AG_BLE_CMD_RHS, \
-    AG_BLE_CMD_FORMAT, AG_BLE_CMD_EBR, AG_BLE_CMD_MBL, AG_BLE_CMD_LOG_TOGGLE, AG_BLE_CMD_GSR, AG_BLE_CMD_GSR_DO, \
-    AG_BLE_CMD_RESET, AG_BLE_CMD_UPTIME, AG_BLE_CMD_CFS, AG_BLE_CMD_RFN, AG_BLE_CMD_MTS, AG_BLE_CMD_CONFIG, \
-    AG_BLE_ANS_DIR_EMPTY, AG_BLE_CMD_DEL_FILE, AG_BLE_ANS_RUN_OK, AG_BLE_ANS_RUN_ERR, AG_BLE_CMD_RUN, AG_BLE_CMD_RWS, \
-    AG_BLE_CMD_SWS, AG_BLE_CMD_WHS, AG_BLE_CMD_WLI, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_HW_TEST
-from mat.logger_controller import STOP_CMD, STATUS_CMD, SET_TIME_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
+from mat.agent_utils import *
+from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, HW_TEST_CMD
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD
 import queue
 
 
@@ -35,16 +27,27 @@ def _stringify_dir_ans(_d_a):
     return rv.rstrip()
 
 
-def _mac(s):
-    return s.rsplit(' ', 1)[-1]
+def _mac_n_connect(s, ag_ble):
+    mac = s.rsplit(' ', 1)[-1]
+    rv = ag_ble.connect(mac)
+    if rv[0] == 0:
+        return mac
+    return None
 
 
 def _sp(s, i):
     return s.rsplit(' ')[i]
 
 
+def _ok_or_nok(rv, c):
+    if rv[0] == c.encode():
+        p = '' if len(rv) == 1 else rv[1].decode()
+        return 0, '{} OK: {}'.format(c, p)
+    return 1, '{} ERR'
+
+
 def _e(s):
-    return 'error {}'.format(s)
+    print(s)
 
 
 # can be threaded
@@ -115,18 +118,6 @@ class AgentBLE(threading.Thread):
     def run(self):
         self.loop_ble()
 
-    def status(self, s):
-        # s: 'status <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(STATUS_CMD)
-        a = '{} {}'.format(STATUS_CMD, rv[1].decode())
-        if rv[0] == b'STS' and len(rv[1]) == 4:
-            return 0, a
-        return 1, _e(a)
-
     @staticmethod
     def scan(s):
         # s: scan 0 5
@@ -150,7 +141,7 @@ class AgentBLE(threading.Thread):
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
-        mac = _mac(s)
+        mac = s.rsplit(' ', 1)[-1]
         if self.lc:
             a = self.lc.address
             if a == mac and self.lc.per.getState() == "conn":
@@ -163,8 +154,7 @@ class AgentBLE(threading.Thread):
         # connecting asked mac
         _p('<- {} {} {}'.format(AG_BLE_CMD_CONNECT, mac, self.h))
         self.lc = LoggerControllerBLE(mac, self.h)
-        rv = self.lc.open()
-        if rv:
+        if self.lc.open():
             return 0, '{} to {}'.format(AG_BLE_ANS_CONN_OK, mac)
         return 1, AG_BLE_ANS_CONN_ERR
 
@@ -176,323 +166,154 @@ class AgentBLE(threading.Thread):
         return 0, AG_BLE_ANS_DISC_ALREADY
 
     def get_time(self, s):
-        # s: 'get_time <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'get_time error'
+
         rv = self.lc.get_time()
-        # in case of get_time(), this already is a string
+        # in case of get_time(), rv is already a string
         if len(str(rv)) == 19:
             return 0, str(rv)
-        return 1, _e('{}'.format(AG_BLE_CMD_GET_TIME))
-
-    def rli(self, s):
-        # s: 'rli <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-
-        # read all RLI fields
-        who = ('SN', 'CA', 'BA', 'MA')
-        a = ''
-        for _ in who:
-            rv = self.lc.command(LOGGER_INFO_CMD, _)
-            a += '{} {} '.format(_, rv[1].decode())
-        if 'ERR' in a:
-            return 1, _e(a)
-        return 0, a.rstrip()
-
-    def rhs(self, s):
-        # s: 'rhs<mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-
-        # read all RHS fields
-        who = ('TMO', 'TMR', 'TMA', 'TMB', 'TMC')
-        a = ''
-        for _ in who:
-            rv = self.lc.command(CALIBRATION_CMD, _)
-            a += '{} {} '.format(_, rv[1].decode())
-        if 'ERR' in a:
-            return 1, _e(a)
-        return 0, a.rstrip()
-
-    def get_fw_ver(self, s):
-        # s: 'get_fw_ver <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(FIRMWARE_VERSION_CMD)
-        a = '{} {}'.format(FIRMWARE_VERSION_CMD, rv[1].decode())
-        if rv[0] == b'GFV' and len(rv[1]) == 8:
-            return 0, a
-        return 1, _e(a)
-
-    def format(self, s):
-        # s: 'format <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(FORMAT_CMD)
-        cond = rv[0].decode() == FORMAT_CMD
-        if cond:
-            return 0, 'format ok'
-        return 1, _e(AG_BLE_CMD_FORMAT)
-
-    def ebr(self, s):
-        # s: 'ebr <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
-        cond = rv[0].decode() == ERROR_WHEN_BOOT_OR_RUN_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_EBR)
-
-    def mbl(self, s):
-        # s: 'mbl <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(MOBILE_CMD)
-        cond = rv[0].decode() == MOBILE_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_MBL)
-
-    def log_en(self, s):
-        # s: 'log <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(LOG_EN_CMD)
-        cond = rv[0].decode() == LOG_EN_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_LOG_TOGGLE)
-
-    def gsr(self, s):
-        # s: 'gsr <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(SENSOR_READINGS_CMD)
-        cond = rv[0].decode() == SENSOR_READINGS_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_GSR)
-
-    def gsr_do(self, s):
-        # s: 'gsr_do <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(DO_SENSOR_READINGS_CMD)
-        cond = rv[0].decode() == DO_SENSOR_READINGS_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_GSR_DO)
-
-    def reset(self, s):
-        # s: 'reset <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(RESET_CMD)
-        cond = rv[0].decode() == RESET_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_RESET)
-
-    def uptime(self, s):
-        # s: 'uptime <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(UP_TIME_CMD)
-        cond = rv[0].decode() == UP_TIME_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_UPTIME)
-
-    def cfs(self, s):
-        # todo: check this number, is too big, 100 MB?
-        # s: 'cfs <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(SD_FREE_SPACE_CMD)
-        cond = rv[0].decode() == SD_FREE_SPACE_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_CFS)
-
-    def rfn(self, s):
-        # s: 'rfn <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(REQ_FILE_NAME_CMD)
-        cond = rv[0].decode() == REQ_FILE_NAME_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_RFN)
-
-    def mts(self, s):
-        # s: 'mts <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(MY_TOOL_SET_CMD)
-        cond = rv[0].decode() == MY_TOOL_SET_CMD
-        if cond:
-            return 0, rv[1].decode()
-        return 1, _e(AG_BLE_CMD_MTS)
-
-    def set_time(self, s):
-        # s: 'set_time <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.sync_time()
-        if rv == [b'STM', b'00']:
-            return 0, '{} 00'.format(AG_BLE_CMD_SET_TIME)
-        return 1, _e('{}'.format(AG_BLE_CMD_SET_TIME))
+        return 1, 'get_time error'
 
     def config(self, s):
-        # s: 'config <cfg> <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'config error'
+
         # '$' symbol as useful guard since <cfg> has spaces
         cfg = s.split('$')[1]
         rv = self.lc.send_cfg(json.loads(cfg))
-        cond = rv[0].decode() == CONFIG_CMD
-        if cond:
-            return 0, AG_BLE_CMD_CONFIG
-        return 1, _e(AG_BLE_CMD_CONFIG)
+        if rv[0].decode() == CONFIG_CMD:
+            return 0, 'CFG OK'
+        return 1, 'config error'
+
+    def rli(self, s):
+        if not _mac_n_connect(s, self):
+            return 1, 'RLI error'
+
+        # read all RLI fields
+        a = ''
+        for _ in ('SN', 'CA', 'BA', 'MA'):
+            rv = self.lc.command(LOGGER_INFO_CMD, _)
+            a += '{} {} '.format(_, rv[1].decode())
+        if 'ERR' in a:
+            return 1, 'RLI error'
+        return 0, a.rstrip()
+
+    def rhs(self, s):
+        if not _mac_n_connect(s, self):
+            return 1, 'RHS error'
+
+        # read all RHS fields
+        a = ''
+        for _ in ('TMO', 'TMR', 'TMA', 'TMB', 'TMC'):
+            rv = self.lc.command(CALIBRATION_CMD, _)
+            a += '{} {} '.format(_, rv[1].decode())
+        if 'ERR' in a:
+            return 1, 'RHS error'
+        return 0, a.rstrip()
+
+    def _cmd_ans(self, mac, c):
+        # c: STATUS_CMD
+        if not mac:
+            return 1, 'connection ERR'
+        rv = self.lc.command(c)
+        return _ok_or_nok(rv, c)
+
+    def status(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), STATUS_CMD)
+
+    def get_fw_ver(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), FIRMWARE_VERSION_CMD)
+
+    def format(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), FORMAT_CMD)
+
+    def ebr(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), ERROR_WHEN_BOOT_OR_RUN_CMD)
+
+    def mbl(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), MOBILE_CMD)
+
+    def log_en(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), LOG_EN_CMD)
+
+    def gsr(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), SENSOR_READINGS_CMD)
+
+    def gsr_do(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), DO_SENSOR_READINGS_CMD)
+
+    def reset(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), RESET_CMD)
+
+    def uptime(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), UP_TIME_CMD)
+
+    def cfs(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), SD_FREE_SPACE_CMD)
+
+    def rfn(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), REQ_FILE_NAME_CMD)
+
+    def mts(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), MY_TOOL_SET_CMD)
+
+    def set_time(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), AG_BLE_CMD_SET_TIME)
 
     def del_file(self, s):
         # s: 'del_file <filename> <mac>'
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'del_file error'
 
         # delete the file
         name = s.split(' ')[1]
         rv = self.lc.command(DEL_FILE_CMD, name)
-        cond = rv[0].decode() == DEL_FILE_CMD
-        if cond:
+        if rv[0].decode() == DEL_FILE_CMD:
             return 0, AG_BLE_CMD_DEL_FILE
         return 1, _e(AG_BLE_CMD_DEL_FILE)
 
     def ls_lid(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'ls_lid error'
         rv = self.lc.ls_lid()
         if type(rv) == dict:
             return 0, _stringify_dir_ans(rv)
         return 1, rv
 
     def ls_not_lid(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'ls_not_lid error'
         rv = self.lc.ls_not_lid()
         if type(rv) == dict:
             return 0, _stringify_dir_ans(rv)
         return 1, rv
 
     def stop(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(STOP_CMD)
-        if rv == [b'STP', b'00']:
-            return 0, AG_BLE_ANS_STOP_OK
-        return 1, AG_BLE_ANS_STOP_ERR
+        return self._cmd_ans(_mac_n_connect(s, self), STOP_CMD)
 
     # prevent same name as thread function run()
     def cmd_run(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(RUN_CMD)
-        if rv == [b'RUN', b'00']:
-            return 0, AG_BLE_ANS_RUN_OK
-        return 1, AG_BLE_ANS_RUN_ERR
+        return self._cmd_ans(_mac_n_connect(s, self), RUN_CMD)
 
     def rws(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(RWS_CMD)
-        if rv == [b'RWS', b'00']:
-            return 0, AG_BLE_ANS_RUN_OK
-        return 1, AG_BLE_ANS_RUN_ERR
+        return self._cmd_ans(_mac_n_connect(s, self), RWS_CMD)
 
     def sws(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(SWS_CMD)
-        if rv == [b'SWS', b'00']:
-            return 0, AG_BLE_ANS_STOP_OK
-        return 1, AG_BLE_ANS_STOP_ERR
+        return self._cmd_ans(_mac_n_connect(s, self), SWS_CMD)
 
     def whs(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(LOGGER_HSA_CMD_W)
-        if rv == [b'WHS', b'00']:
-            return 0, AG_BLE_CMD_WHS
-        return 1, 'whs error'
+        return self._cmd_ans(_mac_n_connect(s, self), LOGGER_HSA_CMD_W)
 
     def wli(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(LOGGER_INFO_CMD_W)
-        if rv == [b'WLI', b'00']:
-            return 0, AG_BLE_CMD_WLI
-        return 1, 'wli error'
+        return self._cmd_ans(_mac_n_connect(s, self), LOGGER_INFO_CMD_W)
 
     @staticmethod
     def bye(_):
         return 0, AG_BLE_ANS_BYE
 
     def query(self, _):
-        a = 'agent ble is {}'
+        a = 'agent_ble logger controller ble is {}'
         if not self.lc:
             return 0, a.format(AG_BLE_EMPTY)
         if not self.lc.per:
@@ -501,46 +322,25 @@ class AgentBLE(threading.Thread):
 
     def get_file(self, s):
         # s: 'get_file <file> <fol> <size> <mac>
-        mac = _mac(s)
-        file = _sp(s, 1)
-        fol = _sp(s, 2)
-        size = _sp(s, 3)
+        file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'get_file error'
 
-        rv = self.lc.get_file(file, fol, size)
-        if rv:
-            return 0, 'OK file {} size {}'.format(file, size)
-        return 1, _e('{} {} size {}'.format(AG_BLE_CMD_GET_FILE, file, 0))
+        if self.lc.get_file(file, fol, size):
+            return 0, 'get_file OK: {} {}'.format(file, size)
+        return 1, 'get_file error: {} {}'.format(file, size)
 
     def dwg_file(self, s):
         # s: 'dwg_file <file> <fol> <size> <mac>
-        mac = _mac(s)
-        file = _sp(s, 1)
-        fol = _sp(s, 2)
-        size = _sp(s, 3)
+        file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
+        if not _mac_n_connect(s, self):
+            return 1, 'dwg_file error'
 
-        # todo: do this and pass sig as parameter
-        rv = self.lc.dwg_file(file, fol, size)
-        if rv:
-            return 0, 'file {} size {}'.format(file, size)
-        return 1, _e('{} {} size {}'.format(AG_BLE_CMD_DWG_FILE, file, 0))
-
-    def test_logger(self, s):
-        mac = _mac(s)
-        rv = self.connect(mac)
-        if rv[0] == 1:
-            return rv
-        rv = self.lc.command(HW_TEST_CMD)
-        if rv == [b'#T1', b'00']:
-            return 0, AG_BLE_CMD_HW_TEST
-        return 1, 'hw test error'
+        if self.lc.dwg_file(file, fol, size):
+            return 0, 'dwg_file OK: {} {}'.format(file, size)
+        return 1, 'get_file error: {} {}'.format(file, size)
 
     def close(self):
         return self.disconnect()
