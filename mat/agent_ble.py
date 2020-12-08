@@ -1,14 +1,15 @@
 import json
 import threading
-import time
 from mat import logger_controller_ble
 from mat.agent_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, \
+    brand_testing_cc26x2, brand_testing_rn4020
 import queue
+from tests._lc_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020
 
 
 def _p(s):
@@ -110,7 +111,9 @@ class AgentBLE(threading.Thread):
     def loop_ble(self):
         while 1:
             _in = self.q_in.get()
+            _p('-> AG_BLE {}'.format(_in))
             _out = self._parse(_in)
+            _p('<- AG_BLE {}'.format(_out))
             self.q_out.put(_out)
             if _in == AG_BLE_CMD_BYE:
                 break
@@ -151,16 +154,24 @@ class AgentBLE(threading.Thread):
         if self.lc:
             self.lc.close()
 
+        # show and classify mac
+        if brand_testing_cc26x2(mac):
+            self.lc = LoggerControllerBLEDummyCC26x2(mac)
+        elif brand_testing_rn4020(mac):
+            self.lc = LoggerControllerBLEDummyRN4020(mac)
+        elif brand_ti(mac):
+            self.lc = LoggerControllerBLE(mac, self.h)
+        else:
+            # brand microchip, never tested
+            assert False
+
         # connecting asked mac
-        _p('<- {} {} {}'.format(AG_BLE_CMD_CONNECT, mac, self.h))
-        self.lc = LoggerControllerBLE(mac, self.h)
         if self.lc.open():
             return 0, '{} to {}'.format(AG_BLE_ANS_CONN_OK, mac)
         return 1, AG_BLE_ANS_CONN_ERR
 
     def disconnect(self, _=None):
         # does not use any parameter
-        _p('<- {}'.format(AG_BLE_CMD_DISCONNECT))
         if self.lc and self.lc.close():
             return 0, AG_BLE_ANS_DISC_OK
         return 0, AG_BLE_ANS_DISC_ALREADY
@@ -327,7 +338,7 @@ class AgentBLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return 1, 'get_file error'
 
-        if self.lc.get_file(file, fol, size):
+        if self.lc.get_file(self, file, fol, size):
             return 0, 'get_file OK: {} {}'.format(file, size)
         return 1, 'get_file error: {} {}'.format(file, size)
 
@@ -344,226 +355,3 @@ class AgentBLE(threading.Thread):
 
     def close(self):
         return self.disconnect()
-
-
-class TestBLEAgent:
-    m = '60:77:71:22:c8:08'
-    # m = '60:77:71:22:c8:18'
-
-    def test_disconnect_was_not_connected(self):
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        # skip connect() on purpose
-        mac = self.m
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        rv = _q(ag, s)
-        assert rv[1] == AG_BLE_ANS_DISC_ALREADY
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_connect_disconnect(self):
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        mac = self.m
-        # todo: can we remove this disconnects in the tests?
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        assert rv[1] == AG_BLE_ANS_DISC_OK
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_connect_error(self):
-        # may take a bit more time, 3 retries connect
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        bad_mac = '11:22:33:44:55:66'
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, bad_mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_CONNECT, bad_mac)
-        rv = _q(ag, s)
-        assert rv[0] == 1
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_connect_already(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        rv = _q(ag, s)
-        assert rv[1] == AG_BLE_ANS_CONN_ALREADY
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_get_time_thrice_few_time_same_connection(self):
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        mac = self.m
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        # the first command implicitly connects so takes > 1 second
-        now = time.perf_counter()
-        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        el = time.perf_counter() - now
-        assert el > 1
-        _p('1st {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
-        # the next 2 are much faster
-        now = time.perf_counter()
-        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        el = time.perf_counter() - now
-        _p('2nd & 3rd {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
-        assert el < .5
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_set_time(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_SET_TIME, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_get_file(self):
-        # this long test may take a couple minutes
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        file = '2006671_low_20201004_132205.lid'
-        size = 299950
-        fol = '.'
-        s = '{} {} {} {} {}'
-        s = s.format(AG_BLE_CMD_GET_FILE, file, fol, size, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_ls_lid(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
-        rv = _q(ag, s)
-        _p(rv)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_ls_not_lid(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
-        rv = _q(ag, s)
-        _p(rv)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_stop(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_scan(self):
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} 0 5'.format(AG_BLE_CMD_SCAN)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        _p(rv[1])
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_scan_li(self):
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} 0 5'.format(AG_BLE_CMD_SCAN_LI)
-        rv = _q(ag, s)
-        assert rv[0] == 0
-        _p(rv[1])
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_config_cmd(self):
-        _cfg = {
-            "DFN": "low",
-            "TMP": 0, "PRS": 0,
-            "DOS": 1, "DOP": 1, "DOT": 1,
-            "TRI": 10, "ORI": 10, "DRI": 900,
-            "PRR": 8,
-            "PRN": 4,
-            "STM": "2012-11-12 12:14:00",
-            "ETM": "2030-11-12 12:14:20",
-            "LED": 1
-        }
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
-        _q(ag, s)
-        # _cfg: dict -> string
-        _cfg = json.dumps(_cfg)
-        s = '{} ${}$ {}'.format(AG_BLE_CMD_CONFIG, _cfg, mac)
-        rv = _q(ag, s)
-        _p(rv)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_mts_cmd(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_MTS, mac)
-        rv = _q(ag, s)
-        _p(rv)
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-    def test_any_cmd(self):
-        mac = self.m
-        ag = AgentBLE(threaded=1)
-        ag.start()
-        s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
-        s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
-        rv = _q(ag, s)
-        _p(rv)
-        s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
-        rv = _q(ag, s)
-        _p(rv)
-
-        assert rv[0] == 0
-        _q(ag, AG_BLE_CMD_BYE)
-
-
-def _q(_ag, _in):
-    _ag.q_in.put(_in)
-    # needed because of testing threads
-    if _in == AG_BLE_CMD_BYE:
-        return
-    _out = _ag.q_out.get()
-    return _out

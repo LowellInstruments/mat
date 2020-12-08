@@ -32,6 +32,8 @@ CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
+FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
+FAKE_MAC_RN4020 = 'mc:00:ff:ff:ff:ff'
 
 
 class Delegate(ble.DefaultDelegate):
@@ -372,7 +374,18 @@ def _ls_wildcard(lis, ext, match=True):
 
 
 def brand_ti(mac):
+    mac = mac.lower()
     return not brand_microchip(mac)
+
+
+def brand_testing_cc26x2(mac):
+    mac = mac.lower()
+    return mac == FAKE_MAC_CC26X2
+
+
+def brand_testing_rn4020(mac):
+    mac = mac.lower()
+    return mac == FAKE_MAC_RN4020
 
 
 def brand_microchip(mac):
