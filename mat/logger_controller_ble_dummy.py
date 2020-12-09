@@ -1,4 +1,5 @@
 import time
+import types
 from abc import ABC, abstractmethod
 
 from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, TIME_CMD, \
@@ -110,39 +111,41 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def command(self, *args):
         # only commands rv != b'00' and particular ones
         assert self.address
+        _c = args[0]
         dummy_answers_map = {
-            # todo: haha, this is EXTREMELY WRONG, fix it and search around if any similar
-            STATUS_CMD: self.sts(),
-            LOG_EN_CMD: self.log_en(),
-            MOBILE_CMD: self.mbl_en(),
+            STATUS_CMD: self.sts,
+            LOG_EN_CMD: self.log_en,
+            MOBILE_CMD: self.mbl_en,
             FIRMWARE_VERSION_CMD: '1.2.34',
             SERIAL_NUMBER_CMD: '20201112',
-            UP_TIME_CMD: '12345678',
+            UP_TIME_CMD: '100e0000',    # 1h = 0x100e0000
             TIME_CMD: FAKE_TIME,
             REQ_FILE_NAME_CMD: 'fake_file_name.lid',
             SD_FREE_SPACE_CMD: '12345678',
-            DO_SENSOR_READINGS_CMD: self.gsr_do(),
+            DO_SENSOR_READINGS_CMD: self.gsr_do,
             ERROR_WHEN_BOOT_OR_RUN_CMD: '01',
             CALIBRATION_CMD: 'BBBBBBBB',
             SENSOR_READINGS_CMD: '0123456789012345678901234567890123456789',
-            BTC_CMD: self.send_btc(),
+            BTC_CMD: self.send_btc,
             CRC_CMD: 'ABCD1234',
             FILESYSTEM_CMD: 'fakefs',
             BAT_CMD: '5678',
             SIZ_CMD: '9876',
-            WAKE_CMD: self.wake_en(),
-            CONFIG_CMD: self.send_cfg(None),
-            RUN_CMD: self.toggle_run(),
-            STOP_CMD: self.toggle_run(),
-            RWS_CMD: self.toggle_run(),
-            SWS_CMD: self.toggle_run(),
+            WAKE_CMD: self.wake_en,
+            CONFIG_CMD: self.send_cfg,
+            RUN_CMD: self.toggle_run,
+            STOP_CMD: self.toggle_run,
+            RWS_CMD: self.toggle_run,
+            SWS_CMD: self.toggle_run,
             LOGGER_INFO_CMD: 'AAAAAAA',
         }
-        ans = dummy_answers_map.setdefault(args[0], '00')
+        _a = dummy_answers_map.setdefault(args[0], '00')
+        if isinstance(_a, types.MethodType):
+            _a = _a()
+
         # todo: does this work?
-        ans = '{:02x}{}'.format(len(ans), ans)
-        rv = [args[0].encode(), ans.encode()]
-        print('dummy returning {}'.format(rv))
+        _a = '{:02x}{}'.format(len(_a), _a)
+        rv = [args[0].encode(), _a.encode()]
         return rv
 
 

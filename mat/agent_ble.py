@@ -118,9 +118,9 @@ class AgentBLE(threading.Thread):
     def loop_ag_ble(self):
         while 1:
             _in = self.q_in.get()
-            _p('-> AG_BLE {}'.format(_in))
+            # _p('-> AG_BLE {}'.format(_in))
             _out = self._parse(_in)
-            _p('<- AG_BLE {}'.format(_out))
+            # _p('<- AG_BLE {}'.format(_out))
             self.q_out.put(_out)
             if _in == AG_BLE_CMD_BYE:
                 break
