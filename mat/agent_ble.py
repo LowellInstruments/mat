@@ -18,7 +18,7 @@ def _p(s):
 
 def _stringify_dir_ans(_d_a):
     if _d_a == b'ERR':
-        return AG_BLE_ERR
+        return 'ERR'
     # _d_a: {'file.lid': 2182}
     rv = ''
     for k, v in _d_a.items():
@@ -40,15 +40,19 @@ def _sp(s, i):
     return s.rsplit(' ')[i]
 
 
+def _nok(s):
+    return 1, '{} {}'.format(AG_BLE_ERROR, s)
+
+
+def _ok(s):
+    return 0, '{} {}'.format(AG_BLE_OK, s)
+
+
 def _ok_or_nok(rv, c):
     if rv[0] == c.encode():
         p = '' if len(rv) == 1 else rv[1].decode()
-        return 0, 'AG_BLE OK: {} {}'.format(c, p)
-    return 1, 'AG_BLE ERR: {}'.format(c)
-
-
-def _e(s):
-    print(s)
+        return _ok('{} {}'.format(c, p))
+    return _nok(c)
 
 
 # can be threaded
@@ -129,7 +133,7 @@ class AgentBLE(threading.Thread):
         rv = ''
         for each in sr:
             rv += '{} {} '.format(each.addr, each.rssi)
-        return 0, rv.strip()
+        return _ok(rv.strip())
 
     @staticmethod
     def scan_li(s):
@@ -140,7 +144,7 @@ class AgentBLE(threading.Thread):
         for each in sr:
             if is_a_li_logger(each.rawData):
                 rv += '{} {} '.format(each.addr, each.rssi)
-        return 0, rv.strip()
+        return _ok(rv.strip())
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
@@ -148,7 +152,7 @@ class AgentBLE(threading.Thread):
         if self.lc:
             a = self.lc.address
             if a == mac and self.lc.per.getState() == "conn":
-                return 0, AG_BLE_ANS_CONN_ALREADY
+                return _ok(AG_BLE_ANS_CONN_ALREADY)
 
         # cut any current connection w/ different mac
         if self.lc:
@@ -168,39 +172,40 @@ class AgentBLE(threading.Thread):
         # connecting asked mac
         print(s)
         if self.lc.open():
-            return 0, '{} to {}'.format(AG_BLE_ANS_CONN_OK, mac)
-        return 1, AG_BLE_ANS_CONN_ERR
+            a = '{} {}'.format(AG_BLE_ANS_CONN_OK, mac)
+            return _ok(a)
+        return _nok(AG_BLE_ANS_CONN_ERR)
 
     def disconnect(self, _=None):
         # does not use any parameter
         if self.lc and self.lc.close():
-            return 0, AG_BLE_ANS_DISC_OK
-        return 0, AG_BLE_ANS_DISC_ALREADY
+            return _ok(AG_BLE_ANS_DISC_OK)
+        return _ok(AG_BLE_ANS_DISC_ALREADY)
 
     def get_time(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'get_time error'
+            return _ok(AG_BLE_CMD_GET_TIME)
 
         rv = self.lc.get_time()
         # in case of get_time(), rv is already a string
         if len(str(rv)) == 19:
-            return 0, str(rv)
-        return 1, 'get_time error'
+            return _ok(str(rv))
+        return _nok(AG_BLE_CMD_GET_TIME)
 
     def config(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'config error'
+            return _nok(AG_BLE_CMD_CONFIG)
 
         # '$' symbol as useful guard since <cfg> has spaces
         cfg = s.split('$')[1]
         rv = self.lc.send_cfg(json.loads(cfg))
         if rv[0].decode() == CONFIG_CMD:
-            return 0, 'CFG OK'
-        return 1, 'config error'
+            return _ok(AG_BLE_CMD_CONFIG)
+        return _nok(AG_BLE_CMD_CONFIG)
 
     def rli(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'RLI error'
+            return _nok(AG_BLE_CMD_CONFIG)
 
         # read all RLI fields
         a = ''
@@ -208,12 +213,12 @@ class AgentBLE(threading.Thread):
             rv = self.lc.command(LOGGER_INFO_CMD, _)
             a += '{} {} '.format(_, rv[1].decode())
         if 'ERR' in a:
-            return 1, 'RLI error'
-        return 0, a.rstrip()
+            return _nok(AG_BLE_CMD_RLI)
+        return _ok(a.rstrip())
 
     def rhs(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'RHS error'
+            return _nok(AG_BLE_CMD_RHS)
 
         # read all RHS fields
         a = ''
@@ -221,13 +226,13 @@ class AgentBLE(threading.Thread):
             rv = self.lc.command(CALIBRATION_CMD, _)
             a += '{} {} '.format(_, rv[1].decode())
         if 'ERR' in a:
-            return 1, 'RHS error'
-        return 0, a.rstrip()
+            return _nok(AG_BLE_CMD_RHS)
+        return _ok(a.rstrip())
 
     def _cmd_ans(self, mac, c):
         # c: STATUS_CMD
         if not mac:
-            return 1, 'connection ERR'
+            return _nok('no mac in cmd format')
         rv = self.lc.command(c)
         return _ok_or_nok(rv, c)
 
@@ -276,30 +281,30 @@ class AgentBLE(threading.Thread):
     def del_file(self, s):
         # s: 'del_file <filename> <mac>'
         if not _mac_n_connect(s, self):
-            return 1, 'del_file error'
+            return _nok(AG_BLE_CMD_DEL_FILE)
 
         # delete the file
         name = s.split(' ')[1]
         rv = self.lc.command(DEL_FILE_CMD, name)
         if rv[0].decode() == DEL_FILE_CMD:
-            return 0, AG_BLE_CMD_DEL_FILE
-        return 1, _e(AG_BLE_CMD_DEL_FILE)
+            return _ok(AG_BLE_CMD_DEL_FILE)
+        return _nok(AG_BLE_CMD_DEL_FILE)
 
     def ls_lid(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'ls_lid error'
+            return _nok(AG_BLE_CMD_LS_LID)
         rv = self.lc.ls_lid()
         if type(rv) == dict:
-            return 0, _stringify_dir_ans(rv)
-        return 1, rv
+            return _ok(_stringify_dir_ans(rv))
+        return _nok(rv)
 
     def ls_not_lid(self, s):
         if not _mac_n_connect(s, self):
-            return 1, 'ls_not_lid error'
+            return _nok(AG_BLE_CMD_LS_NOT_LID)
         rv = self.lc.ls_not_lid()
         if type(rv) == dict:
-            return 0, _stringify_dir_ans(rv)
-        return 1, rv
+            return _ok(_stringify_dir_ans(rv))
+        return _nok(rv)
 
     def stop(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), STOP_CMD)
@@ -322,37 +327,39 @@ class AgentBLE(threading.Thread):
 
     @staticmethod
     def bye(_):
-        return 0, AG_BLE_ANS_BYE
+        return _ok(AG_BLE_ANS_BYE)
 
     def query(self, _):
-        a = 'agent_ble logger controller ble is {}'
+        a = 'AG_BLE: logger controller {}'
         if not self.lc:
-            return 0, a.format(AG_BLE_EMPTY)
+            return _ok(a.format(AG_BLE_EMPTY))
         if not self.lc.per:
-            return 0, a.format(AG_BLE_EMPTY)
-        return 0, a.format(self.lc.per.getState())
+            return _ok(a.format(AG_BLE_EMPTY))
+        return _ok(a.format(self.lc.per.getState()))
 
     def get_file(self, s):
         # s: 'get_file <file> <fol> <size> <mac>
         file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
         if not _mac_n_connect(s, self):
-            return 1, 'get_file error'
+            return _nok(AG_BLE_CMD_GET_FILE)
 
         if self.lc.get_file(self, file, fol, size):
-            return 0, 'get_file OK: {} {}'.format(file, size)
-        return 1, 'get_file error: {} {}'.format(file, size)
+            a = '{} {} {}'.format(AG_BLE_CMD_GET_FILE, file, size)
+            return _ok(a)
+        return _nok(AG_BLE_CMD_GET_FILE)
 
     def dwg_file(self, s):
         # s: 'dwg_file <file> <fol> <size> <mac>
         file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
         if not _mac_n_connect(s, self):
-            return 1, 'dwg_file error'
+            return _nok(AG_BLE_CMD_DWG_FILE)
 
         if self.lc.dwg_file(file, fol, size):
-            return 0, 'dwg_file OK: {} {}'.format(file, size)
-        return 1, 'get_file error: {} {}'.format(file, size)
+            a = '{} {} {}'.format(AG_BLE_CMD_DWG_FILE, file, size)
+            return _ok(a)
+        return _nok(AG_BLE_CMD_DWG_FILE)
 
     def close(self):
         return self.disconnect()

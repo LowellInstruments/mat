@@ -1,5 +1,9 @@
 import time
-from mat.logger_controller_ble import FAKE_MAC_CC26X2, FAKE_MAC_RN4020, LoggerControllerBLE
+
+from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, TIME_CMD, \
+    REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, SD_FREE_SPACE_CMD, DO_SENSOR_READINGS_CMD, SENSOR_READINGS_CMD
+from mat.logger_controller_ble import FAKE_MAC_CC26X2, FAKE_MAC_RN4020, LoggerControllerBLE, LOG_EN_CMD, MOBILE_CMD, \
+    UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD
 
 
 class FakePer:
@@ -71,7 +75,30 @@ class LoggerControllerBLEDummy(LoggerControllerBLE):
     def command(self, *args):
         # first version
         assert self.address
-        return args[0].encode(), b'00'
+        dummy_answers_map = {
+            STATUS_CMD: '0201',
+            LOG_EN_CMD: '0201',
+            MOBILE_CMD: '0201',
+            FIRMWARE_VERSION_CMD: '1.2.34',
+            SERIAL_NUMBER_CMD: '20201112',
+            UP_TIME_CMD: '12345678',
+            TIME_CMD: '2020/12/31 12:34:56',
+            REQ_FILE_NAME_CMD: 'fake_file_name.lid',
+            LOGGER_INFO_CMD: 'AAAA',
+            SD_FREE_SPACE_CMD: '12345678',
+            DO_SENSOR_READINGS_CMD: '111122223333',
+            ERROR_WHEN_BOOT_OR_RUN_CMD: '0201',
+            CALIBRATION_CMD: 'BBBBBBBB',
+            SENSOR_READINGS_CMD: '0123456789012345678901234567890123456789',
+            BTC_CMD: 'CMD\r\nAOK\r\nMLDP',
+            CRC_CMD: 'ABCD1234',
+            FILESYSTEM_CMD: 'fakefs',
+            BAT_CMD: '5678',
+            SIZ_CMD: '55555555',
+            WAKE_CMD: '0201'
+        }
+        ans = dummy_answers_map.setdefault(args[0], '00')
+        return args[0].encode(), ans.encode()
 
 
 class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
