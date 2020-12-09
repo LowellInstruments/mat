@@ -1,6 +1,6 @@
 from mat.logger_controller import STATUS_CMD
 from mat.logger_controller_ble import FAKE_MAC_RN4020
-from tests._lc_ble_dummy import LoggerControllerBLEDummyRN4020
+from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyRN4020, FAKE_TIME, no_cmd_in_logger
 
 
 # how to test this with coverage:
@@ -62,13 +62,13 @@ class TestLCBLEDummyRN4020:
         lc = LoggerControllerBLEDummyRN4020(self.mac)
         lc.open()
         rv = lc.get_time()
-        assert rv == '2020/12/31 12:34:56'
+        # this is a string because of get_time()
+        assert rv == FAKE_TIME
 
     def test_ls_lid(self):
         lc = LoggerControllerBLEDummyRN4020(self.mac)
         lc.open()
         rv = lc.ls_lid()
-        print(rv)
         assert rv == {'a.lid': '1234'}
 
     def test_ls_not_lid(self):
@@ -82,28 +82,25 @@ class TestLCBLEDummyRN4020:
         lc.open()
         rv = lc.send_cfg('my_cfg')
         # does not exist for RN4020 loggers
-        assert not rv
+        assert rv == no_cmd_in_logger(lc)
 
     def test_send_btc(self):
         lc = LoggerControllerBLEDummyRN4020(self.mac)
         lc.open()
         rv = lc.send_btc()
-        assert rv == 'BTC 00T,0006,0000,0064'
+        assert rv == 'CMD\r\nAOK\r\nMLDP'
 
     def test_dwg_file(self):
         lc = LoggerControllerBLEDummyRN4020(self.mac)
         lc.open()
         rv = lc.dwg_file('fake_file', 'fake_fol', 1234)
         # does not exist for RN4020 loggers
-        assert not rv
+        assert rv == no_cmd_in_logger(lc)
 
-    def test_command_status(self):
-        lc = LoggerControllerBLEDummyRN4020(self.mac)
-        lc.open()
-        assert lc.command(STATUS_CMD) == _rv_cmd_generic(STATUS_CMD)
+    def test_cmd_status(self): _test_cmd_generic(STATUS_CMD, self.mac)
 
 
-def _rv_cmd_generic(*args):
-    return args[0].encode(), b'00'
-
-
+def _test_cmd_generic(s, mac):
+    lc = LoggerControllerBLEDummyRN4020(mac)
+    lc.open()
+    assert s.encode() in lc.command(s)

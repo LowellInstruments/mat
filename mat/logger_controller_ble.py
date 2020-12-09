@@ -15,6 +15,9 @@ import subprocess as sp
 # commands not present in USB loggers
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
+FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
+FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
+
 
 SIZ_CMD = 'SIZ'
 BAT_CMD = 'BAT'
@@ -32,8 +35,8 @@ CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
-FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
-FAKE_MAC_RN4020 = 'mc:00:ff:ff:ff:ff'
+# todo: someday use this ERR_MAT_ANS around
+ERR_MAT_ANS = 'ERR'
 
 
 class Delegate(ble.DefaultDelegate):
@@ -104,9 +107,9 @@ class LoggerControllerBLE(LoggerController):
                 self.open_post()
                 return True
 
-            except (AttributeError, ble.BTLEException):
-                e = 'failed connection attempt {} of {}'
-                print(e.format(i + 1, retries))
+            except (AttributeError, ble.BTLEException) as exc:
+                e = 'failed connection attempt {}/{}: {}'
+                print(e.format(i + 1, retries, exc))
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
@@ -118,6 +121,7 @@ class LoggerControllerBLE(LoggerController):
     def close(self):
         try:
             self.per.disconnect()
+            self.per = None
             return True
         except AttributeError:
             return False

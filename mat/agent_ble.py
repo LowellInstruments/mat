@@ -1,5 +1,7 @@
 import json
 import threading
+import time
+
 from mat import logger_controller_ble
 from mat.agent_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
@@ -9,7 +11,8 @@ from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMA
     MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, \
     brand_testing_cc26x2, brand_testing_rn4020
 import queue
-from tests._lc_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020
+
+from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020
 
 
 def _p(s):
@@ -65,7 +68,7 @@ class AgentBLE(threading.Thread):
         self.q_in = queue.Queue()
         self.q_out = queue.Queue()
         if not threaded:
-            self.loop_ble()
+            self.loop_ag_ble()
 
     def _parse(self, s):
         # s: '<cmd> <args> <mac>'
@@ -112,7 +115,7 @@ class AgentBLE(threading.Thread):
         # noinspection PyArgumentList
         return fxn(s)
 
-    def loop_ble(self):
+    def loop_ag_ble(self):
         while 1:
             _in = self.q_in.get()
             _p('-> AG_BLE {}'.format(_in))
@@ -123,7 +126,7 @@ class AgentBLE(threading.Thread):
                 break
 
     def run(self):
-        self.loop_ble()
+        self.loop_ag_ble()
 
     @staticmethod
     def scan(s):
@@ -151,8 +154,9 @@ class AgentBLE(threading.Thread):
         mac = s.rsplit(' ', 1)[-1]
         if self.lc:
             a = self.lc.address
-            if a == mac and self.lc.per.getState() == "conn":
-                return _ok(AG_BLE_ANS_CONN_ALREADY)
+            if a == mac:
+                if self.lc.per and self.lc.per.getState() == "conn":
+                    return _ok(AG_BLE_ANS_CONN_ALREADY)
 
         # cut any current connection w/ different mac
         if self.lc:
@@ -170,7 +174,6 @@ class AgentBLE(threading.Thread):
             assert False
 
         # connecting asked mac
-        print(s)
         if self.lc.open():
             a = '{} {}'.format(AG_BLE_ANS_CONN_OK, mac)
             return _ok(a)

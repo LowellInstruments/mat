@@ -2,7 +2,6 @@ from mat.agent_ble import AgentBLE
 from mat.agent_utils import *
 import time
 import json
-
 from mat.logger_controller_ble import FAKE_MAC_CC26X2, FAKE_MAC_RN4020
 
 
@@ -10,12 +9,12 @@ def _p(s):
     print(s)
 
 
-class TestBLEAgent:
-    mac_lab = '60:77:71:22:c8:08'
-    mac_house = '60:77:71:22:c8:18'
-    mac_testing_cc26x2 = FAKE_MAC_CC26X2
+class TestAgentBLE:
+    # mac_lab = '60:77:71:22:c8:08'
+    # mac_house = '60:77:71:22:c8:18'
+    # mac_testing_cc26x2 = FAKE_MAC_CC26X2
     mac_testing_rn4020 = FAKE_MAC_RN4020
-    m = mac_testing_cc26x2
+    m = mac_testing_rn4020
 
     def test_disconnect_was_not_connected(self):
         ag = AgentBLE(threaded=1)
@@ -24,7 +23,7 @@ class TestBLEAgent:
         mac = self.m
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         rv = _q(ag, s)
-        assert rv[1] == AG_BLE_ANS_DISC_ALREADY
+        assert AG_BLE_ANS_DISC_ALREADY in rv[1]
         _q(ag, AG_BLE_CMD_BYE)
 
     def test_connect_disconnect(self):
@@ -39,7 +38,7 @@ class TestBLEAgent:
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
-        assert rv[1] == AG_BLE_ANS_DISC_OK
+        assert AG_BLE_ANS_DISC_OK in rv[1]
         _q(ag, AG_BLE_CMD_BYE)
 
     def test_connect_already(self):
@@ -52,7 +51,7 @@ class TestBLEAgent:
         _q(ag, s)
         s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
         rv = _q(ag, s)
-        assert rv[1] == AG_BLE_ANS_CONN_ALREADY
+        assert AG_BLE_ANS_CONN_ALREADY in rv[1]
         _q(ag, AG_BLE_CMD_BYE)
 
     def test_get_time_thrice_few_time_same_connection(self):
