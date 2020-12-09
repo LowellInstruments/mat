@@ -101,8 +101,6 @@ class AgentN2LH(threading.Thread):
             while 1:
                 # just parse format, not much content
                 _in = self._in_cmd()
-                print('**** {}'.format(_in))
-
                 _in = _good_n2lh_cmd_prefix(_in)
                 if not _in:
                     # _p('bad N2LH prefix ({}) or timeout empty'.format(_in))

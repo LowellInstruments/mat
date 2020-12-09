@@ -43,8 +43,8 @@ def _sp(s, i):
 def _ok_or_nok(rv, c):
     if rv[0] == c.encode():
         p = '' if len(rv) == 1 else rv[1].decode()
-        return 0, '{} OK: {}'.format(c, p)
-    return 1, '{} ERR'
+        return 0, 'AG_BLE OK: {} {}'.format(c, p)
+    return 1, 'AG_BLE ERR: {}'.format(c)
 
 
 def _e(s):
@@ -166,6 +166,7 @@ class AgentBLE(threading.Thread):
             assert False
 
         # connecting asked mac
+        print(s)
         if self.lc.open():
             return 0, '{} to {}'.format(AG_BLE_ANS_CONN_OK, mac)
         return 1, AG_BLE_ANS_CONN_ERR
