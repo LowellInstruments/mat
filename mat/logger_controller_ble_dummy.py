@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 
 from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, TIME_CMD, \
     REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, SD_FREE_SPACE_CMD, DO_SENSOR_READINGS_CMD, SENSOR_READINGS_CMD, RUN_CMD, \
-    STOP_CMD, RWS_CMD, SWS_CMD
+    STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
-    FAKE_MAC_CC26X2, FAKE_MAC_RN4020, ERR_MAT_ANS, CONFIG_CMD
+    FAKE_MAC_CC26X2, FAKE_MAC_RN4020, ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
 
 FAKE_TIME = '2020/12/31 12:34:56'
 
@@ -32,6 +32,11 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             'mbl_enabled_or_disabled': 0,
             'wake_enabled_or_disabled': 0
         }
+        self.files = {
+            'a.lid': '1234',
+            'b.lid': '5678',
+            'MAT.cfg': '101'
+        }
 
     @abstractmethod
     def open(self): pass
@@ -46,10 +51,16 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def mbl_en(self): pass
 
     @abstractmethod
+    def mts(self): pass
+
+    @abstractmethod
     def send_btc(self): pass
 
     @abstractmethod
     def dwg_file(self, *args): pass
+
+    @abstractmethod
+    def frm(self): pass
 
     @abstractmethod
     def wake_en(self): pass
@@ -87,11 +98,19 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
 
     def ls_lid(self):
         assert self.address
-        return {'a.lid': '1234'}
+        _d = {k: v for k, v in self.files.items() if '.lid' in k}
+        return _d
 
     def ls_not_lid(self):
         assert self.address
-        return {'MAT.cfg': '101'}
+        _d = {k: v for k, v in self.files.items() if '.lid' not in k}
+        return _d
+
+    def del_file(self, name):
+        assert self.address
+        if name in self.files.keys():
+            del self.files[name]
+        return '00'
 
     def gsr_do(self):
         assert self.address
@@ -109,7 +128,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
         return '01' if self.fake_state[key] else '00'
 
     def command(self, *args):
-        # only commands rv != b'00' and particular ones
+        # args: ('DEL', 'a.lid')
         assert self.address
         _c = args[0]
         dummy_answers_map = {
@@ -117,15 +136,15 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             LOG_EN_CMD: self.log_en,
             MOBILE_CMD: self.mbl_en,
             FIRMWARE_VERSION_CMD: '1.2.34',
-            SERIAL_NUMBER_CMD: '20201112',
-            UP_TIME_CMD: '100e0000',    # 1h = 0x100e0000
+            SERIAL_NUMBER_CMD: 'AAAAAAA',
+            UP_TIME_CMD: '100e0000',    # 1h = 0x0000e010
             TIME_CMD: FAKE_TIME,
             REQ_FILE_NAME_CMD: 'fake_file_name.lid',
-            SD_FREE_SPACE_CMD: '12345678',
+            SD_FREE_SPACE_CMD: '00000040',  # 64 MB = 0x400000000
             DO_SENSOR_READINGS_CMD: self.gsr_do,
             ERROR_WHEN_BOOT_OR_RUN_CMD: '01',
             CALIBRATION_CMD: 'BBBBBBBB',
-            SENSOR_READINGS_CMD: '0123456789012345678901234567890123456789',
+            SENSOR_READINGS_CMD: '0123456789' * 4,
             BTC_CMD: self.send_btc,
             CRC_CMD: 'ABCD1234',
             FILESYSTEM_CMD: 'fakefs',
@@ -138,13 +157,17 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             RWS_CMD: self.toggle_run,
             SWS_CMD: self.toggle_run,
             LOGGER_INFO_CMD: 'AAAAAAA',
+            MY_TOOL_SET_CMD: self.mts,
+            DEL_FILE_CMD: self.del_file,
+            FORMAT_CMD: self.frm
         }
-        _a = dummy_answers_map.setdefault(args[0], '00')
+        _a = dummy_answers_map.setdefault(args[0], '')
         if isinstance(_a, types.MethodType):
-            _a = _a()
+            # call w/ parameters or not, ex: del_file a.lid
+            _a = _a(args[1]) if len(args) > 1 else _a()
 
-        # todo: does this work?
-        _a = '{:02x}{}'.format(len(_a), _a)
+        # add the hexadecimal length string
+        _a = '{:02x}{}'.format(len(_a), _a) if len(_a) else '00'
         rv = [args[0].encode(), _a.encode()]
         return rv
 
@@ -178,11 +201,22 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         self.fake_state[key] ^= 1
         return '01' if self.fake_state[key] else '00'
 
+    def mts(self):
+        _t = str(int(time.perf_counter()))
+        name = 'data_{}.lid'.format(_t)
+        size = _t[-4:]
+        self.files[name] = size
+        return '00'
+
+    def frm(self):
+        self.files = {}
+        return '00'
+
     def dwg_file(self, *args):
         return True
 
     def send_cfg(self, _):
-        return [b'CFG', b'00']
+        return '00'
 
     def send_btc(self):
         return no_cmd_in_logger(self)
@@ -206,20 +240,13 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
         assert self.address
         return 'CMD\r\nAOK\r\nMLDP'
 
-    def send_cfg(self, _):
-        return no_cmd_in_logger(self)
-
-    def dwg_file(self, *args):
-        return no_cmd_in_logger(self)
-
-    def log_en(self):
-        return no_cmd_in_logger(self)
-
-    def mbl_en(self):
-        return no_cmd_in_logger(self)
-
-    def wake_en(self):
-        return no_cmd_in_logger(self)
+    def send_cfg(self, _): return no_cmd_in_logger(self)
+    def dwg_file(self, *args): return no_cmd_in_logger(self)
+    def log_en(self): return no_cmd_in_logger(self)
+    def mbl_en(self): return no_cmd_in_logger(self)
+    def wake_en(self): return no_cmd_in_logger(self)
+    def mts(self): return no_cmd_in_logger(self)
+    def frm(self): return no_cmd_in_logger(self)
 
 
 def no_cmd_in_logger(lc):
