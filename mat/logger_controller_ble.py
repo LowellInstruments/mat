@@ -37,6 +37,7 @@ FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
 # todo: someday use this ERR_MAT_ANS around
 ERR_MAT_ANS = 'ERR'
+GET_FILE_CMD = 'GET'
 
 
 class Delegate(ble.DefaultDelegate):

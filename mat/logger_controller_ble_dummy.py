@@ -7,7 +7,7 @@ from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_
     STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
-    FAKE_MAC_CC26X2, FAKE_MAC_RN4020, ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
+    FAKE_MAC_CC26X2, FAKE_MAC_RN4020, ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
 
 FAKE_TIME = '2020/12/31 12:34:56'
 
@@ -94,6 +94,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
 
     def get_time(self):
         assert self.address
+        # otherwise it does not comply with tests
         return FAKE_TIME
 
     def ls_lid(self):
@@ -120,12 +121,25 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
 
     def sts(self):
         key = 'running_or_stopped'
-        return '01' if self.fake_state[key] else '00'
+        # recall rv '01' means stopped
+        return '00' if self.fake_state[key] else '01'
 
-    def toggle_run(self):
+    def stop(self):
         key = 'running_or_stopped'
-        self.fake_state[key] ^= 1
-        return '01' if self.fake_state[key] else '00'
+        self.fake_state[key] = 0
+        return '00'
+
+    def run(self):
+        key = 'running_or_stopped'
+        if self.fake_state[key]:
+            return ERR_MAT_ANS
+        self.fake_state[key] = 1
+        return '00'
+
+    def get_file_cmd(self, name):
+        if name in self.files.keys():
+            return '00'
+        return ERR_MAT_ANS
 
     def command(self, *args):
         # args: ('DEL', 'a.lid')
@@ -152,19 +166,24 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             SIZ_CMD: '9876',
             WAKE_CMD: self.wake_en,
             CONFIG_CMD: self.send_cfg,
-            RUN_CMD: self.toggle_run,
-            STOP_CMD: self.toggle_run,
-            RWS_CMD: self.toggle_run,
-            SWS_CMD: self.toggle_run,
+            RUN_CMD: self.run,
+            STOP_CMD: self.stop,
+            RWS_CMD: self.run,
+            SWS_CMD: self.stop,
             LOGGER_INFO_CMD: 'AAAAAAA',
             MY_TOOL_SET_CMD: self.mts,
             DEL_FILE_CMD: self.del_file,
-            FORMAT_CMD: self.frm
+            FORMAT_CMD: self.frm,
+            GET_FILE_CMD: self.get_file_cmd
         }
         _a = dummy_answers_map.setdefault(args[0], '')
         if isinstance(_a, types.MethodType):
             # call w/ parameters or not, ex: del_file a.lid
             _a = _a(args[1]) if len(args) > 1 else _a()
+
+        # in case answer gives error
+        if _a == ERR_MAT_ANS:
+            return ERR_MAT_ANS
 
         # add the hexadecimal length string
         _a = '{:02x}{}'.format(len(_a), _a) if len(_a) else '00'
