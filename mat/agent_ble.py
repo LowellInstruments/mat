@@ -170,7 +170,7 @@ class AgentBLE(threading.Thread):
         elif brand_ti(mac):
             self.lc = LoggerControllerBLE(mac, self.h)
         else:
-            # brand microchip, never tested
+            # brand microchip, never tested w/ GUI
             assert False
 
         # connecting asked mac
@@ -190,7 +190,7 @@ class AgentBLE(threading.Thread):
             return _ok(AG_BLE_CMD_GET_TIME)
 
         rv = self.lc.get_time()
-        # in case of get_time(), rv is already a string
+        # in case of get_time(), rv already a string
         if len(str(rv)) == 19:
             return _ok(str(rv))
         return _nok(AG_BLE_CMD_GET_TIME)
