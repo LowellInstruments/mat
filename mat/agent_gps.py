@@ -10,7 +10,7 @@ def _p(s):
 
 class AgentGPS(threading.Thread):
     # has one collector thread, one interface thread
-    def __init__(self, q_in, q_out, threaded):
+    def __init__(self, q_in, q_out, threaded=1):
         super().__init__()
         self.lat = None
         self.lon = None
@@ -24,8 +24,8 @@ class AgentGPS(threading.Thread):
         self._loop_agent()
 
     def _gps_get(self):
-        self.lat = 'my_lat'
-        self.lon = 'my_lon'
+        self.lat = '12.34'
+        self.lon = '56.78'
         self.ts = time.perf_counter()
         return self.lat, self.lon, self.ts
 
