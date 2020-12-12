@@ -63,3 +63,6 @@ AG_N2LL_ANS_QUERY = 'NX {} agent {} at {}'
 AG_N2LL_ANS_ROUTE_OK = 'ngrok at mac {}\n{}port {}\n{}url {}'
 AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS = 'error: few permissions to rm ngrok'
 AG_N2LL_ANS_ROUTE_ERR_ALREADY = 'error: ngrok not grep at {}, maybe runs somewhere else?'
+
+AG_GPS_CMD_BYE = 'bye'
+AG_GPS_ANS_BYE = 'bye you by AG_GPS'
