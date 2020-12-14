@@ -573,7 +573,7 @@ def _cmd_post_slow_down_if_so(tag: str):
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
-        CONFIG_CMD: .5,
+        CONFIG_CMD: 1.5,
         RUN_CMD: 1,
         STOP_CMD: 1,
         RWS_CMD: 1,

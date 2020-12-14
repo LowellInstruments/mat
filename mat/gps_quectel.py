@@ -13,11 +13,12 @@ def gps_parse_rmc_frame(data):
         return
 
     _t = s[1][0:2] + ":" + s[1][2:4] + ":" + s[1][4:6]
-    date = s[9][0:2] + "/" + s[9][2:4] + "/" + s[9][4:6]
+    _day = s[9][0:2] + "/" + s[9][2:4] + "/" + s[9][4:6]
+
     # lat, direction, lon, direction, speed, course, variation
-    lat = decode(s[3])
+    lat = _coord_decode(s[3])
     dirLat = s[4]
-    lon = decode(s[5])
+    lon = _coord_decode(s[5])
     dirLon = s[6]
     speed = s[7]
     _course = s[8]
@@ -25,15 +26,15 @@ def gps_parse_rmc_frame(data):
 
     # checksum
     dc = s[11].split("*")
-    degree = dc[0]        #degree
-    checksum = dc[1]      #checksum
+    degree = dc[0]
+    checksum = dc[1]
 
     # display
-    print('time {} lat {} lon {} checksum {}'.format(_t, lat, lon, checksum))
+    print('time {} date {} lat {} lon {} checksum {}'.format(_t, _day, lat, lon, checksum))
     print('speed {} mag_var {} course {}'.format(speed, variation, _course))
 
 
-def decode(coord):
+def _coord_decode(coord):
     # DDDMM.MMMMM -> DD deg MM.MMMMM min
     x = coord.split(".")
     head = x[0]

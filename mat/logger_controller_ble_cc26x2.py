@@ -41,5 +41,8 @@ class LoggerControllerBLECC26X2:  # pragma: no cover
         if lc.dlg.buf and lc.dlg.buf.endswith(b'GET 00'):
             dl = lc.xmd_rx_n_save(file, fol, size, sig)
 
+        # don't remove, allows logger x-modem to finish
+        time.sleep(1)
+
         # clean-up
         return dl
