@@ -15,6 +15,9 @@ setup(name='lowell-mat',
                         'h5py==2.10.0',
                         'crc16==0.1.1',
                         'bluepy@git+https://github.com/LowellInstruments/bluepy.git',
+                        'pynng',
+                        'pika',
+                        'getmac'
                         ],
       classifiers=[
           "Development Status :: 3 - Alpha",

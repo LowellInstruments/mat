@@ -1,5 +1,6 @@
 import time
 import serial
+import datetime
 
 
 PORT_CTRL = '/dev/ttyUSB2'
@@ -29,19 +30,31 @@ def gps_parse_rmc_frame(data):
     degree = dc[0]
     checksum = dc[1]
 
+    # GPS date and time are UTC
+    fmt = '{} {}'.format(_day, _t)
+    gps_time = datetime.datetime.strptime(fmt, '%d/%m/%y %H:%M:%S')
+
     # display
     print('time {} date {} lat {} lon {} checksum {}'.format(_t, _day, lat, lon, checksum))
     print('speed {} mag_var {} course {}'.format(speed, variation, _course))
 
+    # return some strings
+    lat = lat * 1 if dirLat == 'N' else lat * -1
+    lon = lon * 1 if dirLon == 'E' else lon * -1
+
+    # todo: calculate checksum
+    return lat, lon, gps_time
+
+
 
 def _coord_decode(coord):
-    # DDDMM.MMMMM -> DD deg MM.MMMMM min
+    # src: stackoverflow 18442158 latitude format
     x = coord.split(".")
     head = x[0]
-    tail = x[1]
-    deg = head[0:-2]
-    min = head[-2:]
-    return deg + " deg " + min + "." + tail + " min"
+    deg = head[:-2]
+    minutes = '{}.{}'.format(head[-2:], x[1])
+    decimal = int(deg) + float(minutes) / 60
+    return decimal
 
 
 def enable_gps_output():
@@ -62,5 +75,12 @@ def loop():
             gps_parse_rmc_frame(data)
 
 
+
+def my_test_gps_parse_rmc_frame():
+    data = '$GPRMC,123519,A,07717.3644,N,01131.000,E,022.4,084.4,230394,003.1,W*6A'
+    rv = gps_parse_rmc_frame(data)
+    print(rv)
+
 if __name__ == '__main__':
-    loop()
+    my_test_gps_parse_rmc_frame()
+    # loop()
