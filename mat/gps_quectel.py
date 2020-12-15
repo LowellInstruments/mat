@@ -57,7 +57,7 @@ def _coord_decode(coord):
     return decimal
 
 
-def enable_gps_output():
+def enable_gps_quectel_output():
     print('sending AT+QGPS=1 to {}'.format(PORT_CTRL))
     sp = serial.Serial(PORT_CTRL, baudrate = 115200, timeout = 1)
     sp.write('AT+QGPS=1\r')
@@ -66,7 +66,7 @@ def enable_gps_output():
 
 
 def loop():
-    enable_gps_output()
+    enable_gps_quectel_output()
     print('GPS Quectel receiving...')
     sp = serial.Serial(PORT_DATA, baudrate = 115200, timeout = 0.5)
     while True:
