@@ -25,24 +25,28 @@ def gps_parse_rmc_frame(data):
     _course = s[8]
     variation = s[10]
 
-    # checksum
-    dc = s[11].split("*")
-    degree = dc[0]
-    checksum = dc[1]
-
     # GPS date and time are UTC
     fmt = '{} {}'.format(_day, _t)
     gps_time = datetime.datetime.strptime(fmt, '%d/%m/%y %H:%M:%S')
 
     # display
-    print('time {} date {} lat {} lon {} checksum {}'.format(_t, _day, lat, lon, checksum))
+    print('time {} date {} lat {} lon {}'.format(_t, _day, lat, lon))
     print('speed {} mag_var {} course {}'.format(speed, variation, _course))
 
     # return some strings
     lat = lat * 1 if dirLat == 'N' else lat * -1
     lon = lon * 1 if dirLon == 'E' else lon * -1
 
-    # todo: calculate checksum
+    # checksum skipping initial '$'
+    cs_in = data.split('*')[1]
+    cs_calc = 0
+    for c in data[1:].split('*')[0]:
+        cs_calc ^= ord(c)
+    cs_calc = hex(cs_calc)[-2:]
+    if cs_calc != cs_in:
+        return None
+
+    # everything went ok
     return lat, lon, gps_time
 
 
@@ -77,7 +81,7 @@ def loop():
 
 
 def my_test_gps_parse_rmc_frame():
-    data = '$GPRMC,123519,A,07717.3644,N,01131.000,E,022.4,084.4,230394,003.1,W*6A'
+    data = '$GPRMC,220516,A,5133.82,N,00042.24,W,173.8,231.8,130694,004.2,W*70'
     rv = gps_parse_rmc_frame(data)
     print(rv)
 
