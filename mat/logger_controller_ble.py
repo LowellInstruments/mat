@@ -35,7 +35,6 @@ CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
-# todo: someday use this ERR_MAT_ANS around
 ERR_MAT_ANS = 'ERR'
 GET_FILE_CMD = 'GET'
 
@@ -149,7 +148,7 @@ class LoggerControllerBLE(LoggerController):
             a = b
 
         # early leave when error or invalid command
-        if a.startswith('ERR') or a.startswith('INV'):
+        if a.startswith(ERR_MAT_ANS) or a.startswith('INV'):
             time.sleep(.5)
             return True
 
@@ -364,8 +363,9 @@ def _ls_wildcard(lis, ext, match=True):
     if lis is None:
         return {}
 
-    if b'ERR' in lis:
-        return b'ERR'
+    err = ERR_MAT_ANS.encode()
+    if err in lis:
+        return err
 
     files, idx = {}, 0
     while idx < len(lis):

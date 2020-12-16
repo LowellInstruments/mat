@@ -9,7 +9,7 @@ from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LO
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
     MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, \
-    brand_testing_cc26x2, brand_testing_rn4020
+    brand_testing_cc26x2, brand_testing_rn4020, ERR_MAT_ANS
 import queue
 
 from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020
@@ -20,8 +20,8 @@ def _p(s):
 
 
 def _stringify_dir_ans(_d_a):
-    if _d_a == b'ERR':
-        return 'ERR'
+    if _d_a == ERR_MAT_ANS.encode():
+        return ERR_MAT_ANS
     # _d_a: {'file.lid': 2182}
     rv = ''
     for k, v in _d_a.items():
@@ -215,7 +215,7 @@ class AgentBLE(threading.Thread):
         for _ in ('SN', 'CA', 'BA', 'MA'):
             rv = self.lc.command(LOGGER_INFO_CMD, _)
             a += '{} {} '.format(_, rv[1].decode())
-        if 'ERR' in a:
+        if ERR_MAT_ANS in a:
             return _nok(AG_BLE_CMD_RLI)
         return _ok(a.rstrip())
 
@@ -228,7 +228,7 @@ class AgentBLE(threading.Thread):
         for _ in ('TMO', 'TMR', 'TMA', 'TMB', 'TMC'):
             rv = self.lc.command(CALIBRATION_CMD, _)
             a += '{} {} '.format(_, rv[1].decode())
-        if 'ERR' in a:
+        if ERR_MAT_ANS in a:
             return _nok(AG_BLE_CMD_RHS)
         return _ok(a.rstrip())
 

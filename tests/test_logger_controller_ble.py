@@ -9,8 +9,9 @@ if sys.platform != 'win32':
         Delegate,
         brand_ti,
         brand_microchip,
-        is_a_li_logger, _ans_check, _cmd_pre_slow_down_if_so, _cmd_post_slow_down_if_so, calc_ble_cmd_ans_timeout
-    )
+        is_a_li_logger, _ans_check, _cmd_pre_slow_down_if_so, _cmd_post_slow_down_if_so, calc_ble_cmd_ans_timeout,
+        ERR_MAT_ANS
+)
     from tests._test_logger_controller_ble import (
         FakePeripheral,
         FakePeripheralEx
@@ -145,9 +146,9 @@ class TestLoggerControllerBLECC26X2:
         assert lc.ls_lid() == {}
 
     def test_ls_lid_bad(self, fake_lc_ble_factory):
-        _rv = b'ERR'
+        _rv = ERR_MAT_ANS.encode()
         lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc.ls_lid() == b'ERR'
+        assert lc.ls_lid() == _rv
 
     def test_ls_not_lid_ok(self, fake_lc_ble_factory):
         _rv = [b'.', b'..', b'a.lid', b'76', b'b.csv', b'10']
@@ -161,9 +162,9 @@ class TestLoggerControllerBLECC26X2:
         assert lc.ls_not_lid() == {}
 
     def test_ls_not_lid_bad(self, fake_lc_ble_factory):
-        _rv = b'ERR'
+        _rv = ERR_MAT_ANS.encode()
         lc = (fake_lc_ble_factory(m=_ls, rv=_rv))(mac_ti)
-        assert lc.ls_not_lid() == b'ERR'
+        assert lc.ls_not_lid() == _rv
 
     def test_ls_not_lid_none(self, fake_lc_ble_factory):
         _rv = None
