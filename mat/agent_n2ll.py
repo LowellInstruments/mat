@@ -171,7 +171,7 @@ def _parse(s: bytes):
 
 
 class AgentN2LL(threading.Thread):
-    def __init__(self, url, threaded=1):
+    def __init__(self, url, threaded):
         super().__init__()
         self.url = url
         self.ch_pub = None
@@ -190,6 +190,7 @@ class AgentN2LL(threading.Thread):
 
     def loop_n2ll(self):
         """ agentN2LL has no threads: rx and tx back """
+        _p('ag_N2LL listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
                 self._sub_n_rx()
@@ -217,14 +218,14 @@ class AgentN2LL(threading.Thread):
         self.ch_sub.start_consuming()
 
 
-class ClientLLP:
+class ClientN2LL:
     def __init__(self, url, sig=None):
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
         self.tx_last = None
         self.sig = sig
-        # an N2LL client tx and has a background RX thread
+        # an N2LL client loop is always threaded, entry point is tx()
         self.th_rx = threading.Thread(target=self.loop_n2ll)
         self.th_rx.start()
 
@@ -241,7 +242,7 @@ class ClientLLP:
         try:
             self._get_ch_pub()
             self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<- master pub: {}'.format(_what))
+            _p('<- ClientN2LL master pub: {}'.format(_what))
             self.tx_last = _what
             self.ch_pub.close()
         except ProbableAccessDeniedError:
@@ -252,7 +253,8 @@ class ClientLLP:
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             s = body.decode()
-            _p('-> N2LL master: {}'.format(s))
+            _p('-> ClientN2LL master rx: {}'.format(s))
+            self.sig.out.emit(self.tx_last, s)
 
         self._get_ch_sub()
         rv = self.ch_sub.queue_declare(queue='', exclusive=True)
@@ -275,7 +277,7 @@ class TestLLPAgent:
                        AG_N2LL_CMD_ROUTE_KILL,
                        AG_N2LL_CMD_ROUTE_NX,
                        AG_N2LL_CMD_BYE]
-        ac = ClientLLP(self._url)
+        ac = ClientN2LL(self._url)
         for cmd in list_of_cmd:
             ac.tx(cmd)
             # don't end master too soon
