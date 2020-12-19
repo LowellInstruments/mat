@@ -69,7 +69,7 @@ def _fake_client_rx_file(sk, filename, size):
 
 
 def _fake_client_send_n_wait(_url, list_out, timeout_ms: int, mac):
-    """ use for testing, on production, N2LH already uses a timeout-ed loop """
+    """ use for testing, on production, N2LH agent already uses a timeout-ed loop """
     _ = pynng.Pair0(send_timeout=timeout_ms)
     _.recv_timeout = timeout_ms
     _.dial(_url)

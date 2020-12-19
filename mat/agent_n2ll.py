@@ -136,10 +136,11 @@ def _kill(_, macs):
 
 
 def _parse(s: bytes):
+    # s: AG_N2LL_CMD_QUERY <mac>
     if not s:
         return b'error lnp: cmd empty'
 
-    # parse lnp stuff
+    # parse n2ll stuff
     s = s.decode().split(' ')
 
     # who am I
@@ -262,26 +263,3 @@ class ClientN2LL:
         self.ch_sub.queue_bind(exchange='li_slaves', queue=q)
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()
-
-
-class TestLLPAgent:
-    _url = _u()
-
-    def test_llp_cmd(self):
-        ag = AgentN2LL(self._url, threaded=1)
-        ag.start()
-        # give time slave to boot in this test
-        time.sleep(1)
-        list_of_cmd = [AG_N2LL_CMD_WHO,
-                       AG_N2LL_CMD_QUERY,
-                       AG_N2LL_CMD_ROUTE_KILL,
-                       AG_N2LL_CMD_ROUTE_NX,
-                       AG_N2LL_CMD_BYE]
-        ac = ClientN2LL(self._url)
-        for cmd in list_of_cmd:
-            ac.tx(cmd)
-            # don't end master too soon
-            _t = TIME_COLLISIONS_S if cmd == AG_N2LL_CMD_ROUTE_NX else 2
-            time.sleep(_t)
-        # otherwise the master gets here too fast despite rx loop
-        time.sleep(5)
