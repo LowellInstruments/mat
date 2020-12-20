@@ -8,7 +8,7 @@ from getmac import get_mac_address
 from pika.exceptions import AMQPError, ProbableAccessDeniedError
 from mat.agent_n2lh import PORT_N2LH
 from mat.agent_utils import AG_N2LL_ANS_BYE, AG_N2LL_ANS_QUERY, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS, \
-    AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK, AG_N2LL_CMD_ROUTE_NX, AG_N2LL_CMD_WHO, AG_N2LL_CMD_ROUTE_AGENT, \
+    AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK, AG_N2LL_CMD_ROUTE_NX, AG_N2LL_CMD_WHO, AG_N2LL_CMD_ROUTE_N2LH, \
     AG_N2LL_CMD_QUERY, AG_N2LL_CMD_BYE, AG_N2LL_CMD_ROUTE_KILL
 
 PORT_NX_SERVER = 4000
@@ -162,7 +162,7 @@ def _parse(s: bytes):
         AG_N2LL_CMD_WHO: _who,
         AG_N2LL_CMD_QUERY: _query,
         AG_N2LL_CMD_ROUTE_NX: _route_nx,
-        AG_N2LL_CMD_ROUTE_AGENT: _route_agent,
+        AG_N2LL_CMD_ROUTE_N2LH: _route_agent,
         AG_N2LL_CMD_ROUTE_KILL: _kill
     }
     fxn = fxn_map[cmd]
