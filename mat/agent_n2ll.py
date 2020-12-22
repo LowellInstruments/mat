@@ -140,16 +140,15 @@ def _parse(s: bytes):
     s = s.decode().split(' ')
 
     # who am I
-    _my_macs = [get_mac_address(interface='wlo1'),
+    # todo: do this for more universal mac names
+    _my_macs = [
+                get_mac_address(interface='eth0'),
+                get_mac_address(interface='wlo1'),
                 get_mac_address(interface='wlan0'),
                 '*']
 
-    # is this frame for us
-    if len(s) >= 2:
-        # todo: do this for more universal mac names
-        mac = s[-1]
-        if mac not in _my_macs:
-            return 1, 'cmd not for us'
+    # remove Nones
+    _my_macs = [i for i in _my_macs if i]
 
     # search the function
     cmd = s[0]
@@ -161,6 +160,16 @@ def _parse(s: bytes):
         AG_N2LL_CMD_UNROUTE: _unroute,
     }
     fxn = fxn_map[cmd]
+
+    # is this frame for us
+    if len(s) >= 2:
+        mac = s[-1]
+        if mac not in _my_macs:
+            return 1, 'cmd not for us'
+    else:
+        # commands w/o mac
+        if not cmd.startswith(AG_N2LL_CMD_WHO):
+            return 1, 'cmd bad number of parameters'
 
     # noinspection PyArgumentList
     return fxn(s, _my_macs)
