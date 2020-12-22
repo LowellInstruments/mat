@@ -176,12 +176,9 @@ class ClientN2LL:
         self.ch_sub = None
         self.tx_last = None
         self.sig = sig
-        # an N2LL client loop is always threaded, entry point is tx()
-        self.th_rx = threading.Thread(target=self.loop_n2ll)
+        # an N2LL client loop is always rx-threaded, entry point is tx()
+        self.th_rx = threading.Thread(target=self._sub_n_rx)
         self.th_rx.start()
-
-    def loop_n2ll(self):
-        self._sub_n_rx()
 
     def _get_ch_pub(self):
         self.ch_pub = mq_exchange_for_masters()
@@ -194,7 +191,7 @@ class ClientN2LL:
             # client tx's to channel 'li_masters', rx from channel 'li_slaves'
             self._get_ch_pub()
             self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<- ClientN2LL master pub: {}'.format(_what))
+            _p('<- ClientN2LL tx: {}'.format(_what))
             self.tx_last = _what
             self.ch_pub.close()
         except ProbableAccessDeniedError:
@@ -205,7 +202,7 @@ class ClientN2LL:
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             s = body.decode()
-            _p('-> ClientN2LL master rx: {}'.format(s))
+            _p('-> ClientN2LL rx: {}'.format(s))
             self.sig.out.emit(self.tx_last, s)
 
         self._get_ch_sub()
@@ -237,7 +234,7 @@ class AgentN2LL(threading.Thread):
         self.loop_n2ll()
 
     def loop_n2ll(self):
-        """ agentN2LL spawns no more threads: rx and tx back """
+        """ an agentN2LL spawns no more threads: receives at rx and tx back """
         _p('ag_N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:

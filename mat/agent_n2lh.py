@@ -18,6 +18,32 @@ def _p(s):
     print(s, flush=True)
 
 
+class ClientN2LH(threading.Thread):
+    def __init__(self, s, sig=None):
+        super().__init__()
+        self.cmd = s
+        self.sig = sig
+
+    def tx(self):
+        def _th(_when):
+            # timeout-ed command, ex: s: 'connect <MAC>' ~ 30s
+            _c = self.cmd.split(' ')[0]
+            _till = calc_n2lh_cmd_ans_timeout(_c)
+            sk = pynng.Pair0(send_timeout=1000)
+            sk.recv_timeout = _till
+            sk.dial(self.url)
+            _o = '}} {}'.format(AG_N2LH_PATH_BLE, s)
+            sk.send(_o.encode())
+            _in = sk.recv().decode()
+            sk.close()
+            if self.sig:
+                self.sig.emit(_c, _o)
+
+        # thread so GUI is responsive
+        th = threading.Thread(target=_th)
+        th.start()
+
+
 class AgentN2LH(threading.Thread):
     def __init__(self, n2lh_url, threaded):
         super().__init__()

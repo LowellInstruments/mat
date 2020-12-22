@@ -1,7 +1,5 @@
 import json
 import threading
-import time
-
 from mat import logger_controller_ble
 from mat.agent_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
