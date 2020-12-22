@@ -75,8 +75,8 @@ def _query(_, macs):
     _grep = 'ps aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return 0 , 'ngrok running at {}'.format(macs[0])
-    return 1, 'ngrok NOT running at {}'.format(macs[0])
+        return 0 , 'ngrok routed at {}'.format(macs[0])
+    return 1, 'ngrok NOT routed at {}'.format(macs[0])
 
 
 def _route_ngrok(_, macs):
