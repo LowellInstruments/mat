@@ -69,7 +69,7 @@ class AgentBLE(threading.Thread):
             self.loop_ag_ble()
 
     def _parse(self, s):
-        # s: '<cmd> <args> <mac>'
+        """ s: '<cmd> <args> <mac>' """
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
             AG_BLE_CMD_STATUS: self.status,
@@ -120,7 +120,8 @@ class AgentBLE(threading.Thread):
             _out = self._parse(_in)
             # _p('<- AG_BLE {}'.format(_out))
             self.q_out.put(_out)
-            if _in == AG_BLE_CMD_BYE:
+            print(_in)
+            if _in.startswith(AG_BLE_CMD_BYE):
                 break
 
     def run(self):

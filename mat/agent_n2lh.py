@@ -18,33 +18,36 @@ def _p(s):
     print(s, flush=True)
 
 
-class ClientN2LH(threading.Thread):
-    def __init__(self, s, sig=None):
+class ClientN2LH():
+    """ ClientN2LH transmits command to AgentN2LH via pynng
+        ClientN2LH receives answer from AgentN2LH via pynng """
+    def __init__(self, s, url, sig=None):
         super().__init__()
         self.cmd = s
         self.sig = sig
+        self.url = url
+        self.tx()
 
     def tx(self):
-        def _th(_when):
-            # timeout-ed command, ex: s: 'connect <MAC>' ~ 30s
-            _c = self.cmd.split(' ')[0]
-            _till = calc_n2lh_cmd_ans_timeout(_c)
-            sk = pynng.Pair0(send_timeout=1000)
-            sk.recv_timeout = _till
-            sk.dial(self.url)
-            _o = '}} {}'.format(AG_N2LH_PATH_BLE, s)
-            sk.send(_o.encode())
-            _in = sk.recv().decode()
-            sk.close()
-            if self.sig:
-                self.sig.emit(_c, _o)
-
-        # thread so GUI is responsive
-        th = threading.Thread(target=_th)
-        th.start()
+        # s: 'connect <MAC>' ~ 30s
+        _c = self.cmd.split(' ')[0]
+        _till = calc_n2lh_cmd_ans_timeout_secs(_c) * 1000
+        sk = pynng.Pair0(send_timeout=1000)
+        sk.recv_timeout = _till
+        sk.dial(self.url)
+        _o = '{} {}'.format(AG_N2LH_PATH_BLE, self.cmd)
+        sk.send(_o.encode())
+        _in = sk.recv().decode()
+        sk.close()
+        if self.sig:
+            self.sig.emit(_c, _o)
 
 
 class AgentN2LH(threading.Thread):
+    """ AgentN2LH receives command from ClientN2LH via pynng
+        AgentN2LH enqueues command towards AgentBLE
+        AgentN2LH dequeues the answer from AgentBLE
+        AgentN2LH sends answers towards ClientN2LH via pynng """
     def __init__(self, n2lh_url, threaded):
         super().__init__()
         self.sk = None
@@ -115,8 +118,9 @@ class AgentN2LH(threading.Thread):
                         sk.send(b)
                         sk.close()
 
-                if _in == AG_N2LH_CMD_BYE:
-                    break
+                if _in.startswith(AG_N2LH_CMD_BYE):
+                    # this can 'return' or 'break'
+                    return
 
 
 def _good_n2lh_cmd_prefix(s):
@@ -140,7 +144,7 @@ def _check_url_syntax(s):
 
 
 # used by N2LH clients such as GUIs
-def calc_n2lh_cmd_ans_timeout(tag_n2lh):
+def calc_n2lh_cmd_ans_timeout_secs(tag_n2lh):
     _tag_map = {
         AG_BLE_CMD_RUN: RUN_CMD,
         AG_BLE_CMD_RWS: RWS_CMD,
@@ -155,3 +159,26 @@ def calc_n2lh_cmd_ans_timeout(tag_n2lh):
 
     # some more time than BLE MAT library commands
     return calc_ble_cmd_ans_timeout(tag_mat) * 1.1
+
+
+# for testing purposes
+url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
+url_lh_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
+if __name__ == '__main__':
+    ag = AgentN2LH(url_lh, threaded=1)
+    ag.start()
+    # give agent time to start
+    time.sleep(1)
+    list_of_cmd = [AG_BLE_CMD_QUERY,
+                   AG_BLE_CMD_STATUS,
+                   AG_BLE_CMD_GET_TIME,
+                   AG_BLE_CMD_LS_LID,
+                   AG_BLE_CMD_QUERY]
+                   # AG_BLE_CMD_BYE]
+
+    for c in list_of_cmd:
+        cmd = '{} {}'.format(c, FAKE_MAC_CC26X2)
+        ClientN2LH(cmd, url_lh, None)
+        time.sleep(.1)
+    ClientN2LH(AG_BLE_CMD_BYE, url_lh, None)
+
