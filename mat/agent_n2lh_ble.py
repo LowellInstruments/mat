@@ -57,7 +57,7 @@ def _ok_or_nok(rv, c):
 
 
 # can be threaded
-class AgentBLE(threading.Thread):
+class AgentN2LH_BLE(threading.Thread):
     def __init__(self, threaded, hci_if=0):
         super().__init__()
         self.lc = None
@@ -80,7 +80,6 @@ class AgentBLE(threading.Thread):
             AG_BLE_CMD_LS_LID: self.ls_lid,
             AG_BLE_CMD_LS_NOT_LID: self.ls_not_lid,
             AG_BLE_CMD_STOP: self.stop,
-            AG_BLE_CMD_BYE: self.bye,
             AG_BLE_CMD_QUERY: self.query,
             AG_BLE_CMD_SCAN: self.scan,
             AG_BLE_CMD_SCAN_LI: self.scan_li,
@@ -120,9 +119,6 @@ class AgentBLE(threading.Thread):
             _out = self._parse(_in)
             # _p('<- AG_BLE {}'.format(_out))
             self.q_out.put(_out)
-            print(_in)
-            if _in.startswith(AG_BLE_CMD_BYE):
-                break
 
     def run(self):
         self.loop_ag_ble()
@@ -326,10 +322,6 @@ class AgentBLE(threading.Thread):
 
     def wli(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), LOGGER_INFO_CMD_W)
-
-    @staticmethod
-    def bye(_):
-        return _ok(AG_BLE_ANS_BYE)
 
     def query(self, _):
         a = 'AG_BLE: logger controller {}'

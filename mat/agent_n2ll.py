@@ -176,6 +176,8 @@ class ClientN2LL:
         self.ch_sub = None
         self.tx_last = None
         self.sig = sig
+        # 'dump' variable is useful to be able to test this class
+        self.dump_cli_rx = None
         # an N2LL client loop is always rx-threaded, entry point is tx()
         self.th_rx = threading.Thread(target=self._sub_n_rx)
         self.th_rx.start()
@@ -196,14 +198,17 @@ class ClientN2LL:
             self.ch_pub.close()
         except ProbableAccessDeniedError:
             e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
-            self.sig.emit(self.tx_last, e)
+            if self.sig:
+                self.sig.out.emit(self.tx_last, e)
 
     # careful: this collects answers from forgotten nodes :)
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             s = body.decode()
             _p('-> ClientN2LL rx: {}'.format(s))
-            self.sig.out.emit(self.tx_last, s)
+            self.dump_cli_rx = s
+            if self.sig:
+                self.sig.out.emit(self.tx_last, s)
 
         self._get_ch_sub()
         rv = self.ch_sub.queue_declare(queue='', exclusive=True)
@@ -233,6 +238,13 @@ class AgentN2LL(threading.Thread):
     def run(self):
         self.loop_n2ll()
 
+    def _do_i_quit(self, ans):
+        if AG_N2LL_ANS_BYE in ans:
+            # give time answer to travel back
+            time.sleep(5)
+            _p('quitting AG_N2LL')
+            os._exit(0)
+
     def loop_n2ll(self):
         """ an agentN2LL spawns no more threads: receives at rx and tx back """
         _p('ag_N2LL: listening on {}'.format(self.url.split('/')[-1]))
@@ -254,6 +266,8 @@ class AgentN2LL(threading.Thread):
             ans = _parse(body)
             # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
+            # maybe time to end myself
+            self._do_i_quit(ans[1])
 
         # receive from channel 'li_masters'
         self._get_ch_sub()

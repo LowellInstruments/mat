@@ -42,7 +42,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def open(self): pass
 
     @abstractmethod
-    def send_cfg(self, _): pass
+    def rx_cfg(self, _): pass
 
     @abstractmethod
     def log_en(self): pass
@@ -165,7 +165,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             BAT_CMD: '5678',
             SIZ_CMD: '9876',
             WAKE_CMD: self.wake_en,
-            CONFIG_CMD: self.send_cfg,
+            CONFIG_CMD: self.rx_cfg,
             RUN_CMD: self.run,
             STOP_CMD: self.stop,
             RWS_CMD: self.run,
@@ -225,17 +225,18 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         name = 'data_{}.lid'.format(_t)
         size = _t[-4:]
         self.files[name] = size
-        return '00'
+        # '' becomes a command() return value of '00'
+        return ''
 
     def frm(self):
         self.files = {}
-        return '00'
+        return ''
 
     def dwg_file(self, *args):
         return True
 
-    def send_cfg(self, _):
-        return '00'
+    def rx_cfg(self, _):
+        return ''
 
     def send_btc(self):
         return no_cmd_in_logger(self)
@@ -259,7 +260,7 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
         assert self.address
         return 'CMD\r\nAOK\r\nMLDP'
 
-    def send_cfg(self, _): return no_cmd_in_logger(self)
+    def rx_cfg(self, _): return no_cmd_in_logger(self)
     def dwg_file(self, *args): return no_cmd_in_logger(self)
     def log_en(self): return no_cmd_in_logger(self)
     def mbl_en(self): return no_cmd_in_logger(self)

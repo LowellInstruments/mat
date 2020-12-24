@@ -1,11 +1,11 @@
-import sys
 import threading
 import time
+import parse
 import pynng
-from mat.agent_ble import AgentBLE
+from mat.agent_n2lh_ble import AgentN2LH_BLE
 from pynng import Pair0
 from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
-    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_BYE, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE, AG_BLE_CMD_RUN, \
+    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE, AG_BLE_CMD_RUN, \
     AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, FAKE_MAC_CC26X2, \
@@ -80,23 +80,25 @@ class AgentN2LH(threading.Thread):
         self.loop_n2lh()
 
     def loop_n2lh(self):
-        """ create BLE and GPS threads """
+        """ rx commands via pynng and enqueue them for BLE and GPS threads"""
         while 1:
             _check_url_syntax(self.url)
             self.sk = Pair0(send_timeout=100)
             self.sk.listen(self.url)
             self.sk.recv_timeout = 100
-            th_ble = AgentBLE(threaded=1)
+            th_ble = AgentN2LH_BLE(threaded=1)
             th_ble.start()
             # todo: create GPS thread
 
             _p('ag_N2LH listening on {}'.format(self.url))
             while 1:
-                # just parse format, not much content
+                # just parse format, not content
                 _in = self._in_cmd()
                 _in = _good_n2lh_cmd_prefix(_in)
+
+                # timeout or bad N2LH prefix
                 if not _in:
-                    # _p('bad N2LH prefix ({}) or timeout'.format(_in))
+                    # _p('n2lh_in nope')
                     continue
 
                 # good N2LH command for our threads
@@ -111,9 +113,13 @@ class AgentN2LH(threading.Thread):
                     with open(file, 'rb') as f:
                         _p('<- N2LH {}'.format(file))
                         b = f.read()
-                        # let's use a separate socket for N2LH tx file
+
+                        # use a separate socket port + 1 to tx file
+                        # todo: nope, fix this since ngrok can only expose 1 port
                         sk = Pair0()
-                        u_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
+                        _ = parse.parse('{}://{}:{:d}', self.url)
+                        u_ext = '{}://{}:{}'.format(_[0], _[1], _[2] + 1)
+                        _p(u_ext)
                         sk.dial(u_ext)
                         sk.send(b)
                         sk.close()
