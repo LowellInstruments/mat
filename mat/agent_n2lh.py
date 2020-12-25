@@ -21,12 +21,10 @@ def _p(s):
 class ClientN2LH():
     """ ClientN2LH transmits command to AgentN2LH via pynng
         ClientN2LH receives answer from AgentN2LH via pynng """
-    def __init__(self, s, url, sig=None):
+    def __init__(self, s, url):
         super().__init__()
         self.cmd = s
-        self.sig = sig
         self.url = url
-        self.tx()
 
     def tx(self):
         # s: 'connect <MAC>' ~ 30s
@@ -39,8 +37,7 @@ class ClientN2LH():
         sk.send(_o.encode())
         _in = sk.recv().decode()
         sk.close()
-        if self.sig:
-            self.sig.emit(_c, _o)
+        return _in
 
 
 class AgentN2LH(threading.Thread):
@@ -186,5 +183,4 @@ if __name__ == '__main__':
         cmd = '{} {}'.format(c, FAKE_MAC_CC26X2)
         ClientN2LH(cmd, url_lh, None)
         time.sleep(.1)
-    ClientN2LH(AG_BLE_CMD_BYE, url_lh, None)
 

@@ -338,7 +338,7 @@ class AgentN2LH_BLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_GET_FILE)
 
-        if self.lc.get_file(self, file, fol, size):
+        if self.lc.get_file(file, fol, size):
             a = '{} {} {}'.format(AG_BLE_CMD_GET_FILE, file, size)
             return _ok(a)
         return _nok(AG_BLE_CMD_GET_FILE)

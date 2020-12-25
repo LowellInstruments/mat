@@ -54,6 +54,10 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def mts(self): pass
 
     @abstractmethod
+    def get_file_cmd(self, file, fol, size, sig=None):
+        pass
+
+    @abstractmethod
     def send_btc(self): pass
 
     @abstractmethod
@@ -70,10 +74,6 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
 
     def ble_write(self, data, response=False):
         assert self.address
-
-    def get_file(self, file, fol, size, sig=None):
-        assert self.address
-        return True
 
     def get_type(self):
         assert self.address
@@ -111,7 +111,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
         assert self.address
         if name in self.files.keys():
             del self.files[name]
-        return '00'
+        return ''
 
     def gsr_do(self):
         assert self.address
@@ -127,19 +127,14 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def stop(self):
         key = 'running_or_stopped'
         self.fake_state[key] = 0
-        return '00'
+        return ''
 
     def run(self):
         key = 'running_or_stopped'
         if self.fake_state[key]:
             return ERR_MAT_ANS
         self.fake_state[key] = 1
-        return '00'
-
-    def get_file_cmd(self, name):
-        if name in self.files.keys():
-            return '00'
-        return ERR_MAT_ANS
+        return ''
 
     def command(self, *args):
         # args: ('DEL', 'a.lid')
@@ -182,8 +177,8 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             _a = _a(args[1]) if len(args) > 1 else _a()
 
         # in case answer gives error
-        if _a == ERR_MAT_ANS:
-            return ERR_MAT_ANS
+        if _a == ERR_MAT_ANS.encode():
+            return ERR_MAT_ANS.encode()
 
         # add the hexadecimal length string
         _a = '{:02x}{}'.format(len(_a), _a) if len(_a) else '00'
@@ -195,7 +190,7 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
     def __init__(self, mac):
         assert mac == FAKE_MAC_CC26X2
         super().__init__(mac)
-        self.type = 'cc26x2'
+        self.type = 'dummy_cc26x2'
 
     def open(self):
         # simulate some time to establish connection
@@ -228,6 +223,12 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         # '' becomes a command() return value of '00'
         return ''
 
+    def get_file_cmd(self, file, fol, size, sig=None):
+        assert self.address
+        if file in self.files.keys():
+            return True
+        return False
+
     def frm(self):
         self.files = {}
         return ''
@@ -246,7 +247,7 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
     def __init__(self, mac):
         assert mac == FAKE_MAC_RN4020
         super().__init__(mac)
-        self.type = 'rn4020'
+        self.type = 'dummy_rn4020'
 
     def open(self):
         # simulate some time to establish connection
@@ -259,6 +260,12 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
     def send_btc(self):
         assert self.address
         return 'CMD\r\nAOK\r\nMLDP'
+
+    def get_file_cmd(self, file, fol, size, sig=None):
+        assert self.address
+        if file in self.files.keys():
+            return True
+        return False
 
     def rx_cfg(self, _): return no_cmd_in_logger(self)
     def dwg_file(self, *args): return no_cmd_in_logger(self)

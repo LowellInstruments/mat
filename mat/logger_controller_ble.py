@@ -12,6 +12,7 @@ from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
 import pathlib
 import subprocess as sp
 
+
 # commands not present in USB loggers
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
@@ -76,10 +77,10 @@ class LoggerControllerBLE(LoggerController):
         self.type = None
 
         # set underlying BLE class
-        if brand_microchip(mac):
-            self.und = LoggerControllerBLERN4020(self)
-        elif brand_ti(mac):
+        if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
+        else:
+            self.und = LoggerControllerBLERN4020(self)
 
         self.dlg = Delegate()
 
