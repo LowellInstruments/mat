@@ -87,7 +87,7 @@ class AgentN2LH(threading.Thread):
             th_ble.start()
             # todo: create GPS thread
 
-            _p('ag_N2LH listening on {}'.format(self.url))
+            _p('ag_N2LH: listening on {}'.format(self.url))
             while 1:
                 # just parse format, not content
                 _in = self._in_cmd()
