@@ -115,9 +115,9 @@ class AgentN2LH_BLE(threading.Thread):
     def loop_ag_ble(self):
         while 1:
             _in = self.q_in.get()
-            # _p('-> AG_BLE {}'.format(_in))
+            # _p('>> AG_BLE {}'.format(_in))
             _out = self._parse(_in)
-            # _p('<- AG_BLE {}'.format(_out))
+            # _p('<< AG_BLE {}'.format(_out))
             self.q_out.put(_out)
 
     def run(self):
@@ -333,6 +333,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     def get_file(self, s):
         # s: 'get_file <file> <fol> <size> <mac>
+        # todo: do this and DWG file
         file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
         if not _mac_n_connect(s, self):

@@ -59,7 +59,7 @@ class AgentN2LH(threading.Thread):
             _in = self.sk.recv()
             if _in:
                 _in = _in.decode()
-                _p('-> N2LH {}'.format(_in))
+                _p('>> N2LH {}'.format(_in))
         except pynng.Timeout:
             _in = None
         return _in
@@ -67,7 +67,7 @@ class AgentN2LH(threading.Thread):
     def _out_ans(self, a):
         # a: (int_rv, s), forward just s back
         try:
-            _p('<- N2LH {}'.format(a[1]))
+            _p('<< N2LH {}'.format(a[1]))
             self.sk.send(a[1].encode())
         except pynng.Timeout:
             # _p('_s_out timeout')
@@ -87,7 +87,7 @@ class AgentN2LH(threading.Thread):
             th_ble.start()
             # todo: create GPS thread
 
-            _p('ag_N2LH: listening on {}'.format(self.url))
+            _p('N2LH: listening on {}'.format(self.url))
             while 1:
                 # just parse format, not content
                 _in = self._in_cmd()
@@ -108,7 +108,7 @@ class AgentN2LH(threading.Thread):
                     # _in: 'get_file <name> <fol> <size> <mac>'
                     file = _in.split(' ')[1]
                     with open(file, 'rb') as f:
-                        _p('<- N2LH {}'.format(file))
+                        _p('<< N2LH {}'.format(file))
                         b = f.read()
 
                         # use a separate socket port + 1 to tx file

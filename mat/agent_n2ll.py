@@ -1,14 +1,15 @@
+import os
+import subprocess as sp
 import threading
 import time
-import subprocess as sp
 import pika
-import os
 from getmac import get_mac_address
 from pika.exceptions import AMQPError, ProbableAccessDeniedError
-from mat.agent_utils import AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS, \
-    AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK, AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY, \
-    AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE, AG_N2LL_ANS_NOT_FOR_US
-
+from mat.agent_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
+                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
+                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
+                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
+                             AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK)
 
 
 def _p(s):
@@ -73,7 +74,7 @@ def _query(_, macs):
     rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
         return 0 , 'ngrok routed at {}'.format(macs[0])
-    return 1, 'ngrok NOT routed at {}'.format(macs[0])
+    return 1, AG_N2LL_ANS_ROUTE_NOK.format(macs[0])
 
 
 def _route_ngrok(_, macs):
@@ -109,8 +110,8 @@ def _route_ngrok(_, macs):
     # grab the output of cat as ngrok url
     g = _rv.stdout
     u = g.decode().strip().split('url=')[1]
-    pad = ' ' * 23
-    s = AG_N2LL_ANS_ROUTE_OK
+    pad = ' ' * 20
+    s = AG_N2LL_ANS_ROUTE_OK_FULL
     s = s.format(macs[0], pad, port, pad, u)
     return 0, s
 
@@ -193,7 +194,7 @@ class ClientN2LL:
             # client tx's to channel 'li_masters', rx from channel 'li_slaves'
             self._get_ch_pub()
             self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<- ClientN2LL tx: {}'.format(_what))
+            _p('<< ClientN2LL tx: {}'.format(_what))
             self.tx_last = _what
             self.ch_pub.close()
         except ProbableAccessDeniedError:
@@ -205,7 +206,7 @@ class ClientN2LL:
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             s = body.decode()
-            _p('-> ClientN2LL rx: {}'.format(s))
+            _p('>> ClientN2LL rx: {}'.format(s))
             self.dump_cli_rx = s
             if self.sig:
                 self.sig.out.emit(self.tx_last, s)
@@ -247,22 +248,22 @@ class AgentN2LL(threading.Thread):
 
     def loop_n2ll(self):
         """ an agentN2LL spawns no more threads: receives at rx and tx back """
-        _p('ag_N2LL: listening on {}'.format(self.url.split('/')[-1]))
+        _p('N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
                 self._sub_n_rx()
             except (Exception, AMQPError) as e:
-                _p('ag_N2LL: error rx_exc -> {}'.format(e))
+                _p('N2LL: error rx_exc -> {}'.format(e))
 
     def _pub(self, _what):
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
-        # _p('<- ag_N2LL: pub {}'.format(_what))
+        # _p('<< N2LL: pub {}'.format(_what))
         self.ch_pub.close()
 
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            # _p('-> ag_N2LL: rx_cb {}'.format(body))
+            # _p('>> N2LL: rx_cb {}'.format(body))
             ans = _parse(body)
             # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
