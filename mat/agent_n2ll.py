@@ -110,9 +110,7 @@ def _route_ngrok(_, macs):
     # grab the output of cat as ngrok url
     g = _rv.stdout
     u = g.decode().strip().split('url=')[1]
-    pad = ' ' * 20
-    s = AG_N2LL_ANS_ROUTE_OK_FULL
-    s = s.format(macs[0], pad, port, pad, u)
+    s = AG_N2LL_ANS_ROUTE_OK_FULL.format(macs[0], port, u)
     return 0, s
 
 

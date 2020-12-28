@@ -11,7 +11,14 @@ from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, FAKE_MAC_CC26X2, \
     FAKE_MAC_RN4020
 
+
 PORT_N2LH = 12804
+N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
+
+
+# todo: calc this, because BLE commands can be long!
+# todo: also, increae the time between consecutive commands in mutex_cmd.acquire()
+N2LH_CLI_SEND_TIMEOUT_MS = 5000
 
 
 def _p(s):
@@ -30,7 +37,7 @@ class ClientN2LH():
         # s: 'connect <MAC>' ~ 30s
         _c = self.cmd.split(' ')[0]
         _till = calc_n2lh_cmd_ans_timeout_secs(_c) * 1000
-        sk = pynng.Pair0(send_timeout=1000)
+        sk = pynng.Pair0(send_timeout=N2LH_CLI_SEND_TIMEOUT_MS)
         sk.recv_timeout = _till
         sk.dial(self.url)
         _o = '{} {}'.format(AG_N2LH_PATH_BLE, self.cmd)
