@@ -45,8 +45,10 @@ AG_BLE_ANS_CONN_ERR = 'connection fail'
 AG_BLE_ANS_DISC_ALREADY = 'was not connected'
 AG_BLE_ANS_DISC_OK = 'disconnected'
 AG_BLE_EMPTY = 'not init'
+AG_BLE_END_THREAD = 'ble_bye'
 
-AG_N2LH_CMD_BYE = 'bye!'
+AG_N2LH_END_THREAD = 'n2lh_bye'
+AG_N2LH_PATH_BASE = 'bas'
 AG_N2LH_PATH_BLE = 'ble'
 AG_N2LH_PATH_GPS = 'gps'
 

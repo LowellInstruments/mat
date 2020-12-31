@@ -5,8 +5,8 @@ import pynng
 from mat.agent_n2lh_ble import AgentN2LH_BLE
 from pynng import Pair0
 from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
-    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_N2LH_CMD_BYE, AG_BLE_CMD_RUN, \
-    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS
+    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN, \
+    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, FAKE_MAC_CC26X2, \
     FAKE_MAC_RN4020
@@ -16,8 +16,6 @@ PORT_N2LH = 12804
 N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
 
 
-# todo: calc this, because BLE commands can be long!
-# todo: also, increae the time between consecutive commands in mutex_cmd.acquire()
 N2LH_CLI_SEND_TIMEOUT_MS = 5000
 
 
@@ -33,14 +31,14 @@ class ClientN2LH():
         self.cmd = s
         self.url = url
 
-    def tx(self):
+    def do(self, path, rx_timeout_ms):
         # s: 'connect <MAC>' ~ 30s
+        # path: AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE...
         _c = self.cmd.split(' ')[0]
-        _till = calc_n2lh_cmd_ans_timeout_secs(_c) * 1000
         sk = pynng.Pair0(send_timeout=N2LH_CLI_SEND_TIMEOUT_MS)
-        sk.recv_timeout = _till
+        sk.recv_timeout = rx_timeout_ms
         sk.dial(self.url)
-        _o = '{} {}'.format(AG_N2LH_PATH_BLE, self.cmd)
+        _o = '{} {}'.format(path, self.cmd)
         sk.send(_o.encode())
         _in = sk.recv().decode()
         sk.close()
@@ -72,7 +70,7 @@ class AgentN2LH(threading.Thread):
         return _in
 
     def _out_ans(self, a):
-        # a: (int_rv, s), forward just s back
+        # a: (int_rv, s), forward just 's' back
         try:
             _p('<< N2LH {}'.format(a[1]))
             self.sk.send(a[1].encode())
@@ -96,14 +94,20 @@ class AgentN2LH(threading.Thread):
 
             _p('N2LH: listening on {}'.format(self.url))
             while 1:
-                # just parse format, not content
+                # _in: <n2lh_path> <command>
                 _in = self._in_cmd()
                 _in = _good_n2lh_cmd_prefix(_in)
 
-                # timeout or bad N2LH prefix
+                # pynng timeout or bad N2LH prefix
                 if not _in:
                     # _p('n2lh_in nope')
                     continue
+
+                # leave N2LH thread on demand
+                if _in.startswith(AG_N2LH_END_THREAD):
+                    ans = (0, 'AG_N2LH_OK: end_thread')
+                    self._out_ans(ans)
+                    return 0
 
                 # good N2LH command for our threads
                 th_ble.q_in.put(_in)
@@ -128,19 +132,20 @@ class AgentN2LH(threading.Thread):
                         sk.send(b)
                         sk.close()
 
-                if _in.startswith(AG_N2LH_CMD_BYE):
-                    # this can 'return' or 'break'
-                    return
-
 
 def _good_n2lh_cmd_prefix(s):
     if not s or len(s) < 4:
         return ''
-    if s == AG_N2LH_CMD_BYE:
-        return s
+
+    # good paths
+    n2lh_paths = [
+        AG_N2LH_PATH_BASE,
+        AG_N2LH_PATH_BLE,
+        AG_N2LH_PATH_GPS
+    ]
 
     # 'ble <cmd>...' -> <cmd> ...'
-    if s[:3] in (AG_N2LH_PATH_BLE, AG_N2LH_PATH_GPS):
+    if s[:3] in n2lh_paths:
         return s[4:]
 
 
@@ -154,7 +159,7 @@ def _check_url_syntax(s):
 
 
 # used by N2LH clients such as GUIs
-def calc_n2lh_cmd_ans_timeout_secs(tag_n2lh):
+def calc_n2lh_cmd_ans_timeout_ms(tag_n2lh):
     _tag_map = {
         AG_BLE_CMD_RUN: RUN_CMD,
         AG_BLE_CMD_RWS: RWS_CMD,
@@ -168,7 +173,7 @@ def calc_n2lh_cmd_ans_timeout_secs(tag_n2lh):
     tag_mat = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
 
     # some more time than BLE MAT library commands
-    return calc_ble_cmd_ans_timeout(tag_mat) * 1.1
+    return calc_ble_cmd_ans_timeout(tag_mat) * 1.1 * 1000
 
 
 # for testing purposes

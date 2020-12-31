@@ -130,8 +130,7 @@ def _parse(s: bytes):
     # parse n2ll stuff
     s = s.decode().split(' ')
 
-    # who am I
-    # todo: do this for more universal mac names
+    # which are my own mac addresses
     _my_macs = [
                 get_mac_address(interface='eth0'),
                 get_mac_address(interface='wlo1'),
@@ -152,7 +151,7 @@ def _parse(s: bytes):
     }
     fxn = fxn_map[cmd]
 
-    # is this frame for us
+    # is this N2LL frame for us?
     if len(s) >= 2:
         mac = s[-1]
         if mac not in _my_macs:

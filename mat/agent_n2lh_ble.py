@@ -105,7 +105,8 @@ class AgentN2LH_BLE(threading.Thread):
             AG_BLE_CMD_WLI: self.wli,
             AG_BLE_CMD_WHS: self.whs,
             AG_BLE_CMD_GET_FILE: self.get_file,
-            AG_BLE_CMD_DWG_FILE: self.dwg_file
+            AG_BLE_CMD_DWG_FILE: self.dwg_file,
+            AG_BLE_END_THREAD: self.break_thread
         }
         fxn = fxn_map[cmd]
 
@@ -120,8 +121,14 @@ class AgentN2LH_BLE(threading.Thread):
             # _p('<< AG_BLE {}'.format(_out))
             self.q_out.put(_out)
 
+            # leave N2LH_BLE thread on demand
+            if AG_BLE_END_THREAD in _out [1]:
+                # _out: (0, 'AG_BLE_OK: ble_bye')
+                break
+
     def run(self):
         self.loop_ag_ble()
+        _p('AG_BLE thread exits')
 
     @staticmethod
     def scan(s):
@@ -143,6 +150,9 @@ class AgentN2LH_BLE(threading.Thread):
             if is_a_li_logger(each.rawData):
                 rv += '{} {} '.format(each.addr, each.rssi)
         return _ok(rv.strip())
+
+    def break_thread(self, _):
+        return _ok(AG_BLE_END_THREAD)
 
     def connect(self, s):
         # s: 'connect <mac>' but it may be already
@@ -182,7 +192,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     def get_time(self, s):
         if not _mac_n_connect(s, self):
-            return _ok(AG_BLE_CMD_GET_TIME)
+            return _nok(AG_BLE_CMD_GET_TIME)
 
         rv = self.lc.get_time()
         # in case of get_time(), rv already a string
