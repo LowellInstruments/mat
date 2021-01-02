@@ -6,11 +6,11 @@ from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LO
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, \
-    brand_testing_cc26x2, brand_testing_rn4020, ERR_MAT_ANS
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS
 import queue
 
-from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020
+from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020, \
+    brand_testing_cc26x2, brand_testing_rn4020
 
 
 def _p(s):

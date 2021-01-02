@@ -1,7 +1,6 @@
 from mat.logger_controller import STATUS_CMD
-from mat.logger_controller_ble import FAKE_MAC_RN4020
-from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyRN4020, FAKE_TIME, no_cmd_in_logger
-
+from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyRN4020, \
+    FAKE_TIME, no_cmd_in_logger, FAKE_MAC_RN4020
 
 # how to test this with coverage:
 # python3 -m pytest

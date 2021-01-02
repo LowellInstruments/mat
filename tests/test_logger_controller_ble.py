@@ -206,7 +206,7 @@ class TestLoggerControllerBLECC26X2:
         _cmd_post_slow_down_if_so('CFG')
         after = time.perf_counter()
         assert after - before >= .5
-        assert after - before < 1
+        assert after - before < 2
 
     def test_calc_ble_cmd_ans_timeout(self):
         assert calc_ble_cmd_ans_timeout('CRC') == 20

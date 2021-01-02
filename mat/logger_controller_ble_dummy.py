@@ -1,15 +1,17 @@
 import time
 import types
-from abc import ABC, abstractmethod
-
+from abc import abstractmethod
 from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, TIME_CMD, \
     REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, SD_FREE_SPACE_CMD, DO_SENSOR_READINGS_CMD, SENSOR_READINGS_CMD, RUN_CMD, \
     STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
-from mat.logger_controller_ble import LoggerControllerBLE, LOG_EN_CMD, MOBILE_CMD, \
+from mat.logger_controller_ble import LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
-    FAKE_MAC_CC26X2, FAKE_MAC_RN4020, ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
+    ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
+
 
 FAKE_TIME = '2020/12/31 12:34:56'
+FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
+FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
 
 
 class FakePer:
@@ -20,9 +22,8 @@ class FakePer:
         return self.state
 
 
-class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
-    def __init__(self, mac):
-        super().__init__(mac)
+class LoggerControllerBLEDummy:
+    def __init__(self):
         # self.address is set by specific constructor
         self.address = None
         self.per = FakePer()
@@ -42,7 +43,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
     def open(self): pass
 
     @abstractmethod
-    def rx_cfg(self, _): pass
+    def send_cfg(self, _): pass
 
     @abstractmethod
     def log_en(self): pass
@@ -107,6 +108,12 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
         _d = {k: v for k, v in self.files.items() if '.lid' not in k}
         return _d
 
+    def ls_ext(self, ext):
+        assert self.address
+        ext = ext.decode() if type(ext) == bytes else ext
+        _d = {k: v for k, v in self.files.items() if k.endswith(ext)}
+        return _d
+
     def del_file(self, name):
         assert self.address
         if name in self.files.keys():
@@ -137,7 +144,7 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
         return ''
 
     def command(self, *args):
-        # args: ('DEL', 'a.lid')
+        # args: ('DEL', 'a.lid')command
         assert self.address
         _c = args[0]
         dummy_answers_map = {
@@ -160,7 +167,6 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
             BAT_CMD: '5678',
             SIZ_CMD: '9876',
             WAKE_CMD: self.wake_en,
-            CONFIG_CMD: self.rx_cfg,
             RUN_CMD: self.run,
             STOP_CMD: self.stop,
             RWS_CMD: self.run,
@@ -185,11 +191,18 @@ class LoggerControllerBLEDummy(LoggerControllerBLE, ABC):
         rv = [args[0].encode(), _a.encode()]
         return rv
 
+    def __enter__(self):
+        if self.open():
+            return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 
 class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
     def __init__(self, mac):
         assert mac == FAKE_MAC_CC26X2
-        super().__init__(mac)
+        super().__init__()
         self.type = 'dummy_cc26x2'
 
     def open(self):
@@ -236,8 +249,9 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
     def dwg_file(self, *args):
         return True
 
-    def rx_cfg(self, _):
-        return ''
+    def send_cfg(self, _):
+        # not included in command() dictionary above
+        return [CONFIG_CMD.encode(), b'00']
 
     def send_btc(self):
         return no_cmd_in_logger(self)
@@ -246,7 +260,7 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
 class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
     def __init__(self, mac):
         assert mac == FAKE_MAC_RN4020
-        super().__init__(mac)
+        super().__init__()
         self.type = 'dummy_rn4020'
 
     def open(self):
@@ -267,7 +281,7 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
             return True
         return False
 
-    def rx_cfg(self, _): return no_cmd_in_logger(self)
+    def send_cfg(self, _): return no_cmd_in_logger(self)
     def dwg_file(self, *args): return no_cmd_in_logger(self)
     def log_en(self): return no_cmd_in_logger(self)
     def mbl_en(self): return no_cmd_in_logger(self)
@@ -280,3 +294,11 @@ def no_cmd_in_logger(lc):
     # does not exist for this type of logger
     assert lc.address
     return ERR_MAT_ANS.encode()
+
+
+def brand_testing_cc26x2(mac):
+    return mac == FAKE_MAC_CC26X2
+
+
+def brand_testing_rn4020(mac):
+    return mac == FAKE_MAC_RN4020

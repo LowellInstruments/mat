@@ -8,9 +8,8 @@ from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY
     AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN, \
     AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
-from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, FAKE_MAC_CC26X2, \
-    FAKE_MAC_RN4020
-
+from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
+from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
 
 PORT_N2LH = 12804
 N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)

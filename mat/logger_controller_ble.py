@@ -1,3 +1,5 @@
+import re
+
 import bluepy.btle as ble
 import json
 from datetime import datetime
@@ -11,15 +13,10 @@ from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
 import pathlib
 import subprocess as sp
+from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
 
 # commands not present in USB loggers
-from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
-
-FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
-FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
-
-
 SIZ_CMD = 'SIZ'
 BAT_CMD = 'BAT'
 BTC_CMD = 'BTC'
@@ -66,6 +63,9 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
+        # checks for bad or dummy mac addresses
+        assert is_valid_mac_address(mac)
+
         # default are (24, 40, 0)
         w_ble_linux_pars(6, 11, 0, hci_if)
         super().__init__(mac)
@@ -384,16 +384,6 @@ def brand_ti(mac):
     return not brand_microchip(mac)
 
 
-def brand_testing_cc26x2(mac):
-    mac = mac.lower()
-    return mac == FAKE_MAC_CC26X2
-
-
-def brand_testing_rn4020(mac):
-    mac = mac.lower()
-    return mac == FAKE_MAC_RN4020
-
-
 def brand_microchip(mac):
     mac = mac.lower()
     return mac.startswith('00:1e:c0:')
@@ -604,3 +594,22 @@ def calc_ble_cmd_ans_timeout(tag):
     }
     t = _timeouts.setdefault(tag, 10)
     return t
+
+
+def is_valid_mac_address(str):
+    # src: geeks for geeks website
+    regex = ("^([0-9A-Fa-f]{2}[:])" +
+        "{5}([0-9A-Fa-f]{2})|" +
+        "([0-9a-fA-F]{4}\\." +
+        "[0-9a-fA-F]{4}\\." +
+        "[0-9a-fA-F]{4})$")
+
+    p = re.compile(regex)
+    if str == None:
+        return False
+
+    if (re.search(p, str)):
+        return True
+    else:
+        return False
+

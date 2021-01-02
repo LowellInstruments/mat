@@ -1,6 +1,6 @@
 from mat.logger_controller import STATUS_CMD
-from mat.logger_controller_ble import FAKE_MAC_CC26X2
-from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, FAKE_TIME, no_cmd_in_logger
+from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, \
+    FAKE_TIME, no_cmd_in_logger, FAKE_MAC_CC26X2
 
 
 # how to test this with coverage:
@@ -27,6 +27,10 @@ class TestLCBLEDummyCC26X2:
         lc.open()
         assert lc.type
         lc.ble_write('whatever_data')
+
+    def test_cmd_status(self):
+        _test_cmd_generic(STATUS_CMD, self.mac)
+
 
     def test_get_file(self):
         # don't emulate dummy  downloads
@@ -94,10 +98,8 @@ class TestLCBLEDummyCC26X2:
         rv = lc.dwg_file('fake_file', 'fake_fol', 1234)
         assert rv
 
-    def test_cmd_status(self): _test_cmd_generic(STATUS_CMD, self.mac)
-
-
 def _test_cmd_generic(s, mac):
+    # for simple commands, NOT for CFG, to say something
     lc = LoggerControllerBLEDummyCC26x2(mac)
     lc.open()
     assert s.encode() in lc.command(s)

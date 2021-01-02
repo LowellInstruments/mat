@@ -2,7 +2,7 @@ from mat.agent_n2lh_ble import AgentN2LH_BLE
 from mat.agent_utils import *
 import time
 import json
-from mat.logger_controller_ble import FAKE_MAC_CC26X2, FAKE_MAC_RN4020
+from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2, FAKE_MAC_RN4020
 
 # mac_lab = '60:77:71:22:c8:08'
 # mac_house = '60:77:71:22:c8:18'
@@ -15,6 +15,12 @@ def _p(s):
     print(s)
 
 
+def _end_ag_ble_th(ag):
+    s = '{} {}'.format(AG_BLE_END_THREAD, mac)
+    _q(ag, s)
+
+
+
 class TestAgentN2LH_BLE:
     """ tests AgentN2LH_BLE directly, omitting AgentN2LH layer """
 
@@ -25,6 +31,7 @@ class TestAgentN2LH_BLE:
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         rv = _q(ag, s)
         assert AG_BLE_ANS_DISC_ALREADY in rv[1]
+        _end_ag_ble_th(ag)
 
     def test_connect_disconnect(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -38,6 +45,7 @@ class TestAgentN2LH_BLE:
         rv = _q(ag, s)
         assert rv[0] == 0
         assert AG_BLE_ANS_DISC_OK in rv[1]
+        _end_ag_ble_th(ag)
 
     def test_connect_already(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -49,6 +57,7 @@ class TestAgentN2LH_BLE:
         s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
         rv = _q(ag, s)
         assert AG_BLE_ANS_CONN_ALREADY in rv[1]
+        _end_ag_ble_th(ag)
 
     def test_get_time_thrice_few_time_same_connection(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -74,6 +83,7 @@ class TestAgentN2LH_BLE:
         el = time.perf_counter() - now
         _p('2nd & 3rd {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
         assert el < .5
+        _end_ag_ble_th(ag)
 
     def test_set_time(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -83,6 +93,7 @@ class TestAgentN2LH_BLE:
         s = '{} {}'.format(AG_BLE_CMD_SET_TIME, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_get_fake_file(self):
         # too difficult to test on dummies
@@ -102,6 +113,7 @@ class TestAgentN2LH_BLE:
         s = s.format(AG_BLE_CMD_GET_FILE, file, fol, size, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_ls_lid(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -112,6 +124,7 @@ class TestAgentN2LH_BLE:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_ls_not_lid(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -122,6 +135,7 @@ class TestAgentN2LH_BLE:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_stop(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -129,6 +143,7 @@ class TestAgentN2LH_BLE:
         s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_config_cmd(self):
         _cfg = {
@@ -151,6 +166,7 @@ class TestAgentN2LH_BLE:
         s = '{} ${}$ {}'.format(AG_BLE_CMD_CONFIG, _cfg, mac)
         rv = _q(ag, s)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_mts_cmd(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -161,6 +177,7 @@ class TestAgentN2LH_BLE:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
+        _end_ag_ble_th(ag)
 
     def test_any_cmd(self):
         ag = AgentN2LH_BLE(threaded=1)
@@ -174,7 +191,7 @@ class TestAgentN2LH_BLE:
         rv = _q(ag, s)
         _p(rv)
         assert rv[0] == 0
-
+        _end_ag_ble_th(ag)
 
 def _q(_ag, _in):
     _ag.q_in.put(_in)
