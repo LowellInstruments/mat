@@ -6,7 +6,7 @@ from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LO
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
-    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS
+    MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS, WAKE_CMD
 import queue
 
 from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020, \
@@ -73,6 +73,7 @@ class AgentN2LH_BLE(threading.Thread):
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
             AG_BLE_CMD_STATUS: self.status,
+            AG_BLE_CMD_WAK: self.wak,
             AG_BLE_CMD_CONNECT: self.connect,
             AG_BLE_CMD_DISCONNECT: self.disconnect,
             AG_BLE_CMD_GET_TIME: self.get_time,
@@ -246,6 +247,9 @@ class AgentN2LH_BLE(threading.Thread):
 
     def status(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), STATUS_CMD)
+
+    def wak(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), WAKE_CMD)
 
     def get_fw_ver(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), FIRMWARE_VERSION_CMD)
