@@ -34,9 +34,11 @@ def _get_ngrok_bin_name() -> str:
 
 
 def check_ngrok():
-    cmd = '{} -h'.format(_get_ngrok_bin_name())
+    name = _get_ngrok_bin_name()
+    cmd = '{} -h'.format(name)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
+        _p('{} found'.format(name))
         return True
 
 
@@ -220,6 +222,7 @@ class AgentN2LL(threading.Thread):
     def __init__(self, url):
         """ AgentN2LL receives from ClientN2LL in channel 'li_masters'
             AgentN2LL sends back to ClientN2LL in channel 'li_slaves' """
+        assert(check_ngrok())
         super().__init__()
         self.url = url
         self.ch_pub = None

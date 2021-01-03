@@ -11,6 +11,12 @@ url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
 url_ll = _url_ll()
 
 
+
+# running this on Rpi / BASH may need root and:
+# PRE_REQ=/usr/lib/arm-linux-gnueabihf/libatomic.so.1
+# LD_PRELOAD=$PRE_REQ python3 main_nle_s.py
+
+
 if __name__ == '__main__':
     ag_n2lh = AgentN2LH(url_lh)
     ag_n2ll = AgentN2LL(url_ll)
