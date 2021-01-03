@@ -4,7 +4,7 @@ from mat import logger_controller_ble
 from mat.agent_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
-    DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W
+    DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W, SET_TIME_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
     MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS, WAKE_CMD
 import queue
@@ -49,7 +49,8 @@ def _ok(s):
     return 0, '{} {}'.format(AG_BLE_OK, s)
 
 
-def _ok_or_nok(rv, c):
+def _ok_or_nok(rv: list, c: str):
+    # rv: [b'STM', b'00']
     if rv[0] == c.encode():
         p = '' if len(rv) == 1 else rv[1].decode()
         return _ok('{} {}'.format(c, p))
@@ -288,7 +289,12 @@ class AgentN2LH_BLE(threading.Thread):
         return self._cmd_ans(_mac_n_connect(s, self), MY_TOOL_SET_CMD)
 
     def set_time(self, s):
-        return self._cmd_ans(_mac_n_connect(s, self), AG_BLE_CMD_SET_TIME)
+        # it's not simply sending SET_TIME_CMD
+        rv = self.lc.sync_time()
+        # rv: [b'STM', b'00']
+        if rv[0].decode() == SET_TIME_CMD:
+            return _ok(AG_BLE_CMD_SET_TIME)
+        return _nok(AG_BLE_CMD_SET_TIME)
 
     def del_file(self, s):
         # s: 'del_file <filename> <mac>'
