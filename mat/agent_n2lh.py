@@ -1,3 +1,4 @@
+import queue
 import threading
 import time
 import parse
@@ -6,7 +7,8 @@ from mat.agent_n2lh_ble import AgentN2LH_BLE
 from pynng import Pair0
 from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
     AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN, \
-    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE
+    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE, \
+    AG_BLE_END_THREAD
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
@@ -23,21 +25,22 @@ def _p(s):
 
 
 class ClientN2LH():
-    """ ClientN2LH transmits command to AgentN2LH via pynng
-        ClientN2LH receives answer from AgentN2LH via pynng """
+    """ ClientN2LH    <-- pynng --> AgentN2LH  <-- queues --> AgentN2LH_BLE
+        'ble cmd mac' ------------> ble cmd mac ------------> cmd mac """
     def __init__(self, s, url):
         super().__init__()
         self.cmd = s
         self.url = url
 
     def do(self, path, rx_timeout_ms):
-        # s: 'connect <MAC>' ~ 30s
+        """ builds and sends N2LH command """
         # path: AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE...
         _c = self.cmd.split(' ')[0]
         sk = pynng.Pair0(send_timeout=N2LH_CLI_SEND_TIMEOUT_MS)
         sk.recv_timeout = rx_timeout_ms
         sk.dial(self.url)
         _o = '{} {}'.format(path, self.cmd)
+        # _o: ble connect <mac>
         sk.send(_o.encode())
         _in = sk.recv().decode()
         sk.close()
@@ -45,17 +48,12 @@ class ClientN2LH():
 
 
 class AgentN2LH(threading.Thread):
-    """ AgentN2LH receives command from ClientN2LH via pynng
-        AgentN2LH enqueues command towards AgentBLE
-        AgentN2LH dequeues the answer from AgentBLE
-        AgentN2LH sends answers towards ClientN2LH via pynng """
-    def __init__(self, n2lh_url, threaded):
+    """ ClientN2LH    <-- pynng --> AgentN2LH  <-- queues --> AgentN2LH_BLE
+        'ble cmd mac' ------------> ble cmd mac ------------> cmd mac """
+    def __init__(self, n2lh_url):
         super().__init__()
         self.sk = None
         self.url = n2lh_url
-        # an AgentN2LH has 1 BLE thread, 1 GPS thread...
-        if not threaded:
-            self.loop_n2lh()
 
     def _in_cmd(self):
         """ receive NLE client commands, silent timeouts """
@@ -81,58 +79,60 @@ class AgentN2LH(threading.Thread):
         self.loop_n2lh()
 
     def loop_n2lh(self):
-        """ rx commands via pynng and enqueue them for BLE and GPS threads"""
+        """ creates one BLE thread, one GPS thread... """
+        _check_url_syntax(self.url)
+        self.sk = Pair0(send_timeout=100)
+        self.sk.listen(self.url)
+        self.sk.recv_timeout = 100
+        self.q_to_ble = queue.Queue()
+        self.q_from_ble = queue.Queue()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
+
+        _p('N2LH: listening on {}'.format(self.url))
         while 1:
-            _check_url_syntax(self.url)
-            self.sk = Pair0(send_timeout=100)
-            self.sk.listen(self.url)
-            self.sk.recv_timeout = 100
-            th_ble = AgentN2LH_BLE(threaded=1)
-            th_ble.start()
-            # todo: create GPS thread
+            # _in: <n2lh_path> <command>
+            _in = self._in_cmd()
+            _in = _good_n2lh_cmd_prefix(_in)
 
-            _p('N2LH: listening on {}'.format(self.url))
-            while 1:
-                # _in: <n2lh_path> <command>
-                _in = self._in_cmd()
-                _in = _good_n2lh_cmd_prefix(_in)
+            # pynng timeout or bad N2LH prefix
+            if not _in:
+                # _p('n2lh_in nope')
+                continue
 
-                # pynng timeout or bad N2LH prefix
-                if not _in:
-                    # _p('n2lh_in nope')
-                    continue
+            # leave N2LH thread on demand
+            if _in.startswith(AG_N2LH_END_THREAD):
+                ans = (0, 'AG_N2LH_OK: end_thread')
+                self._out_ans(ans)
+                return 0
 
-                # leave N2LH thread on demand
-                if _in.startswith(AG_N2LH_END_THREAD):
-                    ans = (0, 'AG_N2LH_OK: end_thread')
-                    self._out_ans(ans)
-                    return 0
+            # good N2LH command for our threads
+            self.q_to_ble.put(_in)
+            _out = self.q_from_ble.get()
+            self._out_ans(_out)
 
-                # good N2LH command for our threads
-                th_ble.q_in.put(_in)
-                _out = th_ble.q_out.get()
-                self._out_ans(_out)
+            # more to do, forward file in case of get_file
+            if _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] == 0:
+                # _in: 'get_file <name> <fol> <size> <mac>'
+                file = _in.split(' ')[1]
+                with open(file, 'rb') as f:
+                    _p('<< N2LH {}'.format(file))
+                    b = f.read()
 
-                # more to do, forward file in case of get_file
-                if _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] == 0:
-                    # _in: 'get_file <name> <fol> <size> <mac>'
-                    file = _in.split(' ')[1]
-                    with open(file, 'rb') as f:
-                        _p('<< N2LH {}'.format(file))
-                        b = f.read()
-
-                        # use a separate socket port + 1 to tx file
-                        # todo: nope, fix this since ngrok can only expose 1 port
-                        sk = Pair0()
-                        _ = parse.parse('{}://{}:{:d}', self.url)
-                        u_ext = '{}://{}:{}'.format(_[0], _[1], _[2] + 1)
-                        _p(u_ext)
-                        sk.dial(u_ext)
-                        sk.send(b)
-                        sk.close()
+                    # use a separate socket port + 1 to tx file
+                    # todo: nope, fix this since ngrok can only expose 1 port
+                    sk = Pair0()
+                    _ = parse.parse('{}://{}:{:d}', self.url)
+                    u_ext = '{}://{}:{}'.format(_[0], _[1], _[2] + 1)
+                    _p(u_ext)
+                    sk.dial(u_ext)
+                    sk.send(b)
+                    sk.close()
 
 
 def _good_n2lh_cmd_prefix(s):
+    """ checks N2LH format and path is known"""
     if not s or len(s) < 4:
         return ''
 
@@ -176,22 +176,30 @@ def calc_n2lh_cmd_ans_timeout_ms(tag_n2lh):
 
 
 # for testing purposes
-url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
-url_lh_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
 if __name__ == '__main__':
-    ag = AgentN2LH(url_lh, threaded=1)
-    ag.start()
-    # give agent time to start
+    url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
+    mac = FAKE_MAC_CC26X2
+    ag = AgentN2LH(url_lh)
+    th_ag_ble = threading.Thread(target=ag.loop_n2lh)
+    th_ag_ble.start()
+
+    # give time agent to start
     time.sleep(1)
+
+    # send client commands
     list_of_cmd = [AG_BLE_CMD_QUERY,
                    AG_BLE_CMD_STATUS,
                    AG_BLE_CMD_GET_TIME,
                    AG_BLE_CMD_LS_LID,
                    AG_BLE_CMD_QUERY]
-                   # AG_BLE_CMD_BYE]
 
     for c in list_of_cmd:
-        cmd = '{} {}'.format(c, FAKE_MAC_CC26X2)
-        ClientN2LH(cmd, url_lh, None)
-        time.sleep(.1)
+        t = calc_n2lh_cmd_ans_timeout_ms(c)
+        cmd = '{} {}'.format(c, mac)
+        ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BLE, t)
 
+    # make N2LH_BLE and N2LH_BASE threads end
+    cmd = '{} {}'.format(AG_BLE_END_THREAD, mac)
+    ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BLE, 1000)
+    cmd = '{} {}'.format(AG_N2LH_END_THREAD, mac)
+    ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BASE, 1000)

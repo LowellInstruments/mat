@@ -1,5 +1,6 @@
 import json
 import threading
+
 from mat import logger_controller_ble
 from mat.agent_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
@@ -30,6 +31,7 @@ def _stringify_dir_ans(_d_a):
 
 
 def _mac_n_connect(s, ag_ble):
+    # s: STS <mac>
     mac = s.rsplit(' ', 1)[-1]
     rv = ag_ble.connect(mac)
     if rv[0] == 0:
@@ -57,20 +59,17 @@ def _ok_or_nok(rv: list, c: str):
     return _nok(c)
 
 
-# can be threaded
 class AgentN2LH_BLE(threading.Thread):
-    def __init__(self, threaded, hci_if=0):
+    def __init__(self, q1, q2, hci_if=0):
+        """ creates an agent for simpler BLE logger controller """
         super().__init__()
         self.lc = None
+        self.q_in = q1
+        self.q_out = q2
         self.h = hci_if
-        # an AgentBLE has no threads
-        self.q_in = queue.Queue()
-        self.q_out = queue.Queue()
-        if not threaded:
-            self.loop_ag_ble()
 
     def _parse(self, s):
-        """ s: '<cmd> <args> <mac>' """
+        """ s: '<ag_ble_cmd> <args> <mac>' """
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
             AG_BLE_CMD_STATUS: self.status,
@@ -116,6 +115,7 @@ class AgentN2LH_BLE(threading.Thread):
         return fxn(s)
 
     def loop_ag_ble(self):
+        """ receives requests from AG_N2LH and answers them """
         while 1:
             _in = self.q_in.get()
             # _p('>> AG_BLE {}'.format(_in))
@@ -123,8 +123,8 @@ class AgentN2LH_BLE(threading.Thread):
             # _p('<< AG_BLE {}'.format(_out))
             self.q_out.put(_out)
 
-            # leave N2LH_BLE thread on demand
-            if AG_BLE_END_THREAD in _out [1]:
+            # we can leave N2LH_BLE thread on demand
+            if AG_BLE_END_THREAD in _out[1]:
                 # _out: (0, 'AG_BLE_OK: ble_bye')
                 break
 
@@ -153,7 +153,8 @@ class AgentN2LH_BLE(threading.Thread):
                 rv += '{} {} '.format(each.addr, each.rssi)
         return _ok(rv.strip())
 
-    def break_thread(self, _):
+    @staticmethod
+    def break_thread(_):
         return _ok(AG_BLE_END_THREAD)
 
     def connect(self, s):
@@ -359,6 +360,7 @@ class AgentN2LH_BLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_GET_FILE)
 
+        # this involves both GET answer and xmodem_RX file
         if self.lc.get_file(file, fol, size):
             a = '{} {} {}'.format(AG_BLE_CMD_GET_FILE, file, size)
             return _ok(a)
@@ -371,6 +373,7 @@ class AgentN2LH_BLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_DWG_FILE)
 
+        # this involves both DWG answer and DWL file
         if self.lc.dwg_file(file, fol, size):
             a = '{} {} {}'.format(AG_BLE_CMD_DWG_FILE, file, size)
             return _ok(a)

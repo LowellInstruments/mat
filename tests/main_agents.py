@@ -12,8 +12,8 @@ url_ll = _url_ll()
 
 
 if __name__ == '__main__':
-    ag_n2lh = AgentN2LH(url_lh, threaded=1)
-    ag_n2ll = AgentN2LL(url_ll, threaded=1)
+    ag_n2lh = AgentN2LH(url_lh)
+    ag_n2ll = AgentN2LL(url_ll)
     ag_n2lh.start()
     ag_n2ll.start()
     ag_n2lh.join(timeout=1)

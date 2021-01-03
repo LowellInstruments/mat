@@ -1,3 +1,6 @@
+import queue
+import threading
+
 from mat.agent_n2lh_ble import AgentN2LH_BLE
 from mat.agent_utils import *
 import time
@@ -15,59 +18,68 @@ def _p(s):
     print(s)
 
 
-def _end_ag_ble_th(ag):
-    s = '{} {}'.format(AG_BLE_END_THREAD, mac)
-    _q(ag, s)
-
-
-
 class TestAgentN2LH_BLE:
     """ tests AgentN2LH_BLE directly, omitting AgentN2LH layer """
+    q_to_ble = queue.Queue()
+    q_from_ble = queue.Queue()
+
+    def _q(self, _in):
+        self.q_to_ble.put(_in)
+        _out = self.q_from_ble.get()
+        return _out
+
+    def _end_ag_ble_th(self):
+        s = '{} {}'.format(AG_BLE_END_THREAD, mac)
+        self._q(s)
 
     def test_disconnect_was_not_connected(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
-        # skip connect() on purpose
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
+        # skipping connect() on purpose
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert AG_BLE_ANS_DISC_ALREADY in rv[1]
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_connect_disconnect(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q( s)
         s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
         assert AG_BLE_ANS_DISC_OK in rv[1]
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_connect_already(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_CONNECT, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert AG_BLE_ANS_CONN_ALREADY in rv[1]
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_get_time_thrice_few_time_same_connection(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         # the first command implicitly connects so takes > 1 second
         now = time.perf_counter()
         s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
         el = time.perf_counter() - now
         assert el > 1
@@ -75,25 +87,27 @@ class TestAgentN2LH_BLE:
         # the next 2 are much faster
         now = time.perf_counter()
         s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
         s = '{} {}'.format(AG_BLE_CMD_GET_TIME, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
         el = time.perf_counter() - now
         _p('2nd & 3rd {} took {}'.format(AG_BLE_CMD_GET_TIME, el))
         assert el < .5
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_set_time(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        # todo: fix this one
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_SET_TIME, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_get_fake_file(self):
         # too difficult to test on dummies
@@ -102,48 +116,52 @@ class TestAgentN2LH_BLE:
             return
 
         # this long test may take a couple minutes
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         file = 'a.lid'
         size = 1234
         fol = '.'
         s = '{} {} {} {} {}'
         s = s.format(AG_BLE_CMD_GET_FILE, file, fol, size, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_ls_lid(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         _p(rv)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_ls_not_lid(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         _p(rv)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_stop(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_config_cmd(self):
         _cfg = {
@@ -157,43 +175,41 @@ class TestAgentN2LH_BLE:
             "ETM": "2030-11-12 12:14:20",
             "LED": 1
         }
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
-        _q(ag, s)
+        self._q(s)
         # _cfg: dict -> string
         _cfg = json.dumps(_cfg)
         s = '{} ${}$ {}'.format(AG_BLE_CMD_CONFIG, _cfg, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_mts_cmd(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_MTS, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         _p(rv)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
+        self._end_ag_ble_th()
 
     def test_any_cmd(self):
-        ag = AgentN2LH_BLE(threaded=1)
-        ag.start()
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
-        _q(ag, s)
+        self._q(s)
         s = '{} {}'.format(AG_BLE_CMD_LS_LID, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         _p(rv)
         s = '{} {}'.format(AG_BLE_CMD_LS_NOT_LID, mac)
-        rv = _q(ag, s)
+        rv = self._q(s)
         _p(rv)
         assert rv[0] == 0
-        _end_ag_ble_th(ag)
-
-def _q(_ag, _in):
-    _ag.q_in.put(_in)
-    _out = _ag.q_out.get()
-    return _out
+        self._end_ag_ble_th()

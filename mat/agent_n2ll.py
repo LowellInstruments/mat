@@ -176,7 +176,7 @@ class ClientN2LL:
         self.sig = sig
         # 'dump' variable is useful to be able to test this class
         self.dump_cli_rx = None
-        # an N2LL client loop is always rx-threaded, entry point is tx()
+        # N2LL client is always rx-threaded, entry point is tx()
         self.th_rx = threading.Thread(target=self._sub_n_rx)
         self.th_rx.start()
 
@@ -217,15 +217,13 @@ class ClientN2LL:
 
 
 class AgentN2LL(threading.Thread):
-    def __init__(self, url, threaded):
+    def __init__(self, url):
         """ AgentN2LL receives from ClientN2LL in channel 'li_masters'
             AgentN2LL sends back to ClientN2LL in channel 'li_slaves' """
         super().__init__()
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
-        if not threaded:
-            self.loop_n2ll()
 
     def _get_ch_pub(self):
         self.ch_pub = mq_exchange_for_slaves()

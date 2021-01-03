@@ -18,6 +18,7 @@ class LoggerControllerBLERN4020:  # pragma: no cover
             self.base.cha.write(each, withResponse=response)
 
     def get_file(self, lc, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        """ sends GET command and downloads file """
         assert(lc.und.type == self.type)
         lc.purge()
 

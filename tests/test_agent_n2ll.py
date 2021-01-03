@@ -1,3 +1,4 @@
+import threading
 import time
 
 from getmac import get_mac_address
@@ -6,7 +7,7 @@ from mat.agent_n2ll import AgentN2LL, ClientN2LL
 from mat.agent_utils import AG_N2LL_CMD_BYE
 
 
-def _u():
+def _u_l():
     url = 'amqps://{}:{}/{}'
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
@@ -15,12 +16,13 @@ def _u():
 
 class TestAgent_N2LL:
     def test_agent_n2ll_command_bye(self):
-        u_l = _u()
-        ag_n2ll = AgentN2LL(u_l, threaded=1)
-        ag_n2ll.start()
+        ag_n2ll = AgentN2LL(_u_l())
+        th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll)
+        th_ag_n2ll.start()
+
         # need sleep for agent_N2LL to start
         time.sleep(2)
-        cli_n2ll = ClientN2LL(u_l, None)
+        cli_n2ll = ClientN2LL(_u_l(), None)
         mac = get_mac_address()
         cmd = '{} {}'.format(AG_N2LL_CMD_BYE, mac)
         cli_n2ll.tx(cmd)

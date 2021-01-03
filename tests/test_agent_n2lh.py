@@ -1,3 +1,5 @@
+import threading
+
 from mat.agent_n2lh import PORT_N2LH, AgentN2LH, ClientN2LH, \
     calc_n2lh_cmd_ans_timeout_ms
 from mat.agent_utils import AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, AG_BLE_CMD_LS_LID, \
@@ -8,7 +10,6 @@ from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
 
 
 url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
-url_lh_ext = 'tcp4://localhost:{}'.format(PORT_N2LH + 1)
 # mac = '60:77:71:22:c8:18'
 # mac = '60:77:71:22:c8:08'
 # mac = FAKE_MAC_RN4020
@@ -19,8 +20,9 @@ class TestAgentN2LH:
     """ tests AgentN2LH underlying agents """
 
     def test_n2lh_ble_commands(self):
-        ag = AgentN2LH(url_lh, threaded=1)
-        ag.start()
+        ag = AgentN2LH(url_lh)
+        th_ag_ble = threading.Thread(target=ag.loop_n2lh)
+        th_ag_ble.start()
         list_of_cmd = [AG_BLE_CMD_QUERY,
                        AG_BLE_CMD_STATUS,
                        AG_BLE_CMD_GET_TIME,
