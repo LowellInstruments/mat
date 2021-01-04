@@ -68,7 +68,7 @@ class AgentN2LH_BLE(threading.Thread):
         self.q_out = q2
         self.h = hci_if
 
-    def _parse(self, s):
+    def _parse_n2lh_ble_incoming_frame(self, s):
         """ s: '<ag_ble_cmd> <args> <mac>' """
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
@@ -119,7 +119,7 @@ class AgentN2LH_BLE(threading.Thread):
         while 1:
             _in = self.q_in.get()
             # _p('>> AG_BLE {}'.format(_in))
-            _out = self._parse(_in)
+            _out = self._parse_n2lh_ble_incoming_frame(_in)
             # _p('<< AG_BLE {}'.format(_out))
             self.q_out.put(_out)
 
@@ -354,7 +354,6 @@ class AgentN2LH_BLE(threading.Thread):
 
     def get_file(self, s):
         # s: 'get_file <file> <fol> <size> <mac>
-        # todo: do this and DWG file
         file, fol, size = _sp(s, 1), _sp(s, 2), _sp(s, 3)
 
         if not _mac_n_connect(s, self):

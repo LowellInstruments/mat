@@ -16,7 +16,7 @@ def _p(s):
     print(s, flush=True)
 
 
-def _u():
+def _url_n2ll():
     url = 'amqps://{}:{}/{}'
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
@@ -43,7 +43,7 @@ def check_ngrok():
 
 
 def _mq_get_ch():
-    url = _u()
+    url = _url_n2ll()
     _pars = pika.URLParameters(url)
     _pars.socket_timeout = 3
     _conn = pika.BlockingConnection(_pars)
@@ -124,7 +124,7 @@ def _unroute(_, macs):
     return 0, 'un-routed {}'.format(mac)
 
 
-def _parse(s: bytes):
+def _parse_n2ll_incoming_frame(s: bytes):
     # s: AG_N2LL_CMD_QUERY <mac> <port>
     if not s:
         return 1, 'error, cmd empty'
@@ -167,61 +167,10 @@ def _parse(s: bytes):
     return fxn(s, _my_macs)
 
 
-class ClientN2LL:
-    def __init__(self, url, sig=None):
-        """ ClientN2LL sends towards AgentN2LL in channel 'li_masters'
-            ClientN2LL receives form AgentN2LL in channel 'li_slaves' """
-        self.url = url
-        self.ch_pub = None
-        self.ch_sub = None
-        self.tx_last = None
-        self.sig = sig
-        # 'dump' variable is useful to be able to test this class
-        self.dump_cli_rx = None
-        # N2LL client is always rx-threaded, entry point is tx()
-        self.th_rx = threading.Thread(target=self._sub_n_rx)
-        self.th_rx.start()
-
-    def _get_ch_pub(self):
-        self.ch_pub = mq_exchange_for_masters()
-
-    def _get_ch_sub(self):
-        self.ch_sub = mq_exchange_for_slaves()
-
-    def tx(self, _what: str):
-        try:
-            # client tx's to channel 'li_masters', rx from channel 'li_slaves'
-            self._get_ch_pub()
-            self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<< ClientN2LL tx: {}'.format(_what))
-            self.tx_last = _what
-            self.ch_pub.close()
-        except ProbableAccessDeniedError:
-            e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
-            if self.sig:
-                self.sig.out.emit(self.tx_last, e)
-
-    # careful: this collects answers from forgotten nodes :)
-    def _sub_n_rx(self):
-        def _rx_cb(ch, method, properties, body):
-            s = body.decode()
-            _p('>> ClientN2LL rx: {}'.format(s))
-            self.dump_cli_rx = s
-            if self.sig:
-                self.sig.out.emit(self.tx_last, s)
-
-        self._get_ch_sub()
-        rv = self.ch_sub.queue_declare(queue='', exclusive=True)
-        q = rv.method.queue
-        self.ch_sub.queue_bind(exchange='li_slaves', queue=q)
-        self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
-        self.ch_sub.start_consuming()
-
-
 class AgentN2LL(threading.Thread):
     def __init__(self, url):
-        """ AgentN2LL receives from ClientN2LL in channel 'li_masters'
-            AgentN2LL sends back to ClientN2LL in channel 'li_slaves' """
+        """ ClientN2LL pubs  in channel 'li_masters', subs to 'li_slaves'
+            AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
         assert(check_ngrok())
         super().__init__()
         self.url = url
@@ -262,7 +211,7 @@ class AgentN2LL(threading.Thread):
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             # _p('>> N2LL: rx_cb {}'.format(body))
-            ans = _parse(body)
+            ans = _parse_n2ll_incoming_frame(body)
             # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
             # maybe time to end myself
@@ -273,5 +222,56 @@ class AgentN2LL(threading.Thread):
         rv = self.ch_sub.queue_declare(queue='', durable=True, exclusive=True)
         q = rv.method.queue
         self.ch_sub.queue_bind(exchange='li_masters', queue=q)
+        self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
+        self.ch_sub.start_consuming()
+
+
+class ClientN2LL:
+    def __init__(self, url, sig=None):
+        """ ClientN2LL pubs in channel 'li_masters', subs to 'li_slaves'
+            AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
+        self.url = url
+        self.ch_pub = None
+        self.ch_sub = None
+        self.tx_last = None
+        self.sig = sig
+        # 'dump' variable is useful to be able to test this class
+        self.dump_cli_rx = None
+        # N2LL client is always rx-threaded, entry point is tx()
+        self.th_rx = threading.Thread(target=self._sub_n_rx)
+        self.th_rx.start()
+
+    def _get_ch_pub(self):
+        self.ch_pub = mq_exchange_for_masters()
+
+    def _get_ch_sub(self):
+        self.ch_sub = mq_exchange_for_slaves()
+
+    def tx(self, _what: str):
+        try:
+            # client tx's to channel 'li_masters', rx from channel 'li_slaves'
+            self._get_ch_pub()
+            self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
+            _p('<< ClientN2LL tx: {}'.format(_what))
+            self.tx_last = _what
+            self.ch_pub.close()
+        except ProbableAccessDeniedError:
+            e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
+            if self.sig:
+                self.sig.out.emit(self.tx_last, e)
+
+    # careful: this collects answers from ALL slaves :)
+    def _sub_n_rx(self):
+        def _rx_cb(ch, method, properties, body):
+            s = body.decode()
+            _p('>> ClientN2LL rx: {}'.format(s))
+            self.dump_cli_rx = s
+            if self.sig:
+                self.sig.out.emit(self.tx_last, s)
+
+        self._get_ch_sub()
+        rv = self.ch_sub.queue_declare(queue='', exclusive=True)
+        q = rv.method.queue
+        self.ch_sub.queue_bind(exchange='li_slaves', queue=q)
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()

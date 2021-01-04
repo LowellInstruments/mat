@@ -3,20 +3,20 @@ import threading
 import time
 import parse
 import pynng
-from mat.agent_n2lh_ble import AgentN2LH_BLE
 from pynng import Pair0
-from mat.agent_utils import AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, \
-    AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN, \
-    AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE, \
-    AG_BLE_END_THREAD
+from mat.agent_n2lh_ble import AgentN2LH_BLE
+from mat.agent_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS,
+                             AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
+                             AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
+                             AG_N2LH_PATH_BASE, AG_BLE_END_THREAD, AG_BLE_ANS_GET_FILE_OK, AG_BLE_OK,
+                             AG_BLE_ANS_GET_FILE_ERR)
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
 
+
 PORT_N2LH = 12804
 N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
-
-
 N2LH_CLI_SEND_TIMEOUT_MS = 5000
 
 
@@ -32,17 +32,29 @@ class ClientN2LH():
         self.cmd = s
         self.url = url
 
-    def do(self, path, rx_timeout_ms):
+    def do(self, n2lh_path, rx_timeout_ms):
         """ builds and sends N2LH command """
         # path: AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE...
         _c = self.cmd.split(' ')[0]
         sk = pynng.Pair0(send_timeout=N2LH_CLI_SEND_TIMEOUT_MS)
         sk.recv_timeout = rx_timeout_ms
         sk.dial(self.url)
-        _o = '{} {}'.format(path, self.cmd)
+
+        # send N2LH command and wait answer
+        _o = '{} {}'.format(n2lh_path, self.cmd)
         # _o: ble connect <mac>
         sk.send(_o.encode())
         _in = sk.recv().decode()
+
+        # additionally wait to GET file result, if so
+        if _c == AG_BLE_CMD_GET_FILE:
+            _in = sk.recv().decode()
+            # get FILE binary content
+            if AG_BLE_ANS_GET_FILE_OK in _in:
+                b = sk.recv()
+                with open('__test.lid', 'wb') as f:
+                    f.write(b)
+
         sk.close()
         return _in
 
@@ -56,7 +68,6 @@ class AgentN2LH(threading.Thread):
         self.url = n2lh_url
 
     def _in_cmd(self):
-        """ receive NLE client commands, silent timeouts """
         try:
             _in = self.sk.recv()
             if _in:
@@ -107,32 +118,36 @@ class AgentN2LH(threading.Thread):
                 self._out_ans(ans)
                 return 0
 
-            # good N2LH command for our threads
+            # pass FORWARD incoming N2LH frame to sub-agents like BLE
             self.q_to_ble.put(_in)
             _out = self.q_from_ble.get()
             self._out_ans(_out)
 
-            # more to do, forward file in case of get_file
+            # additionally, pass BACK file to ClientN2LH in case of get_file
             if _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] == 0:
                 # _in: 'get_file <name> <fol> <size> <mac>'
                 file = _in.split(' ')[1]
-                with open(file, 'rb') as f:
-                    _p('<< N2LH {}'.format(file))
-                    b = f.read()
+                fol = _in.split(' ')[2]
+                path = '{}/{}'.format(fol, file)
+                with open(path, 'rb') as f:
+                    # async extra answer
+                    ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_OK))
+                    self._out_ans(ans)
 
-                    # use a separate socket port + 1 to tx file
-                    # todo: nope, fix this since ngrok can only expose 1 port
-                    sk = Pair0()
-                    _ = parse.parse('{}://{}:{:d}', self.url)
-                    u_ext = '{}://{}:{}'.format(_[0], _[1], _[2] + 1)
-                    _p(u_ext)
-                    sk.dial(u_ext)
-                    sk.send(b)
-                    sk.close()
+                    # async extra send file backwards
+                    _p('<< N2LH {}'.format(path))
+                    b = f.read()
+                    self.sk.dial(self.url)
+                    self.sk.send(b)
+            elif _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] != 0:
+                # async extra answer
+                ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_ERR))
+                self._out_ans(ans)
+
 
 
 def _good_n2lh_cmd_prefix(s):
-    """ checks N2LH format and path is known"""
+    """ checks N2LH format and path are OK """
     if not s or len(s) < 4:
         return ''
 
@@ -143,7 +158,7 @@ def _good_n2lh_cmd_prefix(s):
         AG_N2LH_PATH_GPS
     ]
 
-    # 'ble <cmd>...' -> <cmd> ...'
+    # s: 'ble <cmd>...' -> <cmd> ...'
     if s[:3] in n2lh_paths:
         return s[4:]
 
@@ -175,7 +190,7 @@ def calc_n2lh_cmd_ans_timeout_ms(tag_n2lh):
     return calc_ble_cmd_ans_timeout(tag_mat) * 1.1 * 1000
 
 
-# for testing purposes
+# for N2LH testing purposes
 if __name__ == '__main__':
     url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
     mac = FAKE_MAC_CC26X2
