@@ -8,8 +8,6 @@ from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LO
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W, SET_TIME_CMD
 from mat.logger_controller_ble import LoggerControllerBLE, is_a_li_logger, FORMAT_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, \
     MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD, MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS, WAKE_CMD
-import queue
-
 from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, LoggerControllerBLEDummyRN4020, \
     brand_testing_cc26x2, brand_testing_rn4020
 
@@ -290,6 +288,9 @@ class AgentN2LH_BLE(threading.Thread):
         return self._cmd_ans(_mac_n_connect(s, self), MY_TOOL_SET_CMD)
 
     def set_time(self, s):
+        if not _mac_n_connect(s, self):
+            return _nok(AG_BLE_CMD_DEL_FILE)
+
         # it's not simply sending SET_TIME_CMD
         rv = self.lc.sync_time()
         # rv: [b'STM', b'00']

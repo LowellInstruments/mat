@@ -9,7 +9,7 @@ from mat.agent_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUER
                              AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
                              AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
                              AG_N2LH_PATH_BASE, AG_BLE_END_THREAD, AG_BLE_ANS_GET_FILE_OK, AG_BLE_OK,
-                             AG_BLE_ANS_GET_FILE_ERR)
+                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE)
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
@@ -47,10 +47,9 @@ class ClientN2LH():
         sk.send(_o.encode())
         _in = sk.recv().decode()
 
-        # additionally wait to GET file result, if so
-        if _c == AG_BLE_CMD_GET_FILE:
+        # additionally Client_N2LH waits to receive file, if so
+        if _c in (AG_BLE_CMD_GET_FILE, AG_BLE_CMD_DWG_FILE):
             _in = sk.recv().decode()
-            # get FILE binary content
             if AG_BLE_ANS_GET_FILE_OK in _in:
                 b = sk.recv()
                 filename = self.cmd.split(' ')[1]
@@ -128,29 +127,26 @@ class AgentN2LH(threading.Thread):
             _out = self.q_from_ble.get()
             self._out_ans(_out)
 
-            # additionally, pass BACK file to ClientN2LH in case of get_file
-            if _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] == 0:
-                # _in: 'get_file <name> <fol> <size> <mac>'
+            # additionally, pass BACK file to ClientN2LH in case of GET / DWG
+            if _in.startswith(AG_BLE_CMD_GET_FILE) or \
+                _in.startswith(AG_BLE_CMD_DWG_FILE):
+                if _out[0] != 0:
+                    ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_ERR))
+                    self._out_ans(ans)
+                    continue
+                ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_OK))
+                self._out_ans(ans)
+
+                # _in: 'get_ / dwg_file <name> <fol> <size> <mac>'
                 file = _in.split(' ')[1]
                 fol = _in.split(' ')[2]
                 path = '{}/{}'.format(fol, file)
                 with open(path, 'rb') as f:
-                    # async extra answer
-                    ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_OK))
-                    self._out_ans(ans)
-
-                    # async extra send file backwards
+                    # extra send file backwards
                     _p('<< N2LH {}'.format(path))
                     b = f.read()
                     self.sk.dial(self.url)
                     self.sk.send(b)
-            elif _in.startswith(AG_BLE_CMD_GET_FILE) and _out[0] != 0:
-                # async extra answer
-                ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_ERR))
-                self._out_ans(ans)
-
-            # todo: forward DWGed file also
-
 
 
 def _good_n2lh_cmd_prefix(s):

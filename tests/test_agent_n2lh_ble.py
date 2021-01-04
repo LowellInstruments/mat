@@ -98,13 +98,15 @@ class TestAgentN2LH_BLE:
         self._end_ag_ble_th()
 
     def test_set_time(self):
-        # todo: fix this one
+        # sync_time is different than STM but, meh
         ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
         th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
         th_ag_ble.start()
         s = '{} {}'.format(AG_BLE_CMD_DISCONNECT, mac)
         self._q(s)
-        s = '{} {}'.format(AG_BLE_CMD_SET_TIME, mac)
+        # although in test the 'd' time string is ignored
+        d = '2019/03/01 16:47:51'
+        s = '{} {} {}'.format(AG_BLE_CMD_SET_TIME, d, mac)
         rv = self._q(s)
         assert rv[0] == 0
         self._end_ag_ble_th()

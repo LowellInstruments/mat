@@ -98,6 +98,10 @@ class LoggerControllerBLEDummy:
         # otherwise it does not comply with tests
         return FAKE_TIME
 
+    def sync_time(self):
+        assert self.address
+        return [b'STM', b'00']
+
     def ls_lid(self):
         assert self.address
         _d = {k: v for k, v in self.files.items() if '.lid' in k}
@@ -177,16 +181,16 @@ class LoggerControllerBLEDummy:
             FORMAT_CMD: self.frm,
             GET_FILE_CMD: self.get_file_cmd
         }
+        # default is for commands not needing to check anything
         _a = dummy_answers_map.setdefault(args[0], '')
         if isinstance(_a, types.MethodType):
-            # call w/ parameters or not, ex: del_file a.lid
             _a = _a(args[1]) if len(args) > 1 else _a()
 
         # in case answer gives error
         if _a == ERR_MAT_ANS.encode():
             return ERR_MAT_ANS.encode()
 
-        # add the hexadecimal length string
+        # add hex length prefix
         _a = '{:02x}{}'.format(len(_a), _a) if len(_a) else '00'
         rv = [args[0].encode(), _a.encode()]
         return rv
