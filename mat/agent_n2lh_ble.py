@@ -361,7 +361,7 @@ class AgentN2LH_BLE(threading.Thread):
 
         # this involves both GET answer and xmodem_RX file
         if self.lc.get_file(file, fol, size):
-            a = '{} {} {}'.format(AG_BLE_CMD_GET_FILE, file, size)
+            a = '{} {} {} {}'.format(AG_BLE_CMD_GET_FILE, file, fol, size)
             return _ok(a)
         return _nok(AG_BLE_CMD_GET_FILE)
 
@@ -373,7 +373,7 @@ class AgentN2LH_BLE(threading.Thread):
             return _nok(AG_BLE_CMD_DWG_FILE)
 
         # this involves both DWG answer and DWL file
-        if self.lc.dwg_file(file, fol, size):
+        if self.lc.dwg_file(file, fol, size, None):
             a = '{} {} {}'.format(AG_BLE_CMD_DWG_FILE, file, size)
             return _ok(a)
         return _nok(AG_BLE_CMD_DWG_FILE)

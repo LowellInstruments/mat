@@ -27,10 +27,11 @@ def _p(s):
 class ClientN2LH():
     """ ClientN2LH    <-- pynng --> AgentN2LH  <-- queues --> AgentN2LH_BLE
         'ble cmd mac' ------------> ble cmd mac ------------> cmd mac """
-    def __init__(self, s, url):
+    def __init__(self, s, url, fol):
         super().__init__()
         self.cmd = s
         self.url = url
+        self.fol = fol
 
     def do(self, n2lh_path, rx_timeout_ms):
         """ builds and sends N2LH command """
@@ -52,8 +53,12 @@ class ClientN2LH():
             # get FILE binary content
             if AG_BLE_ANS_GET_FILE_OK in _in:
                 b = sk.recv()
-                with open('__test.lid', 'wb') as f:
+                filename = self.cmd.split(' ')[1]
+                size = self.cmd.split(' ')[3]
+                filepath = '{}/{}'.format(self.fol, filename)
+                with open(filepath, 'wb') as f:
                     f.write(b)
+                    f.truncate(int(size))
 
         sk.close()
         return _in
@@ -143,6 +148,8 @@ class AgentN2LH(threading.Thread):
                 # async extra answer
                 ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_ERR))
                 self._out_ans(ans)
+
+            # todo: forward DWGed file also
 
 
 

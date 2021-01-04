@@ -338,7 +338,7 @@ class LoggerControllerBLE(LoggerController):
         # double return value
         return not timeout, data
 
-    def dwg_file(self, file, size, sig=None) -> bool:  # pragma: no cover
+    def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
         dl = False
         try:
             _ = '{} {:02x}{}\r'
@@ -346,7 +346,11 @@ class LoggerControllerBLE(LoggerController):
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                dl = self._dwl(size, sig)
+                dl, data = self._dwl(size, sig)
+                path = '{}/{}'.format(fol, file)
+                with open(path, 'wb') as f:
+                    f.write(data)
+                    f.truncate(int(size))
             else:
                 e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
