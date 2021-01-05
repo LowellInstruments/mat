@@ -30,11 +30,12 @@ LOG_EN_CMD = 'LOG'
 WAKE_CMD = 'WAK'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
-DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
 ERR_MAT_ANS = 'ERR'
 GET_FILE_CMD = 'GET'
+DWG_FILE_CMD = 'DWG'
+
 
 
 class Delegate(ble.DefaultDelegate):
@@ -328,7 +329,7 @@ class LoggerControllerBLE(LoggerController):
             c_n += 1
             self.ble_write(cmd.encode())
             timeout, data = self._dwl_chunk_loop(sig, data)
-            if timeout or len(data) == size:
+            if timeout or len(data) >= int(size):
                 break
 
         # clean-up
@@ -339,18 +340,22 @@ class LoggerControllerBLE(LoggerController):
         return not timeout, data
 
     def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        dl = False
+        dl, data = False, None
+
         try:
             _ = '{} {:02x}{}\r'
-            cmd = _.format(DWG_CMD, len(file), file)
+            cmd = _.format(DWG_FILE_CMD, len(file), file)
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
                 dl, data = self._dwl(size, sig)
-                path = '{}/{}'.format(fol, file)
-                with open(path, 'wb') as f:
-                    f.write(data)
-                    f.truncate(int(size))
+                if dl and data and len(data) == int(size):
+                    path = '{}/{}'.format(fol, file)
+                    with open(path, 'wb') as f:
+                        f.write(data)
+                        f.truncate(int(size))
+                else:
+                    data = None
             else:
                 e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
@@ -360,7 +365,7 @@ class LoggerControllerBLE(LoggerController):
             # and / or next BLE command will nicely fail
             print('BLE: dwg_file() exception {}'.format(ex))
 
-        return dl
+        return data
 
 
 # utilities
@@ -539,11 +544,11 @@ def _ans_check(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
         CRC_CMD: lambda: _exp() and (len(a) == 6 + 8),
-        DWG_CMD: lambda: _exp(1),
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
-        WAKE_CMD: lambda: _exp() and len(a) == 8
+        WAKE_CMD: lambda: _exp() and len(a) == 8.
+        # GET_FILE_CMD and DWG_FILE_CMD done elsewhere
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()
@@ -586,7 +591,7 @@ def _ans_unk(_tag):  # pragma: no cover
     return False
 
 
-# can be called by NLE protocol client
+# can be called by ClientN2LH
 def calc_ble_cmd_ans_timeout(tag):
     _timeouts = {
         RUN_CMD: 50,

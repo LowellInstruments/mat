@@ -113,7 +113,7 @@ class AgentN2LH_BLE(threading.Thread):
         return fxn(s)
 
     def loop_ag_ble(self):
-        """ receives requests from AG_N2LH and answers them """
+        """ dequeues requests from AG_N2LH, queues back answers """
         while 1:
             _in = self.q_in.get()
             # _p('>> AG_BLE {}'.format(_in))
@@ -128,7 +128,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     def run(self):
         self.loop_ag_ble()
-        _p('AG_BLE thread exits')
+        _p('AG_BLE thread ends')
 
     @staticmethod
     def scan(s):
@@ -375,7 +375,7 @@ class AgentN2LH_BLE(threading.Thread):
 
         # this involves both DWG answer and DWL file
         if self.lc.dwg_file(file, fol, size, None):
-            a = '{} {} {}'.format(AG_BLE_CMD_DWG_FILE, file, size)
+            a = '{} {} {} {}'.format(AG_BLE_CMD_DWG_FILE, file, fol, size)
             return _ok(a)
         return _nok(AG_BLE_CMD_DWG_FILE)
 

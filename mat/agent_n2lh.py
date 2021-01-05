@@ -11,7 +11,8 @@ from mat.agent_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUER
                              AG_N2LH_PATH_BASE, AG_BLE_END_THREAD, AG_BLE_ANS_GET_FILE_OK, AG_BLE_OK,
                              AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE)
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
-from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
+from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, \
+    calc_ble_cmd_ans_timeout, DWG_FILE_CMD, GET_FILE_CMD
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
 
 
@@ -38,19 +39,21 @@ class ClientN2LH():
         # path: AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE...
         _c = self.cmd.split(' ')[0]
         sk = pynng.Pair0(send_timeout=N2LH_CLI_SEND_TIMEOUT_MS)
-        sk.recv_timeout = rx_timeout_ms
+        sk.recv_timeout = int(rx_timeout_ms)
         sk.dial(self.url)
 
-        # send N2LH command and wait answer
+        # sends N2LH command via pynng, wait for answer w/ timeout
         _o = '{} {}'.format(n2lh_path, self.cmd)
         # _o: ble connect <mac>
         sk.send(_o.encode())
         _in = sk.recv().decode()
 
-        # additionally Client_N2LH waits to receive file, if so
+        # extra steps in case of requesting files
         if _c in (AG_BLE_CMD_GET_FILE, AG_BLE_CMD_DWG_FILE):
+            # did AgentN2LH_BLE GET / DWG successfully
             _in = sk.recv().decode()
             if AG_BLE_ANS_GET_FILE_OK in _in:
+                # once GET / DWG worked, receive file from AgentN2LH_BLE
                 b = sk.recv()
                 filename = self.cmd.split(' ')[1]
                 size = self.cmd.split(' ')[3]
@@ -131,11 +134,9 @@ class AgentN2LH(threading.Thread):
             if _in.startswith(AG_BLE_CMD_GET_FILE) or \
                 _in.startswith(AG_BLE_CMD_DWG_FILE):
                 if _out[0] != 0:
-                    ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_ERR))
-                    self._out_ans(ans)
+                    self._out_ans((0, AG_BLE_ANS_GET_FILE_ERR))
                     continue
-                ans = (0, 'AG_N2LH_OK: {}'.format(AG_BLE_ANS_GET_FILE_OK))
-                self._out_ans(ans)
+                self._out_ans((0, AG_BLE_ANS_GET_FILE_OK))
 
                 # _in: 'get_ / dwg_file <name> <fol> <size> <mac>'
                 file = _in.split(' ')[1]
@@ -175,8 +176,10 @@ def _check_url_syntax(s):
     assert _transport not in ['tcp']
 
 
-# used by N2LH clients such as GUIs
-def calc_n2lh_cmd_ans_timeout_ms(tag_n2lh):
+def calc_n2lh_cmd_ans_timeout_ms(s):
+    # s: dwg_file dummy_1129.txt . 16384 <mac>
+    tag_n2lh = s.split(' ')[0]
+
     _tag_map = {
         AG_BLE_CMD_RUN: RUN_CMD,
         AG_BLE_CMD_RWS: RWS_CMD,
@@ -186,11 +189,20 @@ def calc_n2lh_cmd_ans_timeout_ms(tag_n2lh):
         AG_BLE_CMD_MTS: MY_TOOL_SET_CMD
     }
 
-    # default value is status, simplest
-    tag_mat = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
+    # default value is STATUS_CMD, simplest
+    tag_mat_lib = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
 
-    # some more time than BLE MAT library commands
-    return calc_ble_cmd_ans_timeout(tag_mat) * 1.1 * 1000
+    # override when variable-time commands
+    if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
+        size = s.split(' ')[3]
+        delay_start_dwg_get_s = 5
+        timeout_rx_file = int((int(size) / 3000) + delay_start_dwg_get_s)
+        timeout_rx_file_ms = timeout_rx_file * 1000
+        print('**** {}'.format(timeout_rx_file_ms))
+        return timeout_rx_file_ms
+
+    # slight more time than BLE MAT library commands, in milliseconds
+    return calc_ble_cmd_ans_timeout(tag_mat_lib) * 1.1 * 1000
 
 
 # for N2LH testing purposes
