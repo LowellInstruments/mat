@@ -1,7 +1,6 @@
 import queue
 import threading
 import time
-import parse
 import pynng
 from pynng import Pair0
 from mat.agent_n2lh_ble import AgentN2LH_BLE
@@ -9,11 +8,13 @@ from mat.agent_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_QUER
                              AG_BLE_CMD_GET_TIME, AG_BLE_CMD_LS_LID, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
                              AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
                              AG_N2LH_PATH_BASE, AG_BLE_END_THREAD, AG_BLE_ANS_GET_FILE_OK, AG_BLE_OK,
-                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE)
+                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_CONNECT, AG_BLE_CMD_SCAN,
+                             AG_BLE_CMD_SCAN_LI)
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, \
-    calc_ble_cmd_ans_timeout, DWG_FILE_CMD, GET_FILE_CMD
+    calc_ble_cmd_ans_timeout
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
+from mat.utils import PrintColors as PC
 
 
 PORT_N2LH = 12804
@@ -192,17 +193,27 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     # default value is STATUS_CMD, simplest
     tag_mat_lib = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
 
+    # slight more time than BLE MAT library commands
+    t_s = calc_ble_cmd_ans_timeout(tag_mat_lib) * 1.1
+
     # override when variable-time commands
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
         size = s.split(' ')[3]
         delay_start_dwg_get_s = 5
-        timeout_rx_file = int((int(size) / 3000) + delay_start_dwg_get_s)
-        timeout_rx_file_ms = timeout_rx_file * 1000
-        print('**** {}'.format(timeout_rx_file_ms))
-        return timeout_rx_file_ms
+        t_s = int((int(size) / 3000) + delay_start_dwg_get_s)
 
-    # slight more time than BLE MAT library commands, in milliseconds
-    return calc_ble_cmd_ans_timeout(tag_mat_lib) * 1.1 * 1000
+    # override for commands not in MAT library
+    if tag_n2lh == AG_BLE_CMD_CONNECT:
+        t_s = 30 + 1
+    elif tag_n2lh in (AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_SCAN):
+        t_s = int(float(s.split(' ')[-1]) + 1)
+
+    # debug purposes
+    s = 'N2LH tag {} timeout {}'.format(tag_n2lh, t_s)
+    _p(PC.OKBLUE + s + PC.ENDC)
+
+    # value returned as milliseconds
+    return t_s * 1000
 
 
 # for N2LH testing purposes
