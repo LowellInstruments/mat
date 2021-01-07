@@ -4,12 +4,12 @@ import threading
 import time
 import pika
 from getmac import get_mac_address
-from pika.exceptions import AMQPError, ProbableAccessDeniedError
-from mat.agent_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
-                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
-                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
-                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
-                             AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK)
+from pika.exceptions import AMQPError
+from mat.n2lx_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
+                            AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
+                            AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
+                            AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
+                            AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok)
 
 
 def _p(s):
@@ -21,25 +21,6 @@ def _url_n2ll():
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
     return url.format(_user, _rest, _user)
-
-
-def _get_ngrok_bin_name() -> str:
-    _s = os.uname().nodename
-    _m = os.uname().machine
-    if _m == 'armv7l':
-        return 'ngrok_rpi'
-    if _s == 'rasberrypi' or _s == 'rpi':
-        return 'ngrok_rpi'
-    return 'ngrok'
-
-
-def check_ngrok():
-    name = _get_ngrok_bin_name()
-    cmd = '{} -h'.format(name)
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        _p('{} found'.format(name))
-        return True
 
 
 def _mq_get_ch():
@@ -62,29 +43,29 @@ def mq_exchange_for_masters():
     return _ch
 
 
-def _who(_, macs):
+def _cmd_who(_, macs):
     return 0, ' '.join([m for m in macs if m and m != '*'])
 
 
-def _bye(_, macs):
+def _cmd_bye(_, macs):
     return 0, '{} in {}'.format(AG_N2LL_ANS_BYE, macs)
 
 
-def _query(_, macs):
-    name = _get_ngrok_bin_name()
+def _cmd_query(_, macs):
+    name = get_ngrok_bin_name()
     _grep = 'ps aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return 0 , 'ngrok routed at {}'.format(macs[0])
+        return 0, 'ngrok routed at {}'.format(macs[0])
     return 1, AG_N2LL_ANS_ROUTE_NOK.format(macs[0])
 
 
-def _route_ngrok(_, macs):
+def _cmd_route_ngrok(_, macs):
     # _: ['route', '4000', <mac>]
     assert len(_) == 3
 
     # obtain proper ngrok name and kill any current local one
-    ngrok_bin = _get_ngrok_bin_name()
+    ngrok_bin = get_ngrok_bin_name()
     cmd = 'killall {}'.format(ngrok_bin)
     sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
@@ -116,15 +97,15 @@ def _route_ngrok(_, macs):
     return 0, s
 
 
-def _unroute(_, macs):
-    ngrok_bin = _get_ngrok_bin_name()
+def _cmd_unroute(_, macs):
+    ngrok_bin = get_ngrok_bin_name()
     cmd = 'killall {}'.format(ngrok_bin)
     _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     mac = macs[0]
     return 0, 'un-routed {}'.format(mac)
 
 
-def _parse_n2ll_incoming_frame(s: bytes):
+def _parse_n2ll_in_cmd(s: bytes):
     # s: AG_N2LL_CMD_QUERY <mac> <port>
     if not s:
         return 1, 'error, cmd empty'
@@ -142,14 +123,14 @@ def _parse_n2ll_incoming_frame(s: bytes):
     # remove Nones
     _my_macs = [i for i in _my_macs if i]
 
-    # search the function
+    # search the N2LL function
     cmd = s[0]
     fxn_map = {
-        AG_N2LL_CMD_BYE: _bye,
-        AG_N2LL_CMD_WHO: _who,
-        AG_N2LL_CMD_QUERY: _query,
-        AG_N2LL_CMD_ROUTE: _route_ngrok,
-        AG_N2LL_CMD_UNROUTE: _unroute,
+        AG_N2LL_CMD_BYE: _cmd_bye,
+        AG_N2LL_CMD_WHO: _cmd_who,
+        AG_N2LL_CMD_QUERY: _cmd_query,
+        AG_N2LL_CMD_ROUTE: _cmd_route_ngrok,
+        AG_N2LL_CMD_UNROUTE: _cmd_unroute,
     }
     fxn = fxn_map[cmd]
 
@@ -183,10 +164,8 @@ class AgentN2LL(threading.Thread):
     def _get_ch_sub(self):
         self.ch_sub = mq_exchange_for_masters()
 
-    def run(self):
-        self.loop_n2ll()
-
-    def _do_i_quit(self, ans):
+    @staticmethod
+    def _do_i_quit(ans):
         if AG_N2LL_ANS_BYE in ans:
             # give time answer to travel back
             time.sleep(5)
@@ -194,7 +173,7 @@ class AgentN2LL(threading.Thread):
             os._exit(0)
 
     def loop_n2ll(self):
-        """ an agentN2LL spawns no more threads: receives at rx and tx back """
+        """ AgentN2LL spawns no hreads: receives at rx and tx back """
         _p('N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
@@ -205,13 +184,13 @@ class AgentN2LL(threading.Thread):
     def _pub(self, _what):
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
-        # _p('<< N2LL: pub {}'.format(_what))
+        # _p('<- N2LL: pub {}'.format(_what))
         self.ch_pub.close()
 
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
-            # _p('>> N2LL: rx_cb {}'.format(body))
-            ans = _parse_n2ll_incoming_frame(body)
+            # _p('-> N2LL: rx_cb {}'.format(body))
+            ans = _parse_n2ll_in_cmd(body)
             # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
             # maybe time to end myself
@@ -222,56 +201,5 @@ class AgentN2LL(threading.Thread):
         rv = self.ch_sub.queue_declare(queue='', durable=True, exclusive=True)
         q = rv.method.queue
         self.ch_sub.queue_bind(exchange='li_masters', queue=q)
-        self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
-        self.ch_sub.start_consuming()
-
-
-class ClientN2LL:
-    def __init__(self, url, sig=None):
-        """ ClientN2LL pubs in channel 'li_masters', subs to 'li_slaves'
-            AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
-        self.url = url
-        self.ch_pub = None
-        self.ch_sub = None
-        self.tx_last = None
-        self.sig = sig
-        # 'dump' variable is useful to be able to test this class
-        self.dump_cli_rx = None
-        # N2LL client is always rx-threaded, entry point is tx()
-        self.th_rx = threading.Thread(target=self._sub_n_rx)
-        self.th_rx.start()
-
-    def _get_ch_pub(self):
-        self.ch_pub = mq_exchange_for_masters()
-
-    def _get_ch_sub(self):
-        self.ch_sub = mq_exchange_for_slaves()
-
-    def tx(self, _what: str):
-        try:
-            # client tx's to channel 'li_masters', rx from channel 'li_slaves'
-            self._get_ch_pub()
-            self.ch_pub.basic_publish(exchange='li_masters', routing_key='', body=_what)
-            _p('<< ClientN2LL tx: {}'.format(_what))
-            self.tx_last = _what
-            self.ch_pub.close()
-        except ProbableAccessDeniedError:
-            e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
-            if self.sig:
-                self.sig.out.emit(self.tx_last, e)
-
-    # careful: this collects answers from ALL slaves :)
-    def _sub_n_rx(self):
-        def _rx_cb(ch, method, properties, body):
-            s = body.decode()
-            _p('>> ClientN2LL rx: {}'.format(s))
-            self.dump_cli_rx = s
-            if self.sig:
-                self.sig.out.emit(self.tx_last, s)
-
-        self._get_ch_sub()
-        rv = self.ch_sub.queue_declare(queue='', exclusive=True)
-        q = rv.method.queue
-        self.ch_sub.queue_bind(exchange='li_slaves', queue=q)
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()

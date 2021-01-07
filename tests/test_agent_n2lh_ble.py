@@ -1,8 +1,8 @@
 import queue
 import threading
 
-from mat.agent_n2lh_ble import AgentN2LH_BLE
-from mat.agent_utils import *
+from mat.n2lh_agent_ble import AgentN2LH_BLE
+from mat.n2lx_utils import *
 import time
 import json
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2, FAKE_MAC_RN4020

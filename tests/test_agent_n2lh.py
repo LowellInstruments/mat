@@ -1,8 +1,8 @@
 import threading
 
-from mat.agent_n2lh import PORT_N2LH, AgentN2LH, ClientN2LH, \
+from mat.n2lh_agent import PORT_N2LH, AgentN2LH, ClientN2LH, \
     calc_n2lh_cmd_ans_timeout_ms
-from mat.agent_utils import AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, AG_BLE_CMD_LS_LID, \
+from mat.n2lx_utils import AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, AG_BLE_CMD_LS_LID, \
     AG_BLE_CMD_GET_TIME, AG_BLE_END_THREAD, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE, AG_BLE_CMD_CRC
 from mat.logger_controller import STATUS_CMD
 from mat.logger_controller_ble import calc_ble_cmd_ans_timeout, CRC_CMD
@@ -21,7 +21,7 @@ class TestAgentN2LH:
 
     def test_n2lh_ble_commands(self):
         ag = AgentN2LH(url_lh)
-        th_ag_ble = threading.Thread(target=ag.loop_n2lh)
+        th_ag_ble = threading.Thread(target=ag.loop_n2lh_agent)
         th_ag_ble.start()
         list_of_cmd = [AG_BLE_CMD_QUERY,
                        AG_BLE_CMD_STATUS,

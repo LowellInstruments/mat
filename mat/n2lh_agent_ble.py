@@ -2,7 +2,7 @@ import json
 import threading
 
 from mat import logger_controller_ble
-from mat.agent_utils import *
+from mat.n2lx_utils import *
 from mat.logger_controller import STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, \
     CALIBRATION_CMD, SENSOR_READINGS_CMD, DO_SENSOR_READINGS_CMD, RESET_CMD, SD_FREE_SPACE_CMD, REQ_FILE_NAME_CMD, \
     DEL_FILE_CMD, RUN_CMD, RWS_CMD, SWS_CMD, LOGGER_HSA_CMD_W, LOGGER_INFO_CMD_W, SET_TIME_CMD
@@ -116,9 +116,9 @@ class AgentN2LH_BLE(threading.Thread):
         """ dequeues requests from AG_N2LH, queues back answers """
         while 1:
             _in = self.q_in.get()
-            # _p('>> AG_BLE {}'.format(_in))
+            # _p('-> AG_BLE {}'.format(_in))
             _out = self._parse_n2lh_ble_incoming_frame(_in)
-            # _p('<< AG_BLE {}'.format(_out))
+            # _p('<- AG_BLE {}'.format(_out))
             self.q_out.put(_out)
 
             # we can leave N2LH_BLE thread on demand

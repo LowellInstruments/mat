@@ -1,3 +1,7 @@
+from coverage.annotate import os
+import subprocess as sp
+
+
 AG_BLE_OK = 'AG_BLE_OK:'
 AG_BLE_ERROR = 'AG_BLE_ERROR:'
 
@@ -67,3 +71,22 @@ AG_N2LL_ANS_ROUTE_NOK = 'ngrok not routed in mac {}'
 AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS = 'error: few permissions to rm ngrok'
 AG_N2LL_ANS_ROUTE_ERR_ALREADY = 'error: ngrok not grep at {}, maybe runs somewhere else?'
 AG_N2LL_ANS_NOT_FOR_US = 'cmd not for us'
+
+
+def get_ngrok_bin_name() -> str:
+    _s = os.uname().nodename
+    _m = os.uname().machine
+    if _m == 'armv7l':
+        return 'ngrok_rpi'
+    if _s == 'rasberrypi' or _s == 'rpi':
+        return 'ngrok_rpi'
+    return 'ngrok'
+
+
+def check_ngrok():
+    name = get_ngrok_bin_name()
+    cmd = '{} -h'.format(name)
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        print('{} found'.format(name))
+        return True

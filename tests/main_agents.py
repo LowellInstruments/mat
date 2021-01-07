@@ -1,5 +1,7 @@
-from mat.agent_n2lh import PORT_N2LH, AgentN2LH
-from mat.agent_n2ll import AgentN2LL
+import threading
+
+from mat.n2lh_agent import PORT_N2LH, AgentN2LH
+from mat.n2ll_agent import AgentN2LL
 
 
 def _url_ll():
@@ -20,8 +22,8 @@ url_ll = _url_ll()
 if __name__ == '__main__':
     ag_n2lh = AgentN2LH(url_lh)
     ag_n2ll = AgentN2LL(url_ll)
-    ag_n2lh.start()
-    ag_n2ll.start()
-    ag_n2lh.join(timeout=1)
-    ag_n2lh.join(timeout=1)
-    print('main_agents thread exists')
+    th_ag_n2lh = threading.Thread(target=ag_n2lh.loop_n2lh_agent)
+    th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll)
+    th_ag_n2lh.start()
+    th_ag_n2ll.start()
+    print('main_agents thread exits')
