@@ -37,6 +37,11 @@ GET_FILE_CMD = 'GET'
 DWG_FILE_CMD = 'DWG'
 
 
+# constants for when trying to BLE connect
+BLE_CONNECTION_RETRIES = 3
+BLE_CONNECTION_TIMEOUT = 10
+
+
 
 class Delegate(ble.DefaultDelegate):
     def __init__(self):
@@ -89,10 +94,10 @@ class LoggerControllerBLE(LoggerController):
         return self.und.type
 
     def open(self):
-        retries = 3
-        for i in range(retries):
+        for i in range(BLE_CONNECTION_RETRIES):
             try:
-                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=10)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if,
+                                          timeout=BLE_CONNECTION_TIMEOUT)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
                 self.per.setDelegate(self.dlg)
@@ -111,7 +116,7 @@ class LoggerControllerBLE(LoggerController):
 
             except (AttributeError, ble.BTLEException) as exc:
                 e = 'failed connection attempt {}/{}: {}'
-                print(e.format(i + 1, retries, exc))
+                print(e.format(i + 1, BLE_CONNECTION_RETRIES, exc))
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover

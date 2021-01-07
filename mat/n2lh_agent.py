@@ -3,7 +3,8 @@ import threading
 import pynng
 from pynng import Pair0
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
-from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout
+from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, \
+    BLE_CONNECTION_TIMEOUT, BLE_CONNECTION_RETRIES
 from mat.n2lh_agent_ble import AgentN2LH_BLE
 from mat.n2lx_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
                             AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
@@ -147,7 +148,7 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
 
     # override special commands like scan and connect
     if tag_n2lh == AG_BLE_CMD_CONNECT:
-        t_s = 30 + 1
+        t_s = (BLE_CONNECTION_TIMEOUT * BLE_CONNECTION_RETRIES) + 1
     elif tag_n2lh in (AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_SCAN):
         t_s = int(float(s.split(' ')[-1]) + 1)
 
