@@ -144,7 +144,7 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
         size = s.split(' ')[3]
         delay_start_dwg_get_s = 5
-        t_s = int((int(size) / 3000) + delay_start_dwg_get_s)
+        t_s = int((int(size) / 2000) + delay_start_dwg_get_s)
 
     # override special commands like scan and connect
     if tag_n2lh == AG_BLE_CMD_CONNECT:
