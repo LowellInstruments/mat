@@ -186,7 +186,7 @@ class AgentN2LH_BLE(threading.Thread):
         return _nok(AG_BLE_ANS_CONN_ERR)
 
     def disconnect(self, _=None):
-        # does not use any parameter
+        # does not use any parameter such as 'mac'
         if self.lc and self.lc.close():
             return _ok(AG_BLE_ANS_DISC_OK)
         return _ok(AG_BLE_ANS_DISC_ALREADY)
@@ -346,7 +346,7 @@ class AgentN2LH_BLE(threading.Thread):
         return self._cmd_ans(_mac_n_connect(s, self), LOGGER_INFO_CMD_W)
 
     def query(self, _):
-        a = 'AG_BLE: logger controller {}'
+        a = 'logger controller {}'
         if not self.lc:
             return _ok(a.format(AG_BLE_EMPTY))
         if not self.lc.per:
