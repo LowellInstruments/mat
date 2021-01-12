@@ -307,12 +307,30 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
+    # def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
+    #     """ accumulate on data parameter """
+    #     last = time.perf_counter()
+    #     while 1:
+    #         if self.per.waitForNotifications(.1):
+    #             last = time.perf_counter()
+    #         if time.perf_counter() > last + 10:
+    #             return True, data
+    #         if len(self.dlg.x_buf) >= 2048:
+    #             data += self.dlg.x_buf[:2048]
+    #             self.dlg.x_buf = self.dlg.x_buf[2048:]
+    #             if sig:
+    #                 sig.emit()
+    #             return False, data
+
     def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
+        """ accumulate on data parameter """
         last = time.perf_counter()
         while 1:
             if self.per.waitForNotifications(.1):
                 last = time.perf_counter()
-            if time.perf_counter() > last + 10:
+            if time.perf_counter() > last + 2:
+                # do not forget some remaining bytes < 2048
+                data += self.dlg.x_buf
                 return True, data
             if len(self.dlg.x_buf) >= 2048:
                 data += self.dlg.x_buf[:2048]
@@ -321,7 +339,7 @@ class LoggerControllerBLE(LoggerController):
                     sig.emit()
                 return False, data
 
-    def _dwl(self, size, sig=None):   # pragma: no cover
+    def _dwl_file(self, size, sig=None):   # pragma: no cover
         """ XMODEM equivalent, called by dwg_file() """
         self.dlg.set_file_mode(True)
         data = bytes()
@@ -333,6 +351,7 @@ class LoggerControllerBLE(LoggerController):
             cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
             c_n += 1
             self.ble_write(cmd.encode())
+            # a DWL timeout does not mean failure, also end of file
             timeout, data = self._dwl_chunk_loop(sig, data)
             if timeout or len(data) >= int(size):
                 break
@@ -341,11 +360,10 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.set_file_mode(False)
         self.dlg.x_buf = bytes()
 
-        # double return value
-        return not timeout, data
+        return data
 
     def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        dl, data = False, None
+        data = None
 
         try:
             _ = '{} {:02x}{}\r'
@@ -353,8 +371,8 @@ class LoggerControllerBLE(LoggerController):
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                dl, data = self._dwl(size, sig)
-                if dl and data and len(data) == int(size):
+                data = self._dwl_file(size, sig)
+                if data and len(data) == int(size):
                     path = '{}/{}'.format(fol, file)
                     with open(path, 'wb') as f:
                         f.write(data)
