@@ -143,7 +143,8 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     # override variable-time commands like get and download
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
         size = s.split(' ')[3]
-        delay_start_dwg_get_s = 5
+        # todo: changed this from 5 to 10
+        delay_start_dwg_get_s = 10
         t_s = int((int(size) / 2000) + delay_start_dwg_get_s)
 
     # override special commands like scan and connect
