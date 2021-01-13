@@ -18,8 +18,8 @@ N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
 
 
 class AgentN2LH(threading.Thread):
-    """ ClientN2LH    <-- pynng --> AgentN2LH  <-- queues --> AgentN2LH_BLE
-        'ble cmd mac' ------------> ble cmd mac ------------> cmd mac """
+    """ ClientN2LH  <-- pynng -->  AgentN2LH     <-- queues -->  AgentN2LH_BLE
+        ------------------------>  'ble cmd mac'  ------------->  'cmd mac """
     def __init__(self, n2lh_url):
         super().__init__()
         self.sk = None
@@ -143,7 +143,6 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     # override variable-time commands like get and download
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
         size = s.split(' ')[3]
-        # todo: changed this from 5 to 10
         delay_start_dwg_get_s = 10
         t_s = int((int(size) / 2000) + delay_start_dwg_get_s)
 

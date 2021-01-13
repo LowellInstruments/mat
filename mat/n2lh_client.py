@@ -13,8 +13,8 @@ N2LH_CLI_SEND_TIMEOUT_MS = 5000
 
 
 class ClientN2LH():
-    """ ClientN2LH    <-- pynng --> AgentN2LH  <-- queues --> AgentN2LH_BLE
-        'ble cmd mac' ------------> ble cmd mac ------------> cmd mac """
+    """ ClientN2LH  <-- pynng -->  AgentN2LH     <-- queues -->  AgentN2LH_BLE
+        ------------------------>  'ble cmd mac'  ------------->  'cmd mac """
     def __init__(self, s, url, fol):
         super().__init__()
         self.cmd = s

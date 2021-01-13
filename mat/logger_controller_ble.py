@@ -307,21 +307,6 @@ class LoggerControllerBLE(LoggerController):
         else:
             return 'wrong logger type'
 
-    # def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
-    #     """ accumulate on data parameter """
-    #     last = time.perf_counter()
-    #     while 1:
-    #         if self.per.waitForNotifications(.1):
-    #             last = time.perf_counter()
-    #         if time.perf_counter() > last + 10:
-    #             return True, data
-    #         if len(self.dlg.x_buf) >= 2048:
-    #             data += self.dlg.x_buf[:2048]
-    #             self.dlg.x_buf = self.dlg.x_buf[2048:]
-    #             if sig:
-    #                 sig.emit()
-    #             return False, data
-
     def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
         """ accumulate on data parameter """
         last = time.perf_counter()
@@ -329,7 +314,7 @@ class LoggerControllerBLE(LoggerController):
             if self.per.waitForNotifications(.1):
                 last = time.perf_counter()
             if time.perf_counter() > last + 2:
-                # do not forget some remaining bytes < 2048
+                # do not forget the remaining bytes < 2048
                 data += self.dlg.x_buf
                 return True, data
             if len(self.dlg.x_buf) >= 2048:
@@ -580,13 +565,14 @@ def _ans_check(tag, a, b):
 def _cmd_pre_slow_down_if_so(tag):
     """ ensure commands are spaced """
     _st = {
-        CRC_CMD: 2
+        CRC_CMD: 2,
+        FORMAT_CMD: 2
     }
 
     # 0 means no extra pre slow down
     t = _st.setdefault(tag, 0)
     if t:
-        s = 'dbg: pre_slow_down for {} is {}'
+        s = '- dbg: pre_slow_down for {} is {} -\n'
         print(s.format(tag, t))
         time.sleep(t)
 
