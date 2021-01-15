@@ -1,4 +1,4 @@
-from coverage.annotate import os
+import os
 import subprocess as sp
 
 
