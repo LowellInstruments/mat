@@ -4,13 +4,13 @@ import pynng
 from pynng import Pair0
 from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, \
-    BLE_CONNECTION_TIMEOUT, BLE_CONNECTION_RETRIES
+    BLE_CONNECTION_TIMEOUT, BLE_CONNECTION_RETRIES, BLE_DISCONNECTION_TIME
 from mat.n2lh_agent_ble import AgentN2LH_BLE
 from mat.n2lx_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
                             AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
                             AG_N2LH_PATH_BASE, AG_BLE_ANS_GET_FILE_OK,
                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_CONNECT, AG_BLE_CMD_SCAN,
-                            AG_BLE_CMD_SCAN_LI)
+                            AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_DISCONNECT)
 from mat.utils import PrintColors as PC
 
 PORT_N2LH = 12804
@@ -18,8 +18,9 @@ N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
 
 
 class AgentN2LH(threading.Thread):
-    """ ClientN2LH  <-- pynng -->  AgentN2LH     <-- queues -->  AgentN2LH_BLE
-        ------------------------>  'ble cmd mac'  ------------->  'cmd mac """
+    """ ClientN2LH  <-- pynng -->   AgentN2LH    <-- queues -->  AgentN2LH_BLE
+        ------------------------>  'ble cmd mac' ------------->  'cmd mac' """
+
     def __init__(self, n2lh_url):
         super().__init__()
         self.sk = None
@@ -88,8 +89,7 @@ class AgentN2LH(threading.Thread):
 
                 # _in: 'get_ / dwg_file <name> <fol> <size> <mac>'
                 file = _in.split(' ')[1]
-                fol = _in.split(' ')[2]
-                path = '{}/{}'.format(fol, file)
+                path = '/tmp/{}'.format(file)
                 with open(path, 'rb') as f:
                     # extra send file backwards
                     _p('<- N2LH back-warding {}'.format(path))
@@ -142,7 +142,7 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
 
     # override variable-time commands like get and download
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
-        size = s.split(' ')[3]
+        size = s.split(' ')[2]
         delay_start_dwg_get_s = 10
         t_s = int((int(size) / 2000) + delay_start_dwg_get_s)
 
@@ -151,6 +151,8 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
         t_s = (BLE_CONNECTION_TIMEOUT * BLE_CONNECTION_RETRIES) + 1
     elif tag_n2lh in (AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_SCAN):
         t_s = int(float(s.split(' ')[-1]) + 1)
+    elif tag_n2lh == AG_BLE_CMD_DISCONNECT:
+        t_s = BLE_DISCONNECTION_TIME
 
     # debug purposes
     s = 'N2LH: timeout \'{}\' set as {}'.format(tag_n2lh, t_s)

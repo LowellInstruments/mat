@@ -40,6 +40,7 @@ DWG_FILE_CMD = 'DWG'
 # constants for when trying to BLE connect
 BLE_CONNECTION_RETRIES = 3
 BLE_CONNECTION_TIMEOUT = 10
+BLE_DISCONNECTION_TIME = 2
 
 
 
