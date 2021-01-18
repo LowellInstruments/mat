@@ -155,8 +155,8 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
         t_s = BLE_DISCONNECTION_TIME
 
     # debug purposes
-    s = 'N2LH: timeout \'{}\' set as {}'.format(tag_n2lh, t_s)
-    _p(PC.OKBLUE + s + PC.ENDC)
+    # s = 'N2LH: timeout \'{}\' will be {}'
+    # _p(PC.OKBLUE + s.format(tag_n2lh, t_s) + PC.ENDC)
 
     # returned as milliseconds
     return t_s * 1000

@@ -14,7 +14,7 @@ class ClientN2LL:
         self.sig = sig
         # 'dump' variable is useful to be able to test this class
         self.dump_cli_rx = None
-        # N2LL client is always rx-threaded, entry point is tx()
+        # N2LL client RX always threaded, entry point is tx()
         self.th_rx = threading.Thread(target=self._sub_n_rx)
         self.th_rx.start()
 
@@ -43,6 +43,7 @@ class ClientN2LL:
             s = body.decode()
             print('-> ClientN2LL rx: {}'.format(s))
             self.dump_cli_rx = s
+            # this is connected to slot_n2ll in GUI
             if self.sig:
                 self.sig.out.emit(self.tx_last, s)
 
