@@ -356,17 +356,41 @@ class AgentN2LH_BLE(threading.Thread):
     def cmd_run(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), RUN_CMD)
 
+    # todo: check RWS, SWS, WHS, WLI work correctly
     def rws(self, s):
-        # todo: NOT working, so copy WLI structure
-        return self._cmd_ans(_mac_n_connect(s, self), RWS_CMD)
+        if not _mac_n_connect(s, self):
+            return _nok(AG_BLE_CMD_RWS)
+
+        # s: 'rws <rws_str> <mac>'
+        rws_str = s[s.index(' ') + 1: s.rindex(' ')]
+        rws_str = rws_str[:20]
+        rv = self.lc.command(RWS_CMD, rws_str)
+        if rv[0].decode() == RWS_CMD:
+            return _ok(AG_BLE_CMD_RWS)
+        return _nok(AG_BLE_CMD_RWS)
 
     def sws(self, s):
-        # todo: NOT working, so copy WLI structure
-        return self._cmd_ans(_mac_n_connect(s, self), SWS_CMD)
+        if not _mac_n_connect(s, self):
+            return _nok(AG_BLE_CMD_SWS)
+
+        # s: 'sws <sws_str> <mac>'
+        sws_str = s[s.index(' ') + 1: s.rindex(' ')]
+        sws_str = sws_str[:20]
+        rv = self.lc.command(SWS_CMD, sws_str)
+        if rv[0].decode() == SWS_CMD:
+            return _ok(AG_BLE_CMD_SWS)
+        return _nok(AG_BLE_CMD_SWS)
 
     def whs(self, s):
-        # todo: NOT working, so copy WLI structure
-        return self._cmd_ans(_mac_n_connect(s, self), LOGGER_HSA_CMD_W)
+        if not _mac_n_connect(s, self):
+            return _nok(AG_BLE_CMD_WHS)
+
+        # s: 'whs <whs_str> <mac>'
+        whs_field = s[s.index(' ') + 1: s.rindex(' ')]
+        rv = self.lc.command(LOGGER_HSA_CMD_W, whs_field)
+        if rv[0].decode() == LOGGER_HSA_CMD_W:
+            return _ok(AG_BLE_CMD_WHS)
+        return _nok(AG_BLE_CMD_WHS)
 
     def wli(self, s):
         if not _mac_n_connect(s, self):

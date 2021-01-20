@@ -7,7 +7,8 @@ import time
 from mat.linux import linux_is_docker
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD, \
+    LOGGER_HSA_CMD_W
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
@@ -556,7 +557,8 @@ def _ans_check(tag, a, b):
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
-        WAKE_CMD: lambda: _exp() and len(a) == 8.
+        WAKE_CMD: lambda: _exp() and len(a) == 8,
+        LOGGER_HSA_CMD_W: lambda: _exp(1)
         # GET_FILE_CMD and DWG_FILE_CMD done elsewhere
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
