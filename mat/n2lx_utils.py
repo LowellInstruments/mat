@@ -5,6 +5,7 @@ import subprocess as sp
 AG_BLE_OK = 'AG_BLE_OK:'
 AG_BLE_ERROR = 'AG_BLE_ERROR:'
 
+AG_BLE_CMD_HCI = 'set_hci'
 AG_BLE_CMD_STATUS = 'status'
 AG_BLE_CMD_CONNECT = 'connect'
 AG_BLE_CMD_DISCONNECT = 'disconnect'
@@ -53,6 +54,9 @@ AG_BLE_EMPTY = 'not init'
 AG_BLE_END_THREAD = 'ble_bye'
 AG_BLE_ANS_GET_FILE_OK = 'got file ok!'
 AG_BLE_ANS_GET_FILE_ERR = 'got file error'
+AG_BLE_ANS_HCI_OK = 'HCI interface set OK'
+AG_BLE_ANS_HCI_ERR = 'HCI interface set error'
+
 
 AG_N2LH_END_THREAD = 'n2lh_bye'
 AG_N2LH_PATH_BASE = 'bas'

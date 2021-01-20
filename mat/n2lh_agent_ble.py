@@ -51,7 +51,7 @@ def _sp(s, i):
 
 
 def _nok(s):
-    return 1, '{} {}'.format(AG_BLE_ERROR, s)
+    return 1, '{} {} error'.format(AG_BLE_ERROR, s)
 
 
 def _ok(s):
@@ -67,18 +67,19 @@ def _ok_or_nok(rv: list, c: str):
 
 
 class AgentN2LH_BLE(threading.Thread):
-    def __init__(self, q1, q2, hci_if=0):
+    def __init__(self, q1, q2):
         """ creates an agent for simpler BLE logger controller """
         super().__init__()
         self.lc = None
         self.q_in = q1
         self.q_out = q2
-        self.h = hci_if
+        self.h = 0
 
     def _parse_n2lh_ble_incoming_frame(self, s):
         """ s: '<ag_ble_cmd> <args> <mac>' """
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
+            AG_BLE_CMD_HCI: self.set_hci,
             AG_BLE_CMD_STATUS: self.status,
             AG_BLE_CMD_WAK: self.wak,
             AG_BLE_CMD_CONNECT: self.connect,
@@ -143,7 +144,7 @@ class AgentN2LH_BLE(threading.Thread):
     def scan(s):
         # s: scan 0 5
         _, h, t = s.split(' ')
-        sr = logger_controller_ble.ble_scan(int(0), float(t))
+        sr = logger_controller_ble.ble_scan(int(h), float(t))
         rv = ''
         for each in sr:
             rv += '{} {} '.format(each.addr, each.rssi)
@@ -153,12 +154,24 @@ class AgentN2LH_BLE(threading.Thread):
     def scan_li(s):
         # s: scan_li 0 5
         _, h, t = s.split(' ')
-        sr = logger_controller_ble.ble_scan(int(0), float(t))
+        sr = logger_controller_ble.ble_scan(int(h), float(t))
         rv = ''
         for each in sr:
             if is_a_li_logger(each.rawData):
                 rv += '{} {} '.format(each.addr, each.rssi)
         return _ok(rv.strip())
+
+    def set_hci(self, s):
+        # s: set_hci 1
+        _, h, = s.split(' ')
+        f = '/sys/kernel/debug/bluetooth/hci{}'.format(h)
+        if os.path.exists(f):
+            # cut any current connection w/ different mac
+            if self.lc:
+                self.lc.close()
+            self.h = h
+            return _ok(AG_BLE_ANS_HCI_OK)
+        return _nok(AG_BLE_ANS_HCI_ERR)
 
     @staticmethod
     def break_thread(_):
@@ -214,9 +227,10 @@ class AgentN2LH_BLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_CONFIG)
 
-        # '$' symbol as useful guard since <cfg> has spaces
-        cfg = s.split('$')[1]
-        rv = self.lc.send_cfg(json.loads(cfg))
+        # s: 'config <config_str> <mac>'
+        cfg_str = s[s.index(' ') + 1: s.rindex(' ')]
+        cfg_dict = json.loads(cfg_str)
+        rv = self.lc.send_cfg(cfg_dict)
         if rv[0].decode() == CONFIG_CMD:
             return _ok(AG_BLE_CMD_CONFIG)
         return _nok(AG_BLE_CMD_CONFIG)
@@ -298,7 +312,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     def set_time(self, s):
         if not _mac_n_connect(s, self):
-            return _nok(AG_BLE_CMD_DEL_FILE)
+            return _nok(AG_BLE_CMD_SET_TIME)
 
         # it's not simply sending SET_TIME_CMD
         rv = self.lc.sync_time()
@@ -343,16 +357,27 @@ class AgentN2LH_BLE(threading.Thread):
         return self._cmd_ans(_mac_n_connect(s, self), RUN_CMD)
 
     def rws(self, s):
+        # todo: NOT working, so copy WLI structure
         return self._cmd_ans(_mac_n_connect(s, self), RWS_CMD)
 
     def sws(self, s):
+        # todo: NOT working, so copy WLI structure
         return self._cmd_ans(_mac_n_connect(s, self), SWS_CMD)
 
     def whs(self, s):
+        # todo: NOT working, so copy WLI structure
         return self._cmd_ans(_mac_n_connect(s, self), LOGGER_HSA_CMD_W)
 
     def wli(self, s):
-        return self._cmd_ans(_mac_n_connect(s, self), LOGGER_INFO_CMD_W)
+        if not _mac_n_connect(s, self):
+            return _nok(AG_BLE_CMD_WLI)
+
+        # s: 'wli <wli_str> <mac>'
+        wli_field = s[s.index(' ') + 1: s.rindex(' ')]
+        rv = self.lc.command(LOGGER_INFO_CMD_W, wli_field)
+        if rv[0].decode() == LOGGER_INFO_CMD_W:
+            return _ok(AG_BLE_CMD_WLI)
+        return _nok(AG_BLE_CMD_WLI)
 
     def query(self, _):
         a = 'logger controller {}'
