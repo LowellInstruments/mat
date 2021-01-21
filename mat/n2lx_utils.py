@@ -87,7 +87,7 @@ def get_ngrok_bin_name() -> str:
     return 'ngrok'
 
 
-def check_ngrok():
+def check_ngrok_can_be_run():
     name = get_ngrok_bin_name()
     cmd = '{} -h'.format(name)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
