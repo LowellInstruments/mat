@@ -108,7 +108,6 @@ def xmd_frame_check_crc(lc):
     return calc_crc_bytes == rx_crc
 
 
-# todo: see which ones of these functions do we need
 def is_service_active(name: str):
     # just name, not name.service
     s = 'systemctl is-active --quiet {}'.format(name)
@@ -143,6 +142,14 @@ def is_program_running(name):
     _grep = 'ps aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     return rv.returncode == 0
+
+
+def obtain_pid_of_a_running_program(name):
+    _grep = 'ps aux | grep {} | grep -v grep | awk - F\' \' \'{print $2}\''
+    rv = sp.run(_grep.format(name), shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        return int(rv.stdout)
+    return None
 
 
 def linux_is_docker():

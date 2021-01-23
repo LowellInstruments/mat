@@ -101,14 +101,15 @@ def check_ngrok_can_be_run():
         return True
 
 
-def create_empty_cron_file_for_ddh():
+def create_empty_crontab_file_for_ddh():
     """ empties and create a new system-wide crontab file """
     ct = CronTab(user='root')
     ct.write('/etc/crontab')
 
 
-def create_populated_cron_file_for_ddh():
+def create_populated_crontab_file_for_ddh():
     """ writes new populated system-wide crontab file """
+    # todo: finish this crontab file
     ct = CronTab(user='root')
     ct.new(command='<do_this_one>', comment='this runs the DDH')
     ct.write('/etc/crontab')

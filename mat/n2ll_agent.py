@@ -5,15 +5,14 @@ import time
 import pika
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
-
-from mat.linux import linux_is_rpi
 from mat.n2lx_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
                             AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok_can_be_run,
-                            AG_N2LL_CMD_UNINSTALL_DDH, AG_N2LL_CMD_INSTALL_DDH)
-from mat.utils import is_program_running, create_empty_cron_file_for_ddh
+                            AG_N2LL_CMD_UNINSTALL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
+                            create_empty_crontab_file_for_ddh)
+from mat.utils import is_program_running, obtain_pid_of_a_running_program, linux_is_rpi
 
 
 def _p(s):
@@ -113,15 +112,21 @@ def _cmd_ddh_rpi(_, macs):
     if not linux_is_rpi():
         return 0, '{} is not a raspberry'.format(mac)
 
-    # todo: finish this function
+    # todo: test this and unddh
     # 1st, call _cmd_unddh_rpi()
     _cmd_unddh_rpi(_, macs)
-    # 2nd, git clone ddh
-    cmd = 'mkdir /home/pi/ddh; cd /home/pi/ddh;'
+
+    # 2nd, clone DDH git repo
+    cmd = 'mkdir -p /home/pi/ddh; cd /home/pi/ddh'
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    cmd = 'git clone...'
+    url = 'https://github.com/LowellInstruments/ddh.git'
+    cmd = 'git clone {}'.format(url)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if _rv.returncode != 0:
+        return _rv.returncode, 'DDH git clone failed'
+
     # 3rd, create crontab
+    create_populated_crontab_file_for_ddh()
     return 0, 'installed DDH on {}'.format(mac)
 
 
@@ -131,15 +136,22 @@ def _cmd_unddh_rpi(_, macs):
         return 0, '{} is not a raspberry'.format(mac)
 
     # 1st, disable any crontab controlling DDH
-    create_empty_cron_file_for_ddh()
+    create_empty_crontab_file_for_ddh()
+
     # 2nd, killall DDH
-    # todo: improve this killing
-    cmd = 'killall python3'
-    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    # 3rd, rm -rf ddh
+    s = 'ddh/main.py'
+    pid = obtain_pid_of_a_running_program(s)
+    if pid:
+        cmd = 'kill -9 {}'.format(pid)
+        _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        if _rv.returncode != 0:
+            return _rv.returncode, 'unDDH killing failed'
+
+    # 3rd, delete DDH foldercreate_empty_cron_file_for_ddh
     cmd = 'rm -rf /home/pi/ddh'
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    return 0, 'uninstalled DDH on {}'.format(mac)
+
+    return 0, 'unDDH OK on {}'.format(mac)
 
 
 def _parse_n2ll_in_cmd(s: bytes):
