@@ -1,5 +1,8 @@
 import json
 import threading
+
+from bluepy.btle import BTLEException
+
 from mat import logger_controller_ble
 from mat.n2lx_utils import *
 from mat.logger_controller import (
@@ -52,6 +55,10 @@ def _sp(s, i):
 
 def _nok(s):
     return 1, '{} {} error'.format(AG_BLE_ERROR, s)
+
+
+def _exc(s):
+    return 2, '{} {} exception'.format(AG_BLE_EXCEPTION, s)
 
 
 def _ok(s):
@@ -119,8 +126,11 @@ class AgentN2LH_BLE(threading.Thread):
         }
         fxn = fxn_map[cmd]
 
-        # noinspection PyArgumentList
-        return fxn(s)
+        try:
+            # noinspection PyArgumentList
+            return fxn(s)
+        except BTLEException:
+            return _exc(s)
 
     def loop_ag_ble(self):
         """ dequeues requests from AG_N2LH, queues back answers """
@@ -264,7 +274,7 @@ class AgentN2LH_BLE(threading.Thread):
     def _cmd_ans(self, mac, c):
         # c: STATUS_CMD
         if not mac:
-            return _nok('no mac in cmd format')
+            return _nok('bad cmd, maybe forgot mac?')
         rv = self.lc.command(c)
         return _ok_or_nok(rv, c)
 

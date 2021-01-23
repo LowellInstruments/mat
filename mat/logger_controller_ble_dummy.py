@@ -55,8 +55,7 @@ class LoggerControllerBLEDummy:
     def mts(self): pass
 
     @abstractmethod
-    def get_file_cmd(self, file, fol, size, sig=None):
-        pass
+    def get_file(self, file, fol, size, sig=None): pass
 
     @abstractmethod
     def send_btc(self): pass
@@ -179,7 +178,7 @@ class LoggerControllerBLEDummy:
             MY_TOOL_SET_CMD: self.mts,
             DEL_FILE_CMD: self.del_file,
             FORMAT_CMD: self.frm,
-            GET_FILE_CMD: self.get_file_cmd
+            GET_FILE_CMD: self.get_file
         }
         # default is for commands not needing to check anything
         _a = dummy_answers_map.setdefault(args[0], '')
@@ -240,9 +239,12 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         # '' becomes a command() return value of '00'
         return ''
 
-    def get_file_cmd(self, file, fol, size, sig=None):
+    def get_file(self, file, fol, size, sig=None):
         assert self.address
         if file in self.files.keys():
+            path = '{}/{}'.format(fol, file)
+            with open(path, 'w') as f:
+                f.write('*' * int(size))
             return True
         return False
 
@@ -251,7 +253,9 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         return ''
 
     def dwg_file(self, *args):
-        return True
+        # re-use
+        file, fol, size, sig = args
+        return self.get_file(file, fol, size, sig)
 
     def send_cfg(self, _):
         # not included in command() dictionary above
@@ -279,7 +283,7 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
         assert self.address
         return 'CMD\r\nAOK\r\nMLDP'
 
-    def get_file_cmd(self, file, fol, size, sig=None):
+    def get_file(self, file, fol, size, sig=None):
         assert self.address
         if file in self.files.keys():
             return True

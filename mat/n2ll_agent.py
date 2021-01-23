@@ -5,104 +5,19 @@ import time
 import pika
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
+
+from mat.linux import linux_is_rpi
 from mat.n2lx_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
-                            AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok_can_be_run)
-# requires 'python-crontab' package to be installed
-# from crontab import CronTab
+                            AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok_can_be_run,
+                            AG_N2LL_CMD_UNINSTALL_DDH, AG_N2LL_CMD_INSTALL_DDH)
+from mat.utils import is_program_running, create_empty_cron_file_for_ddh
 
 
 def _p(s):
     print(s, flush=True)
-
-
-# todo: move this to MAT systemd utils.py
-# import os
-# import subprocess as sp
-# import pprint
-#
-#
-# def is_service_active(name: str):
-#     # just name, not name.service
-#     s = 'systemctl is-active --quiet {}'.format(name)
-#     rv = sp.run(s, shell=True)
-#     print('service active {} ? {}'.format(name, rv.returncode == 0))
-#     return rv.returncode == 0
-#
-#
-# def is_service_enabled(name: str):
-#     # just name, not name.service
-#     s = 'systemctl is-enabled --quiet {}'.format(name)
-#     rv = sp.run(s, shell=True)
-#     print('service enabled {} ? {}'.format(name, rv.returncode == 0))
-#     return rv.returncode == 0
-#
-#
-# def list_services_running():
-#     # running: currently being executed, may be enabled or not
-#     s = 'systemctl | grep running'
-#     rv = sp.run(s, shell=True, stdout=sp.PIPE)
-#     pprint.pprint(rv.stdout)
-#
-#
-# def list_services_enabled():
-#     # enabled: will start on next boot, may be currently running or not
-#     s = 'systemctl list-unit-files | grep enabled'
-#     rv = sp.run(s, shell=True, stdout=sp.PIPE)
-#     pprint.pprint(rv.stdout)
-#
-# def is_program_running(name):
-#     _grep = 'ps aux | grep {} | grep -v grep'.format(name)
-#     rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-#     return rv.returncode == 0
-#
-# if __name__ == '__main__':
-#     is_service_active('NetworkManager')
-#     is_service_active('FakeEntry')
-#     is_service_enabled('NetworkManager')
-#     is_service_enabled('apparmor')
-#     # list_services_enabled()
-#
-
-
-
-
-
-
-# def does_cron_job_exists_by_comment(file_name: str, comm: str):
-#     """ checks if job w/ comment exists in crontab file 'f' """
-#     assert file_name
-#     ct = CronTab(user='root', tabfile=file_name)
-#     iter_job = ct.find_comment(comm)
-#     rv = len(list(iter_job))
-#     s = 'job w/ comment {} present at file {}? {} '
-#     print(s.format(comm, file_name, bool(rv)))
-#     return bool(rv)
-#
-#
-# def write_cron_file(file_name: str):
-#     """ writes new crontab file from scratch """
-#     ct = CronTab(user='root')
-#     ct.new(command='echo hello 1')
-#     ct.new(command='echo hello 2', comment='helloID')
-#     ct.write(file_name)
-#
-#
-# def read_system_wide_crontab_file():
-#     # constructor already calls read()
-#     ct = CronTab(user='root', tabfile='/etc/crontab')
-#     for line in ct.lines:
-#         print(line)
-#
-#
-# if __name__ == '__main__':
-#     crontab_file_name = './me.tab'
-#     write_cron_file(crontab_file_name)
-#     does_cron_job_exists_by_comment(crontab_file_name, 'fakeID')
-#     does_cron_job_exists_by_comment(crontab_file_name, 'helloID')
-#     read_system_wide_crontab_file()
 
 
 def _url_n2ll():
@@ -141,12 +56,11 @@ def _cmd_bye(_, macs):
 
 
 def _cmd_query(_, macs):
-    name = get_ngrok_bin_name()
-    _grep = 'ps aux | grep {} | grep -v grep'.format(name)
-    rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        return 0, 'ngrok routed at {}'.format(macs[0])
-    return 1, AG_N2LL_ANS_ROUTE_NOK.format(macs[0])
+    mac = macs[0]
+    is_ddh_running = int(is_program_running('ddh/main.py'))
+    is_ngrok_running = int(is_program_running(get_ngrok_bin_name()))
+    s = '{} DDH {} / ngrok {}'
+    return 0, s.format(mac, is_ddh_running, is_ngrok_running)
 
 
 def _cmd_route_ngrok(_, macs):
@@ -194,6 +108,40 @@ def _cmd_unroute(_, macs):
     return 0, 'un-routed {}'.format(mac)
 
 
+def _cmd_ddh_rpi(_, macs):
+    mac = macs[0]
+    if not linux_is_rpi():
+        return 0, '{} is not a raspberry'.format(mac)
+
+    # todo: finish this function
+    # 1st, call _cmd_unddh_rpi()
+    _cmd_unddh_rpi(_, macs)
+    # 2nd, git clone ddh
+    cmd = 'mkdir /home/pi/ddh; cd /home/pi/ddh;'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    cmd = 'git clone...'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    # 3rd, create crontab
+    return 0, 'installed DDH on {}'.format(mac)
+
+
+def _cmd_unddh_rpi(_, macs):
+    mac = macs[0]
+    if not linux_is_rpi():
+        return 0, '{} is not a raspberry'.format(mac)
+
+    # 1st, disable any crontab controlling DDH
+    create_empty_cron_file_for_ddh()
+    # 2nd, killall DDH
+    # todo: improve this killing
+    cmd = 'killall python3'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    # 3rd, rm -rf ddh
+    cmd = 'rm -rf /home/pi/ddh'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return 0, 'uninstalled DDH on {}'.format(mac)
+
+
 def _parse_n2ll_in_cmd(s: bytes):
     # s: AG_N2LL_CMD_QUERY <mac> <port>
     if not s:
@@ -220,6 +168,8 @@ def _parse_n2ll_in_cmd(s: bytes):
         AG_N2LL_CMD_QUERY: _cmd_query,
         AG_N2LL_CMD_ROUTE: _cmd_route_ngrok,
         AG_N2LL_CMD_UNROUTE: _cmd_unroute,
+        AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
+        AG_N2LL_CMD_UNINSTALL_DDH: _cmd_unddh_rpi
     }
     fxn = fxn_map[cmd]
 
@@ -292,3 +242,4 @@ class AgentN2LL(threading.Thread):
         self.ch_sub.queue_bind(exchange='li_masters', queue=q)
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()
+

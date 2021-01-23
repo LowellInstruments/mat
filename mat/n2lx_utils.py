@@ -1,9 +1,12 @@
 import os
 import subprocess as sp
+# requires 'python-crontab' package to be installed
+from crontab import CronTab
 
 
 AG_BLE_OK = 'AG_BLE_OK:'
 AG_BLE_ERROR = 'AG_BLE_ERROR:'
+AG_BLE_EXCEPTION = 'AG_BLE_EXCEPTION:'
 
 AG_BLE_CMD_HCI = 'set_hci'
 AG_BLE_CMD_STATUS = 'status'
@@ -68,6 +71,8 @@ AG_N2LL_CMD_WHO = 'who'
 AG_N2LL_CMD_QUERY = 'n2ll_query'
 AG_N2LL_CMD_ROUTE = 'route'
 AG_N2LL_CMD_UNROUTE = 'unroute'
+AG_N2LL_CMD_INSTALL_DDH = 'install_ddh'
+AG_N2LL_CMD_UNINSTALL_DDH = 'uninstall_ddh'
 AG_N2LL_ANS_BYE = 'bye you by N2LL'
 AG_N2LL_ANS_ROUTE_OK_FULL = 'ngrok routed in mac {} port {} url {}'
 AG_N2LL_ANS_ROUTE_OK = 'ngrok routed in mac {}'
@@ -94,3 +99,28 @@ def check_ngrok_can_be_run():
     if rv.returncode == 0:
         print('{} found'.format(name))
         return True
+
+
+def create_empty_cron_file_for_ddh():
+    """ empties and create a new system-wide crontab file """
+    ct = CronTab(user='root')
+    ct.write('/etc/crontab')
+
+
+def create_populated_cron_file_for_ddh():
+    """ writes new populated system-wide crontab file """
+    ct = CronTab(user='root')
+    ct.new(command='<do_this_one>', comment='this runs the DDH')
+    ct.write('/etc/crontab')
+
+
+def does_cron_job_exists_by_comment(file_name: str, comm: str):
+    """ checks if job w/ comment exists in crontab file 'f' """
+    assert file_name
+    ct = CronTab(user='root', tabfile=file_name)
+    iter_job = ct.find_comment(comm)
+    rv = len(list(iter_job))
+    s = 'job w/ comment {} present at file {}? {} '
+    print(s.format(comm, file_name, bool(rv)))
+    return bool(rv)
+
