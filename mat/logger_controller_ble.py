@@ -633,10 +633,10 @@ def is_valid_mac_address(mac):
         "[0-9a-fA-F]{4})$")
 
     p = re.compile(regex)
-    if str == None:
+    if mac is None:
         return False
 
-    if (re.search(p, str)):
+    if re.search(p, mac):
         return True
     else:
         return False
