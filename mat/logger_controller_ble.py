@@ -9,10 +9,15 @@ from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SEN
     LOGGER_HSA_CMD_W
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
+from mat.utils import linux_is_docker
 from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
 import pathlib
 import subprocess as sp
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
+
+
+FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
+FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
 
 
 # commands not present in USB loggers
@@ -261,6 +266,7 @@ class LoggerControllerBLE(LoggerController):
         try:
             _time = ans[1].decode()[2:] + ' '
             _time += ans[2].decode()
+            # this returns a datetime object
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
             print('BLE: get_time() malformed: {}'.format(ans))
@@ -615,7 +621,10 @@ def calc_ble_cmd_ans_timeout(tag):
     return t
 
 
-def is_valid_mac_address(str):
+def is_valid_mac_address(mac):
+    if mac in [FAKE_MAC_CC26X2, FAKE_MAC_RN4020]:
+        return True
+
     # src: geeks for geeks website
     regex = ("^([0-9A-Fa-f]{2}[:])" +
         "{5}([0-9A-Fa-f]{2})|" +

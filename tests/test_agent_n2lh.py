@@ -1,10 +1,9 @@
 import threading
 
-from mat.n2lh_agent import PORT_N2LH, AgentN2LH, ClientN2LH, \
-    calc_n2lh_cmd_ans_timeout_ms
+from mat.n2lh_agent import PORT_N2LH, AgentN2LH, calc_n2lh_cmd_ans_timeout_ms
+from mat.n2lh_client import ClientN2LH
 from mat.n2lx_utils import AG_BLE_CMD_QUERY, AG_BLE_CMD_STATUS, AG_BLE_CMD_LS_LID, \
     AG_BLE_CMD_GET_TIME, AG_BLE_END_THREAD, AG_N2LH_END_THREAD, AG_N2LH_PATH_BASE, AG_N2LH_PATH_BLE, AG_BLE_CMD_CRC
-from mat.logger_controller import STATUS_CMD
 from mat.logger_controller_ble import calc_ble_cmd_ans_timeout, CRC_CMD
 from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2
 

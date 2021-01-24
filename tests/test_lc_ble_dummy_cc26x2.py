@@ -31,10 +31,11 @@ class TestLCBLEDummyCC26X2:
     def test_cmd_status(self):
         _test_cmd_generic(STATUS_CMD, self.mac)
 
-
     def test_get_file(self):
-        # don't emulate dummy  downloads
-        assert True
+        lc = LoggerControllerBLEDummyCC26x2(self.mac)
+        lc.open()
+        rv = lc.get_file('a.lid', '.', 1234, None)
+        assert rv
 
     def test_get_type(self):
         lc = LoggerControllerBLEDummyCC26x2(self.mac)
@@ -56,15 +57,14 @@ class TestLCBLEDummyCC26X2:
     def test_xmd_rx_n_save(self):
         lc = LoggerControllerBLEDummyCC26x2(self.mac)
         lc.open()
-        rv = lc.xmd_rx_n_save(lc, 'fake_file', 'fake_fol', 1234)
+        rv = lc.xmd_rx_n_save(lc, 'a.lid', '.', 1234)
         assert rv
 
     def test_get_time(self):
         lc = LoggerControllerBLEDummyCC26x2(self.mac)
         lc.open()
         rv = lc.get_time()
-        # this is a string because of get_time()
-        assert rv == FAKE_TIME
+        assert rv.year >= 2021
 
     def test_ls_lid(self):
         lc = LoggerControllerBLEDummyCC26x2(self.mac)
@@ -95,7 +95,7 @@ class TestLCBLEDummyCC26X2:
     def test_dwg_file(self):
         lc = LoggerControllerBLEDummyCC26x2(self.mac)
         lc.open()
-        rv = lc.dwg_file('fake_file', 'fake_fol', 1234)
+        rv = lc.dwg_file('a.lid', '.', 1234, None)
         assert rv
 
 def _test_cmd_generic(s, mac):

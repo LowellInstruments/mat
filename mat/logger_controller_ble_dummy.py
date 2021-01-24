@@ -1,3 +1,4 @@
+import datetime
 import time
 import types
 from abc import abstractmethod
@@ -6,17 +7,15 @@ from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_
     STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
 from mat.logger_controller_ble import LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
-    ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
-
+    ERR_MAT_ANS, CONFIG_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD, FAKE_MAC_CC26X2, FAKE_MAC_RN4020
 
 FAKE_TIME = '2020/12/31 12:34:56'
-FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
-FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
 
 
 class FakePer:
-    def __init__(self):
+    def __init__(self, mac):
         self.state = 'disc'
+        self.addr = mac
 
     def getState(self):
         return self.state
@@ -24,9 +23,7 @@ class FakePer:
 
 class LoggerControllerBLEDummy:
     def __init__(self):
-        # self.address is set by specific constructor
-        self.address = None
-        self.per = FakePer()
+        # MAC address set by specific constructor
         self.fake_state = {
             'running_or_stopped': 0,
             'log_enabled_or_disabled': 0,
@@ -94,8 +91,8 @@ class LoggerControllerBLEDummy:
 
     def get_time(self):
         assert self.address
-        # otherwise it does not comply with tests
-        return FAKE_TIME
+        # careful to make this comply with tests
+        return datetime.datetime.now()
 
     def sync_time(self):
         assert self.address
@@ -139,7 +136,7 @@ class LoggerControllerBLEDummy:
         self.fake_state[key] = 0
         return ''
 
-    def run(self):
+    def run(self, s=''):
         key = 'running_or_stopped'
         if self.fake_state[key]:
             return ERR_MAT_ANS
@@ -203,16 +200,19 @@ class LoggerControllerBLEDummy:
 
 
 class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
-    def __init__(self, mac):
-        assert mac == FAKE_MAC_CC26X2
+    def __init__(self, mac, hci_if=0):
+        assert mac in [FAKE_MAC_CC26X2]
         super().__init__()
+        self.address = None
+        self.per = FakePer(mac)
         self.type = 'dummy_cc26x2'
+        self.h = hci_if
 
     def open(self):
         # simulate some time to establish connection
         time.sleep(1)
         self.per.state = 'conn'
-        self.address = FAKE_MAC_CC26X2
+        self.address = self.per.addr
         self.open_post()
         return True
 
@@ -241,12 +241,21 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
 
     def get_file(self, file, fol, size, sig=None):
         assert self.address
-        if file in self.files.keys():
-            path = '{}/{}'.format(fol, file)
+        if file not in self.files.keys():
+            return False
+        path = '{}/{}'.format(fol, file)
+
+        # asking for MAT.cfg file
+        if file == 'MAT.cfg':
             with open(path, 'w') as f:
-                f.write('*' * int(size))
+                s = '{ "fruit": "Apple" }'
+                f.write(s)
             return True
-        return False
+
+        # when asking for files not MAT.cfg
+        with open(path, 'w') as f:
+            f.write('*' * int(size))
+        return True
 
     def frm(self):
         self.files = {}
@@ -266,16 +275,19 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
 
 
 class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
-    def __init__(self, mac):
-        assert mac == FAKE_MAC_RN4020
+    def __init__(self, mac, hci_if=0):
+        assert mac in [FAKE_MAC_RN4020]
         super().__init__()
+        self.address = None
+        self.per = FakePer(mac)
         self.type = 'dummy_rn4020'
+        self.h = hci_if
 
     def open(self):
         # simulate some time to establish connection
         time.sleep(1)
         self.per.state = 'conn'
-        self.address = FAKE_MAC_RN4020
+        self.address = self.per.addr
         self.open_post()
         return True
 

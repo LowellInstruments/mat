@@ -13,7 +13,7 @@ from mat.n2lx_utils import (AG_BLE_CMD_GET_FILE, AG_BLE_ANS_GET_FILE_OK,
 N2LH_CLI_SEND_TIMEOUT_MS = 5000
 
 
-class ClientN2LH():
+class ClientN2LH:
     """ ClientN2LH  <-- pynng -->   AgentN2LH    <-- queues -->  AgentN2LH_BLE
         ------------------------>  'ble cmd mac' ------------->  'cmd mac' """
 
@@ -59,33 +59,3 @@ class ClientN2LH():
 
         sk.close()
         return _in
-
-
-# for N2LH testing purposes
-if __name__ == '__main__':
-    url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
-    mac = FAKE_MAC_CC26X2
-    ag = AgentN2LH(url_lh)
-    th_ag_ble = threading.Thread(target=ag.loop_n2lh_agent)
-    th_ag_ble.start()
-
-    # give time agent to start
-    time.sleep(1)
-
-    # send client commands
-    list_of_cmd = [AG_BLE_CMD_QUERY,
-                   AG_BLE_CMD_STATUS,
-                   AG_BLE_CMD_GET_TIME,
-                   AG_BLE_CMD_LS_LID,
-                   AG_BLE_CMD_QUERY]
-
-    for c in list_of_cmd:
-        t = calc_n2lh_cmd_ans_timeout_ms(c)
-        cmd = '{} {}'.format(c, mac)
-        ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BLE, t)
-
-    # make N2LH_BLE and N2LH_BASE threads end
-    cmd = '{} {}'.format(AG_BLE_END_THREAD, mac)
-    ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BLE, 1000)
-    cmd = '{} {}'.format(AG_N2LH_END_THREAD, mac)
-    ClientN2LH(cmd, url_lh).do(AG_N2LH_PATH_BASE, 1000)
