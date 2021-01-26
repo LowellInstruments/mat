@@ -13,7 +13,6 @@ url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
 url_ll = _url_ll()
 
 
-
 # running this on Rpi / BASH may need root and:
 # PRE_REQ=/usr/lib/arm-linux-gnueabihf/libatomic.so.1
 # sudo LD_PRELOAD=$PRE_REQ python3 n2lx_main_agents.py
