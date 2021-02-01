@@ -82,6 +82,16 @@ AG_N2LL_ANS_ROUTE_ERR_ALREADY = 'error: ngrok not grep at {}, maybe runs somewhe
 AG_N2LL_ANS_NOT_FOR_US = 'cmd not for us'
 
 
+AG_GPS_OK = 'AG_GPS_OK:'
+AG_GPS_ERROR = 'AG_GPS_ERROR:'
+AG_GPS_EXCEPTION = 'AG_GPS_EXCEPTION:'
+
+
+AG_SMS_OK = 'AG_SMS_OK:'
+AG_SMS_ERROR = 'AG_SMS_ERROR:'
+AG_SMS_EXCEPTION = 'AG_SMS_EXCEPTION:'
+
+
 def get_ngrok_bin_name() -> str:
     _s = os.uname().nodename
     _m = os.uname().machine
