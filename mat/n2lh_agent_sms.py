@@ -1,8 +1,12 @@
 import threading
+import time
+
 from mat.n2lx_utils import *
 
-# todo: finish this AGENT_SMS
-# todo: this AGENT_SMS may not follow same structure as other agents
+# todo: finish this AGENT_SMS, check my_python_snippets project
+# todo: this AGENT_SMS may not follow same structure as other agents since cell communication
+# todo: one SMS command must perform net_ensure_my_resolv_conf()
+
 
 def _p(s):
     print(s, flush=True)
@@ -24,13 +28,9 @@ class AgentN2LH_SMS(threading.Thread):
     def __init__(self, q1, q2):
         """ creates an agent for simpler SMS controller """
         super().__init__()
-        self.lc = None
-        self.q_in = q1
-        self.q_out = q2
-        self.h = 0
 
-#     def _parse_n2lh_ble_incoming_frame(self, s):
-#         """ s: '<ag_ble_cmd> <args> <mac>' """
+#     def _parse_n2lh_sms_incoming_frame(self, s):
+#         """ s: '<ag_sms_cmd> <args>' """
 #         cmd, *_ = s.split(' ', 1)
 #         fxn_map = {
 #             AG_BLE_CMD_QUERY: self.query,
@@ -46,24 +46,25 @@ class AgentN2LH_SMS(threading.Thread):
 #         except BTLEException:
 #             return _exc(s)
 #
-#     def loop_ag_ble(self):
-#         """ dequeues requests from AG_N2LH, queues back answers """
-#         while 1:
-#             _in = self.q_in.get()
-#             # _p('-> AG_BLE {}'.format(_in))
-#             _out = self._parse_n2lh_ble_incoming_frame(_in)
-#             # _p('<- AG_BLE {}'.format(_out))
-#             self.q_out.put(_out)
-#
-#             # we can leave N2LH_BLE thread on demand
-#             if AG_BLE_END_THREAD in _out[1]:
-#                 # _out: (0, 'AG_BLE_OK: ble_bye')
-#                 break
-#
-#     def run(self):
-#         self.loop_ag_ble()
-#         _p('AG_BLE thread ends')
-#
+    def loop_ag_sms(self):
+        """ receives SMS commands, sends back SMS answers """
+        while 1:
+            time.sleep(60)
+            # _in =
+            # _p('-> AG_SMS {}'.format(_in))
+            # _out = self._parse_n2lh_sms_incoming_frame(_in)
+            # _p('<- AG_SMS {}'.format(_out))
+            # self.q_out.put(_out)
+
+            # we can leave N2LH_SMS thread on demand
+            # if AG_BLE_SMS_THREAD in _out[1]:
+            #     _out: (0, 'AG_SMS_OK: sms_bye')
+                # break
+
+    def run(self):
+        self.loop_ag_sms()
+        _p('AG_SMS thread ends')
+
 #     @staticmethod
 #     def scan(s):
 #         s: scan 0 5
