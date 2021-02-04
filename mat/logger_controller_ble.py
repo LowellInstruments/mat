@@ -17,7 +17,7 @@ from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
 
 FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
-FAKE_MAC_RN4020 = 'ti:00:ff:ff:ff:ff'
+FAKE_MAC_RN4020 = 'mc:00:ff:ff:ff:ff'
 
 
 # commands not present in USB loggers
@@ -45,7 +45,6 @@ DWG_FILE_CMD = 'DWG'
 BLE_CONNECTION_RETRIES = 3
 BLE_CONNECTION_TIMEOUT = 10
 BLE_DISCONNECTION_TIME = 2
-
 
 
 class Delegate(ble.DefaultDelegate):
