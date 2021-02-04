@@ -43,6 +43,9 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         # '' becomes a command() return value of '00'
         return ''
 
+    def gfv(self):
+        return 'd.u.26'
+
     def get_file(self, file, fol, size, sig=None):
         assert self.address
         if file not in self.files.keys():

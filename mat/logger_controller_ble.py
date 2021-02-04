@@ -16,8 +16,8 @@ import subprocess as sp
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
 
-FAKE_MAC_CC26X2 = 'ti:00:ff:ff:ff:ff'
-FAKE_MAC_RN4020 = 'mc:00:ff:ff:ff:ff'
+FAKE_MAC_CC26X2 = 'xx:cc:26:x2:ff:ff'
+FAKE_MAC_RN4020 = 'xx:rn:40:20:ff:ff'
 
 
 # commands not present in USB loggers

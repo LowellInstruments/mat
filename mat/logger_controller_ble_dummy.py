@@ -44,6 +44,9 @@ class LoggerControllerBLEDummy:
     def log_en(self): pass
 
     @abstractmethod
+    def gfv(self): pass
+
+    @abstractmethod
     def mbl_en(self): pass
 
     @abstractmethod
@@ -156,7 +159,7 @@ class LoggerControllerBLEDummy:
             STATUS_CMD: self.sts,
             LOG_EN_CMD: self.log_en,
             MOBILE_CMD: self.mbl_en,
-            FIRMWARE_VERSION_CMD: '1.2.34',
+            FIRMWARE_VERSION_CMD: self.gfv,
             SERIAL_NUMBER_CMD: 'AAAAAAA',
             UP_TIME_CMD: '100e0000',    # 1h = 0x0000e010
             REQ_FILE_NAME_CMD: 'fake_file_name.lid',

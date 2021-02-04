@@ -30,6 +30,9 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
             return True
         return False
 
+    def gfv(self):
+        return 'd.u.40'
+
     def send_cfg(self, _): return no_cmd_in_logger(self)
     def dwg_file(self, *args): return no_cmd_in_logger(self)
     def log_en(self): return no_cmd_in_logger(self)
