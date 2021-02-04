@@ -10,9 +10,6 @@ from mat.logger_controller_ble import LOG_EN_CMD, MOBILE_CMD, \
     ERR_MAT_ANS, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
 
 
-FAKE_TIME = '2020/12/31 12:34:56'
-
-
 class FakePer:
     def __init__(self, mac):
         self.state = 'disc'
@@ -91,6 +88,7 @@ class LoggerControllerBLEDummy:
         return True
 
     def get_time(self):
+        # this is not GTM command
         assert self.address
         # careful to make this comply with tests
         return datetime.datetime.now()
@@ -137,6 +135,12 @@ class LoggerControllerBLEDummy:
         self.fake_state[key] = 0
         return ''
 
+    def gtm(self):
+        a = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        a = '19{}'.format(a)
+        return [b'STM', a.encode()]
+
+
     def run(self, s=''):
         key = 'running_or_stopped'
         if self.fake_state[key]:
@@ -155,7 +159,6 @@ class LoggerControllerBLEDummy:
             FIRMWARE_VERSION_CMD: '1.2.34',
             SERIAL_NUMBER_CMD: 'AAAAAAA',
             UP_TIME_CMD: '100e0000',    # 1h = 0x0000e010
-            TIME_CMD: FAKE_TIME,
             REQ_FILE_NAME_CMD: 'fake_file_name.lid',
             SD_FREE_SPACE_CMD: '00000040',  # 64 MB = 0x400000000
             DO_SENSOR_READINGS_CMD: self.gsr_do,
@@ -176,9 +179,10 @@ class LoggerControllerBLEDummy:
             MY_TOOL_SET_CMD: self.mts,
             DEL_FILE_CMD: self.del_file,
             FORMAT_CMD: self.frm,
-            GET_FILE_CMD: self.get_file
+            GET_FILE_CMD: self.get_file,
+            TIME_CMD: self.gtm
         }
-        # default is for commands not needing to check anything
+        # default: commands not needing to check anything
         _a = dummy_answers_map.setdefault(args[0], '')
         if isinstance(_a, types.MethodType):
             _a = _a(args[1]) if len(args) > 1 else _a()

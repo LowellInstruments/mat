@@ -1,9 +1,11 @@
+import datetime
 import json
 import threading
 
 from bluepy.btle import BTLEException
 
 from mat import logger_controller_ble
+from mat.logger_controller_ble_factory import LcBLEFactory
 from mat.n2lx_utils import *
 from mat.logger_controller import (
     STOP_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD,
@@ -16,11 +18,6 @@ from mat.logger_controller_ble import (
     LoggerControllerBLE, is_a_li_logger, FORMAT_CMD,
     ERROR_WHEN_BOOT_OR_RUN_CMD, MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD,
     MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS, WAKE_CMD
-)
-from mat.logger_controller_ble_dummy import (
-    LoggerControllerBLEDummyCC26x2,
-    LoggerControllerBLEDummyRN4020,
-    brand_testing_cc26x2, brand_testing_rn4020
 )
 
 
@@ -200,16 +197,9 @@ class AgentN2LH_BLE(threading.Thread):
         if self.lc:
             self.lc.close()
 
-        # show and classify mac
-        if brand_testing_cc26x2(mac):
-            self.lc = LoggerControllerBLEDummyCC26x2(mac)
-        elif brand_testing_rn4020(mac):
-            self.lc = LoggerControllerBLEDummyRN4020(mac)
-        elif brand_ti(mac):
-            self.lc = LoggerControllerBLE(mac, self.h)
-        else:
-            # brand microchip, never tested w/ GUI
-            assert False
+        # any kind of real or dummy logger
+        lc = LcBLEFactory.generate(mac)
+        self.lc = lc(mac, self.h)
 
         # connecting asked mac
         if self.lc.open():
@@ -227,11 +217,12 @@ class AgentN2LH_BLE(threading.Thread):
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_GET_TIME)
 
+        # rv: datetime object
         rv = self.lc.get_time()
-        # in case of get_time(), rv already a string
-        if len(str(rv)) == 19:
-            return _ok(str(rv))
-        return _nok(AG_BLE_CMD_GET_TIME)
+        if type(rv) is not datetime.datetime:
+            return _nok(AG_BLE_CMD_GET_TIME)
+        s = rv.strftime('%Y/%m/%d %H:%M:%S')
+        return _ok(s) if len(s) == 19 else _nok(AG_BLE_CMD_GET_TIME)
 
     def config(self, s):
         if not _mac_n_connect(s, self):

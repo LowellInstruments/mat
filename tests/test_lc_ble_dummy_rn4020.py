@@ -1,13 +1,14 @@
 from mat.logger_controller import STATUS_CMD
-from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyRN4020, \
-    FAKE_TIME, no_cmd_in_logger, FAKE_MAC_RN4020
+from mat.logger_controller_ble import FAKE_MAC_RN4020
+from mat.logger_controller_ble_dummy import no_cmd_in_logger
+from mat.logger_controller_ble_dummy_rn4020 import LoggerControllerBLEDummyRN4020
+
 
 # how to test this with coverage:
 # python3 -m pytest
 #       tests/test_lc_ble_dummy_rn4020.py
 #       --cov tests.lc_ble_dummy_rn4020
 #       --cov-report=html:<output_dir>
-
 
 mac = FAKE_MAC_RN4020
 
@@ -16,17 +17,17 @@ class TestLCBLEDummyRN4020:
 
     def test_constructor(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
-        assert lc.type
+        assert lc.type == 'dummy_rn4020'
 
     def test_open(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
         lc.open()
-        assert lc.type
+        assert lc.type == 'dummy_rn4020'
 
     def test_ble_write(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
         lc.open()
-        assert lc.type
+        assert lc.type == 'dummy_rn4020'
         lc.ble_write('whatever_data')
 
     def test_get_file(self):
