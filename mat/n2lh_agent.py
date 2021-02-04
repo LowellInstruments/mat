@@ -6,12 +6,13 @@ from mat.logger_controller import RUN_CMD, RWS_CMD, STATUS_CMD
 from mat.logger_controller_ble import CRC_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, calc_ble_cmd_ans_timeout, \
     BLE_CONNECTION_TIMEOUT, BLE_CONNECTION_RETRIES, BLE_DISCONNECTION_TIME
 from mat.n2lh_agent_ble import AgentN2LH_BLE
+from mat.n2lh_agent_dummy import AgentN2LH_Dummy
 from mat.n2lx_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_GET_FILE, AG_BLE_CMD_RUN,
                             AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
                             AG_N2LH_PATH_BASE, AG_BLE_ANS_GET_FILE_OK,
                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_CONNECT, AG_BLE_CMD_SCAN,
-                            AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_DISCONNECT)
-from mat.utils import PrintColors as PC
+                            AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_DISCONNECT, AG_N2LH_NOTIFICATION)
+
 
 PORT_N2LH = 12804
 N2LH_DEFAULT_URL = 'tcp4://localhost:{}'.format(PORT_N2LH)
@@ -45,6 +46,14 @@ class AgentN2LH(threading.Thread):
             # _p('_s_out timeout')
             pass
 
+    def _out_notification_to_cli(self, s):
+        try:
+            _p('<- N2LH_notification {}'.format(s))
+            self.sk.send(s.encode())
+        except pynng.Timeout:
+            # _p('_s_out_notification timeout')
+            pass
+
     def loop_n2lh_agent(self):
         """ creates one BLE thread, one GPS thread... """
         _check_url_syntax(self.url)
@@ -53,12 +62,26 @@ class AgentN2LH(threading.Thread):
         self.sk.recv_timeout = 100
         self.q_to_ble = queue.Queue()
         self.q_from_ble = queue.Queue()
+        self.q_from_dummy = queue.Queue()
         ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        ag_dummy = AgentN2LH_Dummy(self.q_from_dummy)
         th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_dummy = threading.Thread(target=ag_dummy.loop_ag_dummy)
         th_ag_ble.start()
+        th_ag_dummy.start()
 
         _p('N2LH: listening on {}'.format(self.url))
         while 1:
+            # allows for notifications from agents
+            # todo: test it
+            try:
+                _ntf = self.q_from_dummy.get(block=False, timeout=.1)
+                if _ntf:
+                    _ntf = _check_n2lh_notifications(_ntf)
+                    self._out_notification_to_cli(_ntf)
+            except queue.Empty:
+                pass
+
             # _in: <n2lh_path> <command>
             _in = self._in_cmd_from_cli()
             _in = _check_n2lh_cmd_path(_in)
@@ -112,6 +135,21 @@ def _check_n2lh_cmd_path(s):
 
     # s: 'ble <cmd>...' -> <cmd> ...'
     if s[:3] in n2lh_paths:
+        return s[4:]
+
+
+def _check_n2lh_notifications(s):
+    """ checks N2LH notification format is OK """
+    if not s or len(s) < 4:
+        return ''
+
+    # good paths
+    n2lh_notifications = [
+        AG_N2LH_NOTIFICATION
+    ]
+
+    # s: 'ntf <something>'
+    if s[:3] in n2lh_notifications:
         return s[4:]
 
 

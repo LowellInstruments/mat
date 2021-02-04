@@ -127,6 +127,7 @@ class AgentN2LH_BLE(threading.Thread):
             # noinspection PyArgumentList
             return fxn(s)
         except BTLEException:
+            # todo: test BLE exception notifications as in new n2lh_agent_dummy.py
             return _exc(s)
 
     def loop_ag_ble(self):
