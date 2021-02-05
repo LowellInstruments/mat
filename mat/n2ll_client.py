@@ -1,3 +1,4 @@
+import socket
 import threading
 from pika.exceptions import ProbableAccessDeniedError
 from mat.n2ll_agent import mq_exchange_for_masters, mq_exchange_for_slaves
@@ -15,7 +16,7 @@ class ClientN2LL:
         # 'dump' variable is useful to be able to test this class
         self.dump_cli_rx = None
         # N2LL client RX always threaded, entry point is tx()
-        self.th_rx = threading.Thread(target=self._sub_n_rx)
+        self.th_rx = threading.Thread(target=self.loop_n2ll_client)
         self.th_rx.start()
 
     def _get_ch_pub(self):
@@ -36,6 +37,12 @@ class ClientN2LL:
             e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
             if self.sig:
                 self.sig.out.emit(self.tx_last, e)
+
+    def loop_n2ll_client(self):
+        try:
+            self._sub_n_rx()
+        except socket.gaierror as e:
+            print('N2LH: client exc -> {}'.format(e))
 
     # recall: this collects answers from ALL slaves :)
     def _sub_n_rx(self):

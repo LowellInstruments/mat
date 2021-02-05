@@ -1,4 +1,5 @@
 import queue
+import socket
 import threading
 import pynng
 from pynng import Pair0
@@ -55,6 +56,12 @@ class AgentN2LH(threading.Thread):
             pass
 
     def loop_n2lh_agent(self):
+        try:
+            self._loop_n2lh_agent()
+        except Exception as e:
+            _p('N2LH: agent exc -> {}'.format(e))
+
+    def _loop_n2lh_agent(self):
         """ creates one BLE thread, one GPS thread... """
         _check_url_syntax(self.url)
         self.sk = Pair0(send_timeout=100)
@@ -73,11 +80,21 @@ class AgentN2LH(threading.Thread):
         _p('N2LH: listening on {}'.format(self.url))
         while 1:
             # allows for notifications from agents
-            # todo: test it
+            # try:
+            #     _ntf = self.q_from_dummy.get(block=False, timeout=.1)
+            #     if _ntf:
+            #         _ntf = _check_n2lh_notifications(_ntf)
+            #         self._out_notification_to_cli(_ntf)
+            # except queue.Empty:
+            #     pass
+
+            # todo: test BLE disconnection notification
+            # when disconnection not because command but spontaneous
             try:
-                _ntf = self.q_from_dummy.get(block=False, timeout=.1)
+                _ntf = self.q_from_ble.get(block=False, timeout=.1)
+                _ntf = _check_n2lh_notifications(_ntf)
                 if _ntf:
-                    _ntf = _check_n2lh_notifications(_ntf)
+                    print('pepe')
                     self._out_notification_to_cli(_ntf)
             except queue.Empty:
                 pass

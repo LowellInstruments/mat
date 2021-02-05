@@ -2,12 +2,19 @@ import datetime
 import time
 import types
 from abc import abstractmethod
+
+from bluepy.btle import BTLEException
+
 from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, TIME_CMD, \
     REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, SD_FREE_SPACE_CMD, DO_SENSOR_READINGS_CMD, SENSOR_READINGS_CMD, RUN_CMD, \
     STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
 from mat.logger_controller_ble import LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
     ERR_MAT_ANS, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
+
+
+# to test exception / notification generation
+EXC_CMD = 'EXC'
 
 
 class FakePer:
@@ -100,6 +107,10 @@ class LoggerControllerBLEDummy:
         assert self.address
         return [b'STM', b'00']
 
+    def exc_test(self):
+        # to test connectivity lost
+        raise BTLEException('exc_test')
+
     def ls_lid(self):
         assert self.address
         _d = {k: v for k, v in self.files.items() if '.lid' in k}
@@ -183,7 +194,8 @@ class LoggerControllerBLEDummy:
             DEL_FILE_CMD: self.del_file,
             FORMAT_CMD: self.frm,
             GET_FILE_CMD: self.get_file,
-            TIME_CMD: self.gtm
+            TIME_CMD: self.gtm,
+            EXC_CMD: self.exc_test,
         }
         # default: commands not needing to check anything
         _a = dummy_answers_map.setdefault(args[0], '')

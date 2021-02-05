@@ -22,7 +22,7 @@ if __name__ == '__main__':
     ag_n2lh = AgentN2LH(url_lh)
     ag_n2ll = AgentN2LL(url_ll)
     th_ag_n2lh = threading.Thread(target=ag_n2lh.loop_n2lh_agent)
-    th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll)
+    th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll_agent)
     th_ag_n2lh.start()
     th_ag_n2ll.start()
     print('main_agents thread exits')

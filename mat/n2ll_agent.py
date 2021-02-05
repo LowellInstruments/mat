@@ -223,14 +223,15 @@ class AgentN2LL(threading.Thread):
             _p('quitting AG_N2LL')
             os._exit(0)
 
-    def loop_n2ll(self):
+    def loop_n2ll_agent(self):
         """ AgentN2LL spawns no hreads: receives at rx and tx back """
         _p('N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
                 self._sub_n_rx()
             except (Exception, AMQPError) as e:
-                _p('N2LL: error rx_exc -> {}'.format(e))
+                _p('N2LL: agent exc -> {}'.format(e))
+                break
 
     def _pub(self, _what):
         self._get_ch_pub()

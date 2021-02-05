@@ -1,11 +1,11 @@
 import queue
 import threading
-
+from mat.logger_controller_ble import FAKE_MAC_CC26X2, FAKE_MAC_RN4020
 from mat.n2lh_agent_ble import AgentN2LH_BLE
 from mat.n2lx_utils import *
 import time
 import json
-from mat.logger_controller_ble_dummy import FAKE_MAC_CC26X2, FAKE_MAC_RN4020
+
 
 # mac_lab = '60:77:71:22:c8:08'
 # mac_house = '60:77:71:22:c8:18'
@@ -163,6 +163,17 @@ class TestAgentN2LH_BLE:
         s = '{} {}'.format(AG_BLE_CMD_STOP, mac)
         rv = self._q(s)
         assert rv[0] == 0
+        self._end_ag_ble_th()
+
+    def test_exc_generation(self):
+        ag_ble = AgentN2LH_BLE(self.q_to_ble, self.q_from_ble)
+        th_ag_ble = threading.Thread(target=ag_ble.loop_ag_ble)
+        th_ag_ble.start()
+        s = '{} {}'.format(AG_BLE_CMD_EXCEPTION_GEN, mac)
+        rv = self._q(s)
+
+        # exception return value is obviously different to 0
+        assert rv[0] == 2
         self._end_ag_ble_th()
 
     def test_config_cmd(self):

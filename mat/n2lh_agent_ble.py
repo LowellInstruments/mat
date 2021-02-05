@@ -5,6 +5,7 @@ import threading
 from bluepy.btle import BTLEException
 
 from mat import logger_controller_ble
+from mat.logger_controller_ble_dummy import EXC_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
 from mat.n2lx_utils import *
 from mat.logger_controller import (
@@ -15,9 +16,9 @@ from mat.logger_controller import (
     SD_FREE_SPACE_CMD, RESET_CMD
 )
 from mat.logger_controller_ble import (
-    LoggerControllerBLE, is_a_li_logger, FORMAT_CMD,
+    is_a_li_logger, FORMAT_CMD,
     ERROR_WHEN_BOOT_OR_RUN_CMD, MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD,
-    MY_TOOL_SET_CMD, CONFIG_CMD, brand_ti, ERR_MAT_ANS, WAKE_CMD
+    MY_TOOL_SET_CMD, CONFIG_CMD, ERR_MAT_ANS, WAKE_CMD
 )
 
 
@@ -55,7 +56,9 @@ def _nok(s):
 
 
 def _exc(s):
-    return 2, '{} {} exception'.format(AG_BLE_EXCEPTION, s)
+    # s: 'ble_exc <mac>'
+    _p('<- AG_BLE caught exception {}'.format(s))
+    return 2, '{} ble exception'.format(AG_BLE_EXCEPTION, s)
 
 
 def _ok(s):
@@ -119,6 +122,7 @@ class AgentN2LH_BLE(threading.Thread):
             AG_BLE_CMD_WHS: self.whs,
             AG_BLE_CMD_GET_FILE: self.get_file,
             AG_BLE_CMD_DWG_FILE: self.dwg_file,
+            AG_BLE_CMD_EXCEPTION_GEN: self.exc_provoke,
             AG_BLE_END_THREAD: self.break_thread
         }
         fxn = fxn_map[cmd]
@@ -127,7 +131,8 @@ class AgentN2LH_BLE(threading.Thread):
             # noinspection PyArgumentList
             return fxn(s)
         except BTLEException:
-            # todo: test BLE exception notifications as in new n2lh_agent_dummy.py
+            # ex: BLE connection LOST, tell remote N2LH_BASE agent
+            # can simulate loss with a CMD or also can be spontaneous
             return _exc(s)
 
     def loop_ag_ble(self):
@@ -146,7 +151,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     def run(self):
         self.loop_ag_ble()
-        _p('AG_BLE thread ends')
+        _p('AG_BLE: thread ends')
 
     @staticmethod
     def scan(s):
@@ -353,6 +358,11 @@ class AgentN2LH_BLE(threading.Thread):
 
     def stop(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), STOP_CMD)
+
+    def exc_provoke(self, s):
+        # triggers except clause in  _parse_n2lh_ble_incoming_frame()
+        _p('-> AG_BLE: sending cmd to provoke exception...')
+        return self._cmd_ans(_mac_n_connect(s, self), EXC_CMD)
 
     # prevent same name as thread function run()
     def cmd_run(self, s):

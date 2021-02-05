@@ -1,6 +1,9 @@
+from bluepy.btle import BTLEException
+
 from mat.logger_controller import STATUS_CMD
-from mat.logger_controller_ble_dummy import LoggerControllerBLEDummyCC26x2, \
-    FAKE_TIME, no_cmd_in_logger, FAKE_MAC_CC26X2
+from mat.logger_controller_ble import FAKE_MAC_CC26X2
+from mat.logger_controller_ble_dummy import no_cmd_in_logger
+from mat.logger_controller_ble_dummy_cc26x2 import LoggerControllerBLEDummyCC26x2
 
 
 # how to test this with coverage:
@@ -97,6 +100,15 @@ class TestLCBLEDummyCC26X2:
         lc.open()
         rv = lc.dwg_file('a.lid', '.', 1234, None)
         assert rv
+
+    def test_disconnect_exception(self):
+        lc = LoggerControllerBLEDummyCC26x2(self.mac)
+        lc.open()
+        try:
+            lc.exc_test()
+            assert False
+        except BTLEException:
+            assert True
 
 def _test_cmd_generic(s, mac):
     # for simple commands, NOT for CFG, to say something

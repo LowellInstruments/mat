@@ -18,7 +18,7 @@ def _u_l():
 class TestAgent_N2LL:
     def test_agent_n2ll_command_bye(self):
         ag_n2ll = AgentN2LL(_u_l())
-        th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll)
+        th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll_agent)
         th_ag_n2ll.start()
 
         # need sleep for agent_N2LL to start
