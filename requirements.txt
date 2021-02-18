@@ -6,6 +6,9 @@ pytest-cov
 pytest-mock>=3.3.1
 numpy
 pyserial
-crc16~=0.1.1
-h5py~=2.10.0
+crc16
+h5py
 git+https://github.com/LowellInstruments/bluepy.git
+pynng
+pika
+getmac

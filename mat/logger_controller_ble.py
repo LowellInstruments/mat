@@ -1,20 +1,26 @@
+import re
 import bluepy.btle as ble
 import json
 from datetime import datetime
 import time
-from mat.linux import linux_is_docker
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
-    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD
+    SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD, \
+    LOGGER_HSA_CMD_W
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
+from mat.utils import linux_is_docker
 from mat.xmodem_ble_cc26x2 import xmd_get_file_cc26x2, XModemException
 import pathlib
 import subprocess as sp
-
-# commands not present in USB loggers
 from mat.xmodem_ble_rn4020 import xmd_get_file_rn4020
 
+
+FAKE_MAC_CC26X2 = 'xx:cc:26:x2:ff:ff'
+FAKE_MAC_RN4020 = 'xx:rn:40:20:ff:ff'
+
+
+# commands not present in USB loggers
 SIZ_CMD = 'SIZ'
 BAT_CMD = 'BAT'
 BTC_CMD = 'BTC'
@@ -28,9 +34,17 @@ LOG_EN_CMD = 'LOG'
 WAKE_CMD = 'WAK'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
-DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
 _DEBUG_THIS_MODULE = 0
+ERR_MAT_ANS = 'ERR'
+GET_FILE_CMD = 'GET'
+DWG_FILE_CMD = 'DWG'
+
+
+# constants for when trying to BLE connect
+BLE_CONNECTION_RETRIES = 3
+BLE_CONNECTION_TIMEOUT = 10
+BLE_DISCONNECTION_TIME = 2
 
 
 class Delegate(ble.DefaultDelegate):
@@ -59,6 +73,9 @@ class Delegate(ble.DefaultDelegate):
 class LoggerControllerBLE(LoggerController):
 
     def __init__(self, mac, hci_if=0):
+        # checks for bad or dummy mac addresses
+        assert is_valid_mac_address(mac)
+
         # default are (24, 40, 0)
         w_ble_linux_pars(6, 11, 0, hci_if)
         super().__init__(mac)
@@ -70,10 +87,10 @@ class LoggerControllerBLE(LoggerController):
         self.type = None
 
         # set underlying BLE class
-        if brand_microchip(mac):
-            self.und = LoggerControllerBLERN4020(self)
-        elif brand_ti(mac):
+        if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
+        else:
+            self.und = LoggerControllerBLERN4020(self)
 
         self.dlg = Delegate()
 
@@ -81,10 +98,10 @@ class LoggerControllerBLE(LoggerController):
         return self.und.type
 
     def open(self):
-        retries = 3
-        for i in range(retries):
+        for i in range(BLE_CONNECTION_RETRIES):
             try:
-                self.per = ble.Peripheral(self.address, iface=self.hci_if, timeout=10)
+                self.per = ble.Peripheral(self.address, iface=self.hci_if,
+                                          timeout=BLE_CONNECTION_TIMEOUT)
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
                 self.per.setDelegate(self.dlg)
@@ -101,9 +118,9 @@ class LoggerControllerBLE(LoggerController):
                 self.open_post()
                 return True
 
-            except (AttributeError, ble.BTLEException):
-                e = 'failed connection attempt {} of {}'
-                print(e.format(i + 1, retries))
+            except (AttributeError, ble.BTLEException) as exc:
+                e = 'failed connection attempt {}/{}: {}'
+                print(e.format(i + 1, BLE_CONNECTION_RETRIES, exc))
         return False
 
     def ble_write(self, data, response=False):  # pragma: no cover
@@ -115,6 +132,7 @@ class LoggerControllerBLE(LoggerController):
     def close(self):
         try:
             self.per.disconnect()
+            self.per = None
             return True
         except AttributeError:
             return False
@@ -141,7 +159,7 @@ class LoggerControllerBLE(LoggerController):
             a = b
 
         # early leave when error or invalid command
-        if a.startswith('ERR') or a.startswith('INV'):
+        if a.startswith(ERR_MAT_ANS) or a.startswith('INV'):
             time.sleep(.5)
             return True
 
@@ -220,7 +238,7 @@ class LoggerControllerBLE(LoggerController):
         finally:
             self.dlg.set_file_mode(False)
 
-        if not rv or len(data) < size:
+        if not rv or len(data) < int(size):
             return False
         p = '{}/{}'.format(fol, file)
         with open(p, 'wb') as f:
@@ -247,6 +265,7 @@ class LoggerControllerBLE(LoggerController):
         try:
             _time = ans[1].decode()[2:] + ' '
             _time += ans[2].decode()
+            # this returns a datetime object
             return datetime.strptime(_time, '%Y/%m/%d %H:%M:%S')
         except (ValueError, IndexError):
             print('BLE: get_time() malformed: {}'.format(ans))
@@ -294,11 +313,14 @@ class LoggerControllerBLE(LoggerController):
             return 'wrong logger type'
 
     def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
+        """ accumulate on data parameter """
         last = time.perf_counter()
         while 1:
             if self.per.waitForNotifications(.1):
                 last = time.perf_counter()
-            if time.perf_counter() > last + 10:
+            if time.perf_counter() > last + 2:
+                # do not forget the remaining bytes < 2048
+                data += self.dlg.x_buf
                 return True, data
             if len(self.dlg.x_buf) >= 2048:
                 data += self.dlg.x_buf[:2048]
@@ -307,7 +329,7 @@ class LoggerControllerBLE(LoggerController):
                     sig.emit()
                 return False, data
 
-    def _dwl(self, size, sig=None):   # pragma: no cover
+    def _dwl_file(self, size, sig=None):   # pragma: no cover
         """ XMODEM equivalent, called by dwg_file() """
         self.dlg.set_file_mode(True)
         data = bytes()
@@ -319,26 +341,34 @@ class LoggerControllerBLE(LoggerController):
             cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
             c_n += 1
             self.ble_write(cmd.encode())
+            # a DWL timeout does not mean failure, also end of file
             timeout, data = self._dwl_chunk_loop(sig, data)
-            if timeout or len(data) == size:
+            if timeout or len(data) >= int(size):
                 break
 
         # clean-up
         self.dlg.set_file_mode(False)
         self.dlg.x_buf = bytes()
 
-        # double return value
-        return not timeout, data
+        return data
 
-    def dwg_file(self, file, size, sig=None) -> bool:  # pragma: no cover
-        dl = False
+    def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        data = None
+
         try:
             _ = '{} {:02x}{}\r'
-            cmd = _.format(DWG_CMD, len(file), file)
+            cmd = _.format(DWG_FILE_CMD, len(file), file)
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                dl = self._dwl(size, sig)
+                data = self._dwl_file(size, sig)
+                if data and len(data) == int(size):
+                    path = '{}/{}'.format(fol, file)
+                    with open(path, 'wb') as f:
+                        f.write(data)
+                        f.truncate(int(size))
+                else:
+                    data = None
             else:
                 e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
                 print(e.format(self.dlg.buf))
@@ -348,7 +378,7 @@ class LoggerControllerBLE(LoggerController):
             # and / or next BLE command will nicely fail
             print('BLE: dwg_file() exception {}'.format(ex))
 
-        return dl
+        return data
 
 
 # utilities
@@ -356,8 +386,9 @@ def _ls_wildcard(lis, ext, match=True):
     if lis is None:
         return {}
 
-    if b'ERR' in lis:
-        return b'ERR'
+    err = ERR_MAT_ANS.encode()
+    if err in lis:
+        return err
 
     files, idx = {}, 0
     while idx < len(lis):
@@ -371,6 +402,7 @@ def _ls_wildcard(lis, ext, match=True):
 
 
 def brand_ti(mac):
+    mac = mac.lower()
     return not brand_microchip(mac)
 
 
@@ -525,11 +557,12 @@ def _ans_check(tag, a, b):
         SENSOR_READINGS_CMD: lambda: _exp() and (len(a) == 6 + 40),
         BTC_CMD: lambda: b == b'CMD\r\nAOK\r\nMLDP',
         CRC_CMD: lambda: _exp() and (len(a) == 6 + 8),
-        DWG_CMD: lambda: _exp(1),
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
-        WAKE_CMD: lambda: _exp() and len(a) == 8
+        WAKE_CMD: lambda: _exp() and len(a) == 8,
+        LOGGER_HSA_CMD_W: lambda: _exp(1)
+        # GET_FILE_CMD and DWG_FILE_CMD done elsewhere
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()
@@ -538,13 +571,14 @@ def _ans_check(tag, a, b):
 def _cmd_pre_slow_down_if_so(tag):
     """ ensure commands are spaced """
     _st = {
-        CRC_CMD: 2
+        CRC_CMD: 2,
+        FORMAT_CMD: 2
     }
 
     # 0 means no extra pre slow down
     t = _st.setdefault(tag, 0)
     if t:
-        s = 'dbg: pre_slow_down for {} is {}'
+        s = '- dbg: pre_slow_down for {} is {} -\n'
         print(s.format(tag, t))
         time.sleep(t)
 
@@ -554,7 +588,7 @@ def _cmd_post_slow_down_if_so(tag: str):
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
-        CONFIG_CMD: .5,
+        CONFIG_CMD: 1.5,
         RUN_CMD: 1,
         STOP_CMD: 1,
         RWS_CMD: 1,
@@ -572,7 +606,7 @@ def _ans_unk(_tag):  # pragma: no cover
     return False
 
 
-# can be called by NLE protocol client
+# can be called by ClientN2LH
 def calc_ble_cmd_ans_timeout(tag):
     _timeouts = {
         RUN_CMD: 50,
@@ -584,3 +618,25 @@ def calc_ble_cmd_ans_timeout(tag):
     }
     t = _timeouts.setdefault(tag, 10)
     return t
+
+
+def is_valid_mac_address(mac):
+    if mac in [FAKE_MAC_CC26X2, FAKE_MAC_RN4020]:
+        return True
+
+    # src: geeks for geeks website
+    regex = ("^([0-9A-Fa-f]{2}[:])" +
+        "{5}([0-9A-Fa-f]{2})|" +
+        "([0-9a-fA-F]{4}\\." +
+        "[0-9a-fA-F]{4}\\." +
+        "[0-9a-fA-F]{4})$")
+
+    p = re.compile(regex)
+    if mac is None:
+        return False
+
+    if re.search(p, mac):
+        return True
+    else:
+        return False
+

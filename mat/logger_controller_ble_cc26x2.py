@@ -24,6 +24,7 @@ class LoggerControllerBLECC26X2:  # pragma: no cover
         return self.base.per.status()['mtu'][0]
 
     def get_file(self, lc, file, fol, size, sig=None) -> bool:  # pragma: no cover
+        """ sends GET command and downloads file """
         assert (lc.und.type == self.type)
 
         # separates file downloads, allows logger x-modem to boot
@@ -40,6 +41,9 @@ class LoggerControllerBLECC26X2:  # pragma: no cover
         lc.per.waitForNotifications(10)
         if lc.dlg.buf and lc.dlg.buf.endswith(b'GET 00'):
             dl = lc.xmd_rx_n_save(file, fol, size, sig)
+
+        # don't remove, allows logger x-modem to finish
+        time.sleep(1)
 
         # clean-up
         return dl

@@ -3,8 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# IDE
+.idea/
+
 # C extensions
 *.so
+
+# LID files
+*.lid
 
 # Distribution / packaging
 .Python
