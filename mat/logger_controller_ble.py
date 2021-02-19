@@ -640,3 +640,15 @@ def is_valid_mac_address(mac):
     else:
         return False
 
+
+def get_logger_type_by_mac(mac):
+    if mac.startswith(FAKE_MAC_CC26X2[:12]):
+        return 'dummy_cc26x2'
+    if mac.startswith(FAKE_MAC_RN4020[:12]):
+        return 'dummy_rn4020'
+    if brand_microchip(mac):
+        return 'rn4020'
+    if brand_ti(mac):
+        return 'cc26x2'
+    return 'unknown_type'
+
