@@ -127,9 +127,9 @@ def create_empty_crontab_file_for_ddh():
 
 def create_populated_crontab_file_for_ddh():
     """ writes new populated system-wide crontab file """
-    # todo: finish this crontab file
     ct = CronTab(user='root')
-    ct.new(command='<do_this_one>', comment='this runs the DDH')
+    job = ct.new(command='/home/pi/li/ddh/ddh_run.sh', comment='launch DDH')
+    job.minute.every(2)
     ct.write('/etc/crontab')
 
 
