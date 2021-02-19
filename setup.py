@@ -7,11 +7,17 @@ requirements = [
     'numpy',
     'pyserial',
     'h5py==2.10.0',
-    'crc16==0.1.1'
+    'crc16==0.1.1',
+    'pynng',
+    'pika',
+    'getmac',
 ]
+
 if os.name == 'posix':
     requirements.append(
-        'bluepy@git+https://github.com/LowellInstruments/bluepy.git')
+        'bluepy@git+https://github.com/LowellInstruments/bluepy.git',
+        'python-crontab'
+    )
 
 setup(name='lowell-mat',
       version='1.2',
@@ -20,15 +26,7 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=['mat'],
-      install_requires=['numpy',
-                        'pyserial',
-                        'h5py==2.10.0',
-                        'crc16==0.1.1',
-                        'bluepy@git+https://github.com/LowellInstruments/bluepy.git',
-                        'pynng',
-                        'pika',
-                        'getmac'
-                        ],
+      install_requires=requirements,
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",

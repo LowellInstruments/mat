@@ -3,6 +3,7 @@ import subprocess as sp
 # requires 'python-crontab' package to be installed
 from crontab import CronTab
 
+from mat.utils import linux_is_rpi
 
 AG_BLE_OK = 'AG_BLE_OK:'
 AG_BLE_ERROR = 'AG_BLE_ERROR:'
@@ -75,7 +76,7 @@ AG_N2LL_CMD_QUERY = 'n2ll_query'
 AG_N2LL_CMD_ROUTE = 'n2ll_route'
 AG_N2LL_CMD_UNROUTE = 'n2ll_unroute'
 AG_N2LL_CMD_INSTALL_DDH = 'n2ll_install_ddh'
-AG_N2LL_CMD_UNINSTALL_DDH = 'n2ll_uninstall_ddh'
+AG_N2LL_CMD_KILL_DDH = 'n2ll_uninstall_ddh'
 AG_N2LL_ANS_BYE = 'bye you by N2LL'
 AG_N2LL_ANS_ROUTE_OK_FULL = 'ngrok routed in mac {} port {} url {}'
 AG_N2LL_ANS_ROUTE_OK = 'ngrok routed in mac {}'
@@ -117,6 +118,9 @@ def check_ngrok_can_be_run():
     if rv.returncode == 0:
         print('{} found'.format(name))
         return True
+    print('maybe you need to move ngrok to /usr/bin ?')
+    if linux_is_rpi():
+        print('also, maybe you meant ngrok_rpi ?')
 
 
 def create_empty_crontab_file_for_ddh():
