@@ -3,6 +3,7 @@ exclude_patterns:
 - "tests/"
 - "mat/sensor_specification.py"
 - "mat/xmodem_*.py"
+- "mat/n2l*.py"
 checks:
   argument-count:
     config:

@@ -20,6 +20,7 @@ def _p(s):
 
 
 def _url_n2ll():
+    # todo: change this test url to a production one
     url = 'amqps://{}:{}/{}'
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
