@@ -15,9 +15,9 @@ requirements = [
 
 if os.name == 'posix':
     requirements.append(
-        'bluepy@git+https://github.com/LowellInstruments/bluepy.git',
-        'python-crontab'
+        'bluepy@git+https://github.com/LowellInstruments/bluepy.git'
     )
+    requirements.append('python-crontab')
 
 setup(name='lowell-mat',
       version='1.2',
