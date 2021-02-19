@@ -145,10 +145,12 @@ def is_program_running(name):
 
 
 def obtain_pid_of_a_running_program(name):
-    _grep = 'ps aux | grep {} | grep -v grep | awk - F\' \' \'{print $2}\''
-    rv = sp.run(_grep.format(name), shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    # awk and so they do not work here because they use {}
+    s = 'ps -aux | grep {} | grep -v grep'.format(name)
+    rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return int(rv.stdout)
+        pid = rv.stdout.decode().split()[1]
+        return int(pid)
     return None
 
 

@@ -109,15 +109,21 @@ def _cmd_unroute(_, macs):
 
 def _cmd_ddh_rpi(_, macs):
     mac = macs[0]
-    if not linux_is_rpi():
-        return 0, '{} is not a raspberry'.format(mac)
 
-    # todo: test this and unddh
-    # 1st, call _cmd_unddh_rpi()
+    # 1st, call function '_cmd_unddh_rpi()'
     _cmd_unddh_rpi(_, macs)
 
-    # 2nd, clone DDH git repo
-    cmd = 'mkdir -p /home/pi/ddh; cd /home/pi/ddh'
+    if not linux_is_rpi():
+        return 0, 'won\'t do DDH on a non-rpi {}'.format(mac)
+
+    # todo: test this on a DDH
+
+    # 2nd, delete DDH folder
+    cmd = 'rm -rf /home/pi/li/ddh'
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    # 3rd, clone DDH git repo
+    cmd = 'mkdir -p /home/pi/li/ddh; cd /home/pi/li/ddh'
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     url = 'https://github.com/LowellInstruments/ddh.git'
     cmd = 'git clone {}'.format(url)
@@ -125,18 +131,17 @@ def _cmd_ddh_rpi(_, macs):
     if _rv.returncode != 0:
         return _rv.returncode, 'DDH git clone failed'
 
-    # 3rd, create crontab
+    # 4th, create crontab
     create_populated_crontab_file_for_ddh()
     return 0, 'installed DDH on {}'.format(mac)
 
 
 def _cmd_unddh_rpi(_, macs):
     mac = macs[0]
-    if not linux_is_rpi():
-        return 0, '{} is not a raspberry'.format(mac)
 
     # 1st, disable any crontab controlling DDH
-    create_empty_crontab_file_for_ddh()
+    if linux_is_rpi():
+        create_empty_crontab_file_for_ddh()
 
     # 2nd, killall DDH
     s = 'ddh/main.py'
@@ -146,12 +151,8 @@ def _cmd_unddh_rpi(_, macs):
         _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
         if _rv.returncode != 0:
             return _rv.returncode, 'unDDH killing failed'
-
-    # 3rd, delete DDH foldercreate_empty_cron_file_for_ddh
-    cmd = 'rm -rf /home/pi/ddh'
-    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-
-    return 0, 'unDDH OK on {}'.format(mac)
+        return 0, 'unDDH OK on {}'.format(mac)
+    return 0, 'no DDH to kill on {}'.format(mac)
 
 
 def _parse_n2ll_in_cmd(s: bytes):
