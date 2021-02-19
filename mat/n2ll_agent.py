@@ -72,7 +72,7 @@ def _cmd_route_ngrok(_, macs):
     sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # remove any previous ngrok log file
-    log_file = '/tmp/ngrok.log'
+    log_file = '~/.ngrok.log'
     cmd = 'rm {}'.format(log_file)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if b'permission denied' in _rv.stderr:
@@ -81,8 +81,7 @@ def _cmd_route_ngrok(_, macs):
     # Popen() daemons ngrok, although cannot check return code
     port = _[1]
     cmd = '{} tcp {} -log={}'.format(ngrok_bin, port, log_file)
-    # _p(cmd)
-    sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    _rv = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # see log file, grep ngrok url
     time.sleep(2)
