@@ -9,6 +9,8 @@ def _url_ll():
     _user = 'dfibpovr'
     _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
     return url.format(_user, _rest, _user)
+
+
 url_lh = 'tcp4://localhost:{}'.format(PORT_N2LH)
 url_ll = _url_ll()
 
