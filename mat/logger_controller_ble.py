@@ -408,7 +408,7 @@ def brand_ti(mac):
 
 def brand_microchip(mac):
     mac = mac.lower()
-    return mac.startswith('00:1e:c0:')
+    return mac.startswith('00:1e:c0:') or mac == FAKE_MAC_RN4020
 
 
 def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
