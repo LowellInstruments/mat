@@ -55,12 +55,6 @@ def _nok(s):
     return 1, '{} {} error'.format(AG_BLE_ERROR, s)
 
 
-def _exc(s):
-    # s: 'ble_exc <mac>'
-    _p('<- AG_BLE caught exception {}'.format(s))
-    return 2, '{} ble exception'.format(AG_BLE_EXCEPTION, s)
-
-
 def _ok(s):
     return 0, '{} {}'.format(AG_BLE_OK, s)
 
@@ -81,6 +75,9 @@ class AgentN2LH_BLE(threading.Thread):
         self.q_in = q1
         self.q_out = q2
         self.h = 0
+
+    def _exc(self):
+        self.q_out.put(AG_BLE_EXCEPTION)
 
     def _parse_n2lh_ble_incoming_frame(self, s):
         """ s: '<ag_ble_cmd> <args> <mac>' """
@@ -126,14 +123,8 @@ class AgentN2LH_BLE(threading.Thread):
             AG_BLE_END_THREAD: self.break_thread
         }
         fxn = fxn_map[cmd]
-
-        try:
-            # noinspection PyArgumentList
-            return fxn(s)
-        except BTLEException:
-            # ex: BLE connection LOST, tell remote N2LH_BASE agent
-            # can simulate loss with a CMD or also can be spontaneous
-            return _exc(s)
+        # noinspection PyArgumentList
+        return fxn(s)
 
     def loop_ag_ble(self):
         """ dequeues requests from AG_N2LH, queues back answers """
@@ -150,8 +141,15 @@ class AgentN2LH_BLE(threading.Thread):
                 break
 
     def run(self):
-        self.loop_ag_ble()
-        _p('AG_BLE: thread ends')
+        try:
+            self.loop_ag_ble()
+            _p('AG_BLE: thread ends')
+
+        except BTLEException:
+            # ex: BLE connection LOST, tell remote N2LH_BASE agent
+            # can simulate loss with a CMD or also can be spontaneous
+            _p('<- AG_BLE caught exception')
+            return self._exc()
 
     @staticmethod
     def scan(s):

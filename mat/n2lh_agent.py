@@ -47,7 +47,7 @@ class AgentN2LH(threading.Thread):
             # _p('_s_out timeout')
             pass
 
-    def _out_notification_to_cli(self, s):
+    def _out_notification_to_cli(self, s: str):
         try:
             _p('<- N2LH_notification {}'.format(s))
             self.sk.send(s.encode())
@@ -89,8 +89,8 @@ class AgentN2LH(threading.Thread):
             #     pass
 
             # todo: test BLE disconnection notification
-            # when disconnection not because command but spontaneous
             try:
+                # an agent, such as BLE one, caught an exception
                 _ntf = self.q_from_ble.get(block=False, timeout=.1)
                 _ntf = _check_n2lh_notifications(_ntf)
                 if _ntf:
