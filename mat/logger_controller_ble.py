@@ -513,7 +513,9 @@ def is_a_li_logger(rd):
     """
     if type(rd) is not bytes:
         return False
-    known_li_types = [b'DO-1']
+    known_li_types = [b'DO-1',
+                      b'MATP-2W',
+                      b'MAT-2W']
     for _ in known_li_types:
         if _ in bytes(rd):
             return True
