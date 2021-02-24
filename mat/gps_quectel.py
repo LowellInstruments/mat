@@ -61,22 +61,39 @@ def _coord_decode(coord):
 
 
 def enable_gps_quectel_output() -> int:
+    rv = 0
+    sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
     try:
-        print('sending AT+QGPS=1 to {}'.format(PORT_CTRL))
-        sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=1)
-        sp.write('AT+QGPS=1\r')
-        sp.close()
-        time.sleep(0.5)
-        return 0
-    except (FileNotFoundError, Exception):
-        return 1
+        # ensure GPS disabled, try to enable it
+        sp.write(b'AT+QGPSEND\r')
+        sp.write(b'AT+QGPSEND\r')
+        sp.write(b'AT+QGPS=1\r')
+        # ignore echo
+        sp.readline()
+        ans = sp.readline()
+        rv = 0 if ans == b'OK\r\n' else 2
+        # errors: 504 (already on), 505 (not activated)
+        if ans.startswith(b'+CME ERROR: '):
+            print(ans)
+            rv = ans.decode()[-3]
+    except (FileNotFoundError, Exception) as ex:
+        print(ex)
+        rv = 1
+    finally:
+        if sp:
+            sp.close()
+        return rv
 
 
+# for testing purposes
 def loop():
-    enable_gps_quectel_output()
-    print('GPS Quectel receiving...')
-    sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.5)
-    while True:
-        data = sp.readline()
-        if b'$GPRMC' in data:
-            gps_parse_rmc_frame(data)
+    rv = enable_gps_quectel_output()
+    if rv == 0:
+        print('GPS Quectel receiving...')
+        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.5)
+        while True:
+            data = sp.readline()
+            if data and b'$GPRMC' in data:
+                gps_parse_rmc_frame(data)
+    else:
+        print('GPS output could not be enabled')
