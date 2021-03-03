@@ -9,10 +9,14 @@ PORT_CTRL = '/dev/ttyUSB2'
 PORT_DATA = '/dev/ttyUSB1'
 
 
-def gps_parse_rmc_frame(data):
+def _gps_parse_rmc_frame(data: str):
+    if 'missing' in data:
+        return None
+    if 'malfunction' in data:
+        return None
+    
     s = data.split(",")
     if s[2] == 'V':
-        print('not enough info')
         return
 
     _t = s[1][0:2] + ":" + s[1][2:4] + ":" + s[1][4:6]
@@ -32,27 +36,27 @@ def gps_parse_rmc_frame(data):
     gps_time = datetime.datetime.strptime(fmt, '%d/%m/%y %H:%M:%S')
 
     # display
-    print('time {} date {} lat {} lon {}'.format(_t, _day, lat, lon))
-    print('speed {} mag_var {} course {}'.format(speed, variation, _course))
+    # print('time {} date {} lat {} lon {}'.format(_t, _day, lat, lon))
+    # print('speed {} mag_var {} course {}'.format(speed, variation, _course))
 
     # return some strings
     lat = lat * 1 if dir_lat == 'N' else lat * -1
     lon = lon * 1 if dir_lon == 'E' else lon * -1
 
     # checksum skipping initial '$'
-    cs_in = data.split('*')[1]
+    cs_in = data.split('*')[1][:2]
     cs_calc = 0
     for c in data[1:].split('*')[0]:
         cs_calc ^= ord(c)
-    cs_calc = hex(cs_calc)[-2:]
-    if cs_calc != cs_in:
+    cs_calc = '{:02x}'.format(int(cs_calc))
+    if cs_in != cs_calc.upper():
         return None
 
     # everything went ok
     return lat, lon, gps_time
 
 
-def _coord_decode(coord):
+def _coord_decode(coord: str):
     # src: stackoverflow 18442158 latitude format
     x = coord.split(".")
     head = x[0]
@@ -87,7 +91,7 @@ def configure_gps_internal() -> int:
         return rv
 
 
-def get_one_gps_rmc_info() -> str:
+def gps_get_rmc_frame() -> str:
     rv = ''
     sp = None
     try:
@@ -98,12 +102,13 @@ def get_one_gps_rmc_info() -> str:
                 break
             data = sp.readline()
             if b'$GPRMC' in data:
-                rv = gps_parse_rmc_frame(data)
+                rv = _gps_parse_rmc_frame(data.decode())
                 if rv:
                     return rv
         rv = ('missing', ) * 3
-    except SerialException:
+    except SerialException as se:
         rv = ('malfunction', ) * 3
+        print(se)
     finally:
         if sp:
             sp.close()
@@ -111,9 +116,14 @@ def get_one_gps_rmc_info() -> str:
 
 
 # for testing purposes
-def loop():
-    if configure_gps_internal() != 0:
-        print('GPS output could not be enabled')
-        return
+if __name__ == '__main__':
+    rv = configure_gps_internal()
+    if rv != 0:
+        print('cannot enable GPS Quectel, error {}'.format(rv))
+        sys.exit(rv)
+    
     while True:
-        gps_parse_rmc_frame(get_one_gps_rmc_info())
+        i = gps_get_rmc_frame()
+        if i:
+            print(i)
+
