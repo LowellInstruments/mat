@@ -5,7 +5,6 @@ from mat.n2lx_utils import *
 
 # todo: finish this AGENT_SMS, check my_python_snippets project
 # todo: this AGENT_SMS may not follow same structure as other agents since cell communication
-# todo: one SMS command must perform net_ensure_my_resolv_conf()
 
 
 def _p(s):
