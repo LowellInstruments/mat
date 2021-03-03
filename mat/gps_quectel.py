@@ -1,8 +1,10 @@
 import time
-import serial
 import datetime
+import serial
+from serial import SerialException
 
 
+# hardcoded, since they are FIXED on SixFab hats
 PORT_CTRL = '/dev/ttyUSB2'
 PORT_DATA = '/dev/ttyUSB1'
 
@@ -60,10 +62,12 @@ def _coord_decode(coord):
     return decimal
 
 
-def enable_gps_quectel_output() -> int:
+def configure_gps_internal() -> int:
+    """ configures Quectel GPS via USB and closes port """
     rv = 0
-    sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
+    sp = None
     try:
+        sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
         # ensure GPS disabled, try to enable it
         sp.write(b'AT+QGPSEND\r')
         sp.write(b'AT+QGPSEND\r')
@@ -74,11 +78,32 @@ def enable_gps_quectel_output() -> int:
         rv = 0 if ans == b'OK\r\n' else 2
         # errors: 504 (already on), 505 (not activated)
         if ans.startswith(b'+CME ERROR: '):
-            print(ans)
             rv = ans.decode()[-3]
-    except (FileNotFoundError, Exception) as ex:
-        print(ex)
+    except (FileNotFoundError, SerialException) as ex:
         rv = 1
+    finally:
+        if sp:
+            sp.close()
+        return rv
+
+
+def get_one_gps_rmc_info() -> str:
+    rv = ''
+    sp = None
+    try:
+        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.5)
+        _till = time.perf_counter() + 3
+        while True:
+            if time.perf_counter() > _till:
+                break
+            data = sp.readline()
+            if b'$GPRMC' in data:
+                rv = gps_parse_rmc_frame(data)
+                if rv:
+                    return rv
+        rv = ('missing', ) * 3
+    except SerialException:
+        rv = ('malfunction', ) * 3
     finally:
         if sp:
             sp.close()
@@ -87,13 +112,8 @@ def enable_gps_quectel_output() -> int:
 
 # for testing purposes
 def loop():
-    rv = enable_gps_quectel_output()
-    if rv == 0:
-        print('GPS Quectel receiving...')
-        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.5)
-        while True:
-            data = sp.readline()
-            if data and b'$GPRMC' in data:
-                gps_parse_rmc_frame(data)
-    else:
+    if configure_gps_internal() != 0:
         print('GPS output could not be enabled')
+        return
+    while True:
+        gps_parse_rmc_frame(get_one_gps_rmc_info())

@@ -7,7 +7,7 @@ class LcBLEFactory:
 
     @staticmethod
     def generate(_mac):
-        """ this returns one of our BLE CLASS, not an object """
+        """ returns one BLE class, NOT an object """
         if _mac in [FAKE_MAC_CC26X2]:
             return LoggerControllerBLEDummyCC26x2
 
@@ -24,4 +24,3 @@ class LcBLEFactory:
 #   with lc(mac) as lc:
 #       rv = lc.command(STATUS_CMD)
 #       print('\t\tSTS --> {}'.format(rv))
-#

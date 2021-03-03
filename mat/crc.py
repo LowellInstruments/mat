@@ -2,10 +2,14 @@ import zlib
 
 
 def calculate_local_file_crc(name):
-    prev = 0
-    for eachLine in open(name, "rb"):
-        prev = zlib.crc32(eachLine, prev)
-    return "%X" % (prev & 0xFFFFFFFF)
+    try:
+        prev = 0
+        for eachLine in open(name, "rb"):
+            prev = zlib.crc32(eachLine, prev)
+        return "%X" % (prev & 0xFFFFFFFF)
+    except Exception as ex:
+        print(ex)
+        return False
 
 
 if __name__ == '__main__':
