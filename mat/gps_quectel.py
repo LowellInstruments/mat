@@ -1,6 +1,7 @@
 import time
 import datetime
 import serial
+import sys
 from serial import SerialException
 
 
@@ -9,12 +10,17 @@ PORT_CTRL = '/dev/ttyUSB2'
 PORT_DATA = '/dev/ttyUSB1'
 
 
+def _coord_decode(coord: str):
+    # src: stackoverflow 18442158 latitude format
+    x = coord.split(".")
+    head = x[0]
+    deg = head[:-2]
+    minutes = '{}.{}'.format(head[-2:], x[1])
+    decimal = int(deg) + float(minutes) / 60
+    return decimal
+
+
 def _gps_parse_rmc_frame(data: str):
-    if 'missing' in data:
-        return None
-    if 'malfunction' in data:
-        return None
-    
     s = data.split(",")
     if s[2] == 'V':
         return
@@ -56,26 +62,16 @@ def _gps_parse_rmc_frame(data: str):
     return lat, lon, gps_time
 
 
-def _coord_decode(coord: str):
-    # src: stackoverflow 18442158 latitude format
-    x = coord.split(".")
-    head = x[0]
-    deg = head[:-2]
-    minutes = '{}.{}'.format(head[-2:], x[1])
-    decimal = int(deg) + float(minutes) / 60
-    return decimal
-
-
-def configure_gps_internal() -> int:
-    """ configures Quectel GPS via USB and closes port """
+def gps_configure_quectel() -> int:
+    """ only needed once, configures Quectel GPS via USB and closes port """
     rv = 0
     sp = None
     try:
         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
         # ensure GPS disabled, try to enable it
-        sp.write(b'AT+QGPSEND\r')
-        sp.write(b'AT+QGPSEND\r')
-        sp.write(b'AT+QGPS=1\r')
+        sp.write(b'AT+QGPSEND\r\n')
+        sp.write(b'AT+QGPSEND\r\n')
+        sp.write(b'AT+QGPS=1\r\n')
         # ignore echo
         sp.readline()
         ans = sp.readline()
@@ -92,11 +88,12 @@ def configure_gps_internal() -> int:
 
 
 def gps_get_rmc_frame() -> str:
-    rv = ''
-    sp = None
+    """ returns (lat, lon, dt object) or None """
+    rv, sp = None, None
     try:
-        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.5)
-        _till = time.perf_counter() + 3
+        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.1)
+        _till = time.perf_counter() + 2
+        # there is approx 1 RMC frame / second so, we are ok
         while True:
             if time.perf_counter() > _till:
                 break
@@ -105,9 +102,8 @@ def gps_get_rmc_frame() -> str:
                 rv = _gps_parse_rmc_frame(data.decode())
                 if rv:
                     return rv
-        rv = ('missing', ) * 3
     except SerialException as se:
-        rv = ('malfunction', ) * 3
+        rv = None
         print(se)
     finally:
         if sp:
@@ -117,13 +113,8 @@ def gps_get_rmc_frame() -> str:
 
 # for testing purposes
 if __name__ == '__main__':
-    rv = configure_gps_internal()
-    if rv != 0:
-        print('cannot enable GPS Quectel, error {}'.format(rv))
-        sys.exit(rv)
-    
+    if gps_configure_quectel() != 0:
+        print('cannot enable GPS Quectel, error {}')
+        sys.exit(1)
     while True:
-        i = gps_get_rmc_frame()
-        if i:
-            print(i)
-
+        print(gps_get_rmc_frame())
