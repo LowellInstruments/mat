@@ -154,7 +154,6 @@ class LoggerControllerBLEDummy:
         a = '19{}'.format(a)
         return [b'STM', a.encode()]
 
-
     def run(self, s=''):
         key = 'running_or_stopped'
         if self.fake_state[key]:
