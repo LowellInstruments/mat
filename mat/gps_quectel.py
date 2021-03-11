@@ -87,12 +87,12 @@ def gps_configure_quectel() -> int:
         return rv
 
 
-def gps_get_rmc_frame() -> str:
+def gps_get_rmc_frame(timeout=2) -> str:
     """ returns (lat, lon, dt object) or None """
     rv, sp = None, None
     try:
         sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.1)
-        _till = time.perf_counter() + 2
+        _till = time.perf_counter() + timeout
         # there is approx 1 RMC frame / second so, we are ok
         while True:
             if time.perf_counter() > _till:
