@@ -2,6 +2,7 @@ import time
 from mat.logger_controller_ble import FAKE_MAC_RN4020
 from mat.logger_controller_ble_dummy import LoggerControllerBLEDummy, FakePer, no_cmd_in_logger
 
+# todo: this is not very finished, copy from ccdummy_cc26x2
 
 class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
     def __init__(self, mac, hci_if=0):
@@ -40,3 +41,4 @@ class LoggerControllerBLEDummyRN4020(LoggerControllerBLEDummy):
     def wake_en(self): return no_cmd_in_logger(self)
     def mts(self): return no_cmd_in_logger(self)
     def frm(self): return no_cmd_in_logger(self)
+    def crc_file(self, _): return no_cmd_in_logger(self)

@@ -1,5 +1,5 @@
 import time
-from mat.logger_controller_ble import FAKE_MAC_CC26X2, CONFIG_CMD
+from mat.logger_controller_ble import FAKE_MAC_CC26X2, CONFIG_CMD, CRC_CMD
 from mat.logger_controller_ble_dummy import LoggerControllerBLEDummy, FakePer, no_cmd_in_logger
 
 
@@ -74,8 +74,15 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
         return self.get_file(file, fol, size, sig)
 
     def send_cfg(self, _):
-        # not included in command() dictionary above
-        return [CONFIG_CMD.encode(), b'00']
+        return [b'CFG', b'00']
 
     def send_btc(self):
         return no_cmd_in_logger(self)
+
+    def crc_file(self, name) -> str:
+        crc_dict = {
+            'a.lid': 'AD5472CC',
+            'b.lid': '58373920',
+            'MAT.cfg': '62524C09'
+        }
+        return crc_dict[name]

@@ -10,8 +10,7 @@ from mat.logger_controller import CALIBRATION_CMD, STATUS_CMD, FIRMWARE_VERSION_
     STOP_CMD, RWS_CMD, SWS_CMD, DEL_FILE_CMD
 from mat.logger_controller_ble import LOG_EN_CMD, MOBILE_CMD, \
     UP_TIME_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, BTC_CMD, CRC_CMD, FILESYSTEM_CMD, BAT_CMD, SIZ_CMD, WAKE_CMD, \
-    ERR_MAT_ANS, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD
-
+    ERR_MAT_ANS, MY_TOOL_SET_CMD, FORMAT_CMD, GET_FILE_CMD, CONFIG_CMD
 
 # to test exception / notification generation
 EXC_CMD = 'EXC'
@@ -45,13 +44,13 @@ class LoggerControllerBLEDummy:
     def open(self): pass
 
     @abstractmethod
-    def send_cfg(self, _): pass
-
-    @abstractmethod
     def log_en(self): pass
 
     @abstractmethod
     def gfv(self): pass
+
+    @abstractmethod
+    def crc_file(self, name): pass
 
     @abstractmethod
     def mbl_en(self): pass
@@ -179,7 +178,7 @@ class LoggerControllerBLEDummy:
             CALIBRATION_CMD: 'BBBBBBBB',
             SENSOR_READINGS_CMD: '0123456789' * 4,
             BTC_CMD: self.send_btc,
-            CRC_CMD: 'ABCD1234',
+            CRC_CMD: self.crc_file,
             FILESYSTEM_CMD: 'fakefs',
             BAT_CMD: '5678',
             SIZ_CMD: '9876',
@@ -195,6 +194,7 @@ class LoggerControllerBLEDummy:
             GET_FILE_CMD: self.get_file,
             TIME_CMD: self.gtm,
             EXC_CMD: self.exc_test,
+            # CONFIG_CMD not here bc not sent w/ command()
         }
         # default: commands not needing to check anything
         _a = dummy_answers_map.setdefault(args[0], '')
