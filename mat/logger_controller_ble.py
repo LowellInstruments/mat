@@ -582,7 +582,7 @@ def _cmd_pre_slow_down_if_so(tag):
     # 0 means no extra pre slow down
     t = _st.setdefault(tag, 0)
     if t:
-        s = '- dbg: pre_slow_down for {} is {} -\n'
+        s = '- dbg: pre_slow_down for {} is {} -'
         print(s.format(tag, t))
         time.sleep(t)
 
@@ -618,7 +618,8 @@ def calc_ble_cmd_ans_timeout(tag):
         CRC_CMD: 20,
         # NOR memories have Write, Erase slow
         FORMAT_CMD: 60,
-        MY_TOOL_SET_CMD: 30
+        MY_TOOL_SET_CMD: 30,
+        DO_SENSOR_READINGS_CMD: 4,
     }
     t = _timeouts.setdefault(tag, 10)
     return t
