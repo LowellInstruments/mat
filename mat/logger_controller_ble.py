@@ -39,6 +39,7 @@ _DEBUG_THIS_MODULE = 0
 ERR_MAT_ANS = 'ERR'
 GET_FILE_CMD = 'GET'
 DWG_FILE_CMD = 'DWG'
+LED_CMD = 'LED'
 
 
 # constants for when trying to BLE connect
@@ -540,6 +541,7 @@ def _ans_check(tag, a, b):
         TIME_CMD: lambda: _exp() and len(a) == 6 + 19,
         SET_TIME_CMD: lambda: _exp(1),
         RUN_CMD: lambda: _exp(1),
+        LED_CMD: lambda: _exp(1),
         # rn4020 b'STP 0200', cc26x2 b'STP 00'
         STOP_CMD: lambda: _exp(1) or (_exp(0) and len(a) == 8),
         RWS_CMD: lambda: _exp(1),
