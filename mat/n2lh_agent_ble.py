@@ -2,7 +2,7 @@ import datetime
 import json
 import threading
 
-from bluepy.btle import BTLEException
+from bluepy.btle import BTLEException, BTLEInternalError
 
 from mat import logger_controller_ble
 from mat.logger_controller_ble_dummy import EXC_CMD

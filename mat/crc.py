@@ -1,15 +1,16 @@
 import zlib
 
 
-def calculate_local_file_crc(name):
+def calculate_local_file_crc(name) -> str:
     try:
         prev = 0
         for eachLine in open(name, "rb"):
             prev = zlib.crc32(eachLine, prev)
-        return "%X" % (prev & 0xFFFFFFFF)
+        # 1A2C34 formatted as '0012a2c34'
+        return '%08x' % (prev & 0xFFFFFFFF)
     except Exception as ex:
         print(ex)
-        return False
+        return ''
 
 
 if __name__ == '__main__':
