@@ -48,7 +48,7 @@ class AgentN2LH(threading.Thread):
 
     def _out_notification_to_cli(self, s: str):
         try:
-            _p('<- N2LH_notification {}'.format(s))
+            _p('<- N2LH: forwarding notification {}'.format(s))
             self.sk.send(s.encode())
         except pynng.Timeout:
             # _p('_s_out_notification timeout')
