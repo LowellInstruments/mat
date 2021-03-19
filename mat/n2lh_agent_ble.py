@@ -1,6 +1,7 @@
 import datetime
 import json
 import threading
+from queue import Empty
 
 from bluepy.btle import BTLEException, BTLEInternalError
 
@@ -72,15 +73,16 @@ class AgentN2LH_BLE(threading.Thread):
         """ creates an agent for simpler BLE logger controller """
         super().__init__()
         self.lc = None
+        # -> q_in, information comes from N2LH_agent
+        # <- q_out, information goes towards N2LH_agent
         self.q_in = q1
         self.q_out = q2
         self.h = 0
 
-    def _exc(self):
-        self.q_out.put(AG_BLE_EXCEPTION)
-
     def _parse_n2lh_ble_incoming_frame(self, s):
         """ s: '<ag_ble_cmd> <args> <mac>' """
+
+        # _p('-> AG_BLE {}'.format(s))
         cmd, *_ = s.split(' ', 1)
         fxn_map = {
             AG_BLE_CMD_HCI: self.set_hci,
@@ -128,16 +130,32 @@ class AgentN2LH_BLE(threading.Thread):
 
     def loop_ag_ble(self):
         """ dequeues requests from AG_N2LH, queues back answers """
+
         while 1:
-            _in = self.q_in.get()
-            # _p('-> AG_BLE {}'.format(_in))
+            # <- allow N2LH notifications
+            if self.lc and self.lc.per and self.lc.per.getState() != "conn":
+                s = 'N2LH caught BLE disconnection'
+                _ntf = (1, '{} {}'.format(AG_N2LH_NOTIFICATION, s))
+                self.q_out.put(_ntf)
+                self.lc = None
+                continue
+
+            # -> allow incoming commands
+            _in = ''
+            try:
+                _in = self.q_in.get(block=False, timeout=.1)
+            except Empty:
+                continue
+
+            # parse incoming commands
             _out = self._parse_n2lh_ble_incoming_frame(_in)
-            # _p('<- AG_BLE {}'.format(_out))
+
+            # <- enqueue answer back
             self.q_out.put(_out)
 
             # we can leave N2LH_BLE thread on demand
             if AG_BLE_END_THREAD in _out[1]:
-                # _out: (0, 'AG_BLE_OK: ble_bye')
+                # managed in self.break_thread()
                 break
 
     def run(self):
@@ -146,10 +164,10 @@ class AgentN2LH_BLE(threading.Thread):
             _p('AG_BLE: thread ends')
 
         except BTLEException:
-            # ex: BLE connection LOST, tell remote N2LH_BASE agent
-            # can simulate loss with a CMD or also can be spontaneous
-            _p('<- AG_BLE caught exception')
-            return self._exc()
+            # N2LH notification to main agent
+            _p('**********************************')
+            _p('<- AG_BLE caught exception, ending!')
+            self.q_out.put(AG_BLE_EXCEPTION)
 
     @staticmethod
     def scan(s):

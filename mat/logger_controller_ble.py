@@ -583,7 +583,7 @@ def _cmd_pre_slow_down_if_so(tag):
     t = _st.setdefault(tag, 0)
     if t:
         s = '- dbg: pre_slow_down for {} is {} -'
-        print(s.format(tag, t))
+        # print(s.format(tag, t))
         time.sleep(t)
 
 
