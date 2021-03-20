@@ -20,6 +20,8 @@ def _p(s):
 
 
 def _url_n2ll():
+    """ build and return the N2LL url """
+
     # todo: change this test url to a production one
     url = 'amqps://{}:{}/{}'
     _user = 'dfibpovr'
@@ -28,6 +30,8 @@ def _url_n2ll():
 
 
 def _mq_get_ch():
+    """ build and return the N2LL channel (needs url) """
+
     url = _url_n2ll()
     _pars = pika.URLParameters(url)
     _pars.socket_timeout = 3
@@ -36,12 +40,16 @@ def _mq_get_ch():
 
 
 def mq_exchange_for_slaves():
+    """ build and return the N2LL slave exchange (needs channel) """
+
     _ch = _mq_get_ch()
     _ch.exchange_declare(exchange='li_slaves', exchange_type='fanout')
     return _ch
 
 
 def mq_exchange_for_masters():
+    """ build and return the N2LL master exchange (needs channel) """
+
     _ch = _mq_get_ch()
     _ch.exchange_declare(exchange='li_masters', exchange_type='fanout')
     return _ch
@@ -56,6 +64,8 @@ def _cmd_bye(_, macs):
 
 
 def _cmd_query(_, macs):
+    """ asks if DDH or ngrok are running here """
+
     mac = macs[0]
     is_ddh_running = int(is_program_running('ddh/main.py'))
     is_ngrok_running = int(is_program_running(get_ngrok_bin_name()))
@@ -64,6 +74,8 @@ def _cmd_query(_, macs):
 
 
 def _cmd_route_ngrok(_, macs):
+    """ route ngrok toward this node """
+
     # _: ['route', '4000', <mac>]
     assert len(_) == 3
 
@@ -100,6 +112,8 @@ def _cmd_route_ngrok(_, macs):
 
 
 def _cmd_unroute(_, macs):
+    """ kill ngrok """
+
     ngrok_bin = get_ngrok_bin_name()
     cmd = 'killall {}'.format(ngrok_bin)
     _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -108,6 +122,8 @@ def _cmd_unroute(_, macs):
 
 
 def _cmd_ddh_rpi(_, macs):
+    """ delete DDH folder and get new version of it """
+
     mac = macs[0]
 
     # 1st, call function '_cmd_unddh_rpi()'
@@ -137,6 +153,8 @@ def _cmd_ddh_rpi(_, macs):
 
 
 def _cmd_unddh_rpi(_, macs):
+    """ delete DDH folder """
+
     mac = macs[0]
 
     # 1st, disable any crontab controlling DDH
@@ -156,11 +174,12 @@ def _cmd_unddh_rpi(_, macs):
 
 
 def _parse_n2ll_in_cmd(s: bytes):
-    # s: AG_N2LL_CMD_QUERY <mac> <port>
+    """ see N2LL command is for me, parse it """
+
     if not s:
         return 1, 'error, cmd empty'
 
-    # parse n2ll stuff
+    # s: AG_N2LL_CMD_QUERY <mac> <port>
     s = s.decode().split(' ')
 
     # which are my own mac addresses
@@ -175,6 +194,8 @@ def _parse_n2ll_in_cmd(s: bytes):
 
     # search the N2LL function
     cmd = s[0]
+
+    # todo: add 2 commands -> see boat name or serial name / power cycle bluetooth
     fxn_map = {
         AG_N2LL_CMD_BYE: _cmd_bye,
         AG_N2LL_CMD_WHO: _cmd_who,
@@ -201,7 +222,9 @@ def _parse_n2ll_in_cmd(s: bytes):
 
 
 class AgentN2LL(threading.Thread):
+
     def __init__(self, url):
+
         """ ClientN2LL pubs  in channel 'li_masters', subs to 'li_slaves'
             AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
         assert(check_ngrok_can_be_run())
@@ -225,7 +248,8 @@ class AgentN2LL(threading.Thread):
             os._exit(0)
 
     def loop_n2ll_agent(self):
-        """ AgentN2LL spawns no hreads: receives at rx and tx back """
+        """ AgentN2LL spawns no threads: receives at rx and tx back """
+
         _p('N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
@@ -235,13 +259,18 @@ class AgentN2LL(threading.Thread):
                 break
 
     def _pub(self, _what):
+        """ publishes in channel slaves """
+
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
         # _p('<- N2LL: pub {}'.format(_what))
         self.ch_pub.close()
 
     def _sub_n_rx(self):
+        # receive from channel 'li_masters'
+
         def _rx_cb(ch, method, properties, body):
+
             # _p('-> N2LL: rx_cb {}'.format(body))
             ans = _parse_n2ll_in_cmd(body)
             # ans: (0, description) send to channel 'li_slaves'
@@ -249,7 +278,6 @@ class AgentN2LL(threading.Thread):
             # maybe time to end myself
             self._do_i_quit(ans[1])
 
-        # receive from channel 'li_masters'
         self._get_ch_sub()
         rv = self.ch_sub.queue_declare(queue='', durable=True, exclusive=True)
         q = rv.method.queue
