@@ -77,6 +77,7 @@ def _ok_or_nok(rv: list, c: str):
 class AgentN2LH_BLE(threading.Thread):
     def __init__(self, q1, q2):
         """ creates an agent for simpler BLE logger controller """
+
         super().__init__()
         self.lc = None
         # -> q_in, information comes from N2LH_agent
@@ -139,6 +140,7 @@ class AgentN2LH_BLE(threading.Thread):
         """ dequeues requests from AG_N2LH, queues back answers """
 
         while 1:
+
             # <- allow N2LH notifications towards n2lh_agent
             if self.lc and self.lc.per and self.lc.per.getState() != "conn":
                 s = 'AG_BLE caught disconnection'
@@ -155,7 +157,13 @@ class AgentN2LH_BLE(threading.Thread):
                 continue
 
             # parse incoming commands
-            _out = self._parse_n2lh_ble_incoming_frame(_in)
+            try:
+                _out = self._parse_n2lh_ble_incoming_frame(_in)
+            except BTLEException as ex:
+                _p('<- AG_BLE caught exception, ending!')
+                _out = (1, '{} {}'.format(AG_BLE_EXCEPTION, ex))
+                self.q_out.put(_out)
+                break
 
             # <- enqueue answer back
             self.q_out.put(_out)
@@ -166,15 +174,8 @@ class AgentN2LH_BLE(threading.Thread):
                 break
 
     def run(self):
-        try:
-            self.loop_ag_ble()
-            _p('AG_BLE: thread ends')
-
-        except BTLEException:
-            # N2LH notification to main agent
-            _p('**********************************')
-            _p('<- AG_BLE caught exception, ending!')
-            self.q_out.put(AG_BLE_EXCEPTION)
+        self.loop_ag_ble()
+        _p('AG_BLE: thread ends')
 
     @staticmethod
     def scan(s):
