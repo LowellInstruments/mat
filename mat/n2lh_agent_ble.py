@@ -163,7 +163,7 @@ class AgentN2LH_BLE(threading.Thread):
                 _p('<- AG_BLE caught exception, ending!')
                 _out = (1, '{} {}'.format(AG_BLE_EXCEPTION, ex))
                 self.q_out.put(_out)
-                break
+                continue
 
             # <- enqueue answer back
             self.q_out.put(_out)
