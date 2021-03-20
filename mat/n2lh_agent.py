@@ -46,14 +46,6 @@ class AgentN2LH(threading.Thread):
             # _p('_s_out timeout')
             pass
 
-    def _out_notification_to_cli(self, s: str):
-        try:
-            _p('<- N2LH: forwarding notification {}'.format(s))
-            self.sk.send(s.encode())
-        except pynng.Timeout:
-            # _p('_s_out_notification timeout')
-            pass
-
     def loop_n2lh_agent(self):
         try:
             self._loop_n2lh_agent()
@@ -75,14 +67,14 @@ class AgentN2LH(threading.Thread):
 
         _p('N2LH: listening on {}'.format(self.url))
         while 1:
-            # todo: test BLE disconnection notification
             try:
-                # timeout-ed queue to allow exceptions from BLE
+                # timeout-ed queue to detect exceptions from BLE
                 _ntf = self.q_from_ble.get(block=False, timeout=.1)
                 # _ntf: (1, 'ntf some_text')
                 _ntf = _check_n2lh_notifications(_ntf[1])
                 if _ntf:
-                    self._out_notification_to_cli(_ntf)
+                    _p('<- N2LH: {}'.format(_ntf))
+                    continue
             except queue.Empty:
                 pass
 
@@ -172,7 +164,7 @@ def _check_url_syntax(s):
 def calc_n2lh_cmd_ans_timeout_ms(s):
     """
     calculate how long to wait for N2LH answer
-    a bit longer, than for BLE commands :)
+    a bit longer than for BLE commands :)
     """
 
     # s: 'dwg_file dummy_1129.txt . 16384 <mac>'
@@ -212,5 +204,12 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     return till * 1000
 
 
-def _p(s):
-    print(s, flush=True)
+def _p(s, filter_query=True):
+    if not filter_query:
+        print(s, flush=True)
+        return
+
+    if filter_query and \
+            'n2lh_query' not in s and \
+            'query answer' not in s:
+        print(s, flush=True)

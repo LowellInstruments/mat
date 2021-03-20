@@ -19,7 +19,7 @@ from mat.logger_controller import (
 from mat.logger_controller_ble import (
     is_a_li_logger, FORMAT_CMD,
     ERROR_WHEN_BOOT_OR_RUN_CMD, MOBILE_CMD, LOG_EN_CMD, UP_TIME_CMD,
-    MY_TOOL_SET_CMD, CONFIG_CMD, ERR_MAT_ANS, WAKE_CMD
+    MY_TOOL_SET_CMD, CONFIG_CMD, ERR_MAT_ANS, WAKE_CMD, LED_CMD
 )
 
 
@@ -40,11 +40,17 @@ def _stringify_dir_ans(_d_a):
 
 
 def _mac_n_connect(s, ag_ble):
+    """
+    connect or get mac if already connected
+    """
+
     # s: STS <mac>
     mac = s.rsplit(' ', 1)[-1]
     rv = ag_ble.connect(mac)
     if rv[0] == 0:
         return mac
+
+    # could not connect or get mac
     return None
 
 
@@ -102,6 +108,7 @@ class AgentN2LH_BLE(threading.Thread):
             AG_BLE_CMD_RLI: self.rli,
             AG_BLE_CMD_RHS: self.rhs,
             AG_BLE_CMD_FORMAT: self.format,
+            AG_BLE_CMD_LED: self.leds,
             AG_BLE_CMD_EBR: self.ebr,
             AG_BLE_CMD_MBL: self.mbl,
             AG_BLE_CMD_LOG_TOGGLE: self.log_en,
@@ -132,9 +139,9 @@ class AgentN2LH_BLE(threading.Thread):
         """ dequeues requests from AG_N2LH, queues back answers """
 
         while 1:
-            # <- allow N2LH notifications
+            # <- allow N2LH notifications towards n2lh_agent
             if self.lc and self.lc.per and self.lc.per.getState() != "conn":
-                s = 'N2LH caught BLE disconnection'
+                s = 'AG_BLE caught disconnection'
                 _ntf = (1, '{} {}'.format(AG_N2LH_NOTIFICATION, s))
                 self.q_out.put(_ntf)
                 self.lc = None
@@ -303,6 +310,9 @@ class AgentN2LH_BLE(threading.Thread):
     def format(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), FORMAT_CMD)
 
+    def leds(self, s):
+        return self._cmd_ans(_mac_n_connect(s, self), LED_CMD)
+
     def ebr(self, s):
         return self._cmd_ans(_mac_n_connect(s, self), ERROR_WHEN_BOOT_OR_RUN_CMD)
 
@@ -432,7 +442,7 @@ class AgentN2LH_BLE(threading.Thread):
         return _nok(AG_BLE_CMD_WLI)
 
     def query(self, _):
-        a = 'logger controller {}'
+        a = 'logger controller query answer {}'
         if not self.lc:
             return _ok(a.format(AG_BLE_EMPTY))
         if not self.lc.per:
