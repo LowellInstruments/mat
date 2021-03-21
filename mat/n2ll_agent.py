@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess as sp
 import threading
@@ -11,7 +12,7 @@ from mat.n2lx_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
                             AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
-                            create_empty_crontab_file_for_ddh)
+                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED)
 from mat.utils import is_program_running, obtain_pid_of_a_running_program, linux_is_rpi
 
 
@@ -173,6 +174,22 @@ def _cmd_unddh_rpi(_, macs):
     return 0, 'no DDH to kill on {}'.format(mac)
 
 
+def _cmd_view_ddh_rpi(_, macs):
+    path = '/home/pi/li/ddh/ddh/settings/ddh.json'
+    try:
+        with open(path) as f:
+            cfg = json.load(f)
+            ans = cfg['ship_name']
+            ans = 'ddh vessel name: {}'.format(ans)
+    except FileNotFoundError:
+        ans = 'no ddh.json file found'
+
+    return 0, ans
+
+def _cmd_bled(_, macs):
+    return 0, 'bled'
+
+
 def _parse_n2ll_in_cmd(s: bytes):
     """ see N2LL command is for me, parse it """
 
@@ -203,7 +220,9 @@ def _parse_n2ll_in_cmd(s: bytes):
         AG_N2LL_CMD_ROUTE: _cmd_route_ngrok,
         AG_N2LL_CMD_UNROUTE: _cmd_unroute,
         AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
-        AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi
+        AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi,
+        AG_N2LL_CMD_VIEW_DDH: _cmd_view_ddh_rpi,
+        AG_N2LL_CMD_BLED: _cmd_bled
     }
     fxn = fxn_map[cmd]
 
