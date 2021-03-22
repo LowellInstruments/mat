@@ -99,6 +99,10 @@ class PrintColors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+    @staticmethod
+    def G(s):
+        print(PrintColors.OKGREEN + s + PrintColors.ENDC)
+
 
 def xmd_frame_check_crc(lc):
     data = lc.dlg.x_buf[3:-2]
