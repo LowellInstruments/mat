@@ -28,9 +28,9 @@ def _p(s):
 
 
 def _stringify_dir_ans(_d_a):
+    """ _d_a: {'file.lid': 2182} -> 'file.lid' '2182' """
     if _d_a == ERR_MAT_ANS.encode():
         return ERR_MAT_ANS
-    # _d_a: {'file.lid': 2182}
     rv = ''
     for k, v in _d_a.items():
         rv += '{} {} '.format(k, v)
@@ -179,6 +179,7 @@ class AgentN2LH_BLE(threading.Thread):
 
     @staticmethod
     def scan(s):
+        """ gets unordered, unfiltered string of BLE devices around """
         # s: scan 0 5
         _, h, t = s.split(' ')
         sr = logger_controller_ble.ble_scan(int(h), float(t))
@@ -189,9 +190,16 @@ class AgentN2LH_BLE(threading.Thread):
 
     @staticmethod
     def scan_li(s):
+        """ gets ordered, filtered string of BLE devices around """
+
         # s: scan_li 0 5
         _, h, t = s.split(' ')
         sr = logger_controller_ble.ble_scan(int(h), float(t))
+
+        # sort them by RSSI: reverse=True, farther ones first
+        sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
+
+        # only keep Lowell Instruments loggers
         rv = ''
         for each in sr:
             if is_a_li_logger(each.rawData):
@@ -199,6 +207,8 @@ class AgentN2LH_BLE(threading.Thread):
         return _ok(rv.strip())
 
     def set_hci(self, s):
+        """ chooses BLE agent's HCI interface in use """
+
         # s: set_hci 1
         _, h, = s.split(' ')
         f = '/sys/kernel/debug/bluetooth/hci{}'.format(h)
@@ -215,6 +225,8 @@ class AgentN2LH_BLE(threading.Thread):
         return _ok(AG_BLE_END_THREAD)
 
     def connect(self, s):
+        """ connects the agent to a BLE logger """
+
         # s: 'connect <mac>' but it may be already
         mac = s.rsplit(' ', 1)[-1]
         if self.lc:
@@ -244,6 +256,8 @@ class AgentN2LH_BLE(threading.Thread):
         return _ok(AG_BLE_ANS_DISC_ALREADY)
 
     def get_time(self, s):
+        """ BLE agent does GTM and some processing """
+
         if not _mac_n_connect(s, self):
             return _nok(AG_BLE_CMD_GET_TIME)
 
