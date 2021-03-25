@@ -11,7 +11,7 @@ from mat.n2lx_utils import (AG_N2LH_PATH_GPS, AG_N2LH_PATH_BLE, AG_BLE_CMD_GET_F
                             AG_BLE_CMD_RWS, AG_BLE_CMD_CRC, AG_BLE_CMD_FORMAT, AG_BLE_CMD_MTS, AG_N2LH_END_THREAD,
                             AG_N2LH_PATH_BASE, AG_BLE_ANS_GET_FILE_OK,
                             AG_BLE_ANS_GET_FILE_ERR, AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_CONNECT, AG_BLE_CMD_SCAN,
-                            AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_DISCONNECT, AG_N2LH_NOTIFICATION)
+                            AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_DISCONNECT)
 
 
 PORT_N2LH = 12804
@@ -67,16 +67,6 @@ class AgentN2LH(threading.Thread):
 
         _p('N2LH: listening on {}'.format(self.url))
         while 1:
-            try:
-                # timeout-ed queue to detect exceptions from BLE
-                _ntf = self.q_from_ble.get(block=False, timeout=.1)
-                # _ntf: (1, 'ntf some_text')
-                _ntf = _check_n2lh_notifications(_ntf[1])
-                if _ntf:
-                    _p('<- N2LH: {}'.format(_ntf))
-                    continue
-            except queue.Empty:
-                pass
 
             # -> _in: <n2lh_path> <command>
             _in = self._in_cmd_from_cli()
@@ -133,22 +123,6 @@ def _check_n2lh_cmd_path(s):
 
     # s: 'ble <cmd>...' -> <cmd> ...'
     if s[:3] in n2lh_paths:
-        return s[4:]
-
-
-def _check_n2lh_notifications(s):
-    """ checks N2LH notification format is OK """
-
-    if not s or len(s) < 4:
-        return ''
-
-    # good paths, ex: AG_N2LH_NOTIFICATION is 'ntf'
-    n2lh_notifications = [
-        AG_N2LH_NOTIFICATION
-    ]
-
-    # s: 'ntf <something>'
-    if s[:3] in n2lh_notifications:
         return s[4:]
 
 

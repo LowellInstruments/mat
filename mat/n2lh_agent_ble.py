@@ -1,6 +1,7 @@
 import datetime
 import json
 import threading
+import time
 from queue import Empty
 
 from bluepy.btle import BTLEException, BTLEInternalError
@@ -141,19 +142,13 @@ class AgentN2LH_BLE(threading.Thread):
 
         while 1:
 
-            # <- allow N2LH notifications towards n2lh_agent
-            if self.lc and self.lc.per and self.lc.per.getState() != "conn":
-                s = 'AG_BLE caught disconnection'
-                _ntf = (1, '{} {}'.format(AG_N2LH_NOTIFICATION, s))
-                self.q_out.put(_ntf)
-                self.lc = None
-                continue
-
             # -> allow incoming commands
             _in = ''
             try:
                 _in = self.q_in.get(block=False, timeout=.1)
             except Empty:
+                # prevents CPU hog
+                time.sleep(.1)
                 continue
 
             # parse incoming commands
@@ -494,3 +489,15 @@ class AgentN2LH_BLE(threading.Thread):
 
     def close(self):
         return self.disconnect()
+
+    def _check_bluepy_is_connected(self):
+
+        try:
+            if self.lc and self.lc.per and self.lc.per.getState() == "conn":
+                return 0
+
+            if self.lc and self.lc.per and self.lc.per.getState() != "conn":
+                return 1
+
+        except BTLEInternalError:
+            return 2

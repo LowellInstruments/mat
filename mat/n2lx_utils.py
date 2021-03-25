@@ -68,7 +68,6 @@ AG_N2LH_END_THREAD = 'n2lh_bye'
 AG_N2LH_PATH_BASE = 'bas'
 AG_N2LH_PATH_BLE = 'ble'
 AG_N2LH_PATH_GPS = 'gps'
-AG_N2LH_NOTIFICATION = 'ntf'
 
 
 AG_N2LL_CMD_BYE = 'n2ll_bye'
