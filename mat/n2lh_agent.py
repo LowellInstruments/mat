@@ -70,10 +70,10 @@ class AgentN2LH(threading.Thread):
 
             # -> _in: <n2lh_path> <command>
             _in = self._in_cmd_from_cli()
-            _in = _check_n2lh_cmd_path(_in)
             if not _in:
                 # pynng timeout or bad N2LH prefix
                 continue
+            _in = _check_n2lh_cmd_path(_in)
 
             # -> quit! leave N2LH thread on demand
             if _in.startswith(AG_N2LH_END_THREAD):
@@ -144,7 +144,7 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
     # s: 'dwg_file dummy_1129.txt . 16384 <mac>'
     tag_n2lh = s.split(' ')[0]
 
-    # N2LH commands > slight more than MAT lib commands
+    # map: N2LH commands vs MAT lib commands
     _tag_map = {
         AG_BLE_CMD_RUN: RUN_CMD,
         AG_BLE_CMD_RWS: RWS_CMD,
@@ -154,7 +154,9 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
         AG_BLE_CMD_MTS: MY_TOOL_SET_CMD
     }
     tag_mat_lib = _tag_map.setdefault(tag_n2lh, STATUS_CMD)
-    till = calc_ble_cmd_ans_timeout(tag_mat_lib) * 1.1
+
+    # set 'till' as slight more than MAT lib commands
+    till = calc_ble_cmd_ans_timeout(tag_mat_lib) * 1.2
 
     # override 'till' for variable-time commands like get and download
     if tag_n2lh in (AG_BLE_CMD_DWG_FILE, AG_BLE_CMD_GET_FILE):
@@ -162,11 +164,12 @@ def calc_n2lh_cmd_ans_timeout_ms(s):
         delay_start_dwg_get_s = 10
         till = int((int(size) / 2000) + delay_start_dwg_get_s)
 
-    # override 'till' for special commands like scan and connect
+    # override 'till' for special commands: scan and connect + 3
+    plus = 3
     if tag_n2lh == AG_BLE_CMD_CONNECT:
-        till = (BLE_CONNECTION_TIMEOUT * BLE_CONNECTION_RETRIES) + 1
+        till = (BLE_CONNECTION_TIMEOUT * BLE_CONNECTION_RETRIES) + plus
     elif tag_n2lh in (AG_BLE_CMD_SCAN_LI, AG_BLE_CMD_SCAN):
-        till = int(float(s.split(' ')[-1]) + 1)
+        till = int(float(s.split(' ')[-1]) + plus)
     elif tag_n2lh == AG_BLE_CMD_DISCONNECT:
         till = BLE_DISCONNECTION_TIME
 
