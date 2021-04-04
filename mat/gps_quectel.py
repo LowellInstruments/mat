@@ -68,17 +68,18 @@ def gps_configure_quectel() -> int:
     sp = None
     try:
         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
-        # ensure GPS disabled, try to enable it
-        sp.write(b'AT+QGPSEND\r\n')
-        sp.write(b'AT+QGPSEND\r\n')
-        sp.write(b'AT+QGPS=1\r\n')
-        # ignore echo
+        # ensure GPS disabled, try to enable it, flush first
         sp.readline()
+        sp.write(b'AT+QGPSEND\r\n')
+        sp.write(b'AT+QGPSEND\r\n')
+        sp.readline()
+        sp.write(b'AT+QGPS=1\r\n')
         ans = sp.readline()
 
         # good cases, error 504 means already on
-        # todo: test this
         rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
+        if rv:
+            print(ans)
 
         # error: 505 (not activated)
         if ans.startswith(b'+CME ERROR: '):
@@ -120,8 +121,8 @@ def gps_get_rmc_frame(timeout=2) -> str:
 
 # for testing purposes
 if __name__ == '__main__':
-    rv = gps_configure_quectel()
-    if rv:
+    _ = gps_configure_quectel()
+    if _:
         print('cannot enable GPS Quectel, error {}'.format(rv))
         sys.exit(1)
     while True:
