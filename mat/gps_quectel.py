@@ -118,10 +118,11 @@ def gps_get_rmc_frame(timeout=2) -> str:
         return rv
 
 
-# for autonomous testing purposes
+# for testing purposes
 if __name__ == '__main__':
-    if gps_configure_quectel() != 0:
-        print('cannot enable GPS Quectel, error {}')
+    rv = gps_configure_quectel()
+    if rv:
+        print('cannot enable GPS Quectel, error {}'.format(rv))
         sys.exit(1)
     while True:
         print(gps_get_rmc_frame())
