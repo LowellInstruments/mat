@@ -82,7 +82,7 @@ def gps_configure_quectel() -> int:
 
         # error: 505 (not activated)
         if ans.startswith(b'+CME ERROR: '):
-            rv = ans.decode()[-3]
+            rv = ans.decode()[-3:]
 
     except (FileNotFoundError, SerialException) as ex:
         rv = 1
@@ -126,3 +126,4 @@ if __name__ == '__main__':
         sys.exit(1)
     while True:
         print(gps_get_rmc_frame())
+        time.sleep(1)
