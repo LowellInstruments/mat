@@ -75,12 +75,19 @@ def gps_configure_quectel() -> int:
         # ignore echo
         sp.readline()
         ans = sp.readline()
-        rv = 0 if ans == b'OK\r\n' else 2
-        # errors: 504 (already on), 505 (not activated)
+
+        # good cases, error 504 means already on
+        # todo: test this
+        rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
+
+        # error: 505 (not activated)
         if ans.startswith(b'+CME ERROR: '):
             rv = ans.decode()[-3]
+
     except (FileNotFoundError, SerialException) as ex:
         rv = 1
+        print(ex)
+
     finally:
         if sp:
             sp.close()
