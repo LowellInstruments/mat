@@ -62,16 +62,42 @@ def _gps_parse_rmc_frame(data: str):
     return lat, lon, gps_time
 
 
+# def gps_configure_quectel() -> int:
+#     """ only needed once, configures Quectel GPS via USB and closes port """
+#     rv = 0
+#     sp = None
+#     try:
+#         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
+#         # ensure GPS disabled, try to enable it
+#         sp.readline()
+#         sp.write(b'AT+QGPSEND\r\n')
+#         sp.write(b'AT+QGPSEND\r\n')
+#         sp.readline()
+#         sp.write(b'AT+QGPS=1\r\n')
+#         ans = sp.readline()
+#
+#         # good cases, error 504 means already on
+#         rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
+#
+#         # error: 505 (not activated)
+#         if ans.startswith(b'+CME ERROR: '):
+#             rv = ans.decode()[-3:]
+#
+#     except (FileNotFoundError, SerialException) as ex:
+#         rv = 1
+#         print(ex)
+#
+#     finally:
+#         if sp:
+#             sp.close()
+#         return rv
+
+
 def gps_configure_quectel() -> int:
     """ only needed once, configures Quectel GPS via USB and closes port """
-    rv = 0
-    sp = None
+    rv, sp = 0, None
     try:
         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
-        # ensure GPS disabled, try to enable it
-        sp.readline()
-        sp.write(b'AT+QGPSEND\r\n')
-        sp.write(b'AT+QGPSEND\r\n')
         sp.readline()
         sp.write(b'AT+QGPS=1\r\n')
         ans = sp.readline()
