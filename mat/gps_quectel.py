@@ -12,6 +12,7 @@ PORT_DATA = '/dev/ttyUSB1'
 
 def _coord_decode(coord: str):
     # src: stackoverflow 18442158 latitude format
+
     x = coord.split(".")
     head = x[0]
     deg = head[:-2]
@@ -21,6 +22,8 @@ def _coord_decode(coord: str):
 
 
 def _gps_parse_rmc_frame(data: str):
+    """ grab a long comma-separated string, parse fields """
+
     s = data.split(",")
     if s[2] == 'V':
         return
@@ -95,19 +98,27 @@ def _gps_parse_rmc_frame(data: str):
 
 def gps_configure_quectel() -> int:
     """ only needed once, configures Quectel GPS via USB and closes port """
+
     rv, sp = 0, None
     try:
         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
         sp.readline()
         sp.write(b'AT+QGPS=1\r\n')
+        sp.readline()
         ans = sp.readline()
 
         # good cases, error 504 means already on
         rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
 
+        # no answer
+        rv = rv if ans else 9
+
         # error: 505 (not activated)
-        if ans.startswith(b'+CME ERROR: '):
-            rv = ans.decode()[-3:]
+        if rv and ans and ans.startswith(b'+CME ERROR: '):
+            rv = int(ans.decode()[-5:-2]) if rv != '504' else 0
+
+        if rv:
+            print('GPS: configure error {}'.format(rv))
 
     except (FileNotFoundError, SerialException) as ex:
         rv = 1
@@ -121,6 +132,7 @@ def gps_configure_quectel() -> int:
 
 def gps_get_rmc_data(timeout=2) -> str:
     """ returns (lat, lon, dt object) or None """
+
     rv, sp = None, None
     try:
         sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.1)
