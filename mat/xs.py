@@ -2,9 +2,16 @@ import xmlrpc
 from xmlrpc.client import Binary
 
 from mat.logger_controller import STATUS_CMD
-from mat.logger_controller_ble import ble_scan
+from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever
 from mat.logger_controller_ble_factory import LcBLEFactory
 from mat.xs_ble import xs_ble_check_ans_is_ok
+
+XS_URL_LOCALHOST = 'http://localhost:9000'
+XS_BLE_CMD_CONNECT = 'connect'
+XS_BLE_CMD_DISCONNECT = 'disconnect'
+XS_BLE_CMD_STATUS = 'status'
+XS_BLE_CMD_STOP = 'stop'
+XS_BLE_CMD_SCAN = 'scan'
 
 
 def xs_get_client(url):
@@ -41,12 +48,6 @@ class XS:
     def _xs_send_none():
         return None
 
-    @staticmethod
-    def xs_ble_scan():
-        sr = ble_scan(0)
-        sr_f = [each_sr.addr for each_sr in sr]
-        return sr_f
-
     def xs_ble_set_hci(self, hci_if: int):
         self.lc.hci_if = hci_if
         return 'hci set went ok'
@@ -68,10 +69,24 @@ class XS:
         rv = xs_ble_check_ans_is_ok(ans)
         if not rv[0]:
             return rv[1]
-        map_ans = {'0201': 'logger is stopped',
-                   '0203': 'logger is delayed',
-                   '0200': 'logger is running'}
-        return map_ans[ans[1].decode()]
+        return ans[1].decode()
 
+    def xs_ble_cmd_stop(self):
+        ans = self.lc.command(STATUS_CMD)
+        rv = xs_ble_check_ans_is_ok(ans)
+        if not rv[0]:
+            return rv[1]
+        return 'logger stopped OK'
 
-
+    @staticmethod
+    def xs_ble_scan(h, man):
+        # sort scan results by RSSI: reverse=True, farther ones first
+        sr = ble_scan(0)
+        sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
+        rv = ''
+        map_man = {'ti': brand_ti, 'microchip': brand_microchip}
+        fxn = map_man.setdefault(man, brand_whatever)
+        for each in sr:
+            if is_a_li_logger(each.rawData) and fxn(each.addr):
+                rv += '{} {} '.format(each.addr, each.rssi)
+        return rv

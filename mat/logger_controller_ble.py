@@ -412,6 +412,11 @@ def brand_microchip(mac):
     return mac.startswith('00:1e:c0:') or mac == FAKE_MAC_RN4020
 
 
+def brand_whatever(_):
+    # useful for console_py
+    return True
+
+
 def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
     # hci_if: hciX interface number
     import sys
