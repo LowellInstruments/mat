@@ -1,19 +1,28 @@
+import json
 import time
 import xmlrpc
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
-
-from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD
-from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever
+from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD
+from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
+    UP_TIME_CMD, LED_CMD, WAKE_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
-from mat.xr_ble import xs_ble_check_ans_is_ok
+
 
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
 XS_BLE_CMD_STATUS = 'status'
+XS_BLE_CMD_STATUS_N_DISCONNECT = 'status_n_disconnect'
 XS_BLE_CMD_STOP = 'stop'
 XS_BLE_CMD_SCAN = 'scan'
 XS_BLE_CMD_GFV = 'gfv'
+XS_BLE_CMD_CONFIG = 'config'
+XS_BLE_CMD_GET_TIME = 'gtm'
+XS_BLE_CMD_MBL = 'mbl'
+XS_BLE_CMD_UPTIME = 'uptime'
+XS_BLE_CMD_SET_TIME = 'stm'
+XS_BLE_CMD_LED = 'leds'
+XS_BLE_CMD_WAK = 'wake'
 
 
 class XS:
@@ -55,22 +64,32 @@ class XS:
         return self.lc.open()
 
     def xs_ble_disconnect(self):
-        return self.lc.close()
+        if self.lc:
+            return self.lc.close()
+        return True
 
-    def xs_ble_get_mac_connected_to(self):
-        return self.lc.address
+    def xs_ble_get_mac_connected_to(self): return self.lc.address
+    def xs_ble_cmd_stop(self): return self.lc.command(STOP_CMD)
+    def xs_ble_cmd_wake(self): return self.lc.command(WAKE_CMD)
+    def xs_ble_cmd_gfv(self): return self.lc.command(FIRMWARE_VERSION_CMD)
+    def xs_ble_cmd_mbl(self): return self.lc.command(MOBILE_CMD)
+    def xs_ble_cmd_utm(self): return self.lc.command(UP_TIME_CMD)
+    def xs_ble_cmd_stm(self): return self.lc.sync_time()
+    def xs_ble_cmd_status(self): return self.lc.command(STATUS_CMD)
+    # only send status, we disconnect later in time
+    def xs_ble_cmd_status_n_disconnect(self): return self.lc.command(STATUS_CMD)
+    def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
 
-    def _xs_simple_ble_cmd(self, c):
-        ans = self.lc.command(c)
-        rv = xs_ble_check_ans_is_ok(ans)
-        if not rv[0]:
-            return rv[1]
-        # ex: send back '0203' or '2.8.00'
-        return ans[1].decode()
+    def xs_ble_cmd_gtm(self):
+        ans = self.lc.get_time()
+        if not ans:
+            return None
+        return ans.strftime('%Y/%m/%d %H:%M:%S')
 
-    def xs_ble_cmd_status(self): return self._xs_simple_ble_cmd(STATUS_CMD)
-    def xs_ble_cmd_stop(self): return self._xs_simple_ble_cmd(STOP_CMD)
-    def xs_ble_cmd_gfv(self): return self._xs_simple_ble_cmd(FIRMWARE_VERSION_CMD)
+    def xs_ble_cmd_config(self, cfg):
+        if type(cfg) is str:
+            cfg = json.loads(cfg)
+        return self.lc.send_cfg(cfg)
 
     @staticmethod
     def xs_ble_scan(h, man):
@@ -129,9 +148,18 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_DISCONNECT: xc.xs_ble_disconnect,
                 XS_BLE_CMD_STOP: xc.xs_ble_cmd_stop,
                 XS_BLE_CMD_GFV: xc.xs_ble_cmd_gfv,
+                XS_BLE_CMD_STATUS_N_DISCONNECT: xc.xs_ble_cmd_status_n_disconnect,
+                XS_BLE_CMD_CONFIG: xc.xs_ble_cmd_config,
+                XS_BLE_CMD_GET_TIME: xc.xs_ble_cmd_gtm,
+                XS_BLE_CMD_MBL: xc.xs_ble_cmd_mbl,
+                XS_BLE_CMD_UPTIME: xc.xs_ble_cmd_utm,
+                XS_BLE_CMD_SET_TIME: xc.xs_ble_cmd_stm,
+                XS_BLE_CMD_LED: xc.xs_ble_cmd_led,
+                XS_BLE_CMD_WAK: xc.xs_ble_cmd_wake,
             }
 
             # remote-procedure-calls function, signal answer back
             fxn = map_c[c[0]]
-            a = fxn(*c[1:])
+            pars = (c[1:])
+            a = fxn(*pars)
             sig.emit((c[0], a))

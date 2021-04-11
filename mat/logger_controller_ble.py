@@ -301,6 +301,7 @@ class LoggerControllerBLE(LoggerController):
         return _ls_wildcard(self._ls(), ext, match=False)
 
     def send_cfg(self, cfg_d: dict):  # pragma: no cover
+        assert type(cfg_d) is dict
         s = json.dumps(cfg_d)
         return self.command(CONFIG_CMD, s)
 
