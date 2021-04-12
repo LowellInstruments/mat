@@ -6,11 +6,11 @@ import time
 import pika
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
-from mat.n2lx_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
+from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
-                            AG_N2LL_ANS_NOT_FOR_US, AG_N2LL_ANS_ROUTE_NOK, get_ngrok_bin_name, check_ngrok_can_be_run,
+                            AG_N2LL_ANS_NOT_FOR_US, get_ngrok_bin_name, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
                             create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED)
 from mat.utils import is_program_running, obtain_pid_of_a_running_program, linux_is_rpi
@@ -186,11 +186,12 @@ def _cmd_view_ddh_rpi(_, macs):
 
     return 0, ans
 
+
 def _cmd_bled(_, macs):
     return 0, 'bled'
 
 
-def _parse_n2ll_in_cmd(s: bytes):
+def _parse_n2ll_cmd(s: bytes):
     """ see N2LL command is for me, parse it """
 
     if not s:
@@ -290,8 +291,10 @@ class AgentN2LL(threading.Thread):
 
         def _rx_cb(ch, method, properties, body):
 
-            # _p('-> N2LL: rx_cb {}'.format(body))
-            ans = _parse_n2ll_in_cmd(body)
+            # receive command from remote n2ll_client
+            #_p('-> N2LL: rx_cb {}'.format(body))
+            ans = _parse_n2ll_cmd(body)
+
             # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
             # maybe time to end myself
@@ -303,4 +306,15 @@ class AgentN2LL(threading.Thread):
         self.ch_sub.queue_bind(exchange='li_masters', queue=q)
         self.ch_sub.basic_consume(queue=q, on_message_callback=_rx_cb, auto_ack=True)
         self.ch_sub.start_consuming()
+
+
+# running this on Rpi / BASH may need root and:
+# PRE_REQ=/usr/lib/arm-linux-gnueabihf/libatomic.so.1
+# sudo LD_PRELOAD=$PRE_REQ python3 n2ll_agent.py
+
+if __name__ == '__main__':
+    ag_n2ll = AgentN2LL(_url_n2ll())
+    th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll_agent)
+    th_ag_n2ll.start()
+    print('n2ll_agent th_main ends')
 

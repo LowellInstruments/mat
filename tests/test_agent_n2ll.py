@@ -5,7 +5,7 @@ from getmac import get_mac_address
 
 from mat.n2ll_agent import AgentN2LL
 from mat.n2ll_client import ClientN2LL
-from mat.n2lx_utils import AG_N2LL_CMD_BYE
+from mat.n2ll_utils import AG_N2LL_CMD_BYE
 
 
 def _u_l():

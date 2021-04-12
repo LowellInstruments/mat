@@ -10,7 +10,7 @@ from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_
     UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
 
-
+XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
 XS_BLE_CMD_STATUS = 'status'
@@ -44,6 +44,7 @@ XS_BLE_CMD_TST = 'tst'
 XS_BLE_CMD_SWS = 'sws'
 XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
+XS_BLE_CMD_DWG = 'dwg'
 
 
 class XS:
@@ -173,6 +174,12 @@ class XS:
                 return False
         return True
 
+    def xs_ble_cmd_dwg(self, file_name, file_size):
+        data = self.lc.dwg_file(file_name, './dl_files', file_size)
+        if data:
+            return data
+        return None
+
     @staticmethod
     def xs_ble_scan(h, man):
         # sort scan results by RSSI: reverse=True, farther ones first
@@ -209,6 +216,8 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
     # url: 'http://localhost:9000'
     xc = xmlrpc.client.ServerProxy(url, allow_none=True)
+    print('th_xb: started with url {}'.format(url))
+
     while 1:
         time.sleep(.1)
 
@@ -216,8 +225,8 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
             # c: ('scan', 0, 'all')
             c = q_cmd_in.get()
 
-            # ends function, maybe to re-create w/ new url
-            if c[0] == 'break':
+            # ends function
+            if c[0] == XS_BREAK:
                 print('th_xb: bye')
                 return
             # print('dequeuing ', c[0])
@@ -257,6 +266,7 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_SWS: xc.xs_ble_cmd_sws,
                 XS_BLE_CMD_RUN: xc.xs_ble_cmd_run,
                 XS_BLE_CMD_RWS: xc.xs_ble_cmd_rws,
+                XS_BLE_CMD_DWG: xc.xs_ble_cmd_dwg,
             }
 
             # remote-procedure-calls function, signal answer back
