@@ -177,10 +177,8 @@ class XS:
         return True
 
     def xs_ble_cmd_dwg(self, file_name, file_size):
-        data = self.lc.dwg_file(file_name, './dl_files', file_size)
-        if data:
-            return data
-        return None
+        # this '.' is MAT lib local folder, not the app
+        return self.lc.dwg_file(file_name, '.', file_size)
 
     @staticmethod
     def xs_ble_scan(h, man):
