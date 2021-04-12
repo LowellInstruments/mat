@@ -3,9 +3,9 @@ import time
 import xmlrpc
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
-from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD
+from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
-    UP_TIME_CMD, LED_CMD, WAKE_CMD
+    UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
 
 
@@ -23,6 +23,11 @@ XS_BLE_CMD_UPTIME = 'uptime'
 XS_BLE_CMD_SET_TIME = 'stm'
 XS_BLE_CMD_LED = 'leds'
 XS_BLE_CMD_WAK = 'wake'
+XS_BLE_CMD_EBR = 'ebr'
+XS_BLE_CMD_DIR = 'dir'
+XS_BLE_CMD_DIR_NON = 'dir_non_lid'
+XS_BLE_CMD_RLI = 'rli'
+XS_BLE_CMD_LOG = 'log'
 
 
 class XS:
@@ -79,6 +84,19 @@ class XS:
     # only send status, we disconnect later in time
     def xs_ble_cmd_status_n_disconnect(self): return self.lc.command(STATUS_CMD)
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
+    def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
+
+    def xs_ble_cmd_rli(self):
+        # all 4
+        sn = self.lc.command(LOGGER_INFO_CMD, 'SN')
+        ca = self.lc.command(LOGGER_INFO_CMD, 'CA')
+        ba = self.lc.command(LOGGER_INFO_CMD, 'BA')
+        ma = self.lc.command(LOGGER_INFO_CMD, 'MA')
+        sn = sn[1].decode()[-7:]
+        ca = ca[1].decode()[-4:]
+        ba = ba[1].decode()[-4:]
+        ma = ma[1].decode()[-7:]
+        return '{} {} {} {}'.format(sn, ca, ba, ma)
 
     def xs_ble_cmd_gtm(self):
         ans = self.lc.get_time()
@@ -90,6 +108,15 @@ class XS:
         if type(cfg) is str:
             cfg = json.loads(cfg)
         return self.lc.send_cfg(cfg)
+
+    def xs_ble_cmd_dir(self):
+        return self.lc.ls_lid()
+
+    def xs_ble_cmd_dir_non(self):
+        return self.lc.ls_not_lid()
+
+    def xs_ble_cmd_log(self):
+        return self.lc.command(LOG_EN_CMD)
 
     @staticmethod
     def xs_ble_scan(h, man):
@@ -156,6 +183,11 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_SET_TIME: xc.xs_ble_cmd_stm,
                 XS_BLE_CMD_LED: xc.xs_ble_cmd_led,
                 XS_BLE_CMD_WAK: xc.xs_ble_cmd_wake,
+                XS_BLE_CMD_EBR: xc.xs_ble_cmd_ebr,
+                XS_BLE_CMD_DIR: xc.xs_ble_cmd_dir,
+                XS_BLE_CMD_DIR_NON: xc.xs_ble_cmd_dir_non,
+                XS_BLE_CMD_RLI: xc.xs_ble_cmd_rli,
+                XS_BLE_CMD_LOG: xc.xs_ble_cmd_log
             }
 
             # remote-procedure-calls function, signal answer back
