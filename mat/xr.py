@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 import xmlrpc
 from xmlrpc.client import Binary
@@ -276,3 +277,10 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
             pars = (c[1:])
             a = fxn(*pars)
             sig.emit((c[0], a))
+
+
+# thread: local XML-RPC server, for testing
+if __name__ == '__main__':
+    th_xs_ble = threading.Thread(target=xr_ble_xml_rpc_server)
+    th_xs_ble.start()
+    print('th_main ends')
