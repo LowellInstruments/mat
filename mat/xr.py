@@ -45,6 +45,7 @@ XS_BLE_CMD_SWS = 'sws'
 XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
+XS_BLE_SET_HCI = 'set_hci'
 
 
 class XS:
@@ -233,6 +234,7 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
             # maps c[0] to server function before calling RPC
             map_c = {
+                XS_BLE_SET_HCI: xc.xs_set_hci,
                 XS_BLE_CMD_SCAN: xc.xs_ble_scan,
                 XS_BLE_CMD_CONNECT: xc.xs_ble_connect,
                 XS_BLE_CMD_STATUS: xc.xs_ble_cmd_status,
