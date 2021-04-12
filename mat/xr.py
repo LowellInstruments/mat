@@ -3,7 +3,8 @@ import time
 import xmlrpc
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
-from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD
+from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD, \
+    SD_FREE_SPACE_CMD
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
     UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
@@ -28,6 +29,7 @@ XS_BLE_CMD_DIR = 'dir'
 XS_BLE_CMD_DIR_NON = 'dir_non_lid'
 XS_BLE_CMD_RLI = 'rli'
 XS_BLE_CMD_LOG = 'log'
+XS_BLE_CMD_CFS = 'cfs'
 
 
 class XS:
@@ -85,6 +87,7 @@ class XS:
     def xs_ble_cmd_status_n_disconnect(self): return self.lc.command(STATUS_CMD)
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
     def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
+    def xs_ble_cmd_cfs(self): return self.lc.command(SD_FREE_SPACE_CMD)
 
     def xs_ble_cmd_rli(self):
         # all 4
@@ -187,7 +190,8 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_DIR: xc.xs_ble_cmd_dir,
                 XS_BLE_CMD_DIR_NON: xc.xs_ble_cmd_dir_non,
                 XS_BLE_CMD_RLI: xc.xs_ble_cmd_rli,
-                XS_BLE_CMD_LOG: xc.xs_ble_cmd_log
+                XS_BLE_CMD_LOG: xc.xs_ble_cmd_log,
+                XS_BLE_CMD_CFS: xc.xs_ble_cmd_cfs
             }
 
             # remote-procedure-calls function, signal answer back
