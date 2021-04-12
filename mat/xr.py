@@ -4,9 +4,10 @@ import xmlrpc
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
 from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD, \
-    SD_FREE_SPACE_CMD, CALIBRATION_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W
+    SD_FREE_SPACE_CMD, CALIBRATION_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, REQ_FILE_NAME_CMD, RESET_CMD, \
+    DO_SENSOR_READINGS_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, RUN_CMD
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
-    UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD
+    UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
 
 
@@ -33,6 +34,16 @@ XS_BLE_CMD_CFS = 'cfs'
 XS_BLE_CMD_RHS = 'rhs'
 XS_BLE_CMD_WLI = 'wli'
 XS_BLE_CMD_WHS = 'whs'
+XS_BLE_CMD_RFN = 'rfn'
+XS_BLE_CMD_MTS = 'mts'
+XS_BLE_CMD_RST = 'rst'
+XS_BLE_CMD_GDO = 'gdo'
+XS_BLE_CMD_FRM = 'frm'
+XS_BLE_CMD_DEL = 'del'
+XS_BLE_CMD_TST = 'tst'
+XS_BLE_CMD_SWS = 'sws'
+XS_BLE_CMD_RUN = 'run'
+XS_BLE_CMD_RWS = 'rws'
 
 
 class XS:
@@ -91,6 +102,15 @@ class XS:
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
     def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
     def xs_ble_cmd_cfs(self): return self.lc.command(SD_FREE_SPACE_CMD)
+    def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
+    def xs_ble_cmd_rfn(self): return self.lc.command(REQ_FILE_NAME_CMD)
+    def xs_ble_cmd_rst(self): return self.lc.command(RESET_CMD)
+    def xs_ble_cmd_gdo(self): return self.lc.command(DO_SENSOR_READINGS_CMD)
+    def xs_ble_cmd_frm(self): return self.lc.command(FORMAT_CMD)
+    def xs_ble_cmd_del(self, file_name): return self.lc.command(DEL_FILE_CMD, file_name)
+    def xs_ble_cmd_sws(self, my_s): return self.lc.command(SWS_CMD, my_s)
+    def xs_ble_cmd_rws(self, my_s): return self.lc.command(RWS_CMD, my_s)
+    def xs_ble_cmd_run(self): return self.lc.command(RUN_CMD)
 
     def xs_ble_cmd_rli(self):
         # all 4
@@ -227,6 +247,16 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_RHS: xc.xs_ble_cmd_rhs,
                 XS_BLE_CMD_WLI: xc.xs_ble_cmd_wli,
                 XS_BLE_CMD_WHS: xc.xs_ble_cmd_whs,
+                XS_BLE_CMD_RFN: xc.xs_ble_cmd_rfn,
+                XS_BLE_CMD_MTS: xc.xs_ble_cmd_mts,
+                XS_BLE_CMD_RST: xc.xs_ble_cmd_rst,
+                XS_BLE_CMD_GDO: xc.xs_ble_cmd_gdo,
+                XS_BLE_CMD_FRM: xc.xs_ble_cmd_frm,
+                XS_BLE_CMD_DEL: xc.xs_ble_cmd_del,
+                XS_BLE_CMD_TST: xc.xs_ble_cmd_tst,
+                XS_BLE_CMD_SWS: xc.xs_ble_cmd_sws,
+                XS_BLE_CMD_RUN: xc.xs_ble_cmd_run,
+                XS_BLE_CMD_RWS: xc.xs_ble_cmd_rws,
             }
 
             # remote-procedure-calls function, signal answer back
