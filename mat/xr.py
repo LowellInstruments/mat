@@ -4,7 +4,7 @@ import xmlrpc
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
 from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD, \
-    SD_FREE_SPACE_CMD
+    SD_FREE_SPACE_CMD, CALIBRATION_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
     UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
@@ -30,6 +30,9 @@ XS_BLE_CMD_DIR_NON = 'dir_non_lid'
 XS_BLE_CMD_RLI = 'rli'
 XS_BLE_CMD_LOG = 'log'
 XS_BLE_CMD_CFS = 'cfs'
+XS_BLE_CMD_RHS = 'rhs'
+XS_BLE_CMD_WLI = 'wli'
+XS_BLE_CMD_WHS = 'whs'
 
 
 class XS:
@@ -101,6 +104,19 @@ class XS:
         ma = ma[1].decode()[-7:]
         return '{} {} {} {}'.format(sn, ca, ba, ma)
 
+    def xs_ble_cmd_rhs(self):
+        tmo = self.lc.command(CALIBRATION_CMD, "TMO")
+        tmr = self.lc.command(CALIBRATION_CMD, "TMR")
+        tma = self.lc.command(CALIBRATION_CMD, "TMA")
+        tmb = self.lc.command(CALIBRATION_CMD, "TMB")
+        tmc = self.lc.command(CALIBRATION_CMD, "TMC")
+        tmo = tmo[1].decode()[2:]
+        tmr = tmr[1].decode()[2:]
+        tma = tma[1].decode()[2:]
+        tmb = tmb[1].decode()[2:]
+        tmc = tmc[1].decode()[2:]
+        return '{} {} {} {} {}'.format(tmo, tmr, tma, tmb, tmc)
+
     def xs_ble_cmd_gtm(self):
         ans = self.lc.get_time()
         if not ans:
@@ -120,6 +136,22 @@ class XS:
 
     def xs_ble_cmd_log(self):
         return self.lc.command(LOG_EN_CMD)
+
+    def xs_ble_cmd_wli(self, w):
+        # w: ['SN1234569', 'CA1234', 'BA8007', 'MA1234ABC']
+        for each in w:
+            rv = self.lc.command(LOGGER_INFO_CMD_W, each)
+            if rv != [b'WLI', b'00']:
+                return False
+        return True
+
+    def xs_ble_cmd_whs(self, w):
+        # w: (tmo, tmr, tma, tmb, tmc)
+        for each in w:
+            rv = self.lc.command(LOGGER_HSA_CMD_W, each)
+            if rv != [b'WHS', b'00']:
+                return False
+        return True
 
     @staticmethod
     def xs_ble_scan(h, man):
@@ -191,7 +223,10 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_DIR_NON: xc.xs_ble_cmd_dir_non,
                 XS_BLE_CMD_RLI: xc.xs_ble_cmd_rli,
                 XS_BLE_CMD_LOG: xc.xs_ble_cmd_log,
-                XS_BLE_CMD_CFS: xc.xs_ble_cmd_cfs
+                XS_BLE_CMD_CFS: xc.xs_ble_cmd_cfs,
+                XS_BLE_CMD_RHS: xc.xs_ble_cmd_rhs,
+                XS_BLE_CMD_WLI: xc.xs_ble_cmd_wli,
+                XS_BLE_CMD_WHS: xc.xs_ble_cmd_whs,
             }
 
             # remote-procedure-calls function, signal answer back
