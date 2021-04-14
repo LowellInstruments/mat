@@ -321,7 +321,7 @@ class LoggerControllerBLE(LoggerController):
             if self.per.waitForNotifications(.1):
                 last = time.perf_counter()
             if time.perf_counter() > last + 2:
-                # do not forget the remaining bytes < 2048
+                # do not forget possible remaining bytes in BLE buffer
                 data += self.dlg.x_buf
                 return True, data
             if len(self.dlg.x_buf) >= 2048:
@@ -329,6 +329,7 @@ class LoggerControllerBLE(LoggerController):
                 self.dlg.x_buf = self.dlg.x_buf[2048:]
                 if sig:
                     sig.emit()
+                # False is good, means NO timeout
                 return False, data
 
     def _dwl_file(self, size, sig=None):   # pragma: no cover
@@ -343,7 +344,7 @@ class LoggerControllerBLE(LoggerController):
             cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
             c_n += 1
             self.ble_write(cmd.encode())
-            # a DWL timeout does not mean failure, also end of file
+            # timeout may mean EoF (good) or transmission failure (bad)
             timeout, data = self._dwl_chunk_loop(sig, data)
             if timeout or len(data) >= int(size):
                 break
@@ -354,33 +355,42 @@ class LoggerControllerBLE(LoggerController):
 
         return data
 
-    def dwg_file(self, file, fol, size, sig=None) -> bool:  # pragma: no cover
-        data = None
+    def dwg_file(self, file, fol, size, sig=None):  # pragma: no cover
 
-        try:
-            _ = '{} {:02x}{}\r'
-            cmd = _.format(DWG_FILE_CMD, len(file), file)
-            self.ble_write(cmd.encode())
-            self.per.waitForNotifications(10)
-            if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
-                data = self._dwl_file(size, sig)
-                if data and len(data) == int(size):
-                    path = '{}/{}'.format(fol, file)
-                    with open(path, 'wb') as f:
-                        f.write(data)
-                        f.truncate(int(size))
+        def _fxn():  # pragma: no cover
+            data = None
+
+            try:
+                _ = '{} {:02x}{}\r'
+                cmd = _.format(DWG_FILE_CMD, len(file), file)
+                self.ble_write(cmd.encode())
+                self.per.waitForNotifications(10)
+                if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
+                    data = self._dwl_file(size, sig)
+                    if data and len(data) == int(size):
+                        path = '{}/{}'.format(fol, file)
+                        with open(path, 'wb') as f:
+                            f.write(data)
+                            f.truncate(int(size))
+                    else:
+                        data = None
                 else:
-                    data = None
-            else:
-                e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
-                print(e.format(self.dlg.buf))
+                    e = 'DBG: dwg_file() error, self.dlg.buf -> {}'
+                    print(e.format(self.dlg.buf))
 
-        except ble.BTLEException as ex:
-            # show this exception, app will take care of it
-            # and / or next BLE command will nicely fail
-            print('BLE: dwg_file() exception {}'.format(ex))
+            except ble.BTLEException as ex:
+                # show this exception, app will take care of it
+                # and / or next BLE command will nicely fail
+                print('BLE: dwg_file() exception {}'.format(ex))
 
-        return data
+            return data
+
+        for i in range(3):
+            rv = _fxn()
+            if rv:
+                return rv
+            time.sleep(10)
+        return None
 
 
 # utilities
