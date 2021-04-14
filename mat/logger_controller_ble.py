@@ -255,6 +255,8 @@ class LoggerControllerBLE(LoggerController):
             # show this exception, app will take care of it
             # and / or next BLE command will nicely fail
             print('BLE: get_file() exception {}'.format(ex))
+        except Exception as ex:
+            print(ex)
         finally:
             self.dlg.set_file_mode(False)
             return rv

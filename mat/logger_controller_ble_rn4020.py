@@ -1,3 +1,4 @@
+import os
 import time
 
 
@@ -24,6 +25,8 @@ class LoggerControllerBLERN4020:  # pragma: no cover
 
         # ensure fol string, not path_lib
         fol = str(fol)
+        path = os.path.join(os.getcwd(), fol)
+        assert os.path.exists(path), 'error: folder {} does not exist!'
 
         # ask for file, mind RN4020 particular behavior to send GET answer
         dl = False
