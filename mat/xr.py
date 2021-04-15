@@ -10,6 +10,8 @@ from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TI
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
     UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
+import subprocess as sp
+
 
 XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
@@ -94,7 +96,18 @@ class XS:
         self.lc = None
         return True
 
-    def xs_ble_disconnect_for_sure(self): return self.xs_ble_disconnect()
+    @staticmethod
+    def xs_ble_disconnect_for_sure():
+        # really hard bluetooth reset
+        cmd = 'systemctl stop bluetooth'
+        _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        rv = _.returncode
+        time.sleep(3)
+        cmd = 'systemctl start bluetooth'
+        _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        rv += _.returncode
+        return rv == 0
+
     def xs_ble_get_mac_connected_to(self): return self.lc.address
     def xs_ble_cmd_stop(self): return self.lc.command(STOP_CMD)
     def xs_ble_cmd_wake(self): return self.lc.command(WAKE_CMD)
