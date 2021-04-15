@@ -14,6 +14,7 @@ from mat.logger_controller_ble_factory import LcBLEFactory
 XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
+XS_BLE_CMD_DISCONNECT_FOR_SURE = 'disconnect_for_sure'
 XS_BLE_CMD_STATUS = 'status'
 XS_BLE_CMD_STATUS_N_DISCONNECT = 'status_n_disconnect'
 XS_BLE_CMD_STOP = 'stop'
@@ -93,6 +94,7 @@ class XS:
         self.lc = None
         return True
 
+    def xs_ble_disconnect_for_sure(self): return self.xs_ble_disconnect()
     def xs_ble_get_mac_connected_to(self): return self.lc.address
     def xs_ble_cmd_stop(self): return self.lc.command(STOP_CMD)
     def xs_ble_cmd_wake(self): return self.lc.command(WAKE_CMD)
@@ -101,7 +103,7 @@ class XS:
     def xs_ble_cmd_utm(self): return self.lc.command(UP_TIME_CMD)
     def xs_ble_cmd_stm(self): return self.lc.sync_time()
     def xs_ble_cmd_status(self): return self.lc.command(STATUS_CMD)
-    # only send status, we disconnect later in time
+    # only send status, we disconnect in STATUS answer parse
     def xs_ble_cmd_status_n_disconnect(self): return self.lc.command(STATUS_CMD)
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
     def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
@@ -239,6 +241,7 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_CONNECT: xc.xs_ble_connect,
                 XS_BLE_CMD_STATUS: xc.xs_ble_cmd_status,
                 XS_BLE_CMD_DISCONNECT: xc.xs_ble_disconnect,
+                XS_BLE_CMD_DISCONNECT_FOR_SURE: xc.xs_ble_disconnect_for_sure,
                 XS_BLE_CMD_STOP: xc.xs_ble_cmd_stop,
                 XS_BLE_CMD_GFV: xc.xs_ble_cmd_gfv,
                 XS_BLE_CMD_STATUS_N_DISCONNECT: xc.xs_ble_cmd_status_n_disconnect,
