@@ -105,7 +105,6 @@ class XS:
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
     def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
     def xs_ble_cmd_cfs(self): return self.lc.command(SD_FREE_SPACE_CMD)
-    def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
     def xs_ble_cmd_rfn(self): return self.lc.command(REQ_FILE_NAME_CMD)
     def xs_ble_cmd_rst(self): return self.lc.command(RESET_CMD)
     def xs_ble_cmd_gdo(self): return self.lc.command(DO_SENSOR_READINGS_CMD)
@@ -114,6 +113,7 @@ class XS:
     def xs_ble_cmd_sws(self, my_s): return self.lc.command(SWS_CMD, my_s)
     def xs_ble_cmd_rws(self, my_s): return self.lc.command(RWS_CMD, my_s)
     def xs_ble_cmd_run(self): return self.lc.command(RUN_CMD)
+    def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
 
     def xs_ble_cmd_rli(self):
         # all 4
