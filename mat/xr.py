@@ -89,7 +89,8 @@ class XS:
 
     def xs_ble_disconnect(self):
         if self.lc:
-            return self.lc.close()
+            self.lc.close()
+        self.lc = None
         return True
 
     def xs_ble_get_mac_connected_to(self): return self.lc.address
