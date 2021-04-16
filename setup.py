@@ -8,7 +8,6 @@ requirements = [
     'pyserial',
     'h5py==2.10.0',
     'crc16==0.1.1',
-    'pynng',
     'pika',
     'getmac',
 ]
