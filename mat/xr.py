@@ -49,7 +49,6 @@ XS_BLE_CMD_SWS = 'sws'
 XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
-XS_BLE_SET_HCI = 'set_hci'
 
 
 class XS:
@@ -80,14 +79,10 @@ class XS:
     def _xs_send_none():
         return None
 
-    def xs_ble_set_hci(self, hci_if: int):
-        self.lc.hci_if = hci_if
-        return 'hci set went ok'
-
-    def xs_ble_connect(self, mac):
+    def xs_ble_connect(self, mac, h):
         self.lc = None
         lc_c = LcBLEFactory.generate(mac)
-        self.lc = lc_c(mac)
+        self.lc = lc_c(mac, hci_if=h)
         return self.lc.open()
 
     def xs_ble_disconnect(self):
@@ -197,9 +192,9 @@ class XS:
         return self.lc.dwg_file(file_name, '.', file_size)
 
     @staticmethod
-    def xs_ble_scan(h, man):
+    def xs_ble_scan(hci_if, man):
         # sort scan results by RSSI: reverse=True, farther ones first
-        sr = ble_scan(h)
+        sr = ble_scan(hci_if)
         sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
         rv = ''
         map_man = {'ti': brand_ti, 'microchip': brand_microchip}
@@ -249,7 +244,6 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
             # maps c[0] to server function before calling RPC
             map_c = {
-                XS_BLE_SET_HCI: xc.xs_set_hci,
                 XS_BLE_CMD_SCAN: xc.xs_ble_scan,
                 XS_BLE_CMD_CONNECT: xc.xs_ble_connect,
                 XS_BLE_CMD_STATUS: xc.xs_ble_cmd_status,
