@@ -40,6 +40,7 @@ ERR_MAT_ANS = 'ERR'
 GET_FILE_CMD = 'GET'
 DWG_FILE_CMD = 'DWG'
 LED_CMD = 'LED'
+SLOW_DWL_CMD = 'SLW'
 
 
 # constants for when trying to BLE connect
@@ -583,6 +584,7 @@ def _ans_check(tag, a, b):
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
         WAKE_CMD: lambda: _exp() and len(a) == 8,
+        SLOW_DWL_CMD: lambda: _exp() and len(a) == 8,
         LOGGER_HSA_CMD_W: lambda: _exp(1)
         # GET_FILE_CMD and DWG_FILE_CMD done elsewhere
     }

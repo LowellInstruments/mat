@@ -8,7 +8,7 @@ from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TI
     SD_FREE_SPACE_CMD, CALIBRATION_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, REQ_FILE_NAME_CMD, RESET_CMD, \
     DO_SENSOR_READINGS_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, RUN_CMD
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
-    UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
+    UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD, SLOW_DWL_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
 import subprocess as sp
 
@@ -49,6 +49,7 @@ XS_BLE_CMD_SWS = 'sws'
 XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
+XS_BLE_CMD_SLW = 'slw'
 
 
 class XS:
@@ -125,6 +126,7 @@ class XS:
     def xs_ble_cmd_rws(self, my_s): return self.lc.command(RWS_CMD, my_s)
     def xs_ble_cmd_run(self): return self.lc.command(RUN_CMD)
     def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
+    def xs_ble_cmd_slw(self): return self.lc.command(SLOW_DWL_CMD)
 
     def xs_ble_cmd_rli(self):
         # all 4
@@ -279,6 +281,7 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_RUN: xc.xs_ble_cmd_run,
                 XS_BLE_CMD_RWS: xc.xs_ble_cmd_rws,
                 XS_BLE_CMD_DWG: xc.xs_ble_cmd_dwg,
+                XS_BLE_CMD_SLW: xc.xs_ble_cmd_slw,
             }
 
             # remote-procedure-calls function, signal answer back
