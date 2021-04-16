@@ -130,7 +130,7 @@ def gps_configure_quectel() -> int:
         return rv
 
 
-def gps_get_rmc_data(timeout=2) -> str:
+def gps_get_rmc_data(timeout=2):
     """ returns (lat, lon, dt object) or None """
 
     rv, sp = None, None

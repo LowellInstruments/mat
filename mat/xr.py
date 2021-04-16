@@ -10,10 +10,13 @@ from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TI
 from mat.logger_controller_ble import ble_scan, is_a_li_logger, brand_ti, brand_microchip, brand_whatever, MOBILE_CMD, \
     UP_TIME_CMD, LED_CMD, WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, MY_TOOL_SET_CMD, FORMAT_CMD
 from mat.logger_controller_ble_factory import LcBLEFactory
+import subprocess as sp
+
 
 XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
+XS_BLE_CMD_DISCONNECT_FOR_SURE = 'disconnect_for_sure'
 XS_BLE_CMD_STATUS = 'status'
 XS_BLE_CMD_STATUS_N_DISCONNECT = 'status_n_disconnect'
 XS_BLE_CMD_STOP = 'stop'
@@ -46,7 +49,6 @@ XS_BLE_CMD_SWS = 'sws'
 XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
-XS_BLE_SET_HCI = 'set_hci'
 
 
 class XS:
@@ -77,20 +79,29 @@ class XS:
     def _xs_send_none():
         return None
 
-    def xs_ble_set_hci(self, hci_if: int):
-        self.lc.hci_if = hci_if
-        return 'hci set went ok'
-
-    def xs_ble_connect(self, mac):
+    def xs_ble_connect(self, mac, h):
         self.lc = None
         lc_c = LcBLEFactory.generate(mac)
-        self.lc = lc_c(mac)
+        self.lc = lc_c(mac, hci_if=h)
         return self.lc.open()
 
     def xs_ble_disconnect(self):
         if self.lc:
-            return self.lc.close()
+            self.lc.close()
+        self.lc = None
         return True
+
+    @staticmethod
+    def xs_ble_disconnect_for_sure():
+        # really hard bluetooth reset
+        cmd = 'systemctl stop bluetooth'
+        _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        rv = _.returncode
+        time.sleep(3)
+        cmd = 'systemctl start bluetooth'
+        _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        rv += _.returncode
+        return rv == 0
 
     def xs_ble_get_mac_connected_to(self): return self.lc.address
     def xs_ble_cmd_stop(self): return self.lc.command(STOP_CMD)
@@ -100,12 +111,11 @@ class XS:
     def xs_ble_cmd_utm(self): return self.lc.command(UP_TIME_CMD)
     def xs_ble_cmd_stm(self): return self.lc.sync_time()
     def xs_ble_cmd_status(self): return self.lc.command(STATUS_CMD)
-    # only send status, we disconnect later in time
+    # only send status, we disconnect in STATUS answer parse
     def xs_ble_cmd_status_n_disconnect(self): return self.lc.command(STATUS_CMD)
     def xs_ble_cmd_led(self): return self.lc.command(LED_CMD)
     def xs_ble_cmd_ebr(self): return self.lc.command(ERROR_WHEN_BOOT_OR_RUN_CMD)
     def xs_ble_cmd_cfs(self): return self.lc.command(SD_FREE_SPACE_CMD)
-    def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
     def xs_ble_cmd_rfn(self): return self.lc.command(REQ_FILE_NAME_CMD)
     def xs_ble_cmd_rst(self): return self.lc.command(RESET_CMD)
     def xs_ble_cmd_gdo(self): return self.lc.command(DO_SENSOR_READINGS_CMD)
@@ -114,6 +124,7 @@ class XS:
     def xs_ble_cmd_sws(self, my_s): return self.lc.command(SWS_CMD, my_s)
     def xs_ble_cmd_rws(self, my_s): return self.lc.command(RWS_CMD, my_s)
     def xs_ble_cmd_run(self): return self.lc.command(RUN_CMD)
+    def xs_ble_cmd_mts(self): return self.lc.command(MY_TOOL_SET_CMD)
 
     def xs_ble_cmd_rli(self):
         # all 4
@@ -181,9 +192,9 @@ class XS:
         return self.lc.dwg_file(file_name, '.', file_size)
 
     @staticmethod
-    def xs_ble_scan(h, man):
+    def xs_ble_scan(hci_if, man):
         # sort scan results by RSSI: reverse=True, farther ones first
-        sr = ble_scan(h)
+        sr = ble_scan(hci_if)
         sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
         rv = ''
         map_man = {'ti': brand_ti, 'microchip': brand_microchip}
@@ -233,11 +244,11 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
             # maps c[0] to server function before calling RPC
             map_c = {
-                XS_BLE_SET_HCI: xc.xs_set_hci,
                 XS_BLE_CMD_SCAN: xc.xs_ble_scan,
                 XS_BLE_CMD_CONNECT: xc.xs_ble_connect,
                 XS_BLE_CMD_STATUS: xc.xs_ble_cmd_status,
                 XS_BLE_CMD_DISCONNECT: xc.xs_ble_disconnect,
+                XS_BLE_CMD_DISCONNECT_FOR_SURE: xc.xs_ble_disconnect_for_sure,
                 XS_BLE_CMD_STOP: xc.xs_ble_cmd_stop,
                 XS_BLE_CMD_GFV: xc.xs_ble_cmd_gfv,
                 XS_BLE_CMD_STATUS_N_DISCONNECT: xc.xs_ble_cmd_status_n_disconnect,
