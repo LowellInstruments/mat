@@ -50,6 +50,7 @@ XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
 XS_BLE_CMD_SLW = 'slw'
+XS_BLE_EXCEPTION = 'exception'
 
 
 class XS:
@@ -194,9 +195,9 @@ class XS:
         return self.lc.dwg_file(file_name, '.', file_size)
 
     @staticmethod
-    def xs_ble_scan(hci_if, man):
+    def xs_ble_scan(hci_if, man, t):
         # sort scan results by RSSI: reverse=True, farther ones first
-        sr = ble_scan(hci_if)
+        sr = ble_scan(hci_if, my_to=t)
         sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
         rv = ''
         map_man = {'ti': brand_ti, 'microchip': brand_microchip}
@@ -284,11 +285,17 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
                 XS_BLE_CMD_SLW: xc.xs_ble_cmd_slw,
             }
 
-            # remote-procedure-calls function, signal answer back
+            # map command to remote-procedure-calls function
             fxn = map_c[c[0]]
             pars = (c[1:])
-            a = fxn(*pars)
-            sig.emit((c[0], a))
+
+            # do function
+            try:
+                a = fxn(*pars)
+                sig.emit((c[0], a))
+            except xmlrpc.client.Fault as xcf:
+                print('wow! xmlrpc client exception -> {}'.format(xcf))
+                sig.emit((XS_BLE_EXCEPTION, c[0]))
 
 
 # thread: local XML-RPC server, for testing
