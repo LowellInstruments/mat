@@ -115,9 +115,9 @@ def _cmd_route_ngrok(_, macs):
 def _cmd_unroute(_, macs):
     """ kill ngrok """
 
-    ngrok_bin = get_ngrok_bin_name()
-    cmd = 'killall {}'.format(ngrok_bin)
-    _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    for i in ['ngrok', 'ngrok_rpi']:
+        cmd = 'killall {}'.format(i)
+        _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     mac = macs[0]
     return 0, 'un-routed {}'.format(mac)
 

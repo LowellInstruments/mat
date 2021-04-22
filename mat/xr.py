@@ -13,6 +13,7 @@ from mat.logger_controller_ble_factory import LcBLEFactory
 import subprocess as sp
 
 
+XR_DEFAULT_PORT = 9000
 XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
@@ -210,7 +211,7 @@ class XS:
 
 def xr_ble_xml_rpc_server():
 
-    server = SimpleXMLRPCServer(('localhost', 9000),
+    server = SimpleXMLRPCServer(('localhost', XR_DEFAULT_PORT),
                                 logRequests=True,
                                 allow_none=True)
 
@@ -228,7 +229,7 @@ def xr_ble_xml_rpc_server():
 
 def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
-    # url: 'http://localhost:9000'
+    # url: 'http://localhost:<port>'
     xc = xmlrpc.client.ServerProxy(url, allow_none=True)
     print('th_xb: started with url {}'.format(url))
 
