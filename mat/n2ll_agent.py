@@ -3,7 +3,6 @@ import os
 import subprocess as sp
 import threading
 import time
-import pika
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
 from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
@@ -13,49 +12,17 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_NOT_FOR_US, get_ngrok_bin_name, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
                             create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED,
-                            AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW)
+                            AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
+                            _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
 from mat.xr import xr_ble_xml_rpc_server, XR_PID_FILE
+from mat.n2ll_utils import (
+    mq_exchange_for_masters,
+    mq_exchange_for_slaves)
 
 
 def _p(s):
     print(s, flush=True)
-
-
-def _url_n2ll():
-    """ build and return the N2LL url """
-
-    # todo: change this test url to a production one
-    url = 'amqps://{}:{}/{}'
-    _user = 'dfibpovr'
-    _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
-    return url.format(_user, _rest, _user)
-
-
-def _mq_get_ch():
-    """ build and return the N2LL channel (needs url) """
-
-    url = _url_n2ll()
-    _pars = pika.URLParameters(url)
-    _pars.socket_timeout = 3
-    _conn = pika.BlockingConnection(_pars)
-    return _conn.channel()
-
-
-def mq_exchange_for_slaves():
-    """ build and return the N2LL slave exchange (needs channel) """
-
-    _ch = _mq_get_ch()
-    _ch.exchange_declare(exchange='li_slaves', exchange_type='fanout')
-    return _ch
-
-
-def mq_exchange_for_masters():
-    """ build and return the N2LL master exchange (needs channel) """
-
-    _ch = _mq_get_ch()
-    _ch.exchange_declare(exchange='li_masters', exchange_type='fanout')
-    return _ch
 
 
 def _cmd_who(_, macs):

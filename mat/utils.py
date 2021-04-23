@@ -169,10 +169,8 @@ def linux_is_docker_on_x64():
 
 
 def linux_is_rpi():
-    # this better than checking architecture
-    if os.uname().nodename in ('raspberrypi', 'rpi'):
-        return True
-    return False
+    # better than checking architecture
+    return os.uname().nodename in ('raspberrypi', 'rpi')
 
 
 def linux_is_docker_on_rpi():

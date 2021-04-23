@@ -1,7 +1,9 @@
 import socket
 import threading
 from pika.exceptions import ProbableAccessDeniedError
-from mat.n2ll_agent import mq_exchange_for_masters, mq_exchange_for_slaves
+from mat.n2ll_utils import (
+    mq_exchange_for_masters,
+    mq_exchange_for_slaves)
 
 
 class ClientN2LL:

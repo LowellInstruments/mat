@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
 # requires 'python-crontab' package to be installed
+import pika
 from crontab import CronTab
 
 from mat.utils import linux_is_rpi
@@ -72,3 +73,38 @@ def does_cron_job_exists_by_comment(file_name: str, comm: str):
     print(s.format(comm, file_name, bool(rv)))
     return bool(rv)
 
+
+def _url_n2ll():
+    """ build and return the N2LL url """
+
+    # todo: change this test url to a production one
+    url = 'amqps://{}:{}/{}'
+    _user = 'dfibpovr'
+    _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
+    return url.format(_user, _rest, _user)
+
+
+def _mq_get_ch():
+    """ build and return the N2LL channel (needs url) """
+
+    url = _url_n2ll()
+    _pars = pika.URLParameters(url)
+    _pars.socket_timeout = 3
+    _conn = pika.BlockingConnection(_pars)
+    return _conn.channel()
+
+
+def mq_exchange_for_slaves():
+    """ build and return the N2LL slave exchange (needs channel) """
+
+    _ch = _mq_get_ch()
+    _ch.exchange_declare(exchange='li_slaves', exchange_type='fanout')
+    return _ch
+
+
+def mq_exchange_for_masters():
+    """ build and return the N2LL master exchange (needs channel) """
+
+    _ch = _mq_get_ch()
+    _ch.exchange_declare(exchange='li_masters', exchange_type='fanout')
+    return _ch
