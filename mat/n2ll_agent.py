@@ -12,8 +12,10 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
                             AG_N2LL_ANS_NOT_FOR_US, get_ngrok_bin_name, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
-                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED)
-from mat.utils import is_program_running, obtain_pid_of_a_running_program, linux_is_rpi
+                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED,
+                            AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW)
+from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
+from mat.xr import xr_ble_xml_rpc_server, XR_PID_FILE
 
 
 def _p(s):
@@ -68,8 +70,8 @@ def _cmd_query(_, macs):
     """ asks if DDH or ngrok are running here """
 
     mac = macs[0]
-    is_ddh_running = int(is_program_running('ddh/main.py'))
-    is_ngrok_running = int(is_program_running(get_ngrok_bin_name()))
+    is_ddh_running = int(is_process_running_by_name('ddh/main.py'))
+    is_ngrok_running = int(is_process_running_by_name(get_ngrok_bin_name()))
     s = '{} DDH {} / ngrok {}'
     return 0, s.format(mac, is_ddh_running, is_ngrok_running)
 
@@ -122,16 +124,23 @@ def _cmd_unroute(_, macs):
     return 0, 'un-routed {}'.format(mac)
 
 
+def _cmd_ngrok_view(_, macs):
+    pid = get_pid_of_a_process('ngrok')
+    if pid == -1:
+        return 1, 'ngrok process not running'
+    return 0, 'ngrok process running pid = {}'.format(pid)
+
+
 def _cmd_ddh_rpi(_, macs):
     """ delete DDH folder and get new version of it """
 
     mac = macs[0]
 
+    if not linux_is_rpi():
+        return 0, 'nah, won\'t do DDH on a non-rpi {}'.format(mac)
+
     # 1st, call function '_cmd_unddh_rpi()'
     _cmd_unddh_rpi(_, macs)
-
-    if not linux_is_rpi():
-        return 0, 'won\'t do DDH on a non-rpi {}'.format(mac)
 
     # todo: test this on a DDH
 
@@ -164,14 +173,14 @@ def _cmd_unddh_rpi(_, macs):
 
     # 2nd, killall DDH
     s = 'ddh/main.py'
-    pid = obtain_pid_of_a_running_program(s)
-    if pid:
-        cmd = 'kill -9 {}'.format(pid)
-        _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-        if _rv.returncode != 0:
-            return _rv.returncode, 'unDDH killing failed'
-        return 0, 'unDDH OK on {}'.format(mac)
-    return 0, 'no DDH to kill on {}'.format(mac)
+    pid = get_pid_of_a_process(s)
+    if pid == -1:
+        return 1, 'DDH process not running'
+    cmd = 'kill -9 {}'.format(pid)
+    _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if _rv.returncode != 0:
+        return _rv.returncode, 'DDH killing failed'
+    return 0, 'DDH killed OK on {}'.format(mac)
 
 
 def _cmd_view_ddh_rpi(_, macs):
@@ -188,7 +197,42 @@ def _cmd_view_ddh_rpi(_, macs):
 
 
 def _cmd_bled(_, macs):
-    return 0, 'bled'
+    # do this
+    cmd = 'systemctl restart bluetooth'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    s = 'BLE service restarted {}'
+    s = s.format('OK') if rv.returncode == 0 else s.format('ERR')
+    return 0, s
+
+
+def _cmd_xr_view(_, macs):
+    pid = get_pid_of_a_process('xr.py')
+    if pid == -1:
+        return 1, 'XR process not running'
+    return 0, 'XR process running pid = {}'.format(pid)
+
+
+def _cmd_xr_kill(_, macs):
+    # find PID of XR, if any
+    pid = 0
+    try:
+        with open(XR_PID_FILE) as f:
+            pid = int(f.read())
+    except FileNotFoundError:
+        return 0, 'XR not running, so not killed'
+
+    if pid:
+        s = 'kill -9 {}'.format(pid)
+        rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        return rv.returncode, 'XR killed OK'
+    return 1, 'XR kill returned unknown'
+
+
+def _cmd_xr_start(_, macs):
+    _cmd_xr_kill(_, macs)
+    # give time to kill
+    th_xr = threading.Thread(target=xr_ble_xml_rpc_server)
+    th_xr.start()
 
 
 def _parse_n2ll_cmd(s: bytes):
@@ -199,6 +243,7 @@ def _parse_n2ll_cmd(s: bytes):
 
     # s: AG_N2LL_CMD_QUERY <mac> <port>
     s = s.decode().split(' ')
+    # _p('-> N2LL: rx_cb {}'.format(s))
 
     # which are my own mac addresses
     _my_macs = [
@@ -213,17 +258,20 @@ def _parse_n2ll_cmd(s: bytes):
     # search the N2LL function
     cmd = s[0]
 
-    # todo: add 2 commands -> see boat name or serial name / power cycle bluetooth
     fxn_map = {
         AG_N2LL_CMD_BYE: _cmd_bye,
         AG_N2LL_CMD_WHO: _cmd_who,
         AG_N2LL_CMD_QUERY: _cmd_query,
         AG_N2LL_CMD_ROUTE: _cmd_route_ngrok,
         AG_N2LL_CMD_UNROUTE: _cmd_unroute,
+        AG_N2LL_CMD_NGROK_VIEW: _cmd_ngrok_view,
         AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
         AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi,
         AG_N2LL_CMD_VIEW_DDH: _cmd_view_ddh_rpi,
-        AG_N2LL_CMD_BLED: _cmd_bled
+        AG_N2LL_CMD_BLED: _cmd_bled,
+        AG_N2LL_CMD_XR_START: _cmd_xr_start,
+        AG_N2LL_CMD_XR_VIEW: _cmd_xr_view,
+        AG_N2LL_CMD_XR_KILL: _cmd_xr_kill
     }
     fxn = fxn_map[cmd]
 
@@ -292,7 +340,6 @@ class AgentN2LL(threading.Thread):
         def _rx_cb(ch, method, properties, body):
 
             # receive command from remote n2ll_client
-            #_p('-> N2LL: rx_cb {}'.format(body))
             ans = _parse_n2ll_cmd(body)
 
             # ans: (0, description) send to channel 'li_slaves'

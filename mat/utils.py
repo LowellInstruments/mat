@@ -142,20 +142,18 @@ def show_services_enabled():
     print(rv.stdout)
 
 
-def is_program_running(name):
-    _grep = 'ps aux | grep {} | grep -v grep'.format(name)
-    rv = sp.run(_grep, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    return rv.returncode == 0
+def is_process_running_by_name(name):
+    return get_pid_of_a_process(name)
 
 
-def obtain_pid_of_a_running_program(name):
+def get_pid_of_a_process(name):
     # awk and so they do not work here because they use {}
     s = 'ps -aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
         pid = rv.stdout.decode().split()[1]
         return int(pid)
-    return None
+    return -1
 
 
 def linux_is_docker():

@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import time
 import xmlrpc
@@ -14,6 +15,7 @@ import subprocess as sp
 
 
 XR_DEFAULT_PORT = 9000
+XR_PID_FILE = '/dev/shm/pid_xr'
 XS_BREAK = 'break'
 XS_BLE_CMD_CONNECT = 'connect'
 XS_BLE_CMD_DISCONNECT = 'disconnect'
@@ -220,7 +222,10 @@ def xr_ble_xml_rpc_server():
 
     # server loop
     try:
-        print('th_xs_ble: launched')
+        pid = os.getpid()
+        with open(XR_PID_FILE, 'w') as f:
+            f.write(str(pid))
+        print('th_xrs_ble: launched, pid {}'.format(pid))
         server.serve_forever()
 
     except KeyboardInterrupt:
