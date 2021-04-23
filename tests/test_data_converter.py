@@ -122,7 +122,9 @@ class TestDataConverter(TestCase):
 
     def test_accel_mag_no_temp(self):
         full_file_path = reference_file('accel_mag_no_temp.lid')
-        dc = DataConverter(full_file_path, default_parameters())
+        parameters = default_parameters()
+        parameters['average'] = False
+        dc = DataConverter(full_file_path, parameters)
         dc.convert()
         assert_compare_expected_file('accel_mag_no_temp_AccelMag.csv')
 
@@ -135,8 +137,8 @@ class TestDataConverter(TestCase):
         parameters['average'] = False
         dc = DataConverter(full_file_path, parameters)
         dc.convert()
-        compare_files(reference_file('custom_cal/test_AccelMag.csv'),
-                      reference_file('custom_cal/test_default_hs_MA.txt'))
+        assert_compare_expected_file('custom_cal/test_AccelMag.csv')
+        assert_compare_expected_file('custom_cal/test_Temperature.csv')
 
     def test_yaw_pitch_roll(self):
         full_file_path = reference_file('test.lid')
@@ -157,3 +159,24 @@ class TestDataConverter(TestCase):
                       reference_file('test_AccelMag-posix.csv.expect'))
         compare_files(reference_file('calley_Temperature.csv'),
                       reference_file('test_Temperature-posix.csv.expect'))
+
+    def test_current_with_spike(self):
+        full_file_path = reference_file('spike.lid')
+        tilt_file_path = reference_file('tiltcurve/TCM-3, Deep Water Meter.cal')
+        tilt_curve = TiltCurve(tilt_file_path)
+        parameters = default_parameters()
+        parameters['output_type'] = 'current'
+        parameters['tilt_curve'] = tilt_curve
+        dc = DataConverter(full_file_path, parameters)
+        dc.convert()
+        assert_compare_expected_file('spike_Current.csv')
+        assert_compare_expected_file('spike_Temperature.csv')
+
+    def test_spike_xyz_no_averaging(self):
+        full_file_path = reference_file('spike.lid')
+        parameters = default_parameters()
+        parameters['average'] = False
+        converter = DataConverter(full_file_path, parameters)
+        converter.convert()
+        assert_compare_expected_file('spike_AccelMag.csv')
+        assert_compare_expected_file('spike_Temperature.csv')
