@@ -15,7 +15,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
                             _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
-from mat.xr import xr_ble_xml_rpc_server, XR_PID_FILE
+from mat.xr import xr_ble_xml_rpc_server, XR_PID_FILE, XR_DEFAULT_PORT
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
@@ -39,7 +39,11 @@ def _cmd_query(_, macs):
     mac = macs[0]
     ddh = int(is_process_running_by_name('ddh/main.py'))
     ngk = int(is_process_running_by_name('ngrok'))
-    xr = int(is_process_running_by_name('xr.py'))
+    xr = _cmd_xr_view(None, None) == 0
+
+    ddh = '✅' if ddh != -1 else '❌'
+    ngk = '✅' if ngk != -1 else '❌'
+    xr = '✅' if xr == 0 else '❌'
 
     s = '{} -> DDH {} / ngrok {} / xr {}'
     return 0, s.format(mac, ddh, ngk, xr)
@@ -172,9 +176,15 @@ def _cmd_bled(_, macs):
 
 def _cmd_xr_view(_, macs):
     pid = get_pid_of_a_process('xr.py')
-    if pid == -1:
-        return 1, 'XR process not running, or XR as thread'
-    return 0, 'XR process running pid = {}'.format(pid)
+    if pid:
+        return 0, 'XR process running pid = {}'.format(pid)
+
+    # not running as a process, but maybe as thread
+    cmd = 'netstat -an | grep {}'.format(XR_DEFAULT_PORT)
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        return 0, 'XR thread running'
+    return 1, 'XR process not running'
 
 
 def _cmd_xr_kill(_, macs):
@@ -194,6 +204,9 @@ def _cmd_xr_kill(_, macs):
 
 
 def _cmd_xr_start(_, macs):
+    if _cmd_xr_view(_, macs) == 0:
+        return 0, 'XR already present'
+
     print('N2LL agent _cmd_xr_start()')
     th_xr = threading.Thread(target=xr_ble_xml_rpc_server)
     th_xr.start()
