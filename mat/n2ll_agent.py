@@ -41,12 +41,10 @@ def _cmd_query(_, macs):
     ngk = int(is_process_running_by_name('ngrok'))
     xr = _cmd_xr_view(None, None) == 0
 
-    ddh = '✅' if ddh != -1 else '❌'
-    ngk = '✅' if ngk != -1 else '❌'
-    xr = '✅' if xr == 0 else '❌'
-
-    s = '{} -> DDH {} / ngrok {} / xr {}'
-    return 0, s.format(mac, ddh, ngk, xr)
+    ddh = 'DDH' if ddh != -1 else '-'
+    ngk = 'NGK' if ngk != -1 else '-'
+    xr = 'XR' if xr == 0 else '-'
+    return 0, '{} => {} / {} / {}'.format(mac, ddh, ngk, xr)
 
 
 def _cmd_route_ngrok(_, macs):
