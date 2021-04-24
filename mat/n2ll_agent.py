@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import os
 import subprocess as sp
 import threading
@@ -215,8 +216,10 @@ def _cmd_xr_start(_, macs):
     # fork a xr_ble_server
     pid = os.fork()
     if pid == 0:
-        # child won\'t return, needs Pycharm stop button twice
-        xr_ble_server()
+        # may require 2 Pycharm stop button clicks
+        p = multiprocessing.Process(target=xr_ble_server)
+        p.start()
+        return 0, 'XR start: child forked'
     else:
         # parent code
         time.sleep(1)
