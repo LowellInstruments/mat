@@ -15,7 +15,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
                             _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
-from mat.xr import xr_ble_xml_rpc_server, XR_PID_FILE, XR_DEFAULT_PORT
+from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
@@ -39,11 +39,11 @@ def _cmd_query(_, macs):
     mac = macs[0]
     ddh = int(is_process_running_by_name('ddh/main.py'))
     ngk = int(is_process_running_by_name('ngrok'))
-    xr = _cmd_xr_view(None, None) == 0
+    xr = _cmd_xr_view(None, None)
 
     ddh = 'DDH' if ddh != -1 else '-'
     ngk = 'NGK' if ngk != -1 else '-'
-    xr = 'XR' if xr == 0 else '-'
+    xr = 'XR' if xr[0] == 0 else '-'
     return 0, '{} => {} / {} / {}'.format(mac, ddh, ngk, xr)
 
 
@@ -173,46 +173,57 @@ def _cmd_bled(_, macs):
 
 
 def _cmd_xr_view(_, macs):
-    pid = get_pid_of_a_process('xr.py')
-    if pid:
-        return 0, 'XR process running pid = {}'.format(pid)
-
-    # not running as a process, but maybe as thread
-    cmd = 'netstat -an | grep {}'.format(XR_DEFAULT_PORT)
+    # check it 'netstat' gives any output
+    cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        return 0, 'XR thread running'
-    return 1, 'XR process not running'
+    if rv.stdout:
+        return 0, 'XR view: yes, it is there'
+    return 1, 'XR view: cannot see it'
 
 
 def _cmd_xr_kill(_, macs):
-    # find PID of XR, if any
+
+    # check any running
+    rv = _cmd_xr_view(_, macs)
+    if rv[0] != 0:
+        return 0, 'XR kill: none running'
+
+    # a XR writes its pid at boot, check it
     pid = 0
     try:
         with open(XR_PID_FILE) as f:
             pid = int(f.read())
     except FileNotFoundError:
-        return 0, 'XR not running, so not killed'
+        return 0, 'XR kill: was not running'
 
-    if pid:
-        s = 'kill -9 {}'.format(pid)
-        rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-        return rv.returncode, 'XR killed OK'
-    return 1, 'XR kill returned unknown'
+    if not pid:
+        return 1, 'XR kill: unknown'
+
+    # murder it
+    s = 'kill -9 {}'.format(pid)
+    rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        return 0, 'XR kill: OK'
+    return 1, 'XR kill: bad'
 
 
 def _cmd_xr_start(_, macs):
-    if _cmd_xr_view(_, macs) == 0:
-        return 0, 'XR already present'
+    rv = _cmd_xr_view(_, macs)
+    if rv[0] == 0:
+        return 0, 'XR start: already there'
 
-    print('N2LL agent _cmd_xr_start()')
-    th_xr = threading.Thread(target=xr_ble_xml_rpc_server)
-    th_xr.start()
-    time.sleep(1)
-    cmd = 'netstat -an | grep 9000'
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    s = 'XR present' if rv.returncode == 0 else 'XR bad start'
-    return rv.returncode, s
+    # fork a xr_ble_server
+    pid = os.fork()
+    if pid == 0:
+        xr_ble_server()
+        return 0, 'XR start: child forked'
+    else:
+        # parent code
+        time.sleep(1)
+        rv = _cmd_xr_view(_, macs)
+        if rv[0] == 0:
+            return 0, 'XR start: parent sees child :)'
+        return 1, 'XR start: parent cannot see child :('
 
 
 def _parse_n2ll_cmd(s: bytes):

@@ -211,7 +211,7 @@ class XS:
         return rv
 
 
-def xr_ble_xml_rpc_server():
+def xr_ble_server():
 
     server = SimpleXMLRPCServer(('localhost', XR_DEFAULT_PORT),
                                 logRequests=True,
@@ -225,14 +225,14 @@ def xr_ble_xml_rpc_server():
         pid = os.getpid()
         with open(XR_PID_FILE, 'w') as f:
             f.write(str(pid))
-        print('th_xs_ble: launched, pid {}'.format(pid))
+        print('th_xr_ble_server: launched, pid {}'.format(pid))
         server.serve_forever()
 
     except KeyboardInterrupt:
-        print('th_xs_ble: killed')
+        print('th_xr_ble_server: killed')
 
 
-def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
+def xr_ble_client(url, q_cmd_in, sig):
 
     # url: 'http://localhost:<port>'
     xc = xmlrpc.client.ServerProxy(url, allow_none=True)
@@ -245,12 +245,11 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
             # c: ('scan', 0, 'all')
             c = q_cmd_in.get()
 
-            # ends function
+            # ends function, useful to re-orient url
             if c[0] == XS_BREAK:
                 s = 'xml-rpc client restarted'
                 sig.emit((c[0], s))
-                print('th_xb: bye')
-                return
+                return 0, s
             # print('dequeuing ', c[0])
 
             # maps c[0] to server function before calling RPC
@@ -308,6 +307,8 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
 # thread: local XML-RPC server, for testing
 if __name__ == '__main__':
-    th_xs_ble = threading.Thread(target=xr_ble_xml_rpc_server)
-    th_xs_ble.start()
-    print('th_main ends')
+    print('th_xr_ble_server: start')
+    th_xr_ble_server = threading.Thread(target=xr_ble_server)
+    th_xr_ble_server.start()
+    th_xr_ble_server.join()
+    print('th_xr_ble_server: end')
