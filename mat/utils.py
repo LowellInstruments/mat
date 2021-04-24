@@ -1,4 +1,5 @@
 import pathlib
+import socket
 from platform import machine
 import crc16
 from numpy import array, mod

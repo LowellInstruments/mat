@@ -12,7 +12,7 @@ AG_N2LL_CMD_QUERY = 'n2ll_query'
 AG_N2LL_CMD_ROUTE = 'n2ll_route'
 AG_N2LL_CMD_UNROUTE = 'n2ll_unroute'
 AG_N2LL_CMD_NGROK_VIEW = 'n2ll_ngrok_view'
-AG_N2LL_CMD_BLED = 'n2ll_bled'
+AG_N2LL_CMD_BLE_SERVICE_RESTART = 'n2ll_ble_service_restart'
 AG_N2LL_CMD_INSTALL_DDH = 'n2ll_install_ddh'
 AG_N2LL_CMD_KILL_DDH = 'n2ll_uninstall_ddh'
 AG_N2LL_CMD_VIEW_DDH = 'n2ll_view_ddh'
@@ -27,26 +27,12 @@ AG_N2LL_ANS_ROUTE_ERR_ALREADY = 'error: ngrok not grep at {}, maybe runs somewhe
 AG_N2LL_ANS_NOT_FOR_US = 'cmd not for us'
 
 
-def get_ngrok_bin_name() -> str:
-    _s = os.uname().nodename
-    _m = os.uname().machine
-    if _m == 'armv7l':
-        return 'ngrok_rpi'
-    if _s == 'rasberrypi' or _s == 'rpi':
-        return 'ngrok_rpi'
-    return 'ngrok'
-
-
 def check_ngrok_can_be_run():
-    name = get_ngrok_bin_name()
-    cmd = '{} -h'.format(name)
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        print('{} found'.format(name))
+        print('ngrok found')
         return True
     print('maybe you need to move ngrok to /usr/bin ?')
-    if linux_is_rpi():
-        print('also, maybe you meant ngrok_rpi ?')
 
 
 def create_empty_crontab_file_for_ddh():

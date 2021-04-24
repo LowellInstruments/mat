@@ -9,9 +9,9 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
-                            AG_N2LL_ANS_NOT_FOR_US, get_ngrok_bin_name, check_ngrok_can_be_run,
+                            AG_N2LL_ANS_NOT_FOR_US, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
-                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLED,
+                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLE_SERVICE_RESTART,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
                             _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
@@ -37,10 +37,12 @@ def _cmd_query(_, macs):
     """ asks if DDH or ngrok are running here """
 
     mac = macs[0]
-    is_ddh_running = int(is_process_running_by_name('ddh/main.py'))
-    is_ngrok_running = int(is_process_running_by_name(get_ngrok_bin_name()))
-    s = '{} DDH {} / ngrok {}'
-    return 0, s.format(mac, is_ddh_running, is_ngrok_running)
+    ddh = int(is_process_running_by_name('ddh/main.py'))
+    ngk = int(is_process_running_by_name('ngrok'))
+    xr = int(is_process_running_by_name('xr.py'))
+
+    s = '{} -> DDH {} / ngrok {} / xr {}'
+    return 0, s.format(mac, ddh, ngk, xr)
 
 
 def _cmd_route_ngrok(_, macs):
@@ -49,10 +51,8 @@ def _cmd_route_ngrok(_, macs):
     # _: ['route', '4000', <mac>]
     assert len(_) == 3
 
-    # obtain proper ngrok name and kill any current local one
-    ngrok_bin = get_ngrok_bin_name()
-    cmd = 'killall {}'.format(ngrok_bin)
-    sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    # kill any current local ngrok already running
+    sp.run('killall ngrok', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # remove any previous ngrok log file
     log_file = '/dev/shm/my_ngrok.log'
@@ -63,7 +63,7 @@ def _cmd_route_ngrok(_, macs):
 
     # Popen() daemons ngrok, although cannot check return code
     port = _[1]
-    cmd = '{} tcp {} --log {}'.format(ngrok_bin, port, log_file)
+    cmd = 'ngrok tcp {} --log {}'.format(port, log_file)
     _rv = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # see log file, grep ngrok url
@@ -84,9 +84,7 @@ def _cmd_route_ngrok(_, macs):
 def _cmd_unroute(_, macs):
     """ kill ngrok """
 
-    for i in ['ngrok', 'ngrok_rpi']:
-        cmd = 'killall {}'.format(i)
-        _rv = sp.run([cmd], shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    sp.run('killall ngrok', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     mac = macs[0]
     return 0, 'un-routed {}'.format(mac)
 
@@ -235,7 +233,7 @@ def _parse_n2ll_cmd(s: bytes):
         AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
         AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi,
         AG_N2LL_CMD_VIEW_DDH: _cmd_view_ddh_rpi,
-        AG_N2LL_CMD_BLED: _cmd_bled,
+        AG_N2LL_CMD_BLE_SERVICE_RESTART: _cmd_bled,
         AG_N2LL_CMD_XR_START: _cmd_xr_start,
         AG_N2LL_CMD_XR_VIEW: _cmd_xr_view,
         AG_N2LL_CMD_XR_KILL: _cmd_xr_kill

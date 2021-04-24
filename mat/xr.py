@@ -225,7 +225,7 @@ def xr_ble_xml_rpc_server():
         pid = os.getpid()
         with open(XR_PID_FILE, 'w') as f:
             f.write(str(pid))
-        print('th_xrs_ble: launched, pid {}'.format(pid))
+        print('th_xs_ble: launched, pid {}'.format(pid))
         server.serve_forever()
 
     except KeyboardInterrupt:
@@ -247,6 +247,8 @@ def xr_ble_xml_rpc_client(url, q_cmd_in, sig):
 
             # ends function
             if c[0] == XS_BREAK:
+                s = 'xml-rpc client restarted'
+                sig.emit((c[0], s))
                 print('th_xb: bye')
                 return
             # print('dequeuing ', c[0])
