@@ -15,7 +15,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
                             _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
-from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT
+from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT, xr_ble_server_as_thread
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
@@ -215,8 +215,8 @@ def _cmd_xr_start(_, macs):
     # fork a xr_ble_server
     pid = os.fork()
     if pid == 0:
+        # child won\'t return, needs Pycharm stop button twice
         xr_ble_server()
-        return 0, 'XR start: child forked'
     else:
         # parent code
         time.sleep(1)

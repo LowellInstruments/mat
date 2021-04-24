@@ -232,6 +232,11 @@ def xr_ble_server():
         print('th_xr_ble_server: killed')
 
 
+def xr_ble_server_as_thread():
+    th_xr_ble_server = threading.Thread(target=xr_ble_server)
+    th_xr_ble_server.start()
+
+
 def xr_ble_client(url, q_cmd_in, sig):
 
     # url: 'http://localhost:<port>'
@@ -307,8 +312,4 @@ def xr_ble_client(url, q_cmd_in, sig):
 
 # thread: local XML-RPC server, for testing
 if __name__ == '__main__':
-    print('th_xr_ble_server: start')
-    th_xr_ble_server = threading.Thread(target=xr_ble_server)
-    th_xr_ble_server.start()
-    th_xr_ble_server.join()
-    print('th_xr_ble_server: end')
+    xr_ble_server()
