@@ -173,7 +173,7 @@ def _cmd_bled(_, macs):
 def _cmd_xr_view(_, macs):
     pid = get_pid_of_a_process('xr.py')
     if pid == -1:
-        return 1, 'XR process not running'
+        return 1, 'XR process not running, or XR as thread'
     return 0, 'XR process running pid = {}'.format(pid)
 
 
@@ -194,10 +194,14 @@ def _cmd_xr_kill(_, macs):
 
 
 def _cmd_xr_start(_, macs):
-    _cmd_xr_kill(_, macs)
-    # give time to kill
+    print('N2LL agent _cmd_xr_start()')
     th_xr = threading.Thread(target=xr_ble_xml_rpc_server)
     th_xr.start()
+    time.sleep(1)
+    cmd = 'netstat -an | grep 9000'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    s = 'XR present' if rv.returncode == 0 else 'XR bad start'
+    return rv.returncode, s
 
 
 def _parse_n2ll_cmd(s: bytes):
