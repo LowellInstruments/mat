@@ -14,7 +14,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
                             create_empty_crontab_file_for_ddh, AG_N2LL_CMD_DDH_VESSEL, AG_N2LL_CMD_BLE_SERVICE_RESTART,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
-                            _url_n2ll, AG_N2LL_CMD_MAT)
+                            _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
 from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT, xr_ble_server_as_thread
 from mat.n2ll_utils import (
@@ -158,7 +158,7 @@ def _cmd_ddh_vessel(_, macs):
         with open(path) as f:
             cfg = json.load(f)
             ans = cfg['ship_name']
-            ans = '{} DDH vessel => {}'.format(mac, ans)
+            ans = '{} => vessel {}'.format(mac, ans)
     except FileNotFoundError:
         ans = 'no ddh.json file found'
 
@@ -176,16 +176,18 @@ def _cmd_bled(_, macs):
 
 
 def _cmd_xr_view(_, macs):
+    mac = macs[0]
     cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.stdout:
-        return 0, 'XR view => yes, it is there'
-    return 1, 'XR view => cannot see it'
+        return 0, '{} => XR view, yes, there'.format(mac)
+    return 1, '{} => XR view, not there'.format(mac)
 
 
 def _cmd_xr_kill(_, macs):
 
     # check any running
+    mac = macs[0]
     rv = _cmd_xr_view(_, macs)
     if rv[0] != 0:
         return 0, 'XR kill: none running'
@@ -196,52 +198,33 @@ def _cmd_xr_kill(_, macs):
         with open(XR_PID_FILE) as f:
             pid = int(f.read())
     except FileNotFoundError:
-        return 0, 'XR kill => was not running'
+        return 0, '{} => XR kill, no need'.format(mac)
 
     if not pid:
-        return 1, 'XR kill => unknown'
+        return 1, '{} => XR kill, unknown'.format(mac)
 
     # murder it
     s = 'kill -9 {}'.format(pid)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return 0, 'XR kill => OK'
-    return 1, 'XR kill => bad'
-
-
-def _cmd_mat(_, macs):
-    if not linux_is_rpi():
-        return 0, 'N2LL_MAT is only for DDH hardware'
-
-    cmd = 'sudo pip3 uninstall -y lowell-mat'
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    cmd = 'sudo pip3 install '
-    cmd += 'git+https://github.com/LowellInstruments/lowell-mat.git'
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        return 0, 'MAT installed OK'
-    return 1, 'MAT could not install'
+        return 0, '{} => XR killed'.format(mac)
+    return 1, '{} => XR kill, error'.format(mac)
 
 
 def _cmd_xr_start(_, macs):
+    mac = macs[0]
     rv = _cmd_xr_view(_, macs)
     if rv[0] == 0:
-        return 0, 'XR start => already there'
+        return 0, '{} => XR start, no need'.format(mac)
 
-    # fork a xr_ble_server
-    pid = os.fork()
-    if pid == 0:
-        # may require 2 Pycharm stop button clicks
-        p = multiprocessing.Process(target=xr_ble_server)
-        p.start()
-        return 0, 'XR start => child forked'
-    else:
-        # parent code
-        time.sleep(1)
-        rv = _cmd_xr_view(_, macs)
-        if rv[0] == 0:
-            return 0, 'XR start => parent sees child'
-        return 1, 'XR start => parent cannot see child :('
+    # thread a xr_ble_server, forking gives rabbitMQ errors
+    th = threading.Thread(target=xr_ble_server)
+    th.start()
+    time.sleep(2)
+    rv = _cmd_xr_view(_, macs)
+    if rv[0] == 0:
+        return 0, '{} => XR start, no need'.format(mac)
+    return 1, '{} => XR start, error'.format(mac)
 
 
 def _parse_n2ll_cmd(s: bytes):
@@ -281,7 +264,6 @@ def _parse_n2ll_cmd(s: bytes):
         AG_N2LL_CMD_XR_START: _cmd_xr_start,
         AG_N2LL_CMD_XR_VIEW: _cmd_xr_view,
         AG_N2LL_CMD_XR_KILL: _cmd_xr_kill,
-        AG_N2LL_CMD_MAT: _cmd_mat
     }
     fxn = fxn_map[cmd]
 
