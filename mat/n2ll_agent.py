@@ -40,7 +40,7 @@ def _cmd_query(_, macs):
     mac = macs[0][-8:]
     ddh = int(is_process_running_by_name('ddh/main.py'))
     ngk = int(is_process_running_by_name('ngrok'))
-    xr = _cmd_xr_view(None, None)
+    xr = _cmd_xr_view(None, macs)
 
     ddh = 'DDH' if ddh != -1 else '-'
     ngk = 'NGK' if ngk != -1 else '-'
