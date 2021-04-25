@@ -16,7 +16,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
                             _url_n2ll)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
-from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT, xr_ble_server_as_thread
+from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
@@ -169,7 +169,7 @@ def _cmd_bled(_, macs):
     mac = macs[0][-8:]
     cmd = 'systemctl restart bluetooth'
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    s = '{} BLE service restarted {}'
+    s = 'mac => {} bluetooth restart {}'
     if rv.returncode == 0:
         return 0, s.format(mac, 'OK')
     return 1, s.format(mac, 'ERR')
@@ -190,7 +190,7 @@ def _cmd_xr_kill(_, macs):
     mac = macs[0]
     rv = _cmd_xr_view(_, macs)
     if rv[0] != 0:
-        return 0, 'XR kill: none running'
+        return 0, '{} => XR kill, was not running'
 
     # a XR writes its pid at boot, check it
     pid = 0
@@ -198,7 +198,7 @@ def _cmd_xr_kill(_, macs):
         with open(XR_PID_FILE) as f:
             pid = int(f.read())
     except FileNotFoundError:
-        return 0, '{} => XR kill, no need'.format(mac)
+        return 0, '{} => XR kill, no pid_file'.format(mac)
 
     if not pid:
         return 1, '{} => XR kill, unknown'.format(mac)
@@ -226,6 +226,10 @@ def _cmd_xr_start(_, macs):
         return 0, '{} => XR start, no need'.format(mac)
     return 1, '{} => XR start, error'.format(mac)
 
+
+# ====================== N2LL flowchart =========================
+# loop_n2ll_agent -> sub_rx -> ans = _parse_n2ll_cmd -> pub(ans)
+# ===============================================================
 
 def _parse_n2ll_cmd(s: bytes):
     """ see N2LL command is for me, parse it """
