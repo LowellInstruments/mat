@@ -12,9 +12,9 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
                             AG_N2LL_ANS_NOT_FOR_US, check_ngrok_can_be_run,
                             AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
-                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_VIEW_DDH, AG_N2LL_CMD_BLE_SERVICE_RESTART,
+                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_DDH_VESSEL, AG_N2LL_CMD_BLE_SERVICE_RESTART,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
-                            _url_n2ll)
+                            _url_n2ll, AG_N2LL_CMD_MAT)
 from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
 from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT, xr_ble_server_as_thread
 from mat.n2ll_utils import (
@@ -48,7 +48,7 @@ def _cmd_query(_, macs):
     return 0, '{} => {} / {} / {}'.format(mac, ddh, ngk, xr)
 
 
-def _cmd_route_ngrok(_, macs):
+def _cmd_ngrok_route(_, macs):
     """ route ngrok toward this node """
 
     # _: ['route', '4000', <mac>]
@@ -84,7 +84,7 @@ def _cmd_route_ngrok(_, macs):
     return 0, s
 
 
-def _cmd_unroute(_, macs):
+def _cmd_ngrok_unroute(_, macs):
     """ kill ngrok """
 
     sp.run('killall ngrok', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -151,7 +151,7 @@ def _cmd_unddh_rpi(_, macs):
     return 0, 'DDH killed OK on {}'.format(mac)
 
 
-def _cmd_view_ddh_rpi(_, macs):
+def _cmd_ddh_vessel(_, macs):
     path = '/home/pi/li/ddh/ddh/settings/ddh.json'
     try:
         with open(path) as f:
@@ -178,8 +178,8 @@ def _cmd_xr_view(_, macs):
     cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.stdout:
-        return 0, 'XR view: yes, it is there'
-    return 1, 'XR view: cannot see it'
+        return 0, 'XR view => yes, it is there'
+    return 1, 'XR view => cannot see it'
 
 
 def _cmd_xr_kill(_, macs):
@@ -195,23 +195,40 @@ def _cmd_xr_kill(_, macs):
         with open(XR_PID_FILE) as f:
             pid = int(f.read())
     except FileNotFoundError:
-        return 0, 'XR kill: was not running'
+        return 0, 'XR kill => was not running'
 
     if not pid:
-        return 1, 'XR kill: unknown'
+        return 1, 'XR kill => unknown'
 
     # murder it
     s = 'kill -9 {}'.format(pid)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return 0, 'XR kill: OK'
-    return 1, 'XR kill: bad'
+        return 0, 'XR kill => OK'
+    return 1, 'XR kill => bad'
+
+
+def _cmd_mat(_, macs):
+    if not linux_is_rpi():
+        return 0, 'N2LL_MAT is only for DDH hardware'
+
+    # todo: check why this does not work on RPi
+    cmd = 'sudo pip3 uninstall -y lowell-mat'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    print('uni {}'.format(rv.returncode))
+    cmd = 'sudo pip3 install '
+    cmd += 'git+https://github.com/LowellInstruments/lowell-mat.git'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    print('ins {}'.format(rv.returncode))
+    if rv.returncode == 0:
+        return 0, 'MAT installed OK'
+    return 1, 'MAT could not install'
 
 
 def _cmd_xr_start(_, macs):
     rv = _cmd_xr_view(_, macs)
     if rv[0] == 0:
-        return 0, 'XR start: already there'
+        return 0, 'XR start => already there'
 
     # fork a xr_ble_server
     pid = os.fork()
@@ -219,14 +236,14 @@ def _cmd_xr_start(_, macs):
         # may require 2 Pycharm stop button clicks
         p = multiprocessing.Process(target=xr_ble_server)
         p.start()
-        return 0, 'XR start: child forked'
+        return 0, 'XR start => child forked'
     else:
         # parent code
         time.sleep(1)
         rv = _cmd_xr_view(_, macs)
         if rv[0] == 0:
-            return 0, 'XR start: parent sees child :)'
-        return 1, 'XR start: parent cannot see child :('
+            return 0, 'XR start => parent sees child'
+        return 1, 'XR start => parent cannot see child :('
 
 
 def _parse_n2ll_cmd(s: bytes):
@@ -256,16 +273,17 @@ def _parse_n2ll_cmd(s: bytes):
         AG_N2LL_CMD_BYE: _cmd_bye,
         AG_N2LL_CMD_WHO: _cmd_who,
         AG_N2LL_CMD_QUERY: _cmd_query,
-        AG_N2LL_CMD_ROUTE: _cmd_route_ngrok,
-        AG_N2LL_CMD_UNROUTE: _cmd_unroute,
+        AG_N2LL_CMD_ROUTE: _cmd_ngrok_route,
+        AG_N2LL_CMD_UNROUTE: _cmd_ngrok_unroute,
         AG_N2LL_CMD_NGROK_VIEW: _cmd_ngrok_view,
         AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
         AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi,
-        AG_N2LL_CMD_VIEW_DDH: _cmd_view_ddh_rpi,
+        AG_N2LL_CMD_DDH_VESSEL: _cmd_ddh_vessel,
         AG_N2LL_CMD_BLE_SERVICE_RESTART: _cmd_bled,
         AG_N2LL_CMD_XR_START: _cmd_xr_start,
         AG_N2LL_CMD_XR_VIEW: _cmd_xr_view,
-        AG_N2LL_CMD_XR_KILL: _cmd_xr_kill
+        AG_N2LL_CMD_XR_KILL: _cmd_xr_kill,
+        AG_N2LL_CMD_MAT: _cmd_mat
     }
     fxn = fxn_map[cmd]
 
