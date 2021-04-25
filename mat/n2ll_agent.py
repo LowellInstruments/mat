@@ -37,7 +37,7 @@ def _cmd_bye(_, macs):
 def _cmd_query(_, macs):
     """ asks if DDH or ngrok are running here """
 
-    mac = macs[0]
+    mac = macs[0][-8:]
     ddh = int(is_process_running_by_name('ddh/main.py'))
     ngk = int(is_process_running_by_name('ngrok'))
     xr = _cmd_xr_view(None, None)
@@ -152,12 +152,13 @@ def _cmd_unddh_rpi(_, macs):
 
 
 def _cmd_ddh_vessel(_, macs):
+    mac = macs[0][-8:]
     path = '/home/pi/li/ddh/ddh/settings/ddh.json'
     try:
         with open(path) as f:
             cfg = json.load(f)
             ans = cfg['ship_name']
-            ans = 'ddh vessel name: {}'.format(ans)
+            ans = '{} DDH vessel => {}'.format(mac, ans)
     except FileNotFoundError:
         ans = 'no ddh.json file found'
 
@@ -165,16 +166,16 @@ def _cmd_ddh_vessel(_, macs):
 
 
 def _cmd_bled(_, macs):
-    # do this
+    mac = macs[0][-8:]
     cmd = 'systemctl restart bluetooth'
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    s = 'BLE service restarted {}'
-    s = s.format('OK') if rv.returncode == 0 else s.format('ERR')
-    return 0, s
+    s = '{} BLE service restarted {}'
+    if rv.returncode == 0:
+        return 0, s.format(mac, 'OK')
+    return 1, s.format(mac, 'ERR')
 
 
 def _cmd_xr_view(_, macs):
-    # check it 'netstat' gives any output
     cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.stdout:
@@ -212,14 +213,11 @@ def _cmd_mat(_, macs):
     if not linux_is_rpi():
         return 0, 'N2LL_MAT is only for DDH hardware'
 
-    # todo: check why this does not work on RPi
     cmd = 'sudo pip3 uninstall -y lowell-mat'
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    print('uni {}'.format(rv.returncode))
     cmd = 'sudo pip3 install '
     cmd += 'git+https://github.com/LowellInstruments/lowell-mat.git'
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    print('ins {}'.format(rv.returncode))
     if rv.returncode == 0:
         return 0, 'MAT installed OK'
     return 1, 'MAT could not install'
