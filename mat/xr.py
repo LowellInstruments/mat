@@ -3,6 +3,7 @@ import os
 import threading
 import time
 import xmlrpc
+from http.client import RemoteDisconnected
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
 from mat.logger_controller import STATUS_CMD, STOP_CMD, FIRMWARE_VERSION_CMD, TIME_CMD, LOGGER_INFO_CMD, \
@@ -53,7 +54,8 @@ XS_BLE_CMD_RUN = 'run'
 XS_BLE_CMD_RWS = 'rws'
 XS_BLE_CMD_DWG = 'dwg'
 XS_BLE_CMD_SLW = 'slw'
-XS_BLE_EXCEPTION = 'exception'
+XS_BLE_EXCEPTION_1 = 'exception'
+XS_BLE_EXCEPTION_2 = 'maybe no remote XR'
 
 
 class XS:
@@ -252,7 +254,7 @@ def xr_ble_client(url, q_cmd_in, sig):
 
             # ends function, useful to re-orient url
             if c[0] == XS_BREAK:
-                s = 'xml-rpc client restarted'
+                s = 'XR client restarted'
                 sig.emit((c[0], s))
                 return 0, s
             # print('dequeuing ', c[0])
@@ -306,8 +308,11 @@ def xr_ble_client(url, q_cmd_in, sig):
                 a = fxn(*pars)
                 sig.emit((c[0], a))
             except xmlrpc.client.Fault as xcf:
-                print('wow! xmlrpc client exception -> {}'.format(xcf))
-                sig.emit((XS_BLE_EXCEPTION, c[0]))
+                print('XR cli exc -> {}'.format(xcf))
+                sig.emit((XS_BLE_EXCEPTION_1, c[0]))
+            except RemoteDisconnected as xrd:
+                print('XR cli exc -> {}'.format(xrd))
+                sig.emit((XS_BLE_EXCEPTION_2, c[0]))
 
 
 # thread: local XML-RPC server, for testing

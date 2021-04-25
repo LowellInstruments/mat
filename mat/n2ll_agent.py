@@ -88,7 +88,7 @@ def _cmd_ngrok_unroute(_, macs):
     """ kill ngrok """
 
     sp.run('killall ngrok', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    mac = macs[0]
+    mac = macs[0][-8:]
     return 0, 'un-routed {}'.format(mac)
 
 
@@ -102,7 +102,7 @@ def _cmd_ngrok_view(_, macs):
 def _cmd_ddh_rpi(_, macs):
     """ delete DDH folder and get new version of it """
 
-    mac = macs[0]
+    mac = macs[0][-8:]
 
     if not linux_is_rpi():
         return 0, 'nah, won\'t do DDH on a non-rpi {}'.format(mac)
@@ -133,7 +133,7 @@ def _cmd_ddh_rpi(_, macs):
 def _cmd_unddh_rpi(_, macs):
     """ delete DDH folder """
 
-    mac = macs[0]
+    mac = macs[0][-8:]
 
     # 1st, disable any crontab controlling DDH
     if linux_is_rpi():
@@ -176,7 +176,7 @@ def _cmd_bled(_, macs):
 
 
 def _cmd_xr_view(_, macs):
-    mac = macs[0]
+    mac = macs[0][-8:]
     cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.stdout:
@@ -187,7 +187,7 @@ def _cmd_xr_view(_, macs):
 def _cmd_xr_kill(_, macs):
 
     # check any running
-    mac = macs[0]
+    mac = macs[0][-8:]
     rv = _cmd_xr_view(_, macs)
     if rv[0] != 0:
         return 0, '{} => XR kill, was not running'
@@ -212,7 +212,7 @@ def _cmd_xr_kill(_, macs):
 
 
 def _cmd_xr_start(_, macs):
-    mac = macs[0]
+    mac = macs[0][-8:]
     rv = _cmd_xr_view(_, macs)
     if rv[0] == 0:
         return 0, '{} => XR start, no need'.format(mac)
