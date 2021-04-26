@@ -145,6 +145,7 @@ def gps_get_rmc_data(timeout=2):
             if b'$GPRMC' in data:
                 rv = _gps_parse_rmc_frame(data.decode())
                 if rv:
+                    # None / (lat, lon, gps_time)
                     return rv
     except SerialException as se:
         rv = None
