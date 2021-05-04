@@ -7,6 +7,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SEN
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
     SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD, \
     LOGGER_HSA_CMD_W
+from mat.logger_controller_ble_bgm220 import LoggerControllerBLEBGM220
 from mat.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.utils import linux_is_docker
@@ -91,6 +92,8 @@ class LoggerControllerBLE(LoggerController):
         # set underlying BLE class
         if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
+        elif brand_sl(mac):
+            self.und = LoggerControllerBLEBGM220(self)
         else:
             self.und = LoggerControllerBLERN4020(self)
 
@@ -100,12 +103,17 @@ class LoggerControllerBLE(LoggerController):
         return self.und.type
 
     def open(self):
+
+        # called w/ 'with'
         for i in range(BLE_CONNECTION_RETRIES):
             try:
                 self.per = ble.Peripheral(self.address, iface=self.hci_if,
                                           timeout=BLE_CONNECTION_TIMEOUT)
+
                 # connection update request from cc26x2 takes 1000 ms
                 time.sleep(1.1)
+
+                # set notifications' delegate and characteristics
                 self.per.setDelegate(self.dlg)
                 self.svc = self.per.getServiceByUUID(self.und.UUID_S)
                 self.cha = self.svc.getCharacteristics(self.und.UUID_C)[0]
@@ -117,6 +125,7 @@ class LoggerControllerBLE(LoggerController):
                     self.per.disconnect()
                     continue
 
+                # empty on RN4020, something on others
                 self.open_post()
                 return True
 
@@ -132,6 +141,8 @@ class LoggerControllerBLE(LoggerController):
         self.und.open_post()
 
     def close(self):
+
+        # called w/ 'with'
         try:
             self.per.disconnect()
             self.per = None
@@ -139,12 +150,11 @@ class LoggerControllerBLE(LoggerController):
         except AttributeError:
             return False
 
-    def _ans_is_finished(self, tag):  # pragma: no cover
-        """ ends last command sent answer timeout """
+    def _wait_for_cmd_answer_end(self, tag):  # pragma: no cover
+        """ finishes last command wait-for-answer timeout """
 
+        # grab buffer and maybe debug it
         b = self.dlg.buf
-
-        # useful when debugging
         # if b:
         #     print(b)
 
@@ -168,13 +178,15 @@ class LoggerControllerBLE(LoggerController):
         # (partial) answer, check it
         return _ans_check(tag, a, b)
 
-    def _wait_answer_to_ble_cmd(self, tag: str):    # pragma: no cover
+    def _wait_for_cmd_answer_begin(self, tag: str):    # pragma: no cover
+        """ wait for an answer to a command, not indefinitely """
+
         w = calc_ble_cmd_ans_timeout(tag)
         till = time.perf_counter() + w
         while 1:
             if time.perf_counter() > till:
                 break
-            if self._ans_is_finished(tag):
+            if self._wait_for_cmd_answer_end(tag):
                 break
             if self.per.waitForNotifications(0.001):
                 till += 0.001
@@ -186,10 +198,13 @@ class LoggerControllerBLE(LoggerController):
         self.dlg.clr_x_buf()
 
     def command(self, *args):   # pragma: no cover
+        """ send a BLE command """
+
         self.purge()
         self.dlg.set_file_mode(False)
 
-        # phone commands in aggregated, a.k.a. transparent, mode
+        # phone commands use aggregated, a.k.a. transparent, mode
+        # they do NOT follow Lowell Instruments' format (DWG NNABCD...)
         tp_mode = len(str(args[0]).split(' ')) > 1
 
         # build ASCII command
@@ -203,13 +218,11 @@ class LoggerControllerBLE(LoggerController):
             to_send = cmd + ' ' + n + arg
         to_send += chr(13)
 
-        # obtain command tag
+        # obtain command tag, ex: 'STP', send it, wait answer
         tag = cmd[:3]
         _cmd_pre_slow_down_if_so(tag)
-
-        # send command, wait answer
         self.ble_write(to_send.encode())
-        ans = self._wait_answer_to_ble_cmd(tag).split()
+        ans = self._wait_for_cmd_answer_begin(tag).split()
 
         # pause a bit, if so
         _cmd_post_slow_down_if_so(tag)
@@ -219,6 +232,7 @@ class LoggerControllerBLE(LoggerController):
 
     def flood(self, n):   # pragma: no cover
         """ attack test: sends command burst w/o caring answers """
+
         for i in range(n):
             cmd = STATUS_CMD
             cmd += chr(13)
@@ -226,6 +240,7 @@ class LoggerControllerBLE(LoggerController):
 
     def xmd_rx_n_save(self, file, fol, size, sig=None):   # pragma: no cover
         """ called after _get_file(), downloads file w/ x-modem """
+
         fxn_map = {
             'cc26x2': xmd_get_file_cc26x2,
             'rn4020': xmd_get_file_rn4020
@@ -249,6 +264,8 @@ class LoggerControllerBLE(LoggerController):
         return True
 
     def get_file(self, file, fol, size, sig=None):  # pragma: no cover
+        """ use XMODEM to download a file """
+
         rv = False
         try:
             rv = self.und.get_file(self, file, fol, size, sig)
@@ -263,6 +280,8 @@ class LoggerControllerBLE(LoggerController):
             return rv
 
     def get_time(self):
+        """ get logger time and format it as string """
+
         ans = self.command(TIME_CMD)
         if not ans:
             return
@@ -274,10 +293,9 @@ class LoggerControllerBLE(LoggerController):
         except (ValueError, IndexError):
             print('BLE: get_time() malformed: {}'.format(ans))
 
-    # wrapper for DIR command
     def _ls(self):
+        """ wrapper for DIR command """
         rv = []
-
         for i in range(5):
             rv = self.command(DIR_CMD)
             # ensure DIR answer is clean
@@ -304,12 +322,15 @@ class LoggerControllerBLE(LoggerController):
         return _ls_wildcard(self._ls(), ext, match=False)
 
     def send_cfg(self, cfg_d: dict):  # pragma: no cover
+        """ send logger CFG command """
+
         assert type(cfg_d) is dict
         s = json.dumps(cfg_d)
         return self.command(CONFIG_CMD, s)
 
     def send_btc(self):
         """ only on RN4020-based loggers: set fast mode """
+
         if self.und.type == 'rn4020':
             s = 'BTC 00T,0006,0000,0064'
             _ = self.command(s)
@@ -318,7 +339,8 @@ class LoggerControllerBLE(LoggerController):
             return 'wrong logger type'
 
     def _dwl_chunk_loop(self, sig, data):   # pragma: no cover
-        """ accumulate on data parameter """
+        """ accumulate DWL chunks on 'data' parameter """
+
         last = time.perf_counter()
         while 1:
             if self.per.waitForNotifications(.1):
@@ -336,7 +358,8 @@ class LoggerControllerBLE(LoggerController):
                 return False, data
 
     def _dwl_file(self, size, sig=None):   # pragma: no cover
-        """ XMODEM equivalent, called by dwg_file() """
+        """ DWG, not XMODEM, file download, used by dwg_file() """
+
         self.dlg.set_file_mode(True)
         data = bytes()
         self.dlg.x_buf = bytes()
@@ -359,6 +382,7 @@ class LoggerControllerBLE(LoggerController):
         return data
 
     def dwg_file(self, file, fol, size, sig=None):  # pragma: no cover
+        """ use DWL commands to get a file """
 
         data = None
         try:
@@ -367,7 +391,10 @@ class LoggerControllerBLE(LoggerController):
             self.ble_write(cmd.encode())
             self.per.waitForNotifications(10)
             if self.dlg.buf and self.dlg.buf.endswith(b'DWG 00'):
+
+                # DWL chunks loop
                 data = self._dwl_file(size, sig)
+
                 if data and len(data) == int(size):
                     path = '{}/{}'.format(fol, file)
                     with open(path, 'wb') as f:
@@ -409,7 +436,14 @@ def _ls_wildcard(lis, ext, match=True):
 
 def brand_ti(mac):
     mac = mac.lower()
-    return not brand_microchip(mac)
+    return not brand_microchip(mac) and not brand_sl(mac)
+
+
+def brand_sl(mac):
+    mac = mac.lower()
+    # todo: do this
+    return mac.startswith('11:22:33')
+
 
 
 def brand_microchip(mac):
@@ -424,6 +458,7 @@ def brand_whatever(_):
 
 def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
     # hci_if: hciX interface number
+
     import sys
     try:
         s = ble.Scanner(iface=hci_if)
@@ -437,6 +472,7 @@ def ble_scan(hci_if: int, my_to=3.0):    # pragma: no cover
 
 
 def is_connection_recent(mac):  # pragma: no cover
+
     # /dev/shm is cleared every reboot
     mac = str(mac).replace(':', '')
     path = pathlib.Path('/dev/shm/{}'.format(mac))
@@ -475,6 +511,7 @@ def _r_ble_linux_pars(banner, hci_if: int) -> (int, int, int):   # pragma: no co
 
 
 def w_ble_linux_pars(l1, l2, l3, hci_if: int):   # pragma: no cover
+
     # order is important
     _r_ble_linux_pars('pre:', hci_if)
 
@@ -584,7 +621,8 @@ def _ans_check(tag, a, b):
 
 
 def _cmd_pre_slow_down_if_so(tag):
-    """ ensure commands are spaced """
+    """ ensure commands are spaced in time """
+
     _st = {
         CRC_CMD: 2,
         FORMAT_CMD: 2
@@ -600,6 +638,7 @@ def _cmd_pre_slow_down_if_so(tag):
 
 def _cmd_post_slow_down_if_so(tag: str):
     """ after answer received or timeout expired """
+
     _st = {
         LOGGER_INFO_CMD: .1,
         LOGGER_INFO_CMD_W: .1,
@@ -664,6 +703,8 @@ def get_logger_type_by_mac(mac):
         return 'dummy_rn4020'
     if brand_microchip(mac):
         return 'rn4020'
+    if brand_sl(mac):
+        return 'bgm220'
     if brand_ti(mac):
         return 'cc26x2'
     return 'unknown_type'
