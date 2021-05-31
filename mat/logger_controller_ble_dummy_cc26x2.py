@@ -46,24 +46,6 @@ class LoggerControllerBLEDummyCC26x2(LoggerControllerBLEDummy):
     def gfv(self):
         return 'd.u.26'
 
-    def get_file(self, file, fol, size, sig=None):
-        assert self.address
-        if file not in self.files.keys():
-            return False
-        path = '{}/{}'.format(fol, file)
-
-        # asking for MAT.cfg file
-        if file == 'MAT.cfg':
-            with open(path, 'w') as f:
-                s = '{ "fruit": "Apple" }'
-                f.write(s)
-            return True
-
-        # when asking for files not MAT.cfg
-        with open(path, 'w') as f:
-            f.write('*' * int(size))
-        return True
-
     def frm(self):
         self.files = {}
         return ''

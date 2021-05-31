@@ -10,6 +10,7 @@ from mat.logger_controller_ble_dummy_rn4020 import LoggerControllerBLEDummyRN402
 #       --cov tests.lc_ble_dummy_rn4020
 #       --cov-report=html:<output_dir>
 
+
 mac = FAKE_MAC_RN4020
 
 
@@ -17,17 +18,18 @@ class TestLCBLEDummyRN4020:
 
     def test_constructor(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
-        assert lc.type == 'dummy_rn4020'
+        assert lc.per.state == 'disc'
+        assert not lc.address
 
     def test_open(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
         lc.open()
+        assert lc.per.state == 'conn'
         assert lc.type == 'dummy_rn4020'
 
     def test_ble_write(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
         lc.open()
-        assert lc.type == 'dummy_rn4020'
         lc.ble_write('whatever_data')
 
     def test_get_file(self):
@@ -44,7 +46,7 @@ class TestLCBLEDummyRN4020:
         lc.open()
         rv = lc.close()
         assert rv
-        assert not lc.type
+        assert lc.per.state == 'disc'
 
     def test_purge(self):
         lc = LoggerControllerBLEDummyRN4020(mac)
