@@ -90,6 +90,7 @@ class LoggerControllerBLE(LoggerController):
         self.type = None
 
         # set underlying BLE class
+        # todo: maybe 'type' parameter and simpler building
         if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
         elif brand_sl(mac):
@@ -413,6 +414,11 @@ class LoggerControllerBLE(LoggerController):
 
         return data
 
+    def get_li_model(self):
+        # todo: test or do this for RN4020 loggers
+        # e.g [b'RLI', b'07LIDO201']
+        return self.command(LOGGER_INFO_CMD, 'MA')
+
 
 # utilities
 def _ls_wildcard(lis, ext, match=True):
@@ -443,7 +449,6 @@ def brand_sl(mac):
     mac = mac.lower()
     # todo: do this
     return mac.startswith('11:22:33')
-
 
 
 def brand_microchip(mac):
