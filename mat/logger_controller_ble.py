@@ -90,7 +90,7 @@ class LoggerControllerBLE(LoggerController):
         self.type = None
 
         # set underlying BLE class
-        # todo: maybe 'type' parameter and simpler building
+        # todo: maybe 'type' parameter + simpler building
         if brand_ti(mac):
             self.und = LoggerControllerBLECC26X2(self)
         elif brand_sl(mac):
