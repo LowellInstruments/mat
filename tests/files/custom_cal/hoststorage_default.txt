@@ -31,3 +31,4 @@ MZX 0
 MZY 0
 MZZ 1
 MZV 0
+DUM 0
