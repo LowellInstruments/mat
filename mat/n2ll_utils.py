@@ -1,10 +1,8 @@
-import os
-import subprocess as sp
 # requires 'python-crontab' package to be installed
 import pika
+import parse
 from crontab import CronTab
 
-from mat.utils import linux_is_rpi
 
 AG_N2LL_CMD_BYE = 'n2ll_bye'
 AG_N2LL_CMD_WHO = 'n2ll_who'
@@ -27,21 +25,13 @@ AG_N2LL_ANS_ROUTE_ERR_ALREADY = 'error: ngrok not grep at {}, maybe runs somewhe
 AG_N2LL_ANS_NOT_FOR_US = 'cmd not for us'
 
 
-def check_ngrok_can_be_run():
-    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        print('ngrok found')
-        return True
-    print('maybe you need to move ngrok to /usr/bin ?')
-
-
-def create_empty_crontab_file_for_ddh():
+def ddh_create_empty_crontab_file():
     """ empties and create a new system-wide crontab file """
     ct = CronTab(user='root')
     ct.write('/etc/crontab')
 
 
-def create_populated_crontab_file_for_ddh():
+def ddh_create_populated_crontab_file():
     """ writes new populated system-wide crontab file """
     ct = CronTab(user='root')
     job = ct.new(command='/home/pi/li/ddh/ddh_run.sh', comment='launch DDH')
@@ -49,7 +39,7 @@ def create_populated_crontab_file_for_ddh():
     ct.write('/etc/crontab')
 
 
-def does_cron_job_exists_by_comment(file_name: str, comm: str):
+def ddh_grep_cron_job_by_comment_in_file(file_name: str, comm: str):
     """ checks if job w/ comment exists in crontab file 'f' """
     assert file_name
     ct = CronTab(user='root', tabfile=file_name)
@@ -60,24 +50,27 @@ def does_cron_job_exists_by_comment(file_name: str, comm: str):
     return bool(rv)
 
 
-def _url_n2ll():
-    """ build and return the N2LL url """
-
-    # todo: change this test url to a production one
-    url = 'amqps://{}:{}/{}'
-    _user = 'dfibpovr'
-    _rest = 'rqMn0NIFEjXTBtrTwwgRiPvcXqfCsbw9@chimpanzee.rmq.cloudamqp.com'
-    return url.format(_user, _rest, _user)
+# ################# N2LL connection and parameters ###############
+def n2ll_url():
+    # see all this info and the one in _mq_get_ch()
+    # in rabbitMQ console AND admin pages
+    _user = 'rrcjfcnm'
+    _pass = 'NsbkDVluGBjRcU3j37sbMg6_FlfgpcQa'
+    _vhost = _user
+    _host = 'cattle.rmq2.cloudamqp.com'
+    s = 'amqps://{}:{}@{}/{}'
+    return s.format(_user, _pass, _host, _vhost)
 
 
 def _mq_get_ch():
     """ build and return the N2LL channel (needs url) """
-
-    url = _url_n2ll()
-    _pars = pika.URLParameters(url)
+    _user, _pass, _host, _vhost = parse.parse('amqps://{}:{}@{}/{}', n2ll_url())
+    _cred = pika.PlainCredentials(_user, _pass)
+    _pars = pika.ConnectionParameters(_host, 5672, _vhost, _cred)
     _pars.socket_timeout = 3
     _conn = pika.BlockingConnection(_pars)
     return _conn.channel()
+# #################################################################
 
 
 def mq_exchange_for_slaves():

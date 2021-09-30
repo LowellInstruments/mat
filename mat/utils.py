@@ -1,7 +1,6 @@
 import pathlib
-import socket
+import re
 from platform import machine
-import crc16
 from numpy import array, mod
 from datetime import datetime
 import numpy as np
@@ -105,49 +104,19 @@ class PrintColors:
         print(PrintColors.OKGREEN + s + PrintColors.ENDC)
 
 
-def xmd_frame_check_crc(lc):
-    data = lc.dlg.x_buf[3:-2]
-    rx_crc = lc.dlg.x_buf[-2:]
-    calc_crc_int = crc16.crc16xmodem(data)
-    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
-    return calc_crc_bytes == rx_crc
+def linux_check_ngrok_can_be_run():
+    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        print('ngrok found')
+        return True
+    print('error: ngrok not in /usr/bin or bad binary format')
 
 
-def is_service_active(name: str):
-    # just name, not name.service
-    s = 'systemctl is-active --quiet {}'.format(name)
-    rv = sp.run(s, shell=True)
-    print('service active {} ? {}'.format(name, rv.returncode == 0))
-    return rv.returncode == 0
+def linux_is_process_running_by_name(name):
+    return linux_get_pid_of_a_process(name)
 
 
-def is_service_enabled(name: str):
-    # just name, not name.service
-    s = 'systemctl is-enabled --quiet {}'.format(name)
-    rv = sp.run(s, shell=True)
-    print('service enabled {} ? {}'.format(name, rv.returncode == 0))
-    return rv.returncode == 0
-
-
-def show_services_running():
-    # running: currently being executed, may be enabled or not
-    s = 'systemctl | grep running'
-    rv = sp.run(s, shell=True, stdout=sp.PIPE)
-    print(rv.stdout)
-
-
-def show_services_enabled():
-    # enabled: will start on next boot, may be currently running or not
-    s = 'systemctl list-unit-files | grep enabled'
-    rv = sp.run(s, shell=True, stdout=sp.PIPE)
-    print(rv.stdout)
-
-
-def is_process_running_by_name(name):
-    return get_pid_of_a_process(name)
-
-
-def get_pid_of_a_process(name):
+def linux_get_pid_of_a_process(name):
     # awk and so they do not work here because they use {}
     s = 'ps -aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -176,3 +145,28 @@ def linux_is_rpi():
 
 def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
+
+
+def is_valid_mac_address(mac):
+
+    if mac is None:
+        return False
+
+    # src: geeks for geeks website
+    regex = ("^([0-9A-Fa-f]{2}[:])" +
+             "{5}([0-9A-Fa-f]{2})|" +
+             "([0-9a-fA-F]{4}\\." +
+             "[0-9a-fA-F]{4}\\." +
+             "[0-9a-fA-F]{4})$")
+    return re.search(re.compile(regex), mac)
+
+
+def linux_is_ble_connection_recent(mac) -> bool:  # pragma: no cover
+
+    # /dev/shm is cleared every reboot
+    mac = str(mac).replace(':', '')
+    path = pathlib.Path('/dev/shm/{}'.format(mac))
+    if path.exists():
+        return True
+    path.touch()
+    return False

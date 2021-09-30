@@ -1,22 +1,24 @@
 import json
-import multiprocessing
 import os
 import subprocess as sp
 import threading
 import time
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
+from mat.bluepy.ble_bluepy import ble_linux_hard_reset
+from mat.ble_xmlrpc_client import run_thread, XS_PID_FILE
 from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
                             AG_N2LL_CMD_ROUTE, AG_N2LL_CMD_UNROUTE,
-                            AG_N2LL_ANS_NOT_FOR_US, check_ngrok_can_be_run,
-                            AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, create_populated_crontab_file_for_ddh,
-                            create_empty_crontab_file_for_ddh, AG_N2LL_CMD_DDH_VESSEL, AG_N2LL_CMD_BLE_SERVICE_RESTART,
+                            AG_N2LL_ANS_NOT_FOR_US,
+                            AG_N2LL_CMD_KILL_DDH, AG_N2LL_CMD_INSTALL_DDH, ddh_create_populated_crontab_file,
+                            ddh_create_empty_crontab_file, AG_N2LL_CMD_DDH_VESSEL, AG_N2LL_CMD_BLE_SERVICE_RESTART,
                             AG_N2LL_CMD_XR_START, AG_N2LL_CMD_XR_VIEW, AG_N2LL_CMD_XR_KILL, AG_N2LL_CMD_NGROK_VIEW,
-                            _url_n2ll)
-from mat.utils import is_process_running_by_name, get_pid_of_a_process, linux_is_rpi
-from mat.xr import xr_ble_server, XR_PID_FILE, XR_DEFAULT_PORT
+                            n2ll_url,
+                            )
+from mat.utils import linux_is_process_running_by_name, linux_get_pid_of_a_process, linux_is_rpi
+from mat.ble_xmlrpc_server import xs_run, XS_DEFAULT_PORT
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
@@ -26,21 +28,21 @@ def _p(s):
     print(s, flush=True)
 
 
-def _cmd_who(_, macs):
+def _n2ll_cmd_who(_, macs) -> tuple:
     return 0, ' '.join([m for m in macs if m and m != '*'])
 
 
-def _cmd_bye(_, macs):
+def _n2ll_cmd_bye(_, macs) -> tuple:
     return 0, '{} in {}'.format(AG_N2LL_ANS_BYE, macs)
 
 
-def _cmd_query(_, macs):
-    """ asks if DDH or ngrok are running here """
+def _n2ll_cmd_query(_, macs) -> tuple:
+    """ asks if DDH, ngrok and XR are running here """
 
     mac = macs[0][-8:]
-    ddh = int(is_process_running_by_name('ddh/main.py'))
-    ngk = int(is_process_running_by_name('ngrok'))
-    xr = _cmd_xr_view(None, macs)
+    ddh = int(linux_is_process_running_by_name('ddh/main.py'))
+    ngk = int(linux_is_process_running_by_name('ngrok'))
+    xr = _n2ll_cmd_xs_view(None, macs)
 
     ddh = 'DDH' if ddh != -1 else '-'
     ngk = 'NGK' if ngk != -1 else '-'
@@ -48,7 +50,7 @@ def _cmd_query(_, macs):
     return 0, '{} => {} / {} / {}'.format(mac, ddh, ngk, xr)
 
 
-def _cmd_ngrok_route(_, macs):
+def _n2ll_cmd_ngrok_route(_, macs) -> tuple:
     """ route ngrok toward this node """
 
     # _: ['route', '4000', <mac>]
@@ -69,7 +71,7 @@ def _cmd_ngrok_route(_, macs):
     cmd = 'ngrok tcp {} --log {}'.format(port, log_file)
     _rv = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    # see log file, grep ngrok url
+    # see log file to run a 'cat' on it
     time.sleep(2)
     cmd = 'cat {} | grep \'started tunnel\''.format(log_file)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -77,14 +79,14 @@ def _cmd_ngrok_route(_, macs):
         e = AG_N2LL_ANS_ROUTE_ERR_ALREADY
         return 1, e.format(macs[0])
 
-    # grab the output of cat as ngrok url
+    # grab the output of 'cat' as most current ngrok url
     g = _rv.stdout
     u = g.decode().strip().split('url=')[1]
     s = AG_N2LL_ANS_ROUTE_OK_FULL.format(macs[0], port, u)
     return 0, s
 
 
-def _cmd_ngrok_unroute(_, macs):
+def _n2ll_cmd_ngrok_unroute(_, macs) -> tuple:
     """ kill ngrok """
 
     sp.run('killall ngrok', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -92,31 +94,31 @@ def _cmd_ngrok_unroute(_, macs):
     return 0, 'un-routed {}'.format(mac)
 
 
-def _cmd_ngrok_view(_, macs):
-    pid = get_pid_of_a_process('ngrok')
-    if pid == -1:
-        return 1, 'ngrok process not running'
-    return 0, 'ngrok process running pid = {}'.format(pid)
-
-
-def _cmd_ddh_rpi(_, macs):
-    """ delete DDH folder and get new version of it """
-
+def _n2ll_cmd_ngrok_view(_, macs) -> tuple:
     mac = macs[0][-8:]
+    pid = linux_get_pid_of_a_process('ngrok')
+    if pid == -1:
+        return 1, 'ngrok not running at {}'.format(mac)
+    return 0, 'ngrok pid = {} at {}'.format(pid, mac)
 
-    if not linux_is_rpi():
-        return 0, 'nah, won\'t do DDH on a non-rpi {}'.format(mac)
 
-    # 1st, call function '_cmd_unddh_rpi()'
-    _cmd_unddh_rpi(_, macs)
-
+def _n2ll_cmd_ddh_rpi(_, macs) -> tuple:
+    """ delete DDH folder and get new version of it """
     # todo: test this on a DDH
 
-    # 2nd, delete DDH folder
+    # 1st, don't act on non-rpi
+    mac = macs[0][-8:]
+    if not linux_is_rpi():
+        return 0, 'nah, won\'t do DDH on non-rpi {}'.format(mac)
+
+    # 2nd, kill any currently running DDH
+    _n2ll_cmd_unddh_rpi(_, macs)
+
+    # 3rd, delete DDH folder
     cmd = 'rm -rf /home/pi/li/ddh'
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    # 3rd, clone DDH git repo
+    # 4th, clone DDH git repo
     cmd = 'mkdir -p /home/pi/li/ddh'
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     url = 'https://github.com/LowellInstruments/ddh.git'
@@ -125,33 +127,32 @@ def _cmd_ddh_rpi(_, macs):
     if _rv.returncode != 0:
         return _rv.returncode, 'DDH git clone failed'
 
-    # 4th, create crontab
-    create_populated_crontab_file_for_ddh()
+    # 5th, create crontab
+    ddh_create_populated_crontab_file()
     return 0, 'installed DDH on {}'.format(mac)
 
 
-def _cmd_unddh_rpi(_, macs):
+def _n2ll_cmd_unddh_rpi(_, macs) -> tuple:
     """ delete DDH folder """
 
-    mac = macs[0][-8:]
-
-    # 1st, disable any crontab controlling DDH
+    # 1st, disable any crontab controlling this DDH
     if linux_is_rpi():
-        create_empty_crontab_file_for_ddh()
+        ddh_create_empty_crontab_file()
 
-    # 2nd, killall DDH
+    # 2nd, kill DDH
     s = 'ddh/main.py'
-    pid = get_pid_of_a_process(s)
+    pid = linux_get_pid_of_a_process(s)
     if pid == -1:
         return 1, 'DDH process not running'
     cmd = 'kill -9 {}'.format(pid)
     _rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if _rv.returncode != 0:
         return _rv.returncode, 'DDH killing failed'
+    mac = macs[0][-8:]
     return 0, 'DDH killed OK on {}'.format(mac)
 
 
-def _cmd_ddh_vessel(_, macs):
+def _n2ll_cmd_ddh_vessel(_, macs) -> tuple:
     mac = macs[0][-8:]
     path = '/home/pi/li/ddh/ddh/settings/ddh.json'
     try:
@@ -161,70 +162,71 @@ def _cmd_ddh_vessel(_, macs):
             ans = '{} => vessel {}'.format(mac, ans)
     except FileNotFoundError:
         ans = 'no ddh.json file found'
-
     return 0, ans
 
 
-def _cmd_bled(_, macs):
+def _n2ll_cmd_bled(_, macs) -> tuple:
     mac = macs[0][-8:]
-    cmd = 'systemctl restart bluetooth'
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    rv = ble_linux_hard_reset()
     s = 'mac => {} bluetooth restart {}'
-    if rv.returncode == 0:
-        return 0, s.format(mac, 'OK')
-    return 1, s.format(mac, 'ERR')
+    return 0, s.format(mac, rv)
 
 
-def _cmd_xr_view(_, macs):
+def _n2ll_cmd_xs_view(_, macs) -> tuple:
     mac = macs[0][-8:]
-    cmd = 'netstat -an | grep {} | grep LISTEN'.format(XR_DEFAULT_PORT)
+    cmd = 'netstat -an | grep {} | grep LISTEN'.format(XS_DEFAULT_PORT)
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.stdout:
-        return 0, '{} => XR view, yes, there'.format(mac)
-    return 1, '{} => XR view, not there'.format(mac)
+        return 0, '{} => XS view, yes, there'.format(mac)
+    return 1, '{} => XS view, not there'.format(mac)
 
 
-def _cmd_xr_kill(_, macs):
+def _n2ll_cmd_xs_kill(_, macs):
 
-    # check any running
+    # check no XR is currently running
     mac = macs[0][-8:]
-    rv = _cmd_xr_view(_, macs)
+    rv = _n2ll_cmd_xs_view(_, macs)
     if rv[0] != 0:
-        return 0, '{} => XR kill, was not running'
+        return 0, '{} => XS kill, was not running'
 
-    # a XR writes its pid at boot, check it
+    # a XR server writes its pid at boot, check it
+    # todo -> I wrongly removed this because windows just add it again
     pid = 0
     try:
-        with open(XR_PID_FILE) as f:
+        with open(XS_PID_FILE) as f:
             pid = int(f.read())
     except FileNotFoundError:
-        return 0, '{} => XR kill, no pid_file'.format(mac)
+        return 0, '{} => XS kill, no pid_file'.format(mac)
 
+    # file exists but not pid in it
     if not pid:
-        return 1, '{} => XR kill, unknown'.format(mac)
+        return 1, '{} => XS kill, unknown'.format(mac)
 
-    # murder it
+    # murder any XR server
     s = 'kill -9 {}'.format(pid)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode == 0:
-        return 0, '{} => XR killed'.format(mac)
-    return 1, '{} => XR kill, error'.format(mac)
+        return 0, '{} => XS killed'.format(mac)
+    return 1, '{} => XS kill, error'.format(mac)
 
 
-def _cmd_xr_start(_, macs):
+def _n2ll_cmd_xs_start(_, macs):
+
+    # check XR is already running
     mac = macs[0][-8:]
-    rv = _cmd_xr_view(_, macs)
+    rv = _n2ll_cmd_xs_view(_, macs)
     if rv[0] == 0:
-        return 0, '{} => XR start, no need'.format(mac)
+        return 0, '{} => XS already running'.format(mac)
 
-    # thread a xr_ble_server, forking gives rabbitMQ errors
-    th = threading.Thread(target=xr_ble_server)
-    th.start()
+    # launch XR server as thread, fork() gives RabbitMQ error
+    run_thread(xs_run)
     time.sleep(2)
-    rv = _cmd_xr_view(_, macs)
+
+    # check launched properly
+    rv = _n2ll_cmd_xs_view(_, macs)
     if rv[0] == 0:
-        return 0, '{} => XR start, no need'.format(mac)
-    return 1, '{} => XR start, error'.format(mac)
+        return 0, '{} => XS started'.format(mac)
+    return 1, '{} => XS start error'.format(mac)
 
 
 # ====================== N2LL flowchart =========================
@@ -234,14 +236,15 @@ def _cmd_xr_start(_, macs):
 def _parse_n2ll_cmd(s: bytes):
     """ see N2LL command is for me, parse it """
 
+    # s: AG_N2LL_n2ll_cmd_QUERY <mac> <port>
     if not s:
         return 1, 'error, cmd empty'
-
-    # s: AG_N2LL_CMD_QUERY <mac> <port>
     s = s.decode().split(' ')
+
+    # debug
     # _p('-> N2LL: rx_cb {}'.format(s))
 
-    # which are my own mac addresses
+    # get all my own mac addresses
     _my_macs = [
                 get_mac_address(interface='eth0'),
                 get_mac_address(interface='wlo1'),
@@ -251,33 +254,32 @@ def _parse_n2ll_cmd(s: bytes):
     # remove Nones
     _my_macs = [i for i in _my_macs if i]
 
-    # search the N2LL function
+    # map: received command -> N2LL function
     cmd = s[0]
-
     fxn_map = {
-        AG_N2LL_CMD_BYE: _cmd_bye,
-        AG_N2LL_CMD_WHO: _cmd_who,
-        AG_N2LL_CMD_QUERY: _cmd_query,
-        AG_N2LL_CMD_ROUTE: _cmd_ngrok_route,
-        AG_N2LL_CMD_UNROUTE: _cmd_ngrok_unroute,
-        AG_N2LL_CMD_NGROK_VIEW: _cmd_ngrok_view,
-        AG_N2LL_CMD_INSTALL_DDH: _cmd_ddh_rpi,
-        AG_N2LL_CMD_KILL_DDH: _cmd_unddh_rpi,
-        AG_N2LL_CMD_DDH_VESSEL: _cmd_ddh_vessel,
-        AG_N2LL_CMD_BLE_SERVICE_RESTART: _cmd_bled,
-        AG_N2LL_CMD_XR_START: _cmd_xr_start,
-        AG_N2LL_CMD_XR_VIEW: _cmd_xr_view,
-        AG_N2LL_CMD_XR_KILL: _cmd_xr_kill,
+        AG_N2LL_CMD_BYE: _n2ll_cmd_bye,
+        AG_N2LL_CMD_WHO: _n2ll_cmd_who,
+        AG_N2LL_CMD_QUERY: _n2ll_cmd_query,
+        AG_N2LL_CMD_ROUTE: _n2ll_cmd_ngrok_route,
+        AG_N2LL_CMD_UNROUTE: _n2ll_cmd_ngrok_unroute,
+        AG_N2LL_CMD_NGROK_VIEW: _n2ll_cmd_ngrok_view,
+        AG_N2LL_CMD_INSTALL_DDH: _n2ll_cmd_ddh_rpi,
+        AG_N2LL_CMD_KILL_DDH: _n2ll_cmd_unddh_rpi,
+        AG_N2LL_CMD_DDH_VESSEL: _n2ll_cmd_ddh_vessel,
+        AG_N2LL_CMD_BLE_SERVICE_RESTART: _n2ll_cmd_bled,
+        AG_N2LL_CMD_XR_START: _n2ll_cmd_xs_start,
+        AG_N2LL_CMD_XR_VIEW: _n2ll_cmd_xs_view,
+        AG_N2LL_CMD_XR_KILL: _n2ll_cmd_xs_kill,
     }
     fxn = fxn_map[cmd]
 
-    # is this N2LL frame for us?
+    # check command addressed to us
     if len(s) >= 2:
         mac = s[-1]
         if mac not in _my_macs:
             return 1, '{} {}'.format(AG_N2LL_ANS_NOT_FOR_US, _my_macs)
     else:
-        # commands w/o mac
+        # these commands do not need mac
         if not cmd.startswith(AG_N2LL_CMD_WHO):
             return 1, 'cmd bad number of parameters'
 
@@ -289,9 +291,12 @@ class AgentN2LL(threading.Thread):
 
     def __init__(self, url):
 
-        """ ClientN2LL pubs  in channel 'li_masters', subs to 'li_slaves'
+        """ ClientN2LL pubs  to channel 'li_masters', subs to 'li_slaves'
             AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
-        assert(check_ngrok_can_be_run())
+
+        # if not linux_check_ngrok_can_be_run():
+        #     os._exit(1)
+
         super().__init__()
         self.url = url
         self.ch_pub = None
@@ -311,9 +316,7 @@ class AgentN2LL(threading.Thread):
             _p('quitting AG_N2LL')
             os._exit(0)
 
-    def loop_n2ll_agent(self):
-        """ AgentN2LL spawns no threads: receives at rx and tx back """
-
+    def sub_n_rx(self):
         _p('N2LL: listening on {}'.format(self.url.split('/')[-1]))
         while 1:
             try:
@@ -323,7 +326,7 @@ class AgentN2LL(threading.Thread):
                 break
 
     def _pub(self, _what):
-        """ publishes in channel slaves """
+        """ agent publishes to channel slaves """
 
         self._get_ch_pub()
         self.ch_pub.basic_publish(exchange='li_slaves', routing_key='', body=_what)
@@ -331,16 +334,13 @@ class AgentN2LL(threading.Thread):
         self.ch_pub.close()
 
     def _sub_n_rx(self):
-        # receive from channel 'li_masters'
+        """ agent receives from channel masters """
 
         def _rx_cb(ch, method, properties, body):
 
-            # receive command from remote n2ll_client
+            # receive command, pub answer, check quitting
             ans = _parse_n2ll_cmd(body)
-
-            # ans: (0, description) send to channel 'li_slaves'
             self._pub(ans[1])
-            # maybe time to end myself
             self._do_i_quit(ans[1])
 
         self._get_ch_sub()
@@ -356,8 +356,8 @@ class AgentN2LL(threading.Thread):
 # sudo LD_PRELOAD=$PRE_REQ python3 n2ll_agent.py
 
 if __name__ == '__main__':
-    ag_n2ll = AgentN2LL(_url_n2ll())
-    th_ag_n2ll = threading.Thread(target=ag_n2ll.loop_n2ll_agent)
-    th_ag_n2ll.start()
-    print('n2ll_agent th_main ends')
+    ag = AgentN2LL(n2ll_url())
+    th = threading.Thread(target=ag.sub_n_rx)
+    th.start()
+    print('n2ll_agent thread ends')
 

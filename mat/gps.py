@@ -7,7 +7,7 @@ from collections import namedtuple
 # how to test this with coverage:
 # python3 -m pytest
 #       tests/test_gps.py
-#       --cov mat.gps
+#       --cov mat.gps_bu_353_s4
 #       --cov-report=html:<output_dir>
 
 
@@ -76,7 +76,7 @@ class GPS:
 
     @staticmethod
     def _verify_string(data, checksum):
-        # lose '$' character at the beginning of gps sentence
+        # lose '$' character at the beginning of gps_bu_353_s4 sentence
         data = data[1:]
         crc_as_dec = int(checksum, 16)
         int_values = [ord(x) for x in data]

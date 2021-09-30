@@ -18,8 +18,7 @@ def data_product_factory(file_path, sensors, parameters):
     special_cases = {'compass': Compass,
                      'current': Current,
                      'ypr': YawPitchRoll,
-                     'cable': Cable,
-                     'vertical_orientation': VerticalOrientation}
+                     'cable': Cable}
     data_products = []
     output_stream = output_stream_factory(file_path, parameters)
 
@@ -252,32 +251,6 @@ class Cable(DataProduct):
         )
         data = np.vstack((np.degrees(pitch), np.degrees(axial)))
         self.output_stream.write(self.stream_name(), data, converted[0].time)
-
-
-class VerticalOrientation(DataProduct):
-    OUTPUT_TYPE = 'vertical_orientation'
-    REQUIRED_SENSORS = ['Accelerometer']
-
-    def stream_name(self):
-        return 'VerticalOrientation'
-
-    def data_format(self):
-        return '{:0.2f}'
-
-    def column_header(self):
-        return 'VerticalOrientation (degrees)'
-
-    def _calc_tilt(self, accel):
-        return np.arccos(
-            -accel[2] / np.sqrt(accel[0] ** 2 + accel[1] ** 2 + accel[2] ** 2))
-
-    def process_page(self, data_page, page_time):
-        converted = self.convert_sensors(data_page, page_time)
-        accel = converted[0].data
-        tilt = self._calc_tilt(accel)
-        tilt = np.degrees(tilt)
-        tilt = np.reshape(tilt, (1, -1))  # -1 means infer dimension
-        self.output_stream.write(self.stream_name(), tilt, converted[0].time)
 
 
 class CompoundProduct(DataProduct):

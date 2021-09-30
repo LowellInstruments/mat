@@ -8,8 +8,10 @@ from mat.n2ll_utils import (
 
 class ClientN2LL:
     def __init__(self, url, sig=None):
-        """ ClientN2LL pubs in channel 'li_masters', subs to 'li_slaves'
-            AgentN2LL (n of them) pub to 'li_slaves', sub to 'li_masters' """
+
+        """ ClientN2LL pubs to channel 'li_masters', subs to 'li_slaves'
+            AgentN2LL (all N of them) pub to 'li_slaves', sub to 'li_masters' """
+
         self.url = url
         self.ch_pub = None
         self.ch_sub = None
@@ -17,8 +19,9 @@ class ClientN2LL:
         self.sig = sig
         # 'dump' variable is useful to be able to test this class
         self.dump_cli_rx = None
-        # N2LL client RX always threaded, entry point is tx()
-        self.th_rx = threading.Thread(target=self.loop_n2ll_client)
+
+        # N2LL client rx ALWAYS threaded, entry point is tx()
+        self.th_rx = threading.Thread(target=self.n2ll_client_sub_n_rx)
         self.th_rx.start()
 
     def _get_ch_pub(self):
@@ -27,7 +30,7 @@ class ClientN2LL:
     def _get_ch_sub(self):
         self.ch_sub = mq_exchange_for_slaves()
 
-    def tx(self, _what: str):
+    def n2ll_client_pub(self, _what: str):
         try:
             # client TX to channel 'li_masters', RX from 'li_slaves'
             self._get_ch_pub()
@@ -35,24 +38,26 @@ class ClientN2LL:
             print('<- ClientN2LL tx: {}'.format(_what))
             self.tx_last = _what
             self.ch_pub.close()
+
         except ProbableAccessDeniedError:
-            e = 'ClientN2LL: error AMQP ProbableAccessDeniedError'
+            e = 'ClientN2LL: error -> AMQP ProbableAccessDeniedError'
             if self.sig:
                 self.sig.out.emit(self.tx_last, e)
 
-    def loop_n2ll_client(self):
+    def n2ll_client_sub_n_rx(self):
         try:
             self._sub_n_rx()
         except socket.gaierror as e:
-            print('N2LH: client exc -> {}'.format(e))
+            print('ClientN2LL: exc -> {}'.format(e))
 
-    # recall: this collects answers from ALL slaves :)
+    # note: this collects answers from ALL slaves :)
     def _sub_n_rx(self):
         def _rx_cb(ch, method, properties, body):
             s = body.decode()
             print('-> ClientN2LL rx: {}'.format(s))
             self.dump_cli_rx = s
-            # this is connected to slot_n2ll in GUI
+
+            # update GUI back, if any
             if self.sig:
                 self.sig.out.emit(self.tx_last, s)
 
