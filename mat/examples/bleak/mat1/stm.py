@@ -1,4 +1,4 @@
-from mat.ble_logger_mat1 import BLELoggerMAT1
+from mat.bleak.ble_logger_mat1 import BLELoggerMAT1
 from mat.examples.bleak.mat1.macs import MAC_MAT1_0_DUMMY, MAC_MAT1_0
 
 address = MAC_MAT1_0

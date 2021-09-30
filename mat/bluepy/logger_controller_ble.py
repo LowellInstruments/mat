@@ -32,6 +32,8 @@ ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
 DWG_CMD = 'DWG'
 FILESYSTEM_CMD = 'FIS'
+GET_SENSOR_READING_DO = 'GDO'
+LED_CMD = 'LED'
 _DEBUG_THIS_MODULE = 0
 
 
@@ -531,7 +533,8 @@ def _ans_check(tag, a, b):
         FILESYSTEM_CMD: lambda: a in ['littlefs', 'spiffs'],
         BAT_CMD: lambda: _exp() and (len(a) == 6 + 4),
         SIZ_CMD: lambda: _exp() and (6 + 1 <= len(a) <= 6 + 10),
-        WAKE_CMD: lambda: _exp() and len(a) == 8
+        WAKE_CMD: lambda: _exp() and len(a) == 8,
+        LED_CMD: lambda: _exp(1)
     }
     _el.setdefault(tag, lambda: _ans_unk(tag))
     return _el[tag]()

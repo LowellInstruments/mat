@@ -1,4 +1,4 @@
-from mat.ble_xmlrpc_client import XS_BLE_EXC_XS
+from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_XS
 from mat.examples.bleak.do2.macs import MAC_DO2_0
 from mat.examples.xmlrpc.simple import simple
 

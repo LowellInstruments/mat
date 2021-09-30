@@ -1,8 +1,8 @@
 import asyncio
 import threading
 from bleak import BleakClient, BleakError, BleakScanner
-from mat.ble_commands import *
-from mat.ble_logger_do2_utils import UUID_W, ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, MAX_MTU_SIZE, \
+from mat.bleak.ble_commands import *
+from mat.bleak.ble_logger_do2_utils import UUID_W, ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, MAX_MTU_SIZE, \
     ENGINE_CMD_SCAN, UUID_C, ENGINE_CMD_EXC, is_answer_done, EngineException
 
 # global variables used in this module

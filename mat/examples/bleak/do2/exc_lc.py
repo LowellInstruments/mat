@@ -2,8 +2,7 @@ import os
 
 from bleak import BleakError
 
-from mat.ble_logger_do2 import BLELoggerDO2, ExceptionLCDO2
-from mat.ble_logger_do2_utils import ENGINE_CMD_EXC
+from mat.bleak.ble_logger_do2 import BLELoggerDO2, ExceptionLCDO2
 from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY, MAC_DO2_0
 
 

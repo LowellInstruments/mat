@@ -1,4 +1,4 @@
-from mat.ble_commands import BTC_CMD
+from mat.bleak.ble_commands import BTC_CMD
 from mat.logger_controller import STATUS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD
 
 # RN4020 constants

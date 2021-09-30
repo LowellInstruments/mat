@@ -1,13 +1,12 @@
 import asyncio
 import threading
 from bleak import BleakClient, BleakScanner, BleakError
-from mat.ble_commands import *
-from mat.ble_logger_do2_utils import EngineException, ENGINE_CMD_EXC, ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, \
+from mat.bleak.ble_logger_do2_utils import EngineException, ENGINE_CMD_EXC, ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, \
     ENGINE_CMD_SCAN
 
 
 # global variables used in this module
-from mat.ble_logger_mat1_utils import UUID, is_rn4020_answer_done
+from mat.bleak.ble_logger_mat1_utils import UUID, is_rn4020_answer_done
 
 g_ans = bytes()
 g_cmd = ''

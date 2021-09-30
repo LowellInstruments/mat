@@ -3,15 +3,15 @@ import platform
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
 
-from mat.ble_bleak import ble_scan_bleak
+from mat.bleak.ble_bleak import ble_scan_bleak
 
 if platform.system() == 'Linux':
     from mat.bluepy.ble_bluepy import (
         ble_linux_hard_reset,
         ble_scan_bluepy
     )
-from mat.ble_logger_do2 import BLELoggerDO2
-from mat.ble_xmlrpc_client import (
+from mat.bleak.ble_logger_do2 import BLELoggerDO2
+from mat.bluepy.ble_xmlrpc_client import (
     XS_DEFAULT_PORT,
     xr_assert_api_or_die, XS_BLE_EXC_XS
 )

@@ -2,8 +2,8 @@ import os
 import sqlite3
 import threading
 import time
-from mat.ble_commands import *
-from mat.ble_logger_do2_utils import (
+from mat.bleak.ble_commands import *
+from mat.bleak.ble_logger_do2_utils import (
     BleakClientDummyDO2,
     ENGINE_CMD_SCAN,
     ENGINE_CMD_CON,

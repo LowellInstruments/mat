@@ -1,5 +1,5 @@
 import time
-from mat.ble_xmodem_utils import xmd_frame_check_crc
+from mat.bluepy.ble_xmodem_utils import xmd_frame_check_crc
 
 
 SOH = b'\x01'

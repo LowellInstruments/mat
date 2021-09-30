@@ -1,5 +1,5 @@
 from mat.examples.bleak.do2.macs import MAC_DO2_0
-from mat.ble_logger_do2 import BLELoggerDO2
+from mat.bleak.ble_logger_do2 import BLELoggerDO2
 
 
 mac = MAC_DO2_0

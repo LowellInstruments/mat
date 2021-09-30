@@ -4,17 +4,17 @@ import math
 import platform
 import queue
 import time
-from mat.ble_commands import *
-from mat.ble_logger_do2_dummy_engine import ble_engine_do2_dummy
-from mat.ble_logger_do2_engine import (
+from mat.bleak.ble_commands import *
+from mat.bleak.ble_logger_do2_dummy_engine import ble_engine_do2_dummy
+from mat.bleak.ble_logger_do2_engine import (
     ble_engine_do2,
     ENGINE_CMD_BYE,
     ENGINE_CMD_DISC,
     ENGINE_CMD_CON,
     ENGINE_CMD_SCAN,
 )
-from mat.ble_logger_do2_utils import ble_cmd_dir_result_as_dict, ENGINE_CMD_EXC
-from mat.ble_xmlrpc_client import XS_BLE_EXC_LC
+from mat.bleak.ble_logger_do2_utils import ble_cmd_dir_result_as_dict, ENGINE_CMD_EXC
+from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,
     FIRMWARE_VERSION_CMD,
