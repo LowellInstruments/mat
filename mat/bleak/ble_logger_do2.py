@@ -157,8 +157,6 @@ class BLELoggerDO2:
         return rv
 
     def ble_cmd_frm(self):
-        # be safe w/ format
-        time.sleep(2)
         c = self._cmd_build(FORMAT_CMD)
         return self._cmd(c)
 

@@ -26,8 +26,8 @@ async def _cmd_wait_ans():
         SWS_CMD: 1500,
         STOP_CMD: 1500,
     }
-    # default: 300 * 10 ms = 3 s
-    till = _.get(tag, 300)
+    # default: 1000 * 10 ms = 10 s
+    till = _.get(tag, 1000)
 
     # leave: at timeout or _nh() says so
     while 1:
