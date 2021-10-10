@@ -1,8 +1,11 @@
+import asyncio
+
 from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, SWS_CMD, \
-    RUN_CMD
+    RUN_CMD, RWS_CMD
 from mat.bleak.ble_commands import *
+import mat.bleak.ble_shared as bs
 
 
 UUID_C = 'f0001132-0451-4000-b000-000000000000'
@@ -133,3 +136,32 @@ class BleakClientDummyDO2:
 
 class EngineException(Exception):
     pass
+
+
+async def ans_rx():
+
+    # estimate time as units of 10 milliseconds
+    units = .01
+    tag = bs.g_cmd.split()[0]
+    _ = {
+        # 3000 * 10 ms = 30 s
+        MY_TOOL_SET_CMD: 3000,
+        RUN_CMD: 1500,
+        RWS_CMD: 1500,
+        SWS_CMD: 1500,
+        STOP_CMD: 1500,
+    }
+    # default: 1000 * 10 ms = 10 s
+    till = _.get(tag, 1000)
+
+    # leave: at timeout or _nh() says so
+    while 1:
+        if is_answer_done(bs.g_cmd, bs.g_ans):
+            print('[ OK ] {}'.format(bs.g_cmd))
+            break
+        if till == 0:
+            break
+        if till % 500 == 0:
+            print('[ .. ] {}'.format(bs.g_cmd))
+        await asyncio.sleep(units)
+        till -= 1

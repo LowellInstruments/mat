@@ -8,7 +8,7 @@ from mat.bleak.ble_logger_do2_utils import (
     ENGINE_CMD_SCAN,
     ENGINE_CMD_CON,
     ENGINE_CMD_DISC,
-    ENGINE_CMD_BYE, is_answer_done, ENGINE_CMD_EXC, EngineException
+    ENGINE_CMD_BYE, ENGINE_CMD_EXC, EngineException, is_answer_done
 )
 from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY
 from mat.logger_controller import (
