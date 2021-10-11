@@ -5,9 +5,9 @@ import platform
 import queue
 import time
 from mat.bleak.ble_commands import *
+from mat.bleak.ble_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, ENGINE_CMD_EXC
 from mat.bleak.ble_engine_do2 import ble_engine_do2
-from mat.bleak.ble_logger_do2_utils import ble_cmd_dir_result_as_dict, ENGINE_CMD_EXC, ENGINE_CMD_BYE, ENGINE_CMD_SCAN, \
-    ENGINE_CMD_DISC, ENGINE_CMD_CON
+from mat.bleak.ble_logger_do2_utils import ble_cmd_dir_result_as_dict
 from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,
@@ -82,7 +82,6 @@ class BLELoggerDO2:
         return self._cmd(c)
 
     def ble_cmd_dir(self):
-        # todo >> I think logger firmware is broken and returns STP 00 on DIR
         c = self._cmd_build(DIR_CMD)
         b = self._cmd(c)
         return ble_cmd_dir_result_as_dict(b)

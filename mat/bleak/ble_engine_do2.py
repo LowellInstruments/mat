@@ -1,8 +1,8 @@
 import asyncio
 import threading
 from bleak import BleakError
-from mat.bleak.ble_logger_do2_utils import cmd_tx, ans_rx, ENGINE_CMD_EXC
-from mat.bleak.ble_engine import ble_engine
+from mat.bleak.ble_logger_do2_utils import cmd_tx, ans_rx
+from mat.bleak.ble_engine import ble_engine, ENGINE_CMD_EXC
 from mat.bleak.ble_shared import EngineException
 
 

@@ -1,6 +1,4 @@
 import asyncio
-
-from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, SWS_CMD, \
     RUN_CMD, RWS_CMD
@@ -10,11 +8,6 @@ import mat.bleak.ble_shared as bs
 
 UUID_C = 'f0001132-0451-4000-b000-000000000000'
 UUID_W = 'f0001131-0451-4000-b000-000000000000'
-ENGINE_CMD_BYE = 'cmd_bye'
-ENGINE_CMD_CON = 'cmd_connect'
-ENGINE_CMD_DISC = 'cmd_disconnect'
-ENGINE_CMD_SCAN = 'cmd_scan'
-ENGINE_CMD_EXC = 'exc_ble_engine'
 MAX_MTU_SIZE = 247
 
 

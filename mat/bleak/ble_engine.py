@@ -1,8 +1,14 @@
 import asyncio
 from bleak import BleakClient, BleakScanner
-from mat.bleak.ble_logger_do2_utils import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, MAX_MTU_SIZE, \
-    ENGINE_CMD_SCAN, UUID_C, ENGINE_CMD_EXC
+from mat.bleak.ble_logger_do2_utils import MAX_MTU_SIZE, UUID_C
 import mat.bleak.ble_shared as bs
+
+
+ENGINE_CMD_BYE = 'cmd_bye'
+ENGINE_CMD_CON = 'cmd_connect'
+ENGINE_CMD_DISC = 'cmd_disconnect'
+ENGINE_CMD_SCAN = 'cmd_scan'
+ENGINE_CMD_EXC = 'exc_ble_engine'
 
 
 async def _nh(_, data):

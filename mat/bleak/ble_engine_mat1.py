@@ -1,8 +1,6 @@
 import asyncio
 import threading
 from bleak import BleakClient, BleakScanner, BleakError
-from mat.bleak.ble_logger_do2_utils import EngineException, ENGINE_CMD_EXC, ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, \
-    ENGINE_CMD_SCAN
 
 
 # global variables used in this module
