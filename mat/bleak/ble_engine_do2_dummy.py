@@ -3,13 +3,6 @@ import sqlite3
 import threading
 import time
 from mat.bleak.ble_commands import *
-from mat.bleak.ble_logger_do2_utils import (
-    BleakClientDummyDO2,
-    ENGINE_CMD_SCAN,
-    ENGINE_CMD_CON,
-    ENGINE_CMD_DISC,
-    ENGINE_CMD_BYE, ENGINE_CMD_EXC, EngineException, is_answer_done
-)
 from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY
 from mat.logger_controller import (
     STATUS_CMD,
@@ -35,7 +28,7 @@ def _cmd_wait_ans():
 
     # simulate some time for answer to arrive
     time.sleep(.2)
-    g_ans_done = is_answer_done(g_cmd, g_ans)
+    g_ans_done = True
 
     # indicate success degree
     s = '[ OK ]' if g_ans_done else '[ NA ]'
@@ -199,83 +192,6 @@ def _cmd_send(_, s):
 
     if tag == WAKE_CMD:
         g_ans = b'WAK 0201'
-
-
-def _engine(q_cmd, q_ans):
-    """
-    loop: send BLE command to logger and receive answer
-    """
-
-    cli = None
-
-    while 1:
-        # thread: dequeue external command such as 'STS \r'
-        global g_cmd
-        global g_db
-        g_cmd = q_cmd.get()
-
-        # command: special 'quit thread'
-        if g_cmd == ENGINE_CMD_BYE:
-            if cli:
-                cli.disconnect()
-            q_ans.put(b'bye OK')
-            g_db.close()
-            break
-
-        # command: special exception COMMAND testing
-        if g_cmd.startswith(ENGINE_CMD_EXC):
-            raise EngineException('test')
-
-        # command: special 'disconnect', takes ~ 2 seconds
-        if g_cmd == ENGINE_CMD_DISC:
-            if cli:
-                cli.disconnect()
-            cli = None
-            q_ans.put(b'disconnect OK')
-            g_db.close()
-            continue
-
-        # command: special 'connect', also enables config descriptor
-        if g_cmd.startswith(ENGINE_CMD_CON):
-            mac = g_cmd.split()[1]
-            cli = BleakClientDummyDO2(mac)
-            cli.connect()
-            create_dummy_database(mac)
-            q_ans.put(cli.address)
-            continue
-
-        # command: special 'scan'
-        if g_cmd.startswith(ENGINE_CMD_SCAN):
-            rv = (MAC_DO2_0_DUMMY, )
-            q_ans.put(rv)
-            continue
-
-        # coroutines: send dequeued CMD, enqueue answer back
-        global g_ans
-        global g_ans_done
-        g_ans = bytes()
-        g_ans_done = False
-        _cmd_send(cli, g_cmd)
-        _cmd_wait_ans()
-        q_ans.put(g_ans)
-
-
-# thread with exceptions
-def __engine(q_cmd, q_ans):
-    try:
-        _engine(q_cmd, q_ans)
-    except EngineException as ex:
-        print('\t\t(en) exception in BLE engine dummy: {}'.format(ex))
-        q_ans.put(ENGINE_CMD_EXC)
-
-
-# called at logger controller's constructor
-def ble_engine_do2_dummy(q_in, q_out):
-
-    # thread BLE do2_dummy engine
-    print('starting thread ble_engine_do2_dummy...')
-    th = threading.Thread(target=__engine, args=(q_in, q_out, ))
-    th.start()
 
 
 def create_dummy_database(mac):

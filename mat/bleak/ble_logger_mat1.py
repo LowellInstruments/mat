@@ -1,7 +1,7 @@
 import queue
 from tendo import singleton
 from mat.bleak.ble_logger_do2 import BLELoggerDO2
-from mat.bleak.ble_logger_mat1_engine import ble_engine_mat1
+from mat.bleak.ble_engine_mat1 import ble_engine_mat1
 from mat.bleak.ble_logger_mat1_utils import ble_cmd_dir_result_as_dict_rn4020
 from mat.logger_controller import DIR_CMD
 

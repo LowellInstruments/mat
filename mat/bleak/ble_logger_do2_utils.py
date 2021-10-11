@@ -123,21 +123,6 @@ def is_answer_done(cmd, ans):
     return done
 
 
-class BleakClientDummyDO2:
-    def __init__(self, mac):
-        self.address = mac
-
-    def connect(self):
-        return self.address == MAC_DO2_0_DUMMY
-
-    def disconnect(self):
-        self.address = None
-
-
-class EngineException(Exception):
-    pass
-
-
 async def ans_rx():
 
     # estimate time as units of 10 milliseconds
@@ -165,3 +150,8 @@ async def ans_rx():
             print('[ .. ] {}'.format(bs.g_cmd))
         await asyncio.sleep(units)
         till -= 1
+
+
+async def cmd_tx(cli, s):
+    # s: 'STS \r'
+    return await cli.write_gatt_char(UUID_W, s.encode())

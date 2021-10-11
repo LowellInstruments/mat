@@ -5,15 +5,9 @@ import platform
 import queue
 import time
 from mat.bleak.ble_commands import *
-from mat.bleak.ble_logger_do2_dummy_engine import ble_engine_do2_dummy
-from mat.bleak.ble_logger_do2_engine import (
-    ble_engine_do2,
-    ENGINE_CMD_BYE,
-    ENGINE_CMD_DISC,
-    ENGINE_CMD_CON,
-    ENGINE_CMD_SCAN,
-)
-from mat.bleak.ble_logger_do2_utils import ble_cmd_dir_result_as_dict, ENGINE_CMD_EXC
+from mat.bleak.ble_engine_do2 import ble_engine_do2
+from mat.bleak.ble_logger_do2_utils import ble_cmd_dir_result_as_dict, ENGINE_CMD_EXC, ENGINE_CMD_BYE, ENGINE_CMD_SCAN, \
+    ENGINE_CMD_DISC, ENGINE_CMD_CON
 from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,
@@ -33,14 +27,13 @@ from tendo import singleton
 
 
 class BLELoggerDO2:
-    def __init__(self, dummy=False):
+    def __init__(self):
         self.connected = False
         singleton.SingleInstance()
-        # BLE engine in thread, command + answer queues
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
-        eng = ble_decide_engine_do2(dummy)
-        eng(self.q1, self.q2)
+        self.th = ble_engine_do2(self.q1, self.q2)
+        self.th.start()
 
     @staticmethod
     def _cmd_build(c, p='') -> str:
@@ -89,6 +82,7 @@ class BLELoggerDO2:
         return self._cmd(c)
 
     def ble_cmd_dir(self):
+        # todo >> I think logger firmware is broken and returns STP 00 on DIR
         c = self._cmd_build(DIR_CMD)
         b = self._cmd(c)
         return ble_cmd_dir_result_as_dict(b)
@@ -298,13 +292,3 @@ class BLELoggerDO2:
         # special command for testing my exceptions
         self.q1.put(XS_BLE_EXC_LC)
         return XS_BLE_EXC_LC
-
-
-def ble_decide_engine_do2(dummy):
-    if dummy:
-        return ble_engine_do2_dummy
-    return ble_engine_do2
-
-
-class ExceptionLCDO2(Exception):
-    pass
