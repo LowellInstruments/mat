@@ -1,7 +1,7 @@
 import time
 import bluepy
 from mat.bluepy.ble_bluepy import ble_linux_write_parameters_as_fast
-from mat.bleak.ble_commands import ERR_MAT_ANS
+from mat.ble_commands import ERR_MAT_ANS
 from mat.logger_controller import (
     STATUS_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, LOGGER_INFO_CMD_W,
     STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD, DEL_FILE_CMD,

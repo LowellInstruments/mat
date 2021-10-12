@@ -1,7 +1,7 @@
 import asyncio
 from bleak import BleakClient, BleakScanner
-from mat.bleak.ble_logger_do2_utils import MAX_MTU_SIZE, UUID_C
-import mat.bleak.ble_shared as bs
+from mat.bleak.ble_utils_logger_do2 import MAX_MTU_SIZE
+import mat.bleak.ble_utils_shared as bs
 
 
 ENGINE_CMD_BYE = 'cmd_bye'
@@ -15,11 +15,15 @@ async def _nh(_, data):
     bs.g_ans += data
 
 
-async def ble_engine(q_cmd, q_ans, cmd_tx_cb, ans_rx_cb):
+async def ble_engine(q_cmd, q_ans, hooks):
     """
     loop: send BLE command to logger and receive answer
     """
 
+    uuid_c = hooks['uuid_c']
+    cmd_tx_cb = hooks['cmd_cb']
+    ans_rx_cb = hooks['ans_cb']
+    valid_names = hooks['names']
     cli = None
 
     while 1:
@@ -51,7 +55,7 @@ async def ble_engine(q_cmd, q_ans, cmd_tx_cb, ans_rx_cb):
             cli = BleakClient(mac)
             cli._mtu_size = MAX_MTU_SIZE
             if await cli.connect():
-                await cli.start_notify(UUID_C, _nh)
+                await cli.start_notify(uuid_c, _nh)
                 q_ans.put(cli.address)
                 continue
             cli = None
@@ -64,7 +68,6 @@ async def ble_engine(q_cmd, q_ans, cmd_tx_cb, ans_rx_cb):
             await asyncio.sleep(4.0)
             await scanner.stop()
             rv = scanner.discovered_devices
-            valid_names = ('DO-1', 'DO-2')
             rv = [i.address for i in rv if i.name in valid_names]
             q_ans.put(rv)
             continue

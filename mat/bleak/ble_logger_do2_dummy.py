@@ -1,13 +1,12 @@
 import platform
 import queue
 from tendo import singleton
-from mat.bleak.ble_engine import ENGINE_CMD_CON
 from mat.bleak.ble_engine_do2_dummy import ble_engine_do2_dummy
-from mat.bleak.ble_logger_do2 import BLELoggerDO2
-from mat.bleak.ble_logger_do2_utils_dummy import MAC_LOGGER_DO2_DUMMY
+from mat.bleak.ble_logger_do2 import BLELogger
+from mat.bleak.ble_utils_logger_do2_dummy import MAC_LOGGER_DO2_DUMMY
 
 
-class BLELoggerDO2Dummy(BLELoggerDO2):
+class BLELoggerDO2Dummy(BLELogger):
 
     def __init__(self):
         self.connected = False

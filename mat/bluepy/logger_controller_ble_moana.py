@@ -20,9 +20,9 @@ class LCBLEMoanaDelegate(bluepy.btle.DefaultDelegate):
 
 class LoggerControllerMoana:
 
-    UUID_W = btle.UUID('569a2001-b87f-490c-92cb-11ba5ea5167c')
-    UUID_R = btle.UUID('569a2000-b87f-490c-92cb-11ba5ea5167c')
-    UUID_S = btle.UUID('569a1101-b87f-490c-92cb-11ba5ea5167c')
+    UUID_W = btle.UUID_C('569a2001-b87f-490c-92cb-11ba5ea5167c')
+    UUID_R = btle.UUID_C('569a2000-b87f-490c-92cb-11ba5ea5167c')
+    UUID_S = btle.UUID_C('569a1101-b87f-490c-92cb-11ba5ea5167c')
 
     def _clear_buffers(self):
         self.dlg.buf = bytes()

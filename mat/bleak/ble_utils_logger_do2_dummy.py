@@ -1,11 +1,12 @@
 import os
 import sqlite3
 import time
-import mat.bleak.ble_shared as bs
-from mat.bleak.ble_commands import *
+import mat.bleak.ble_utils_shared as bs
+from mat.ble_commands import *
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W
 from mat.utils import PrintColors as PC
+import datetime
 
 
 MAC_LOGGER_DO2_DUMMY = '11:22:33:44:55:66'
@@ -27,6 +28,14 @@ def create_dummy_database(mac):
                  (ID INT PRIMARY KEY,
                  NAME           TEXT    NOT NULL,
                  VALUE          TEXT    NOT NULL);''')
+        g_db.execute('''CREATE TABLE OTHERS
+                 (ID INT PRIMARY KEY,
+                 NAME           TEXT    NOT NULL,
+                 VALUE          TEXT    NOT NULL);''')
+        s = 'INSERT INTO OTHERS VALUES (null, ?, ?);'
+        now = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+        g_db.execute(s, ('TIME', now))
+        g_db.commit()
         s = 'INSERT INTO INFO VALUES (null, ?, ?);'
         g_db.execute(s, ('SN', '1234567'))
         g_db.commit()
@@ -75,10 +84,17 @@ async def cmd_tx(_, s):
         bs.g_ans += '\x04\n\r'.encode()
 
     if tag == SET_TIME_CMD:
+        now = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+        s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
+        g_db.execute(s, (now, 'TIME',))
+        g_db.commit()
         bs.g_ans = b'STM 00'
 
     if tag == TIME_CMD:
-        bs.g_ans = b'GTM 132005/09/05 10:46:45'
+        s = 'SELECT VALUE from OTHERS where NAME = (?)'
+        ex = g_db.execute(s, ('TIME', ))
+        r = ex.fetchall()
+        bs.g_ans = b'GTM 13' + r[0][0].encode()
 
     if tag == FIRMWARE_VERSION_CMD:
         bs.g_ans = b'GFV 063.0.00'
