@@ -224,7 +224,8 @@ async def cmd_tx(_, s):
 
 
 async def ans_rx():
-    # simulate some time for answer to arrive
+    # answer already in bs.g_ans
+    # just simulate some delay
     time.sleep(.2)
     s = '[ OK ]'
     print('    {} {}'.format(s, bs.g_cmd))
