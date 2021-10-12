@@ -28,12 +28,8 @@ from tendo import singleton
 
 class BLELogger:
     def __init__(self):
-        self.connected = False
-        singleton.SingleInstance()
-        self.q1 = queue.Queue()
-        self.q2 = queue.Queue()
-        self.th = ble_engine_do2(self.q1, self.q2)
-        self.th.start()
+        # to be defined by each subclass
+        pass
 
     @staticmethod
     def _cmd_build(c, p='') -> str:

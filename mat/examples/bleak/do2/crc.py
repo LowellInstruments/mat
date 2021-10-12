@@ -1,12 +1,11 @@
-from mat.examples.bleak.do2.macs import MAC_DO2_0
+from mat.bleak.ble_logger_do2_dummy import BLELoggerDO2Dummy
 from mat.bleak.ble_logger_do2 import BLELoggerDO2
-
-
-mac = MAC_DO2_0
+from mat.examples.bleak.do2.macs import mac
 
 
 def crc(dummy=False):
-    lc = BLELoggerDO2(dummy)
+    lc_class = BLELoggerDO2Dummy if dummy else BLELoggerDO2
+    lc = lc_class()
     lc.ble_connect(mac)
     # DIR before so you know a valid filename
     filename = 'dummy_73286.lid'

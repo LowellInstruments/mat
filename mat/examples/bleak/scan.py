@@ -10,7 +10,7 @@ async def run():
 
     rv = {}
     for each in scanner.discovered_devices:
-        rv[each.address.lower()] = each.rssi
+        rv[each.address.lower()] = each.rssi, each.name
     return rv
 
 

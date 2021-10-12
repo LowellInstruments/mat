@@ -1,5 +1,6 @@
 from mat.bleak.ble_logger_do2 import BLELoggerDO2
-from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY, MAC_DO2_0
+from mat.bleak.ble_logger_do2_dummy import BLELoggerDO2Dummy
+from mat.examples.bleak.do2.macs import mac
 
 
 cfg = {
@@ -17,19 +18,15 @@ cfg = {
 }
 
 
-address = MAC_DO2_0
-
-
 def config(s_as_dict, dummy=False):
-    lc = BLELoggerDO2(dummy)
-    mac = MAC_DO2_0_DUMMY if dummy else address
+    lc_class = BLELoggerDO2Dummy if dummy else BLELoggerDO2
+    lc = lc_class()
     lc.ble_connect(mac)
     lc.ble_cmd_stp()
-    # lc.ble_cmd_cfg(s_as_dict)
-    # lc.ble_cmd_mci()
-    lc.ble_cmd_run()
-    # lc.ble_disconnect()
-    # lc.ble_bye()
+    lc.ble_cmd_cfg(s_as_dict)
+    lc.ble_cmd_mci()
+    lc.ble_disconnect()
+    lc.ble_bye()
 
 
 if __name__ == "__main__":

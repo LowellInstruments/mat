@@ -1,13 +1,11 @@
 from mat.bleak.ble_logger_do2 import BLELoggerDO2
-from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY, MAC_DO2_0
-
-
-address = MAC_DO2_0
+from mat.bleak.ble_logger_do2_dummy import BLELoggerDO2Dummy
+from mat.examples.bleak.do2.macs import mac
 
 
 def dri(dummy=False):
-    lc = BLELoggerDO2(dummy)
-    mac = MAC_DO2_0_DUMMY if dummy else address
+    lc_class = BLELoggerDO2Dummy if dummy else BLELoggerDO2
+    lc = lc_class()
     lc.ble_connect(mac)
     lc.ble_cmd_dri()
     lc.ble_cmd_sts()
