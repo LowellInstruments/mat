@@ -4,12 +4,19 @@ import time
 import mat.bleak.ble_utils_shared as bs
 from mat.ble_commands import *
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
-    SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W
+    SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, RUN_CMD
 from mat.utils import PrintColors as PC
 import datetime
 
 
 MAC_LOGGER_DO2_DUMMY = '11:22:33:44:55:66'
+
+
+def _is_it_running(_db):
+    s = 'SELECT VALUE from OTHERS where NAME = (?)'
+    ex = _db.execute(s, ('STATUS',))
+    r = ex.fetchall()
+    return r[0][0] == '00'
 
 
 def create_dummy_database(mac):
@@ -35,6 +42,8 @@ def create_dummy_database(mac):
         s = 'INSERT INTO OTHERS VALUES (null, ?, ?);'
         now = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         g_db.execute(s, ('TIME', now))
+        g_db.commit()
+        g_db.execute(s, ('STATUS', '01'))
         g_db.commit()
         s = 'INSERT INTO INFO VALUES (null, ?, ?);'
         g_db.execute(s, ('SN', '1234567'))
@@ -70,12 +79,18 @@ async def cmd_tx(_, s):
 
     # fake an answer
     if tag == STATUS_CMD:
-        bs.g_ans = b'STS 0201'
+        s = 'SELECT VALUE from OTHERS where NAME = (?)'
+        ex = g_db.execute(s, ('STATUS', ))
+        r = ex.fetchall()
+        bs.g_ans = b'STS 02' + r[0][0].encode()
 
     if tag == BAT_CMD:
         bs.g_ans = b'STS 049908'
 
     if tag == DIR_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         bs.g_ans = b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r'
         ex = g_db.execute("SELECT NAME, SIZE from FILES")
         for _ in ex:
@@ -84,6 +99,9 @@ async def cmd_tx(_, s):
         bs.g_ans += '\x04\n\r'.encode()
 
     if tag == SET_TIME_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         now = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
         g_db.execute(s, (now, 'TIME',))
@@ -100,15 +118,39 @@ async def cmd_tx(_, s):
         bs.g_ans = b'GFV 063.0.00'
 
     if tag == STOP_CMD:
+        s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
+        g_db.execute(s, ('01', 'STATUS',))
+        g_db.commit()
         bs.g_ans = b'STP 00'
 
+    if tag == RUN_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
+        s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
+        g_db.execute(s, ('00', 'STATUS',))
+        g_db.commit()
+        bs.g_ans = b'RUN 00'
+
     if tag == DWG_FILE_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
+        file_name = bs.g_cmd.split()[1][2:]
+        s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
+        cursor = g_db.execute(s, (file_name, ))
+        if len(cursor.fetchall()) == 0:
+            bs.g_ans = b'ERR'
+            return
         bs.g_ans = b'DWG 00'
 
     if tag == SLOW_DWL_CMD:
         bs.g_ans = b'SLW 0201'
 
     if tag == DWL_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         bs.g_ans = b'*' * 2048
 
     if tag == LED_CMD:
@@ -119,6 +161,9 @@ async def cmd_tx(_, s):
         bs.g_ans = b'LED 00'
 
     if tag == MY_TOOL_SET_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         size = 1 + int(time.time() % 10000)
         s = 'dummy_{}.lid'.format(size)
         g_db.execute('INSERT INTO FILES VALUES (null, ?, ?);', (s, size))
@@ -126,6 +171,9 @@ async def cmd_tx(_, s):
         bs.g_ans = b'MTS 00'
 
     if tag == DEL_FILE_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         file_name = bs.g_cmd.split()[1][2:]
         s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
         cursor = g_db.execute(s, (file_name, ))
@@ -138,6 +186,9 @@ async def cmd_tx(_, s):
         bs.g_ans = b'DEL 00'
 
     if tag == FORMAT_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         bs.g_ans = b'FRM 00'
         g_db.execute('DELETE from FILES')
         g_db.commit()
@@ -171,6 +222,9 @@ async def cmd_tx(_, s):
         bs.g_ans = b'CFS 080040CC05'
 
     if tag == CONFIG_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         bs.g_ans = b'CFG 00'
 
     if tag == OXYGEN_SENSOR_CMD:
@@ -208,6 +262,9 @@ async def cmd_tx(_, s):
         bs.g_ans = b'MBL 0201'
 
     if tag == SIZ_CMD:
+        if _is_it_running(g_db):
+            bs.g_ans = b'ERR'
+            return
         file_name = bs.g_cmd.split()[1][2:]
         s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
         cur = g_db.execute(s, (file_name, ))

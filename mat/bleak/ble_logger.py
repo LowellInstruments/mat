@@ -2,11 +2,10 @@ import datetime
 import json
 import math
 import platform
-import queue
 import time
+from abc import ABC, abstractmethod
 from mat.ble_commands import *
 from mat.bleak.ble_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, ENGINE_CMD_EXC
-from mat.bleak.ble_engine_do2 import ble_engine_do2
 from mat.bleak.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
 from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
@@ -26,10 +25,15 @@ from mat.logger_controller import (
 from tendo import singleton
 
 
-class BLELogger:
+class BLELogger(ABC):
+    @abstractmethod
     def __init__(self):
-        # to be defined by each subclass
-        pass
+        # these are defined in subclasses
+        self.connected = False
+        singleton.SingleInstance()
+        self.q1 = None
+        self.q2 = None
+        self.th = None
 
     @staticmethod
     def _cmd_build(c, p='') -> str:
@@ -84,15 +88,13 @@ class BLELogger:
 
     def ble_cmd_dwg(self, s):
         c = self._cmd_build(DWG_FILE_CMD, s)
-        a = self._cmd(c)
-        return a if a == b'DWG 00' else None
+        return self._cmd(c)
 
     def ble_cmd_stm(self):
         fmt = '%Y/%m/%d %H:%M:%S'
         s = datetime.datetime.now().strftime(fmt)
         c = self._cmd_build(SET_TIME_CMD, s)
-        a = self._cmd(c)
-        return a if a == b'STM 00' else None
+        return self._cmd(c)
 
     def ble_cmd_stp(self):
         c = self._cmd_build(STOP_CMD)

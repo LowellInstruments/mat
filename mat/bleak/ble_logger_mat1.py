@@ -1,5 +1,4 @@
 import queue
-from tendo import singleton
 from mat.bleak.ble_logger_do2 import BLELogger
 from mat.bleak.ble_engine_mat1 import ble_engine_mat1
 from mat.bleak.ble_utils_logger_mat1 import ble_cmd_dir_result_as_dict_rn4020
@@ -9,8 +8,7 @@ from mat.logger_controller import DIR_CMD
 class BLELoggerMAT1(BLELogger):
 
     def __init__(self):
-        self.connected = False
-        singleton.SingleInstance()
+        super(BLELoggerMAT1).__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
         self.th = ble_engine_mat1(self.q1, self.q2)

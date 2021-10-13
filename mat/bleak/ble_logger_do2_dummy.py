@@ -9,8 +9,7 @@ from mat.bleak.ble_utils_logger_do2_dummy import MAC_LOGGER_DO2_DUMMY
 class BLELoggerDO2Dummy(BLELogger):
 
     def __init__(self):
-        self.connected = False
-        singleton.SingleInstance()
+        super(BLELoggerDO2Dummy).__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
         self.th = ble_engine_do2_dummy(self.q1, self.q2)
