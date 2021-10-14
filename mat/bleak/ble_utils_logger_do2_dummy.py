@@ -2,7 +2,7 @@ import os
 import sqlite3
 import time
 import mat.bleak.ble_utils_shared as bs
-from mat.ble_commands import *
+from mat.logger_controller_ble_cmd import *
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, RUN_CMD
 from mat.utils import PrintColors as PC

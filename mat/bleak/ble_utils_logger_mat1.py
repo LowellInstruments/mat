@@ -1,6 +1,6 @@
 import asyncio
 import math
-from mat.ble_commands import BTC_CMD
+from mat.logger_controller_ble_cmd import BTC_CMD, GET_FILE_CMD
 from mat.logger_controller import STATUS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD
 import mat.bleak.ble_utils_shared as bs
 
@@ -33,6 +33,11 @@ def _is_answer_done(cmd, ans):
 
     done = False
     tag = cmd.split()[0]
+
+    if tag == b'XMD':
+        done = len(ans) == 1029
+        return done
+
     tan = ans[2:5].decode()
 
     if tan == tag == STATUS_CMD and len(ans) == 12:
@@ -44,6 +49,8 @@ def _is_answer_done(cmd, ans):
     if tan == tag == SET_TIME_CMD and len(ans) == 10:
         done = True
     if tag == DIR_CMD and ans.endswith(b'\x04\n\r'):
+        done = True
+    if tag == GET_FILE_CMD and ans == b'\n\rGET 00\r\n':
         done = True
 
     # debug
@@ -59,11 +66,18 @@ async def ans_rx():
     while till:
         if _is_answer_done(bs.g_cmd, bs.g_ans):
             break
+        # .1 == xmodem speed 4.8, .01 == 5.5
         await asyncio.sleep(.1)
         till -= 1
 
 
 async def cmd_tx(cli, s):
+    # RN4020-based loggers XMODEM
+    if s[:4] == b'XMD ':
+        s = s[4:]
+        await cli.write_gatt_char(UUID_C, s)
+        return
+
     # s: 'STS \r', n: chunk size
     s = s.encode()
     n = 10

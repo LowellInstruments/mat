@@ -10,6 +10,14 @@ async def _nh(_, data):
     bs.g_ans += data
 
 
+async def _step(cmd_tx_cb, ans_rx_cb, cli, q):
+    bs.g_ans = bytes()
+    tc = cmd_tx_cb(cli, bs.g_cmd)
+    await asyncio.gather(tc)
+    await ans_rx_cb()
+    q.put(bs.g_ans)
+
+
 async def ble_engine(q_cmd, q_ans, hooks):
     assert bs.check_bluez_version()
 
@@ -20,8 +28,13 @@ async def ble_engine(q_cmd, q_ans, hooks):
     cli = None
 
     while 1:
-        # thread: dequeue external command such as 'STS \r'
+        # dequeue external command
         bs.g_cmd = q_cmd.get()
+
+        # xmodem case apart :)
+        if await bs.engine_parse_xmodem(bs.g_cmd):
+            await _step(cmd_tx_cb, ans_rx_cb, cli, q_ans)
+            continue
 
         if await engine_parse_cmd_bye(bs.g_cmd, cli, q_ans):
             break
@@ -48,9 +61,5 @@ async def ble_engine(q_cmd, q_ans, hooks):
                 cli = None
             continue
 
-        # Lowell commands
-        bs.g_ans = bytes()
-        tc = cmd_tx_cb(cli, bs.g_cmd)
-        await asyncio.gather(tc)
-        await ans_rx_cb()
-        q_ans.put(bs.g_ans)
+        await _step(cmd_tx_cb, ans_rx_cb, cli, q_ans)
+

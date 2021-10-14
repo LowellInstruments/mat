@@ -1,9 +1,12 @@
 import asyncio
 import subprocess as sp
+
+import crc16
 from packaging import version
 import platform
 from bleak import BleakClient, BleakScanner
 
+from mat.data_converter import default_parameters, DataConverter
 
 ENGINE_CMD_BYE = 'cmd_bye'
 ENGINE_CMD_CON = 'cmd_connect'
@@ -36,12 +39,40 @@ def check_bluez_version():
     return version.parse(v) >= version.parse('5.61')
 
 
+def xmd_frame_check_crc(b):
+    data = b[3:-2]
+    rx_crc = b[-2:]
+    calc_crc_int = crc16.crc16xmodem(data)
+    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
+    return calc_crc_bytes == rx_crc
+
+
+def utils_mat_convert_data(data, path, size):
+    if data == b'':
+        return False
+    try:
+        with open(path, 'wb') as f:
+            f.write(data)
+            f.truncate(size)
+        pars = default_parameters()
+        converter = DataConverter(path, pars)
+        converter.convert()
+        return True
+    except Exception as ex:
+        print(ex)
+        return False
+
+
 async def engine_parse_cmd_bye(c, cli, q):
     if c == ENGINE_CMD_BYE:
         if cli:
             await cli.disconnect()
         q.put(b'bye OK')
         return True
+
+
+async def engine_parse_xmodem(c):
+    return c[:4] == b'XMD '
 
 
 def engine_parse_cmd_exception(c):
