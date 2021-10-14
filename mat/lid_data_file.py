@@ -5,6 +5,21 @@ from datetime import datetime
 import numpy as np
 
 
+STOP_WITH_STRING_MARKER = -258
+
+
+def consecutive_numbers(data, number, count):
+    c = 0
+    for i, val in enumerate(data):
+        if val == number:
+            c += 1
+        else:
+            c = 0
+        if c == count:
+            return i-count+1
+    return len(data)
+
+
 class LidDataFile(SensorDataFile):
     PAGE_SIZE = 1024 ** 2
 
@@ -33,9 +48,14 @@ class LidDataFile(SensorDataFile):
         ind = (self.data_start
                + (i * self.PAGE_SIZE) + self.mini_header_length())
         self._file.seek(ind)
-        return np.fromfile(self.file(),
-                           dtype='<i2',
-                           count=(self.PAGE_SIZE-self.mini_header_length())//2)
+        data = np.fromfile(
+            self.file(),
+            dtype='<i2',
+            count=(self.PAGE_SIZE-self.mini_header_length())//2)
+        if i == self.n_pages()-1:
+            stop_idx = consecutive_numbers(data, STOP_WITH_STRING_MARKER, 7)
+            data = data[:stop_idx]
+        return data
 
     def page_times(self):
         if self._page_times:
