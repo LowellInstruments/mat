@@ -47,29 +47,25 @@ def _is_answer_done(cmd, ans):
         done = True
 
     # debug
-    s = '\t\t(en) dbg_rn4020: tag {} ans_len {} g_ans_done {}'
+    s = '    dbg: tag {} len {} done {}'
     print(s.format(tag, len(ans), done))
 
     return done
 
 
 async def ans_rx():
-    till = 5
+    # 5 seconds timeout
+    till = 50
     while till:
         if _is_answer_done(bs.g_cmd, bs.g_ans):
-            print('[ OK ] {}'.format(bs.g_cmd))
             break
-        print('[ .. ] {}'.format(bs.g_ans))
-        await asyncio.sleep(1)
+        await asyncio.sleep(.1)
         till -= 1
 
 
 async def cmd_tx(cli, s):
-    # s: 'STS \r'
+    # s: 'STS \r', n: chunk size
     s = s.encode()
-    n = math.ceil(len(s) / 10)
-    for i in range(n):
-        a = [i * 10]
-        _ = s[a:a+10]
+    n = 10
+    for _ in (s[i:i+n] for i in range(0, len(s), n)):
         await cli.write_gatt_char(UUID_C, _)
-        await asyncio.sleep(.01)

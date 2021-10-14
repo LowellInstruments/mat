@@ -5,8 +5,8 @@ import platform
 import time
 from abc import ABC, abstractmethod
 from mat.ble_commands import *
-from mat.bleak.ble_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, ENGINE_CMD_EXC
 from mat.bleak.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
+from mat.bleak.ble_utils_shared import ENGINE_CMD_BYE, ENGINE_CMD_SCAN, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_EXC
 from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,

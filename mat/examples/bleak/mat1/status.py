@@ -1,13 +1,11 @@
 from mat.bleak.ble_logger_mat1 import BLELoggerMAT1
-from mat.examples.bleak.mat1.macs import MAC_MAT1_0_DUMMY, MAC_MAT1_0
-
-
-address = MAC_MAT1_0
+from mat.bleak.ble_logger_mat1_dummy import BLELoggerMAT1Dummy
+from mat.examples.bleak.mat1.macs import mac
 
 
 def status(dummy=False):
-    lc = BLELoggerMAT1(dummy)
-    mac = MAC_MAT1_0_DUMMY if dummy else address
+    lc_class = BLELoggerMAT1Dummy if dummy else BLELoggerMAT1
+    lc = lc_class()
     lc.ble_connect(mac)
     lc.ble_cmd_sts()
     lc.ble_disconnect()

@@ -1,14 +1,9 @@
 import asyncio
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient
 from mat.bleak.ble_utils_logger_do2 import MAX_MTU_SIZE
+from mat.bleak.ble_utils_shared import engine_parse_cmd_bye, engine_parse_cmd_connect, engine_parse_cmd_disconnect, \
+    engine_parse_cmd_scan, engine_parse_cmd_exception
 import mat.bleak.ble_utils_shared as bs
-
-
-ENGINE_CMD_BYE = 'cmd_bye'
-ENGINE_CMD_CON = 'cmd_connect'
-ENGINE_CMD_DISC = 'cmd_disconnect'
-ENGINE_CMD_SCAN = 'cmd_scan'
-ENGINE_CMD_EXC = 'exc_ble_engine'
 
 
 async def _nh(_, data):
@@ -16,63 +11,44 @@ async def _nh(_, data):
 
 
 async def ble_engine(q_cmd, q_ans, hooks):
-    """
-    loop: send BLE command to logger and receive answer
-    """
+    assert bs.check_bluez_version()
 
     uuid_c = hooks['uuid_c']
     cmd_tx_cb = hooks['cmd_cb']
     ans_rx_cb = hooks['ans_cb']
-    valid_names = hooks['names']
+    nn = hooks['names']
     cli = None
 
     while 1:
         # thread: dequeue external command such as 'STS \r'
         bs.g_cmd = q_cmd.get()
 
-        # command: special 'quit thread'
-        if bs.g_cmd == ENGINE_CMD_BYE:
-            if cli:
-                await cli.disconnect()
-            q_ans.put(b'bye OK')
+        if await engine_parse_cmd_bye(bs.g_cmd, cli, q_ans):
             break
 
-        # command: special exception COMMAND testing
-        if bs.g_cmd.startswith(ENGINE_CMD_EXC):
-            raise bs.EngineException(ENGINE_CMD_EXC)
+        engine_parse_cmd_exception(bs.g_cmd)
 
-        # command: special 'disconnect', takes ~ 2 seconds
-        if bs.g_cmd.startswith(ENGINE_CMD_DISC):
+        if await engine_parse_cmd_scan(bs.g_cmd, nn, q_ans):
+            continue
+
+        if engine_parse_cmd_disconnect(bs.g_cmd, q_ans):
             if cli:
                 await cli.disconnect()
             cli = None
-            q_ans.put(b'disconnect OK')
             continue
 
-        # command: special 'connect', also enables config descriptor
-        if bs.g_cmd.startswith(ENGINE_CMD_CON):
+        if engine_parse_cmd_connect(bs.g_cmd):
             mac = bs.g_cmd.split()[1]
             cli = BleakClient(mac)
             cli._mtu_size = MAX_MTU_SIZE
-            if await cli.connect():
+            if await cli.connect(timeout=10):
                 await cli.start_notify(uuid_c, _nh)
                 q_ans.put(cli.address)
-                continue
-            cli = None
+            else:
+                cli = None
             continue
 
-        # command: special 'scan'
-        if bs.g_cmd.startswith(ENGINE_CMD_SCAN):
-            scanner = BleakScanner()
-            await scanner.start()
-            await asyncio.sleep(4.0)
-            await scanner.stop()
-            rv = scanner.discovered_devices
-            rv = [i.address for i in rv if i.name in valid_names]
-            q_ans.put(rv)
-            continue
-
-        # coroutines: send dequeued CMD, enqueue answer back
+        # Lowell commands
         bs.g_ans = bytes()
         tc = cmd_tx_cb(cli, bs.g_cmd)
         await asyncio.gather(tc)
