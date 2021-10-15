@@ -1,12 +1,10 @@
 import asyncio
 import subprocess as sp
-
-import crc16
 from packaging import version
 import platform
 from bleak import BleakClient, BleakScanner
-
 from mat.data_converter import default_parameters, DataConverter
+
 
 ENGINE_CMD_BYE = 'cmd_bye'
 ENGINE_CMD_CON = 'cmd_connect'
@@ -39,12 +37,26 @@ def check_bluez_version():
     return version.parse(v) >= version.parse('5.61')
 
 
+def crc16(data):
+    crc = 0x0000
+    length = len(data)
+    for i in range(0, length):
+        crc ^= data[i] << 8
+        for j in range(0,8):
+            if (crc & 0x8000) > 0:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc = crc << 1
+    v = crc & 0xFFFF
+    return v.to_bytes(2, 'big')
+
+
 def xmd_frame_check_crc(b):
-    data = b[3:-2]
     rx_crc = b[-2:]
-    calc_crc_int = crc16.crc16xmodem(data)
-    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
-    return calc_crc_bytes == rx_crc
+    data = b[3:-2]
+    calc_crc = crc16(data)
+    print(rx_crc, calc_crc)
+    return calc_crc == rx_crc
 
 
 def utils_mat_convert_data(data, path, size):

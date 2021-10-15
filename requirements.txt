@@ -6,9 +6,10 @@ pytest-cov
 pytest-mock>=3.3.1
 numpy
 pyserial
-crc16
 h5py
 git+https://github.com/LowellInstruments/bluepy.git
 pika
 getmac
 python-crontab
+bleak
+tendo
