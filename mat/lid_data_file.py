@@ -42,8 +42,9 @@ class LidDataFile(SensorDataFile):
             count=(self.PAGE_SIZE-self.mini_header_length())//2)
         if i == self.n_pages()-1:
             stop_idx = consecutive_numbers(data, STOP_WITH_STRING_MARKER, 7)
-            write_sws_file(self._file_path.replace('.lid', '.gps'),
-                           data[stop_idx+7:])
+            if stop_idx < len(data):
+                write_sws_file(self._file_path.replace('.lid', '.gps'),
+                               data[stop_idx+7:])
             data = data[:stop_idx]
         return data
 
