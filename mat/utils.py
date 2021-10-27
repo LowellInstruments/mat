@@ -176,3 +176,26 @@ def linux_is_rpi():
 
 def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
+
+
+def write_sws_file(path, data):
+    # the data are in int16 format. Convert back to 8 bit ascii values
+    data.dtype = np.uint8
+
+    # strip any nulls, etc.
+    sws = ''.join([chr(x) for x in data if chr(x).isprintable()])
+
+    with open(path, 'w') as f:
+        f.write('SWS: ' + sws)
+
+
+def consecutive_numbers(data, number, count):
+    c = 0
+    for i, val in enumerate(data):
+        if val == number:
+            c += 1
+        else:
+            c = 0
+        if c == count:
+            return i-count+1
+    return len(data)
