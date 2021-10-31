@@ -1,6 +1,6 @@
 import time
-from mat.bluepy.ble_xmodem_utils import xmd_frame_check_crc
 
+from mat.ble_utils_shared import xmd_frame_check_crc
 
 SOH = b'\x01'
 STX = b'\x02'
@@ -110,7 +110,7 @@ def _rx_frame_timeout(lc_ble, sending_c, retries, timeout):
 
 
 def _parse_frame(lc_ble, sending_c, retries, whole_file):
-    if xmd_frame_check_crc(lc_ble):
+    if xmd_frame_check_crc(lc_ble.dlg.x_buf):
         # print('<- crc ok')
         sending_c = False
         retries = 0

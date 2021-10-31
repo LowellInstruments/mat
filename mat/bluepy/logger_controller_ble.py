@@ -8,7 +8,6 @@ from mat.bluepy.xmodem_rn4020 import ble_xmd_get_file_rn4020
 from mat.logger_controller import LoggerController, STATUS_CMD, STOP_CMD, DO_SENSOR_READINGS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SERIAL_NUMBER_CMD, REQ_FILE_NAME_CMD, LOGGER_INFO_CMD, RUN_CMD, RWS_CMD, SD_FREE_SPACE_CMD, \
     SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, LOGGER_INFO_CMD_W, DIR_CMD, CALIBRATION_CMD, RESET_CMD, SENSOR_READINGS_CMD
-from mat.bluepy.logger_controller_ble_cc26x2 import LoggerControllerBLECC26X2
 from mat.bluepy.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 import pathlib
 import subprocess as sp
@@ -74,11 +73,7 @@ class LoggerControllerBLE(LoggerController):
         self.type = None
 
         # set underlying BLE class
-        if brand_microchip(mac):
-            self.und = LoggerControllerBLERN4020(self)
-        elif brand_ti(mac):
-            self.und = LoggerControllerBLECC26X2(self)
-
+        self.und = LoggerControllerBLERN4020(self)
         self.dlg = Delegate()
 
     def get_type(self):

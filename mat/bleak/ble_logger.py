@@ -6,7 +6,7 @@ import time
 from abc import ABC, abstractmethod
 from mat.logger_controller_ble_cmd import *
 from mat.bleak.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
-from mat.bleak.ble_utils_shared import ENGINE_CMD_BYE, ENGINE_CMD_SCAN, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_EXC
+from mat.ble_utils_shared import ENGINE_CMD_BYE, ENGINE_CMD_SCAN, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_EXC
 from mat.bluepy.ble_xmlrpc_client import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,
@@ -169,7 +169,11 @@ class BLELogger(ABC):
 
     def ble_cmd_mts(self):
         c = self._cmd_build(MY_TOOL_SET_CMD)
-        return self._cmd(c)
+        _ = time.perf_counter()
+        rv = self._cmd(c)
+        t = time.perf_counter() - _
+        print('mts took {:.2} seconds'.format(t))
+        return rv
 
     def ble_cmd_log(self):
         c = self._cmd_build(LOG_EN_CMD)

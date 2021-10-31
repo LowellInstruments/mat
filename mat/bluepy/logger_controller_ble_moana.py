@@ -9,6 +9,10 @@ from bluepy import btle
 from os.path import expanduser
 
 
+def utils_logger_is_moana(mac):
+    return False
+
+
 class LCBLEMoanaDelegate(bluepy.btle.DefaultDelegate):
     def __init__(self):
         bluepy.btle.DefaultDelegate.__init__(self)

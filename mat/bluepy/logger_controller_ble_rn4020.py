@@ -40,3 +40,7 @@ class LoggerControllerBLERN4020:  # pragma: no cover
 
         # clean-up
         return dl
+
+
+def utils_logger_is_rn4020(mac):
+    return mac.startswith('00:1e:c0')

@@ -1,0 +1,14 @@
+STEP 1
+------
+    merge
+        - logger_controller_ble.py
+    with
+        - logger_controller_ble_rn4020.py
+
+    it has to have the API shape of
+        - logger_controller_ble_do.py
+
+
+STEP 2
+------
+    make DDH work with this new

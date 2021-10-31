@@ -1,5 +1,5 @@
 import asyncio
-import mat.bleak.ble_utils_shared as bs
+import mat.ble_utils_shared as bs
 
 
 UUID_C = '569a2000-b87f-490c-92cb-11ba5ea5167c'

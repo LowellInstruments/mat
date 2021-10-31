@@ -1,5 +1,5 @@
 import time
-from mat.bluepy.ble_xmodem_utils import xmd_frame_check_crc
+from mat.ble_utils_shared import xmd_frame_check_crc
 
 
 SOH = b'\x01'
@@ -87,7 +87,7 @@ def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
             continue
 
         # PARSE DATA ok
-        if xmd_frame_check_crc(lc):
+        if xmd_frame_check_crc(lc.dlg.x_buf):
             file_built += lc.dlg.x_buf[3:_len - 2]
             lc.dlg.x_buf = lc.dlg.x_buf[_len:]
             _ack(lc)

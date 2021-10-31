@@ -2,7 +2,7 @@ import time
 
 from mat.bleak.ble_logger_mat1 import BLELoggerMAT1
 from mat.bleak.ble_logger_mat1_dummy import BLELoggerMAT1Dummy
-from mat.bleak.ble_utils_shared import utils_mat_convert_data
+from mat.ble_utils_shared import utils_mat_convert_data
 from mat.examples.bleak.mat1.macs import mac
 
 

@@ -1,9 +1,9 @@
 import asyncio
 from bleak import BleakClient
 from mat.bleak.ble_utils_logger_do2 import MAX_MTU_SIZE
-from mat.bleak.ble_utils_shared import engine_parse_cmd_bye, engine_parse_cmd_connect, engine_parse_cmd_disconnect, \
+from mat.ble_utils_shared import engine_parse_cmd_bye, engine_parse_cmd_connect, engine_parse_cmd_disconnect, \
     engine_parse_cmd_scan, engine_parse_cmd_exception
-import mat.bleak.ble_utils_shared as bs
+import mat.ble_utils_shared as bs
 
 
 async def _nh(_, data):

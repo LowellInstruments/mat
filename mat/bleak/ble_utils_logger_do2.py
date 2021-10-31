@@ -3,7 +3,7 @@ from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, SWS_CMD, \
     RUN_CMD, RWS_CMD
 from mat.logger_controller_ble_cmd import *
-import mat.bleak.ble_utils_shared as bs
+import mat.ble_utils_shared as bs
 
 
 UUID_C = 'f0001132-0451-4000-b000-000000000000'

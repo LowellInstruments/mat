@@ -3,8 +3,8 @@ import threading
 from bleak import BleakError
 from mat.bleak.ble_engine import ble_engine
 from mat.bleak.ble_utils_logger_moana import UUID_C, cmd_tx, ans_rx
-from mat.bleak.ble_utils_shared import EngineException
-import mat.bleak.ble_utils_shared as bs
+from mat.ble_utils_shared import EngineException
+import mat.ble_utils_shared as bs
 
 
 def ble_engine_moana(q_c, q_a):

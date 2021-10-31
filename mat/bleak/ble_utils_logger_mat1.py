@@ -1,8 +1,7 @@
 import asyncio
-import math
 from mat.logger_controller_ble_cmd import BTC_CMD, GET_FILE_CMD
 from mat.logger_controller import STATUS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD
-import mat.bleak.ble_utils_shared as bs
+import mat.ble_utils_shared as bs
 
 
 UUID_C = '00035b03-58e6-07dd-021a-08123a000301'

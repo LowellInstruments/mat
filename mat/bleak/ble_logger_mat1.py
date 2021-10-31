@@ -2,7 +2,7 @@ import queue
 from mat.bleak.ble_logger_do2 import BLELogger
 from mat.bleak.ble_engine_mat1 import ble_engine_mat1
 from mat.bleak.ble_utils_logger_mat1 import ble_cmd_dir_result_as_dict_rn4020
-from mat.bleak.ble_utils_shared import xmd_frame_check_crc
+from mat.ble_utils_shared import xmd_frame_check_crc
 from mat.logger_controller import DIR_CMD
 from mat.logger_controller_ble_cmd import GET_FILE_CMD
 
