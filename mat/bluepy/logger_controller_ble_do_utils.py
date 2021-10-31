@@ -49,7 +49,7 @@ class LCBLEDO1Delegate(bluepy.btle.DefaultDelegate):
         self.buf = bytes()
 
     def handleNotification(self, c_handle, data):
-        print(data)
+        # print(data)
         self.buf += data
 
     def clear_buf(self):
@@ -180,7 +180,8 @@ def ble_cmd_build(*args):
         to_send = cmd + ' ' + n + arg
     to_send += chr(13)
 
-    print(to_send)
+    # debug
+    # print(to_send)
 
     # know command tag, ex: 'STP'
     tag = cmd[:3]
@@ -188,7 +189,8 @@ def ble_cmd_build(*args):
 
 
 def ble_connect_to_do_1_logger(lc):
-    assert ble_linux_write_parameters_as_fast(lc.h)
+    # todo > prevents running all being non-root
+    # assert ble_linux_write_parameters_as_fast(lc.h)
 
     till = 10
     retries = 3

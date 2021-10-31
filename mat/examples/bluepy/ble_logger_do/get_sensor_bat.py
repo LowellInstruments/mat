@@ -4,7 +4,6 @@ from mat.examples.bluepy.ble_logger_do.macs import MAC_LOGGER_DO2_0_SDI12
 mac = MAC_LOGGER_DO2_0_SDI12
 
 
-
 def example_get_battery():
     lc = LoggerControllerBLEDO(mac)
     if lc.open():

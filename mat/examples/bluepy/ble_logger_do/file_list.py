@@ -3,6 +3,7 @@ from mat.examples.bluepy.ble_logger_do.macs import MAC_LOGGER_DO2_0_SDI12
 
 mac = '60:77:71:22:c8:18'
 
+# todo > check this example
 
 
 def example_file_list():

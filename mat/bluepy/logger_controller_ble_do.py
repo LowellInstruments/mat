@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 import math
 import queue
@@ -36,8 +36,6 @@ class LoggerControllerBLEDO(LoggerController):
     def open_post(self):
         self.per.setMTU(MTU_SIZE)
         self.cha = self.svc.getCharacteristics(UUID_W)[0]
-        with open('/dev/shm/connected_mac', 'w') as f:
-            f.write(self.mac)
 
     def close(self):
         try:
@@ -76,8 +74,13 @@ class LoggerControllerBLEDO(LoggerController):
     def ble_get_mtu(self) -> int:
         return self.per.status()['mtu'][0]
 
-    def ble_cmd_gtm(self) -> str:
-        return self._ble_cmd(TIME_CMD)
+    def ble_cmd_gtm(self) -> datetime:
+        rv = self._ble_cmd(TIME_CMD)
+        if len(rv) == 25:
+            # rv: b'GTM 132000/01/01 01:44:49'
+            rv = rv.decode()[6:]
+            dt = datetime.strptime(rv, '%Y/%m/%d %H:%M:%S')
+            return dt
 
     def ble_cmd_sts(self) -> str:
         a = self._ble_cmd(STATUS_CMD)
@@ -89,7 +92,6 @@ class LoggerControllerBLEDO(LoggerController):
             '0202': 'delayed'
         }
         # a: b'STS 0201'
-        print(a)
         if a and len(a.split()) == 2:
             return _[a.split()[1].decode()]
         return 'error'
@@ -168,7 +170,7 @@ class LoggerControllerBLEDO(LoggerController):
 
     def ble_cmd_stm(self) -> str:
         fmt = '%Y/%m/%d %H:%M:%S'
-        s = datetime.datetime.now().strftime(fmt)
+        s = datetime.now().strftime(fmt)
         a = self._ble_cmd(SET_TIME_CMD, s)
         return 'OK' if a == b'STM 00' else 'error'
 
@@ -201,6 +203,7 @@ class LoggerControllerBLEDO(LoggerController):
         rv = []
         for i in range(5):
             rv = self._ble_cmd(DIR_CMD)
+            print(rv)
             if rv:
                 break
             print('BLE: DIR empty, retry {} of 5'.format(i))
@@ -214,7 +217,9 @@ class LoggerControllerBLEDO(LoggerController):
         return ble_file_list_as_dict(file_list, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover
-        return self.ble_cmd_dir_ext('*')
+        rv = self.ble_cmd_dir_ext('*')
+        print(rv)
+        return rv
 
     def ble_cmd_del(self, file_name: str) -> str:
         a = self._ble_cmd(DEL_FILE_CMD, file_name)
