@@ -1,11 +1,11 @@
-from mat.bluepy.logger_controller_ble_do import LoggerControllerBLEDO
+from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
 from mat.examples.bluepy.ble_logger_do.macs import MAC_LOGGER_DO2_0_SDI12
 
 mac = MAC_LOGGER_DO2_0_SDI12
 
 
 def example_file_delete(file_name: str):
-    lc = LoggerControllerBLEDO(mac)
+    lc = LoggerControllerBLELowell(mac)
     if lc.open():
         rv = lc.ble_cmd_del(file_name)
         print('file delete one: {}'.format(rv))

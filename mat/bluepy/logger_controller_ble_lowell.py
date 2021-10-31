@@ -4,12 +4,12 @@ import math
 import queue
 import threading
 from mat.logger_controller import LoggerController
-from mat.bluepy.logger_controller_ble_do_utils import *
+from mat.bluepy.logger_controller_ble_lowell_utils import *
 from mat.utils import is_valid_mac_address
 from mat.bluepy.xmodem_cc26x2 import XModemException, ble_xmd_get_file_cc26x2
 
 
-class LoggerControllerBLEDO(LoggerController):
+class LoggerControllerBLELowell(LoggerController):
 
     def _clear_buffers(self):
         self.dlg.buf = bytes()
@@ -23,19 +23,14 @@ class LoggerControllerBLEDO(LoggerController):
         self.per = None
         self.svc = None
         self.cha = None
-        self.dlg = LCBLEDO1Delegate()
+        self.dlg = LCBLELowellDelegate()
 
     def _ble_write(self, data, response=False):
         assert len(data) <= MTU_SIZE
         self.cha.write(data, withResponse=response)
 
     def open(self):
-        return ble_connect_to_do_1_logger(self)
-
-    # not abstract
-    def open_post(self):
-        self.per.setMTU(MTU_SIZE)
-        self.cha = self.svc.getCharacteristics(UUID_W)[0]
+        return ble_connect_lowell_logger(self)
 
     def close(self):
         try:

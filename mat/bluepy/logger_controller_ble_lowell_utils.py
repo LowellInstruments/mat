@@ -43,7 +43,7 @@ UUID_W = 'f0001131-0451-4000-b000-000000000000'
 MTU_SIZE = 247
 
 
-class LCBLEDO1Delegate(bluepy.btle.DefaultDelegate):
+class LCBLELowellDelegate(bluepy.btle.DefaultDelegate):
     def __init__(self):
         bluepy.btle.DefaultDelegate.__init__(self)
         self.buf = bytes()
@@ -188,29 +188,26 @@ def ble_cmd_build(*args):
     return to_send, tag
 
 
-def ble_connect_to_do_1_logger(lc):
-    # todo > prevents running all being non-root
+def ble_connect_lowell_logger(lc):
+    # prevents running all being non-root
     # assert ble_linux_write_parameters_as_fast(lc.h)
 
-    till = 10
-    retries = 3
-    for i in range(retries):
-        try:
-            lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=till)
+    try:
+        # connection update request from cc26x2 takes 1 sec
+        lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
+        time.sleep(1.1)
+        lc.per.setDelegate(lc.dlg)
+        lc.svc = lc.per.getServiceByUUID(UUID_S)
+        lc.cha = lc.svc.getCharacteristics(UUID_C)[0]
+        desc = lc.cha.valHandle + 1
+        lc.per.writeCharacteristic(desc, b'\x01\x00')
+        lc.per.setMTU(MTU_SIZE)
+        lc.cha = lc.svc.getCharacteristics(UUID_W)[0]
+        return True
 
-            # connection update request from cc26x2 takes 1 sec
-            time.sleep(1.1)
-            lc.per.setDelegate(lc.dlg)
-            lc.svc = lc.per.getServiceByUUID(UUID_S)
-            lc.cha = lc.svc.getCharacteristics(UUID_C)[0]
-            desc = lc.cha.valHandle + 1
-            lc.per.writeCharacteristic(desc, b'\x01\x00')
-            lc.open_post()
-            return lc
-
-        except (AttributeError, bluepy.btle.BTLEException) as ex:
-            e = '[ BLE ] can\'t connect {} / {}: {}'
-            print(e.format(i + 1, retries, ex))
+    except (AttributeError, bluepy.btle.BTLEException) as ex:
+        print('[ BLE ] cannot connect')
+        return False
 
 
 def ble_cmd_slow_down_before(tag):
