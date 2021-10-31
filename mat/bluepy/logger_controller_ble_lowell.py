@@ -1,21 +1,16 @@
 from datetime import datetime
 import json
 import math
-import queue
-import threading
-from mat.logger_controller import LoggerController
+from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
+    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DIR_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
+    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD
 from mat.bluepy.logger_controller_ble_lowell_utils import *
 from mat.utils import is_valid_mac_address
-from mat.bluepy.xmodem_cc26x2 import XModemException, ble_xmd_get_file_cc26x2
 
 
 class LoggerControllerBLELowell(LoggerController):
 
-    def _clear_buffers(self):
-        self.dlg.buf = bytes()
-
     def __init__(self, mac, h=0):
-
         self.mac = mac
         self.h = h
         assert is_valid_mac_address(mac)
@@ -24,10 +19,6 @@ class LoggerControllerBLELowell(LoggerController):
         self.svc = None
         self.cha = None
         self.dlg = LCBLELowellDelegate()
-
-    def _ble_write(self, data, response=False):
-        assert len(data) <= MTU_SIZE
-        self.cha.write(data, withResponse=response)
 
     def open(self):
         return ble_connect_lowell_logger(self)
@@ -40,31 +31,43 @@ class LoggerControllerBLELowell(LoggerController):
         except AttributeError:
             return False
 
+    def _ble_write(self, data, response=False):
+        assert len(data) <= MTU_SIZE
+        self.cha.write(data, withResponse=response)
+
+    def _ble_ans(self, tag):
+        assert tag != DWG_FILE_CMD
+        self.dlg.buf = bytes()
+        last = 0
+        t = ble_ans_calc_t(tag)
+        while 1:
+            now = time.perf_counter()
+            if self.per.waitForNotifications(.01):
+                t += .01
+                last = now
+                continue
+            if now > t:
+                # final timeout
+                break
+            if last and now > last + .1:
+                # timeout: received something too long ago
+                break
+        return self.dlg.buf
+
+    def _ble_cmd(self, *args):  # pragma: no cover
+        """ cmd: 'STS', a: [b'STS', b'020X'] """
+
+        to_send, tag = ble_cmd_build(*args)
+        self._ble_write(to_send.encode())
+        a = self._ble_ans(tag)
+        return a
+
     def command(self, *args):
         return self._ble_cmd(*args)
 
-    def _ble_cmd(self, *args):  # pragma: no cover
-        """
-        ex -> cmd: 'STS', ans: [b'STS', b'020X']
-        """
-
-        to_send, tag = ble_cmd_build(*args)
-        ble_cmd_slow_down_before(tag)
-        t = ble_cmd_estimate_answer_timeout(tag)
-        self._ble_write(to_send.encode())
-        q = queue.Queue()
-        ar = (self, tag, t, q, )
-        threading.Thread(target=ble_cmd_wait_answer, args=ar).start()
-        try:
-            ans = q.get(timeout=t)
-        except queue.Empty:
-            ans = None
-        ble_cmd_slow_down_after(tag)
-        return ans
-
-    # ----------------------------
-    # API-available BLE commands
-    # ----------------------------
+    # --------------------
+    # Lowell API commands
+    # --------------------
 
     def ble_get_mtu(self) -> int:
         return self.per.status()['mtu'][0]
@@ -373,39 +376,6 @@ class LoggerControllerBLELowell(LoggerController):
         if self.dlg.buf == b'DWG 00':
             return 'OK'
         return 'error'
-
-    def ble_cmd_get(self, file, fol, size, sig=None) -> bytes:  # pragma: no cover
-        """ sends GET command and downloads file """
-
-        # separates file downloads, allows logger x-modem to boot
-        self.dlg.buf = bytes()
-        time.sleep(1)
-
-        # ensure fol string, not path_lib
-        fol = str(fol)
-
-        # ask for file, mind CC26x2 particular behavior to send GET answer
-        cmd = 'GET {:02x}{}\r'.format(len(file), file)
-        self._ble_write(cmd.encode())
-        self.per.waitForNotifications(10)
-
-        rv, data = False, []
-        if self.dlg.buf and self.dlg.buf.endswith(b'GET 00'):
-            try:
-                rv, data = ble_xmd_get_file_cc26x2(self, sig, verbose=False)
-            except XModemException:
-                rv, data = False, None
-
-        # don't remove, allows logger x-modem to finish
-        time.sleep(1)
-
-        if not rv or len(data) < int(size):
-            return bytes()
-        p = '{}/{}'.format(fol, file)
-        with open(p, 'wb') as f:
-            f.write(data)
-            f.truncate(int(size))
-        return data
 
     def ble_cmd_slw_ensure(self, v: str):
         assert v in ('ON', 'OFF')
