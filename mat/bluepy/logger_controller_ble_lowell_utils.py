@@ -98,11 +98,17 @@ def ble_file_list_as_dict(ls, ext, match=True):
         if name in [b'\x04']:
             break
 
+        names_to_omit = (
+            b'.',
+            b'..',
+            b'System Volume Information'
+        )
+
         # wild-card case
-        if ext == b'*' and name not in [b'.', b'..']:
+        if ext == b'*' and name not in names_to_omit:
             files[name.decode()] = int(ls[idx + 1])
         # specific extension case
-        elif name.endswith(ext) == match and name not in [b'.', b'..']:
+        elif name.endswith(ext) == match and name not in names_to_omit:
             files[name.decode()] = int(ls[idx + 1])
         idx += 2
     return files

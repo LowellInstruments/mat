@@ -1,11 +1,8 @@
-import time
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
 from mat.bluepy.logger_controller_ble_rn4020_utils import ble_connect_rn4020_logger
 
 
 class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
-
-    # todo > forbid commands this logger does not support
 
     def open(self):
         return ble_connect_rn4020_logger(self)
@@ -14,6 +11,13 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
         b = [data[i:i + 1] for i in range(len(data))]
         for _ in b:
             self.cha.write(_, withResponse=response)
+
+    def _ble_cmd(self, *args):  # pragma: no cover
+        # RN4020 answers have \r\n and \r\n
+        a = super()._ble_cmd(*args)
+        a = a[2:] if a and a.startswith(b'\n\r') else a
+        a = a[:-2] if a and a.endswith(b'\r\n') else a
+        return a
 
     # def get_file(self, lc, file, fol, size, sig=None) -> bool:  # pragma: no cover
     #     assert(lc.und.type == self.type)
@@ -38,6 +42,3 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
     #
     #     # clean-up
     #     return dl
-
-
-

@@ -1,7 +1,7 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12
+from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
 
-mac = MAC_LOGGER_DO2_0_SDI12
+mac = MAC_LOGGER_DO2_0_MODBUS
 
 
 def example_create_config_file(c_d):
@@ -15,6 +15,8 @@ def example_create_config_file(c_d):
 
 
 if __name__ == '__main__':
+    # todo > I think with latest updates, this
+    # configuration is INVALID, check
     _cfg_dict = {
         "DFN": "low",
         "TMP": 0, "PRS": 0,

@@ -113,8 +113,9 @@ class LoggerControllerBLELowell(LoggerController):
         a = self._ble_cmd(UP_TIME_CMD)
         if a and len(a.split()) == 2:
             # a: b'UPT 0812345678'
+            print(a)
             _ = a.split()[1].decode()
-            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[:2]
+            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
             return int(b, 16)
         return 0
 
@@ -123,7 +124,7 @@ class LoggerControllerBLELowell(LoggerController):
         if a and len(a.split()) == 2:
             # a: b'CFS 0812345678'
             _ = a.split()[1].decode()
-            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[:2]
+            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
             free_bytes = int(b, 16)
             free_mb = free_bytes / 1024 / 1024
             return free_mb

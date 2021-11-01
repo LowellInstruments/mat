@@ -8,7 +8,7 @@ def rn4020_shell(cmd_list: list, mac):
         with LoggerControllerBLERN4020(mac) as lc:
             for cmd in cmd_list:
                 rv = lc.command(cmd)
-                print('[ BLE ] {} -> {}'.format(cmd, rv))
+                print('[ rn4020 ] {} -> {}'.format(cmd, rv))
                 time.sleep(.5)
     except ble.BTLEException as ex:
-        print('[ BLE ] exception -> {}'.format(ex))
+        print('[ rn4020 ] exception -> {}'.format(ex))
