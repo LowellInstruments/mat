@@ -1,13 +1,14 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
-
-mac = MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
 
-def example_file_delete(file_name: str):
-    lc = LoggerControllerBLELowell(mac)
+def file_rm(s: str, cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
-        rv = lc.ble_cmd_del(file_name)
+        rv = lc.ble_cmd_del(s)
         print('file delete one: {}'.format(rv))
     else:
         print('{} connection error'.format(__name__))
@@ -15,4 +16,4 @@ def example_file_delete(file_name: str):
 
 
 if __name__ == '__main__':
-    example_file_delete('dummy_32.lid')
+    file_rm('dummy_32.lid')

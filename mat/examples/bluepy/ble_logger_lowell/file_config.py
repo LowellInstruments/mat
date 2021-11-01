@@ -1,13 +1,14 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
-
-mac = MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
 
-def example_create_config_file(c_d):
-    lc = LoggerControllerBLELowell(mac)
+def file_config(c: dict, cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
-        rv = lc.ble_cmd_cfg(c_d)
+        rv = lc.ble_cmd_cfg(c)
         print('> config cmd: {}'.format(rv))
     else:
         print('{} connection error'.format(__name__))
@@ -28,4 +29,4 @@ if __name__ == '__main__':
         "ETM": "2030-11-12 12:14:20",
         "LED": 1
     }
-    example_create_config_file(_cfg_dict)
+    file_config(_cfg_dict)

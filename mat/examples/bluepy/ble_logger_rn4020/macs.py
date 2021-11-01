@@ -1,3 +1,0 @@
-MAC_LOGGER_MAT1_0 = '00:1e:c0:6c:76:13'
-
-mac = MAC_LOGGER_MAT1_0

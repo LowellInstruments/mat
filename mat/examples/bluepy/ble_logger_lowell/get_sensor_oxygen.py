@@ -1,13 +1,13 @@
 import time
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
-
-mac = MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
 
+def measure_oxygen(cla=LoggerControllerBLELowell):
 
-def example_get_dissolved_oxygen():
-    lc = LoggerControllerBLELowell(mac)
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
         rv = lc.ble_cmd_gdo()
         print('> DO saturation:  {}.{} mg/l'.format(rv[0][:2], rv[0][2:]))
@@ -21,5 +21,5 @@ def example_get_dissolved_oxygen():
 
 if __name__ == '__main__':
     while 1:
-        example_get_dissolved_oxygen()
+        measure_oxygen()
         time.sleep(10)

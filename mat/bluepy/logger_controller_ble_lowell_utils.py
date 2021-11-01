@@ -92,7 +92,9 @@ def ble_file_list_as_dict(ls, ext, match=True):
     files, idx = {}, 0
 
     # ls: b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r\n\rMAT.cfg\t\t\t189\n\r\x04\n\r'
+    ls = ls.replace(b'System Volume Information\t\t\t0\n\r', b'')
     ls = ls.split()
+
     while idx < len(ls):
         name = ls[idx]
         if name in [b'\x04']:
@@ -101,7 +103,6 @@ def ble_file_list_as_dict(ls, ext, match=True):
         names_to_omit = (
             b'.',
             b'..',
-            b'System Volume Information'
         )
 
         # wild-card case

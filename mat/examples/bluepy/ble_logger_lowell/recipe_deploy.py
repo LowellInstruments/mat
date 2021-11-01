@@ -1,10 +1,12 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
-mac = MAC_LOGGER_DO2_0_MODBUS
 
-def example_deploy(c_d):
-    lc = LoggerControllerBLELowell(mac)
+def deploy(c_d: dict, cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
         rv = lc.ble_cmd_stp()
         print('> stop: {}'.format(rv))
@@ -28,6 +30,7 @@ def example_deploy(c_d):
 
 
 if __name__ == '__main__':
+    # todo > re-check this conf is valid
     _cfg_dict = {
         "DFN": "low",
         "TMP": 0, "PRS": 0,
@@ -39,4 +42,4 @@ if __name__ == '__main__':
         "ETM": "2030-11-12 12:14:20",
         "LED": 1
     }
-    example_deploy(_cfg_dict)
+    deploy(_cfg_dict)

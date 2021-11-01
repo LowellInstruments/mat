@@ -1,9 +1,6 @@
 from mat.data_converter import default_parameters, DataConverter
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
-
-
-mac = MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
 
 def file_convert(path):
@@ -19,8 +16,11 @@ def file_convert(path):
         print(ex)
 
 
-def example_file_dwg(file_name, file_size: int):
-    lc = LoggerControllerBLELowell(mac)
+def file_dwg(file_name, file_size: int, cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
         rv = lc.ble_cmd_stp()
         print('STOP {}'.format(rv))
@@ -45,4 +45,4 @@ def example_file_dwg(file_name, file_size: int):
 
 
 if __name__ == '__main__':
-    example_file_dwg('MAT.cfg', 189)
+    file_dwg('MAT.cfg', 189)

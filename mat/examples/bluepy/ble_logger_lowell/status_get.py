@@ -1,12 +1,12 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
 
-mac = MAC_LOGGER_DO2_0_MODBUS
+def status(cla=LoggerControllerBLELowell):
 
+    mac = get_mac(cla)
+    lc = cla(mac)
 
-def example_status():
-    lc = LoggerControllerBLELowell(mac)
     if lc.open():
         rv = lc.ble_cmd_sts()
         print('> status: {}'.format(rv))
@@ -16,5 +16,5 @@ def example_status():
 
 
 if __name__ == '__main__':
-    example_status()
+    status()
 

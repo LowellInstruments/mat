@@ -1,10 +1,12 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
-mac = MAC_LOGGER_DO2_0_MODBUS
 
-def example_set_info():
-    lc = LoggerControllerBLELowell(mac)
+def set_info(cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
         rv = lc.ble_cmd_wli("SN1234567")
         print('> set info SN: {}'.format(rv))
@@ -20,4 +22,4 @@ def example_set_info():
 
 
 if __name__ == '__main__':
-    example_set_info()
+    set_info()

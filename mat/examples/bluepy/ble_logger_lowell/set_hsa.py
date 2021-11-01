@@ -1,10 +1,12 @@
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.ble_logger_lowell.macs import MAC_LOGGER_DO2_0_SDI12, MAC_LOGGER_DO2_0_MODBUS
+from mat.examples.bluepy.macs import get_mac
 
-mac = MAC_LOGGER_DO2_0_MODBUS
 
-def example_set_host_storage_area():
-    lc = LoggerControllerBLELowell(mac)
+def set_host_storage_area(cla=LoggerControllerBLELowell):
+
+    mac = get_mac(cla)
+    lc = cla(mac)
+
     if lc.open():
         rv = lc.ble_cmd_whs("TMO12345")
         print('> set host storage area TMA: {}'.format(rv))
@@ -14,4 +16,4 @@ def example_set_host_storage_area():
 
 
 if __name__ == '__main__':
-    example_set_host_storage_area()
+    set_host_storage_area()

@@ -305,7 +305,8 @@ class LoggerControllerBLELowell(LoggerController):
 
     def ble_cmd_stp(self) -> str:
         a = self._ble_cmd(STOP_CMD)
-        return 'OK' if a == b'STP 00' else 'ER'
+        v = (b'STP 00', b'STP 0200')
+        return 'OK' if a in v else 'ER'
 
     def ble_cmd_sws(self, s) -> str:
         a = self._ble_cmd(SWS_CMD, s)

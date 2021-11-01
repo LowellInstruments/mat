@@ -2,6 +2,8 @@ import os
 import time
 import bluepy.btle as ble
 
+# todo: FIX THIS EXAMPLE
+
 from mat.bluepy.xmodem_rn4020 import ble_xmd_get_file_rn4020
 from mat.data_converter import default_parameters, DataConverter
 from mat.examples.bluepy.ble_logger_rn4020.file_list import ls_lid_rn4020
