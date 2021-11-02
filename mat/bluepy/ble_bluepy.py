@@ -1,6 +1,5 @@
 import platform
 import sys
-import time
 import subprocess as sp
 
 
@@ -9,7 +8,6 @@ BLE_LINUX_SYS_PATH = '/sys/kernel/debug/bluetooth/hci{}/'
 
 def ble_scan_bluepy_unordered(hci_if: int, my_to=3.0):    # pragma: no cover
     # hci_if: hciX interface number
-    print('scanning via bluepy...')
     try:
         import bluepy
         s = bluepy.btle.Scanner(iface=hci_if)
@@ -26,26 +24,16 @@ def ble_scan_bluepy_unordered(hci_if: int, my_to=3.0):    # pragma: no cover
 def ble_scan_bluepy(hci_if: int, my_to=3.0) -> dict:
     # sort scan results by RSSI: reverse=True, farther ones first
     sr = ble_scan_bluepy_unordered(hci_if, my_to=my_to)
-    sr = sorted(sr, key=lambda x: x.rssi, reverse=False)
-    rv = {}
-    for each in sr:
-        rv[each.addr] = each.rssi
-    return rv
+    return sorted(sr, key=lambda x: x.rssi, reverse=False)
 
 
 def ble_linux_hard_reset():
     if not platform.system() == 'Linux':
         print('not linux platform to reset')
         return 'OK'
-    # hard bluetooth reset
-    cmd = 'systemctl stop bluetooth'
-    _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    rv = _.returncode
-    time.sleep(3)
-    cmd = 'systemctl start bluetooth'
-    _ = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    rv += _.returncode
-    return 'OK' if rv == 0 else 'error'
+    cmd = 'systemctl restart bluetooth'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return 'OK' if rv.returncode == 0 else 'error'
 
 
 def ble_linux_write_parameters(mi, ma, la, h=0):   # pragma: no cover
@@ -94,22 +82,6 @@ def ble_linux_write_parameters(mi, ma, la, h=0):   # pragma: no cover
 
 def ble_linux_write_parameters_as_fast(h=0):
     return ble_linux_write_parameters(6, 11, 0, h=h)
-
-
-# allows simplest code bleak ever
-def ble_connect_n_cmd(my_lc_class, mac, cmd_s, *args):
-    """
-    :param my_lc_class: ex -> LoggerControllerBLEDO
-    :param mac: MAC adress
-    :param cmd_s: 'ble_cmd_status'
-    :param args: parameters of cmd_s
-    :return:
-    """
-    lc = my_lc_class(mac).open()
-    cmd = getattr(lc, cmd_s)
-    rv = cmd(*args)
-    lc.close()
-    print('> {} -> {}'.format(cmd_s, rv))
 
 
 if __name__ == '__main__':

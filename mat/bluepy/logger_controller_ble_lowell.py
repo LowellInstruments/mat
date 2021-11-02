@@ -36,21 +36,22 @@ class LoggerControllerBLELowell(LoggerController):
         self.cha.write(data, withResponse=response)
 
     def _ble_ans(self, tag) -> bytes:
-        assert tag != DWG_FILE_CMD
+        assert tag not in (DWG_FILE_CMD, DWL_CMD)
         self.dlg.buf = bytes()
         last = 0
         t = ble_ans_calc_t(tag)
         while 1:
             now = time.perf_counter()
             if self.per.waitForNotifications(.01):
+                # print(self.dlg.buf)
                 t += .01
                 last = now
                 continue
             if now > t:
                 # final timeout
                 break
-            if last and now > last + .1:
-                # timeout: received something too long ago
+            if last and now > last + .5:
+                # timeout: received too long ago
                 break
         return self.dlg.buf
 
@@ -193,9 +194,9 @@ class LoggerControllerBLELowell(LoggerController):
         a = self._ble_cmd(MY_TOOL_SET_CMD, 'SN')
         return 'ok' if a == b'MTS 00' else 'error'
 
-    def ble_cmd_frm(self) -> str:
+    def ble_cmd_frm(self) -> bool:
         a = self._ble_cmd(FORMAT_CMD)
-        return 'ok' if a == b'FRM 00' else 'error'
+        return a == b'FRM 00'
 
     # utility function
     def _ble_cmd_file_list(self) -> list:
@@ -287,11 +288,11 @@ class LoggerControllerBLELowell(LoggerController):
         a = self._ble_cmd(RESET_CMD)
         return 'ok' if a == b'RST 00' else 'error'
 
-    def ble_cmd_cfg(self, cfg_d) -> str:
+    def ble_cmd_cfg(self, cfg_d) -> bool:
         assert type(cfg_d) is dict
         s = json.dumps(cfg_d)
         a = self._ble_cmd(CONFIG_CMD, s)
-        return 'ok' if a == b'CFG 00' else 'error'
+        return a == b'CFG 00'
 
     def ble_cmd_run(self) -> str:
         a = self._ble_cmd(RUN_CMD)
@@ -365,19 +366,28 @@ class LoggerControllerBLELowell(LoggerController):
         data_file = data_file[:file_size]
         return data_file
 
-    def ble_cmd_dwg(self, file, fol, size, sig=None) -> str:  # pragma: no cover
+    def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """
 
+        self.dlg.buf = bytes()
         _ = '{} {:02x}{}\r'
-        cmd = _.format(DWG_FILE_CMD, len(file), file)
+        cmd = _.format(DWG_FILE_CMD, len(name), name)
         self._ble_write(cmd.encode())
         self.per.waitForNotifications(5)
-        return 'ok' if self.dlg.buf == b'DWG 00' else 'error'
+        return self.dlg.buf == b'DWG 00'
 
     def ble_cmd_slw_ensure(self, v: str):
-        assert v in ('ON', 'OFF')
+        assert v in ('on', 'off')
         rv = self.ble_cmd_slw()
         if rv in ['error', v]:
             return rv
         rv = self.ble_cmd_slw()
+        return 'error' if rv != v else rv
+
+    def ble_cmd_wak_ensure(self, v: str):
+        assert v in ('on', 'off')
+        rv = self.ble_cmd_wak()
+        if rv in ['error', v]:
+            return rv
+        rv = self.ble_cmd_wak()
         return 'error' if rv != v else rv

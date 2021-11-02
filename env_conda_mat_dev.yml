@@ -1,0 +1,17 @@
+name: mat_dev
+
+# this is under construction but we want to keep it to minimum
+
+dependencies:
+  - python=3.8
+  - pytest=6.2.3=py38h06a4308_2
+  - numpy=1.21.2=py38hd8d4704_0
+  - h5py=3.2.1=py38h6c542dc_0
+  - pyserial=3.5=py38h06a4308_0
+  - pip
+  - pip:
+    - git+https://github.com/LowellInstruments/bluepy.git
+    - bleak==0.12.1
+    - getmac==0.8.2
+    - pika==1.2.0
+    - tendo==0.2.15

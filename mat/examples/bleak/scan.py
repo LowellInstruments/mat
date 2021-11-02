@@ -15,7 +15,6 @@ async def run():
 
 
 def ble_scan_bleak() -> dict:
-    print('scanning via bleak...')
     loop = asyncio.get_event_loop()
     a = loop.run_until_complete(run())
     return a
