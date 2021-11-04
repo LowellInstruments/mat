@@ -196,7 +196,9 @@ class LoggerControllerBLELowell(LoggerController):
 
     def ble_cmd_frm(self) -> bool:
         a = self._ble_cmd(FORMAT_CMD)
-        return a == b'FRM 00'
+        rv = a == b'FRM 00'
+        time.sleep(1)
+        return rv
 
     # utility function
     def _ble_cmd_file_list(self) -> list:
@@ -219,9 +221,9 @@ class LoggerControllerBLELowell(LoggerController):
         rv = self.ble_cmd_dir_ext('*')
         return rv
 
-    def ble_cmd_del(self, file_name: str) -> str:
+    def ble_cmd_del(self, file_name: str) -> bool:
         a = self._ble_cmd(DEL_FILE_CMD, file_name)
-        return 'ok' if a == b'DEL 00' else 'error'
+        return a == b'DEL 00'
 
     def ble_cmd_crc(self, file_name: str) -> str:
         a = self._ble_cmd(CRC_CMD, file_name)

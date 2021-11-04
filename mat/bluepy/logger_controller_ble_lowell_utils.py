@@ -74,7 +74,7 @@ def ble_connect_lowell_logger(lc):
         return True
 
     except (AttributeError, bluepy.btle.BTLEException) as ex:
-        print('[ BLE ] cannot connect')
+        print('[ BLE ] cannot connect -> {}'.format(ex))
         return False
 
 

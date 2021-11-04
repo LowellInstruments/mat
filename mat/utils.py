@@ -170,3 +170,9 @@ def linux_is_ble_connection_recent(mac) -> bool:  # pragma: no cover
         return True
     path.touch()
     return False
+
+
+def linux_sudo_permissions_check():
+    if 'SUDO_UID' not in os.environ.keys():
+        print('bluetooth requires root permissions')
+        os._exit(1)
