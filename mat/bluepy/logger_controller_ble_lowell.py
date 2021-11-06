@@ -350,16 +350,21 @@ class LoggerControllerBLELowell(LoggerController):
 
         return timeout, data
 
-    def ble_cmd_dwl(self, file_size, sig=None) -> bytes:
+    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
         # do not remove this, in case buffer has 'DWG 00'
         self.dlg.buf = bytes()
         data_file = bytes()
         number_of_chunks = math.ceil(file_size / 2048)
+
+        # file-system based progress indicator
         for i in range(number_of_chunks):
             timeout, data_chunk = self._dwl_chunk(i)
             data_file += data_chunk
-            if sig:
-                sig.emit()
+            if p:
+                f = open(p, 'w')
+                _ = len(data_file) / file_size * 100
+                f.write(str(_))
+                f.close()
 
         # truncate and return
         self.dlg.buf = bytes()
@@ -381,7 +386,8 @@ class LoggerControllerBLELowell(LoggerController):
     def ble_cmd_slw_ensure(self, v: str):
         assert v in ('on', 'off')
         rv = self.ble_cmd_slw()
-        if rv in ['error', v]:
+        print(rv)
+        if rv in ['error', 'on', 'off']:
             return rv
         rv = self.ble_cmd_slw()
         return 'error' if rv != v else rv
