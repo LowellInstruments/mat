@@ -48,7 +48,7 @@ class LoggerControllerBLELowell(LoggerController):
                 last = now
                 continue
             if now > t:
-                # final timeout
+                # full command timeout
                 break
             if last and now > last + .5:
                 # timeout: received too long ago
@@ -60,8 +60,7 @@ class LoggerControllerBLELowell(LoggerController):
 
         to_send, tag = ble_cmd_build(*args)
         self._ble_write(to_send.encode())
-        a = self._ble_ans(tag)
-        return a
+        return self._ble_ans(tag)
 
     def command(self, *args) -> bytes:
         return self._ble_cmd(*args)
@@ -164,15 +163,15 @@ class LoggerControllerBLELowell(LoggerController):
         _ = {b'MBL 0201': 'on', b'MBL 0200': 'off'}
         return _.get(a, 'error')
 
-    def ble_cmd_led(self) -> str:
+    def ble_cmd_led(self) -> bool:
         a = self._ble_cmd(LED_CMD)
-        return 'ok' if a == b'LED 00' else 'error'
+        return a == b'LED 00'
 
-    def ble_cmd_stm(self) -> str:
+    def ble_cmd_stm(self) -> bool:
         fmt = '%Y/%m/%d %H:%M:%S'
         s = datetime.now().strftime(fmt)
         a = self._ble_cmd(SET_TIME_CMD, s)
-        return 'ok' if a == b'STM 00' else 'error'
+        return a == b'STM 00'
 
     def ble_cmd_gsn(self) -> str:
         a = self._ble_cmd(LOGGER_INFO_CMD, 'SN')
@@ -186,19 +185,18 @@ class LoggerControllerBLELowell(LoggerController):
             return a.split()[1].decode()[2:]
         return 'error'
 
-    def ble_cmd_tst(self) -> str:
+    def ble_cmd_tst(self) -> bool:
         a = self._ble_cmd(TEST_CMD)
-        return 'ok' if a == b'TST 00' else 'error'
+        return a == b'TST 00'
 
-    def ble_cmd_mts(self) -> str:
+    def ble_cmd_mts(self) -> bool:
         a = self._ble_cmd(MY_TOOL_SET_CMD, 'SN')
-        return 'ok' if a == b'MTS 00' else 'error'
+        return a == b'MTS 00'
 
     def ble_cmd_frm(self) -> bool:
         a = self._ble_cmd(FORMAT_CMD)
-        rv = a == b'FRM 00'
         time.sleep(1)
-        return rv
+        return a == b'FRM 00'
 
     # utility function
     def _ble_cmd_file_list(self) -> list:
@@ -254,11 +252,11 @@ class LoggerControllerBLELowell(LoggerController):
             info['CA'] = a.split()[1].decode()[2:]
         return info
 
-    def ble_cmd_whs(self, data) -> str:
+    def ble_cmd_whs(self, data) -> bool:
         valid = ['TMO', 'TMR', 'TMA', 'TMB', 'TMC']
         assert data[:3] in valid
         a = self._ble_cmd(LOGGER_HSA_CMD_W, 'TMO12345')
-        return 'ok' if a == b'WHS 00' else 'error'
+        return a == b'WHS 00'
 
     def ble_cmd_rhs(self) -> dict:
         hsa = {}
@@ -286,9 +284,9 @@ class LoggerControllerBLELowell(LoggerController):
             return i
         return 0
 
-    def ble_cmd_rst(self) -> str:
+    def ble_cmd_rst(self) -> bool:
         a = self._ble_cmd(RESET_CMD)
-        return 'ok' if a == b'RST 00' else 'error'
+        return a == b'RST 00'
 
     def ble_cmd_cfg(self, cfg_d) -> bool:
         assert type(cfg_d) is dict
@@ -296,22 +294,22 @@ class LoggerControllerBLELowell(LoggerController):
         a = self._ble_cmd(CONFIG_CMD, s)
         return a == b'CFG 00'
 
-    def ble_cmd_run(self) -> str:
+    def ble_cmd_run(self) -> bool:
         a = self._ble_cmd(RUN_CMD)
-        return 'ok' if a == b'RUN 00' else 'error'
+        return a == b'RUN 00'
 
-    def ble_cmd_rws(self, s) -> str:
+    def ble_cmd_rws(self, s) -> bool:
         a = self._ble_cmd(RWS_CMD, s)
-        return 'ok' if a == b'RWS 00' else 'error'
+        return a == b'RWS 00'
 
-    def ble_cmd_stp(self) -> str:
+    def ble_cmd_stp(self) -> bool:
         a = self._ble_cmd(STOP_CMD)
         v = (b'STP 00', b'STP 0200')
-        return 'ok' if a in v else 'error'
+        return a in v
 
-    def ble_cmd_sws(self, s) -> str:
+    def ble_cmd_sws(self, s) -> bool:
         a = self._ble_cmd(SWS_CMD, s)
-        return 'ok' if a == b'SWS 00' else 'error'
+        return a == b'SWS 00'
 
     def ble_cmd_rfn(self) -> str:
         a = self._ble_cmd(REQ_FILE_NAME_CMD)
@@ -357,11 +355,17 @@ class LoggerControllerBLELowell(LoggerController):
         number_of_chunks = math.ceil(file_size / 2048)
 
         # file-system based progress indicator
+        if p:
+            f = open(p, 'w+')
+            f.write(str(0))
+            f.close()
+
+        # download and update file w/ progress
         for i in range(number_of_chunks):
             timeout, data_chunk = self._dwl_chunk(i)
             data_file += data_chunk
             if p:
-                f = open(p, 'w')
+                f = open(p, 'w+')
                 _ = len(data_file) / file_size * 100
                 f.write(str(_))
                 f.close()
@@ -383,19 +387,22 @@ class LoggerControllerBLELowell(LoggerController):
         self.per.waitForNotifications(5)
         return self.dlg.buf == b'DWG 00'
 
-    def ble_cmd_slw_ensure(self, v: str):
+    def ble_cmd_slw_ensure(self, v: str) -> bool:
         assert v in ('on', 'off')
         rv = self.ble_cmd_slw()
-        print(rv)
-        if rv in ['error', 'on', 'off']:
-            return rv
+        if rv == v:
+            return True
         rv = self.ble_cmd_slw()
-        return 'error' if rv != v else rv
+        if rv == v:
+            return True
+        return False
 
-    def ble_cmd_wak_ensure(self, v: str):
+    def ble_cmd_wak_ensure(self, v: str) -> bool:
         assert v in ('on', 'off')
         rv = self.ble_cmd_wak()
-        if rv in ['error', v]:
-            return rv
+        if rv == v:
+            return True
         rv = self.ble_cmd_wak()
-        return 'error' if rv != v else rv
+        if rv == v:
+            return True
+        return False
