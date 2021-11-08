@@ -24,12 +24,16 @@ class LoggerControllerBLELowell(LoggerController):
         return ble_connect_lowell_logger(self)
 
     def close(self) -> bool:
+        rv = False
         try:
             self.per.disconnect()
             self.per = None
-            return True
+            rv = True
         except AttributeError:
-            return False
+            pass
+        finally:
+            self.per = None
+            return rv
 
     def _ble_write(self, data, response=False):
         assert len(data) <= MTU_SIZE
@@ -39,19 +43,27 @@ class LoggerControllerBLELowell(LoggerController):
         assert tag not in (DWG_FILE_CMD, DWL_CMD)
         self.dlg.buf = bytes()
         last = 0
-        t = ble_ans_calc_t(tag)
+        till = calculate_ble_ans_timeout(tag)
         while 1:
             now = time.perf_counter()
             if self.per.waitForNotifications(.01):
-                # print(self.dlg.buf)
-                t += .01
+                till += .01
                 last = now
                 continue
-            if now > t:
-                # full command timeout
+
+            # full command timeout
+            if now > till:
                 break
+
+            # known answer end format like 'DIR'
+            if tag == DIR_CMD:
+                v = self.dlg.buf
+                if v and v.endswith(b'\x04\n\r'):
+                    break
+                continue
+
+            # timeout: received too long ago
             if last and now > last + .5:
-                # timeout: received too long ago
                 break
         return self.dlg.buf
 
@@ -198,21 +210,8 @@ class LoggerControllerBLELowell(LoggerController):
         time.sleep(1)
         return a == b'FRM 00'
 
-    # utility function
-    def _ble_cmd_file_list(self) -> list:
-        rv = []
-        for i in range(5):
-            rv = self._ble_cmd(DIR_CMD)
-            if rv:
-                break
-            print('BLE: DIR empty, retry {} of 5'.format(i))
-            time.sleep(2)
-
-        # e.g. [b'.', b'0', b'..', b'0', b'do2_dummy.lid', b'123', b'\x04']
-        return rv
-
     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
-        file_list = self._ble_cmd_file_list()
+        file_list = self._ble_cmd(DIR_CMD)
         return ble_file_list_as_dict(file_list, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover

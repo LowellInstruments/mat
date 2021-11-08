@@ -12,7 +12,7 @@ def get_mac(cla, forced=''):
         return forced
 
     if cla is LoggerControllerBLELowell:
-        return MAC_LOGGER_DO2_0_MODBUS
+        return MAC_LOGGER_DO2_0_SDI12
 
     if cla is LoggerControllerBLERN4020:
         return MAC_LOGGER_MAT1_0

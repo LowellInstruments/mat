@@ -1,5 +1,7 @@
 import time
 import bluepy
+
+from mat.logger_controller import DIR_CMD
 from mat.logger_controller_ble_cmd import *
 
 
@@ -21,8 +23,10 @@ class LCBLELowellDelegate(bluepy.btle.DefaultDelegate):
         self.buf += data
 
 
-def ble_ans_calc_t(tag):
+def calculate_ble_ans_timeout(tag):
     if tag == MY_TOOL_SET_CMD:
+        t = 30
+    elif tag == DIR_CMD:
         t = 30
     else:
         t = 10
