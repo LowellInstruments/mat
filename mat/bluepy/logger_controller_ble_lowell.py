@@ -44,25 +44,29 @@ class LoggerControllerBLELowell(LoggerController):
         self.dlg.buf = bytes()
         last = 0
         till = calculate_ble_ans_timeout(tag)
+
+        # wait for answer with timeout
         while 1:
             now = time.perf_counter()
+
+            # increase
             if self.per.waitForNotifications(.01):
                 till += .01
                 last = now
                 continue
 
-            # full command timeout
+            # full -> leave
             if now > till:
                 break
 
-            # known answer end format like 'DIR'
+            # cut -> end detected like 'DIR'
             if tag == DIR_CMD:
                 v = self.dlg.buf
                 if v and v.endswith(b'\x04\n\r'):
                     break
                 continue
 
-            # timeout: received too long ago
+            # relative -> leave
             if last and now > last + .5:
                 break
         return self.dlg.buf
