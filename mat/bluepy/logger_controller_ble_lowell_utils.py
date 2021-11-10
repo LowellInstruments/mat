@@ -121,3 +121,7 @@ def ble_file_list_as_dict(ls, ext, match=True):
 
 def ble_cmd_file_list_only_lid_files(lc) -> dict:
     return lc.ble_cmd_dir_ext(b'lid')
+
+
+def ble_utils_logger_is_cc26x2r(mac, info):
+    return 'DO-2' in info

@@ -25,5 +25,8 @@ def ble_connect_rn4020_logger(lc):
         return False
 
 
-def utils_logger_is_rn4020(mac):
-    return mac.startswith('00:1e:c0')
+def utils_logger_is_rn4020(mac, info):
+    if mac.startswith('00:1e:c0'):
+        return True
+    if 'MATP-2W' in info:
+        return True
