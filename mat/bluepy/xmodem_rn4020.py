@@ -15,7 +15,7 @@ def _debug(s, verbose):
         print(s)
 
 
-def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
+def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
     file_built = bytes()
     _rt = 0
     _len = 0
@@ -26,7 +26,7 @@ def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
 
     while 1:
         # start anew at every frame
-        lc.dlg.x_buf = bytes()
+        lc.dlg.buf = bytes()
         if _rt == 3:
             _debug('<- can _rt 3', verbose)
             _can(lc)
@@ -44,7 +44,7 @@ def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
             continue
 
         # control byte arrived in < 1 sec, check it
-        _in_b = bytes([lc.dlg.x_buf[0]])
+        _in_b = bytes([lc.dlg.buf[0]])
         if _in_b == EOT:
             _debug('-> eot', verbose)
             _ack(lc)
@@ -77,7 +77,7 @@ def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
             if time.perf_counter() > _till:
                 timeout = True
                 break
-            if len(lc.dlg.x_buf) == _len:
+            if len(lc.dlg.buf) == _len:
                 break
         if timeout:
             # timeout rest of frame
@@ -87,14 +87,17 @@ def ble_xmd_get_file_rn4020(lc, sig=None, verbose=False):
             continue
 
         # PARSE DATA ok
-        if xmd_frame_check_crc(lc.dlg.x_buf):
-            file_built += lc.dlg.x_buf[3:_len - 2]
-            lc.dlg.x_buf = lc.dlg.x_buf[_len:]
+        if xmd_frame_check_crc(lc.dlg.buf):
+            file_built += lc.dlg.buf[3:_len - 2]
+            lc.dlg.buf = lc.dlg.buf[_len:]
             _ack(lc)
             _rt = 0
             # notify GUI, if any
-            if sig:
-                sig.emit()
+            if p:
+                f = open(p, 'w+')
+                _ = len(lc.dlg.buf) / file_size * 100
+                f.write(str(_))
+                f.close()
         else:
             # PARSE DATA not OK, yes retries left
             _debug('<- crc NAK', verbose)
