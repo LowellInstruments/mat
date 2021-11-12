@@ -37,7 +37,7 @@ def xmd_frame_check_crc(b):
     rx_crc = b[-2:]
     data = b[3:-2]
     calc_crc = crc16(data)
-    print(rx_crc, calc_crc)
+    # print(rx_crc, calc_crc)
     return calc_crc == rx_crc
 
 

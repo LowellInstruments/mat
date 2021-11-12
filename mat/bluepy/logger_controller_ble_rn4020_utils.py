@@ -17,7 +17,7 @@ def ble_connect_rn4020_logger(lc):
         desc = lc.cha.valHandle + 1
         lc.per.writeCharacteristic(desc, b'\x01\x00')
         # do not remove, damn Jim!
-        time.sleep(.5)
+        time.sleep(1)
         return True
 
     except (AttributeError, bluepy.btle.BTLEException) as ex:

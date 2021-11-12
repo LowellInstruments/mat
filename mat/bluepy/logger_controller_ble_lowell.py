@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 import math
 from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
-    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DIR_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
+    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD
 from mat.bluepy.logger_controller_ble_lowell_utils import *
 from mat.utils import is_valid_mac_address
@@ -54,21 +54,19 @@ class LoggerControllerBLELowell(LoggerController):
                 till += .01
                 last = now
                 continue
-
             # full -> leave
             if now > till:
                 break
-
             # cut -> end detected like 'DIR'
             if tag == DIR_CMD:
                 v = self.dlg.buf
                 if v and v.endswith(b'\x04\n\r'):
                     break
                 continue
-
             # relative -> leave
             if last and now > last + .5:
                 break
+
         return self.dlg.buf
 
     def _ble_cmd(self, *args) -> bytes:  # pragma: no cover
@@ -103,7 +101,8 @@ class LoggerControllerBLELowell(LoggerController):
             '0201': 'stopped',
             '0203': 'delayed',
             # depending on version
-            '0202': 'delayed'
+            '0202': 'delayed',
+            # todo > find why this gives 0209 on RN4020
         }
         # a: b'STS 0201'
         if a and len(a.split()) == 2:

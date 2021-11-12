@@ -1,3 +1,4 @@
+import math
 import time
 from mat.ble_utils_shared import xmd_frame_check_crc
 
@@ -32,7 +33,7 @@ def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
             _can(lc)
             # give remote logger time to reset XMODEM
             time.sleep(5)
-            return False, None
+            return bytes()
 
         _bef = time.perf_counter()
         # wait for one second as maximum
@@ -48,7 +49,7 @@ def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
         if _in_b == EOT:
             _debug('-> eot', verbose)
             _ack(lc)
-            return True, file_built
+            return file_built
         if _in_b == SOH:
             # print('-> soh')
             _len = 128 + 5
@@ -60,7 +61,7 @@ def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
             e = '-> can ctrl {}'.format(_in_b)
             _debug(e, verbose)
             _ack(lc)
-            return False, None
+            return bytes()
         else:
             # weird control byte arrived
             _rt += 1
@@ -95,8 +96,8 @@ def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
             # notify GUI, if any
             if p:
                 f = open(p, 'w+')
-                _ = len(lc.dlg.buf) / file_size * 100
-                f.write(str(_))
+                _ = len(file_built) / file_size * 100
+                f.write(str(math.ceil(_)))
                 f.close()
         else:
             # PARSE DATA not OK, yes retries left
