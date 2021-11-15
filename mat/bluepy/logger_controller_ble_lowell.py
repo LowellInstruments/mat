@@ -39,32 +39,33 @@ class LoggerControllerBLELowell(LoggerController):
         assert len(data) <= MTU_SIZE
         self.cha.write(data, withResponse=response)
 
+    def _ble_ans_complete(self, tag):
+        v = self.dlg.buf
+        if not v:
+            return
+        if tag == DIR_CMD:
+            return v.endswith(b'\x04\n\r')
+        if tag == RUN_CMD:
+            return v == b'RUN 00'
+        if tag == SWS_CMD:
+            return v in (b'SWS 00', b'SWS 0200')
+
     def _ble_ans(self, tag) -> bytes:
         assert tag not in (DWG_FILE_CMD, DWL_CMD)
         self.dlg.buf = bytes()
-        last = 0
         till = calculate_ble_ans_timeout(tag)
 
-        # wait for answer with timeout
         while 1:
-            now = time.perf_counter()
-
-            # increase
-            if self.per.waitForNotifications(.01):
-                till += .01
-                last = now
-                continue
-            # full -> leave
-            if now > till:
+            # timeout fully expired
+            if time.perf_counter() > till:
                 break
-            # cut -> end detected like 'DIR'
-            if tag == DIR_CMD:
-                v = self.dlg.buf
-                if v and v.endswith(b'\x04\n\r'):
-                    break
-                continue
-            # relative -> leave
-            if last and now > last + .5:
+
+            # answer complete -> no need to wait more
+            if self._ble_ans_complete(tag):
+                break
+
+            # keep-alive == 2 seconds
+            if not self.per.waitForNotifications(2):
                 break
 
         return self.dlg.buf
@@ -369,6 +370,7 @@ class LoggerControllerBLELowell(LoggerController):
             if p:
                 f = open(p, 'w+')
                 _ = len(data_file) / file_size * 100
+                _ = _ if _ < 100 else 100
                 f.write(str(_))
                 f.close()
 

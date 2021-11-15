@@ -1,8 +1,8 @@
 import time
-
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
 from mat.bluepy.logger_controller_ble_rn4020_utils import ble_connect_rn4020_logger
 from mat.bluepy.xmodem_rn4020 import ble_xmd_get_file_rn4020
+from mat.logger_controller import SWS_CMD
 from mat.logger_controller_ble_cmd import BTC_CMD
 
 
@@ -44,7 +44,20 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
         rv = self.ble_cmd_dir_ext('*')
         return rv
 
+    def ble_cmd_sws(self, s):
+        # slightly different than newer loggers
+        a = self._ble_cmd(SWS_CMD, s)
+        return a == b'SWS 0200'
+
     def ble_cmd_get(self, name, size, p=None) -> bytes:  # pragma: no cover
+
+        # file-system based download percentage indicator
+        if p:
+            f = open(p, 'w+')
+            f.write(str(0))
+            f.close()
+
+        # real download
         self.dlg.buf = bytes()
         cmd = 'GET {:02x}{}\r'.format(len(name), name)
         self.ble_write(cmd.encode())
@@ -57,19 +70,14 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
             if _ == 'GET 00':
                 break
 
-        # file-system based progress indicator
-        if p:
-            f = open(p, 'w+')
-            f.write(str(0))
-            f.close()
         return ble_xmd_get_file_rn4020(self, size, p)
 
     def ble_cmd_ping(self) -> bool:
         # ensure a RN4020-based logger is there
         for i in range(5):
-            time.sleep(1)
             rv = self.ble_cmd_sts()
             if rv in ('running', 'stopped', 'delayed'):
                 return True
+            time.sleep(1)
         return False
 

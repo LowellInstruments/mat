@@ -21,7 +21,6 @@ def ble_connect_rn4020_logger(lc):
         return True
 
     except (AttributeError, bluepy.btle.BTLEException) as ex:
-        print('[ BLE ] cannot connect')
         return False
 
 

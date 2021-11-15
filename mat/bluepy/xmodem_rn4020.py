@@ -97,6 +97,7 @@ def ble_xmd_get_file_rn4020(lc, file_size, p=None, verbose=False):
             if p:
                 f = open(p, 'w+')
                 _ = len(file_built) / file_size * 100
+                _ = _ if _ < 100 else 100
                 f.write(str(math.ceil(_)))
                 f.close()
         else:
