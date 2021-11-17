@@ -1,18 +1,20 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 import platform
-from setuptools import setup
-
+from setuptools import setup, find_packages
 
 # installation based on file "requirements.txt"
 rr = list(map(str.strip, open("requirements.txt").readlines()))
 
-# this setup.py does not like the git+ format
+
+# setup.py does not like the git+ format used in requirements.txt file
 rr.remove('git+https://github.com/LowellInstruments/bluepy.git')
+
 
 # bluepy only for Linux installations
 if platform.system() == 'Linux':
     rr.append('bluepy @ https://github.com/LowellInstruments/bluepy/archive/refs/heads/master.zip')
+
 
 setup(name='lowell-mat',
       version='2.0',
@@ -20,7 +22,7 @@ setup(name='lowell-mat',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
-      packages=['mat'],
+      packages=find_packages(),
       install_requires=rr,
       classifiers=[
           "Development Status :: 3 - Alpha",

@@ -1,3 +1,6 @@
+# this can be installed via pip
+# or, setup.py also calls it
+
 atomicwrites==1.4.0
 attrs==21.2.0
 colorama==0.4.4
