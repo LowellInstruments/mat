@@ -4,6 +4,7 @@ import platform
 from setuptools import setup
 
 
+# installation based on file "requirements.txt"
 rr = list(map(str.strip, open("requirements.txt").readlines()))
 
 
@@ -20,6 +21,7 @@ setup(name='lowell-mat',
       author_email='software@lowellinstruments.com',
       packages=['mat'],
       install_requires=rr,
+      dependency_links=['https://github.com/LowellInstruments/bluepy.git#egg=v3'],
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",
