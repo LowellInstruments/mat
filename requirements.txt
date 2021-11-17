@@ -19,6 +19,7 @@ pytest-cov==3.0.0
 pytest-mock==3.6.1
 toml==0.10.2
 tomli==1.2.1
+git+https://github.com/LowellInstruments/bluepy.git
 bleak==0.12.1
 getmac==0.8.2
 pika==1.2.0
