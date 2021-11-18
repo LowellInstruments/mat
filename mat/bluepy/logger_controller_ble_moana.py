@@ -38,6 +38,7 @@ class LoggerControllerMoana:
         self.c_r = None
         self.c_w = None
         self.dlg = LCBLEMoanaDelegate()
+        self.file_size = 0
 
     def _ble_tx(self, data):
         self.c_w.write(data, withResponse=True)
@@ -64,16 +65,16 @@ class LoggerControllerMoana:
         except AttributeError:
             pass
 
-    def _wait_answer(self, c=''):
+    def _wait_answer(self, a='', t=10):
         # map c_f: caller function to (timeout, good answer)
         c_f = str(stack()[1].function)
         m = {
             'auth': (10, b'*Xa{"Authenticated":true}'),
-            'time_sync': (10, c.encode()),
-            'file_info': (10, c.encode()),
+            'time_sync': (10, a.encode()),
+            'file_info': (10, a.encode()),
             # todo: 10 works for small file downloads
-            # you must calculate the timeout for big ones
-            'file_get': (10, b'*0005D\x00')
+            # t: approximate timeout for file download
+            'file_get': (t, b'*0005D\x00')
         }
 
         # accumulate answers
@@ -88,7 +89,7 @@ class LoggerControllerMoana:
                 break
 
             # for 'time_sync' / 'file_info' answers
-            if c and c.encode() in self.dlg.buf:
+            if a and a.encode() in self.dlg.buf:
                 print('    ans {} -> '.format(c_f), end='')
                 break
             self.per.waitForNotifications(.1)
@@ -114,13 +115,17 @@ class LoggerControllerMoana:
         self._clear_buffers()
         self._ble_tx(b'*BF')
         self._wait_answer('ArchiveBit')
+        # todo > check self.dlg.bug for file_size -> use it in file_get()
+        self.file_size = int(12.34)
         return self.dlg.buf
 
     def file_get(self):
+        s = 'run file_info() before file_get()'
+        assert self.file_size, s
         print('downloading file...')
         self._clear_buffers()
         self._ble_tx(b'*BB')
-        self._wait_answer()
+        self._wait_answer(t=self.file_size)
         return self.dlg.buf
 
     @staticmethod

@@ -64,8 +64,8 @@ class LoggerControllerBLELowell(LoggerController):
             if self._ble_ans_complete(tag):
                 break
 
-            # keep-alive == 2 seconds
-            if not self.per.waitForNotifications(2):
+            # keep-alive == some seconds
+            if not self.per.waitForNotifications(5):
                 break
 
         return self.dlg.buf
@@ -101,9 +101,9 @@ class LoggerControllerBLELowell(LoggerController):
             '0200': 'running',
             '0201': 'stopped',
             '0203': 'delayed',
-            # depending on version
+            # depending on version 'delayed' has 2
             '0202': 'delayed',
-            # todo > find why this gives 0209 on RN4020
+            '0209': 'matcfg_error'
         }
         # a: b'STS 0201'
         if a and len(a.split()) == 2:
@@ -128,7 +128,7 @@ class LoggerControllerBLELowell(LoggerController):
     def ble_cmd_utm(self) -> int:
         a = self._ble_cmd(UP_TIME_CMD)
         if a and len(a.split()) == 2:
-            # a: b'UPT 0812345678'
+            # a: b'UTM 0812345678'
             print(a)
             _ = a.split()[1].decode()
             b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
