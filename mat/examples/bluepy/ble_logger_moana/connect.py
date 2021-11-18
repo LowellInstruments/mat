@@ -32,12 +32,11 @@ def moana_test():
     name = lc.file_save(data)
 
     rv = lc.file_cnv(name)
+    print('conversion {}'.format(rv))
 
-    # I am not doing the archive-
-    # archive- -> delete data file from sensor
-    # I am not doing the disconnect one
-    # disconnect -> makes sensor stops Advertising
-    # not doing these 2, allows for repetitive download sessions
+    # not doing next 2 allows repetitive download tests
+    # todo > cmd 'archive-> delete data file from sensor
+    # todo > cmd 'disconnect' -> makes stop Adv
 
     lc.close()
 

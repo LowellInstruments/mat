@@ -25,12 +25,9 @@ class LCBLELowellDelegate(bluepy.btle.DefaultDelegate):
 
 
 def calculate_ble_ans_timeout(tag):
+    t = 10
     if tag == MY_TOOL_SET_CMD:
         t = 30
-    elif tag == DIR_CMD:
-        t = 10
-    else:
-        t = 10
     return time.perf_counter() + t
 
 

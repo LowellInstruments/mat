@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 import json
 import math
@@ -47,8 +48,9 @@ class LoggerControllerBLELowell(LoggerController):
         till = calculate_ble_ans_timeout(tag)
 
         while 1:
-            # .001 best -> do not change
+            # reduce timeout when we received once
             if self.per.waitForNotifications(.001):
+                till = time.perf_counter() + 2
                 continue
 
             # timeout fully expired
@@ -56,7 +58,7 @@ class LoggerControllerBLELowell(LoggerController):
                 print('timeout -> {}'.format(self.dlg.buf))
                 break
 
-            # no need to wait more
+            # no more wait needed
             if ble_ans_complete(self.dlg.buf, tag):
                 break
 

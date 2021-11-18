@@ -1,4 +1,5 @@
 import datetime
+import json
 from datetime import timezone
 import os
 import struct
@@ -24,9 +25,9 @@ class LCBLEMoanaDelegate(bluepy.btle.DefaultDelegate):
 
 class LoggerControllerMoana:
 
-    UUID_W = btle.UUID_C('569a2001-b87f-490c-92cb-11ba5ea5167c')
-    UUID_R = btle.UUID_C('569a2000-b87f-490c-92cb-11ba5ea5167c')
-    UUID_S = btle.UUID_C('569a1101-b87f-490c-92cb-11ba5ea5167c')
+    UUID_W = btle.UUID('569a2001-b87f-490c-92cb-11ba5ea5167c')
+    UUID_R = btle.UUID('569a2000-b87f-490c-92cb-11ba5ea5167c')
+    UUID_S = btle.UUID('569a1101-b87f-490c-92cb-11ba5ea5167c')
 
     def _clear_buffers(self):
         self.dlg.buf = bytes()
@@ -38,7 +39,6 @@ class LoggerControllerMoana:
         self.c_r = None
         self.c_w = None
         self.dlg = LCBLEMoanaDelegate()
-        self.file_size = 0
 
     def _ble_tx(self, data):
         self.c_w.write(data, withResponse=True)
@@ -65,34 +65,38 @@ class LoggerControllerMoana:
         except AttributeError:
             pass
 
-    def _wait_answer(self, a='', t=10):
+    def _wait_answer(self, a=''):
         # map c_f: caller function to (timeout, good answer)
-        c_f = str(stack()[1].function)
+        cf = str(stack()[1].function)
         m = {
-            'auth': (10, b'*Xa{"Authenticated":true}'),
-            'time_sync': (10, a.encode()),
-            'file_info': (10, a.encode()),
-            # todo: 10 works for small file downloads
-            # t: approximate timeout for file download
-            'file_get': (t, b'*0005D\x00')
+            'auth': b'*Xa{"Authenticated":true}',
+            'time_sync': a.encode(),
+            'file_info': a.encode(),
+            'file_get': b'*0005D\x00'
         }
 
-        # accumulate answers
-        till = time.perf_counter() + m[c_f][0]
+        # long timeout
+        till = time.perf_counter() + 10
         while 1:
+
+            # reduce timeout when we received once
+            if self.per.waitForNotifications(.1):
+                till = time.perf_counter() + 2
+                continue
+
+            # absolute timeout
             if time.perf_counter() > till:
                 break
 
             # for 'auth' answers
-            if self.dlg.buf.endswith(m[c_f][1]):
-                print('    ans {} -> '.format(c_f), end='')
+            if self.dlg.buf.endswith(m[cf]):
+                print('    ans {} -> '.format(cf), end='')
                 break
 
             # for 'time_sync' / 'file_info' answers
             if a and a.encode() in self.dlg.buf:
-                print('    ans {} -> '.format(c_f), end='')
+                print('    ans {} -> '.format(cf), end='')
                 break
-            self.per.waitForNotifications(.1)
 
         # sleep between commands
         time.sleep(.5)
@@ -115,17 +119,16 @@ class LoggerControllerMoana:
         self._clear_buffers()
         self._ble_tx(b'*BF')
         self._wait_answer('ArchiveBit')
-        # todo > check self.dlg.bug for file_size -> use it in file_get()
-        self.file_size = int(12.34)
-        return self.dlg.buf
+        # a: b'*004dF\x00{"FileName":"x.csv","FileSizeEstimate":907,"ArchiveBit":"+"}'
+        a = self.dlg.buf.decode()
+        j = json.loads(a[a.index('{'):])
+        return j
 
     def file_get(self):
-        s = 'run file_info() before file_get()'
-        assert self.file_size, s
         print('downloading file...')
         self._clear_buffers()
         self._ble_tx(b'*BB')
-        self._wait_answer(t=self.file_size)
+        self._wait_answer()
         return self.dlg.buf
 
     @staticmethod
@@ -144,7 +147,7 @@ class LoggerControllerMoana:
     def file_cnv(name) -> bool:
         if not os.path.isfile(name):
             print('can\'t find {} to convert'.format(name))
-            return
+            return False
         print('converting file {}...'.format(name))
 
         # find '\x03' byte
@@ -154,7 +157,7 @@ class LoggerControllerMoana:
 
         # skip ext and first timestamp
         if i == 0:
-            return
+            return False
         j = i + 5
 
         # get the first timestamp as integer
@@ -163,7 +166,7 @@ class LoggerControllerMoana:
         while 1:
             line = content[j:j+6]
             if not line:
-                return False
+                break
             last_ts = int(struct.unpack('<H', line[0:2])[0])
             ts += last_ts
             dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
