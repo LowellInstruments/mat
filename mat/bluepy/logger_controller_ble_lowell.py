@@ -10,7 +10,7 @@ from mat.utils import is_valid_mac_address
 
 class LoggerControllerBLELowell(LoggerController):
 
-    def __init__(self, mac, h=0):
+    def __init__(self, mac, h=0, what=''):
         self.mac = mac
         self.h = h
         assert is_valid_mac_address(mac)
@@ -19,6 +19,8 @@ class LoggerControllerBLELowell(LoggerController):
         self.svc = None
         self.cha = None
         self.dlg = LCBLELowellDelegate()
+        # any note you want to keep track of
+        self.what = what
 
     def open(self) -> bool:
         return ble_connect_lowell_logger(self)
@@ -39,33 +41,23 @@ class LoggerControllerBLELowell(LoggerController):
         assert len(data) <= MTU_SIZE
         self.cha.write(data, withResponse=response)
 
-    def _ble_ans_complete(self, tag):
-        v = self.dlg.buf
-        if not v:
-            return
-        if tag == DIR_CMD:
-            return v.endswith(b'\x04\n\r')
-        if tag == RUN_CMD:
-            return v == b'RUN 00'
-        if tag == SWS_CMD:
-            return v in (b'SWS 00', b'SWS 0200')
-
     def _ble_ans(self, tag) -> bytes:
         assert tag not in (DWG_FILE_CMD, DWL_CMD)
         self.dlg.buf = bytes()
         till = calculate_ble_ans_timeout(tag)
 
         while 1:
+            # .001 best -> do not change
+            if self.per.waitForNotifications(.001):
+                continue
+
             # timeout fully expired
             if time.perf_counter() > till:
+                print('timeout -> {}'.format(self.dlg.buf))
                 break
 
-            # answer complete -> no need to wait more
-            if self._ble_ans_complete(tag):
-                break
-
-            # keep-alive == some seconds
-            if not self.per.waitForNotifications(5):
+            # no need to wait more
+            if ble_ans_complete(self.dlg.buf, tag):
                 break
 
         return self.dlg.buf
@@ -215,8 +207,9 @@ class LoggerControllerBLELowell(LoggerController):
         return a == b'FRM 00'
 
     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
-        file_list = self._ble_cmd(DIR_CMD)
-        return ble_file_list_as_dict(file_list, ext, match=True)
+        # todo > check why sometimes no \x04
+        f_l = self._ble_cmd(DIR_CMD)
+        return ble_file_list_as_dict(f_l, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover
         rv = self.ble_cmd_dir_ext('*')

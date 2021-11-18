@@ -1,7 +1,8 @@
 import time
 import bluepy
 
-from mat.logger_controller import DIR_CMD
+from mat.logger_controller import DIR_CMD, RUN_CMD, SWS_CMD, SET_TIME_CMD, STATUS_CMD, TIME_CMD, RWS_CMD, STOP_CMD, \
+    LOGGER_INFO_CMD_W, DO_SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cmd import *
 
 
@@ -27,7 +28,7 @@ def calculate_ble_ans_timeout(tag):
     if tag == MY_TOOL_SET_CMD:
         t = 30
     elif tag == DIR_CMD:
-        t = 30
+        t = 10
     else:
         t = 10
     return time.perf_counter() + t
@@ -124,4 +125,49 @@ def ble_cmd_file_list_only_lid_files(lc) -> dict:
 
 
 def ble_utils_logger_is_cc26x2r(mac, info):
-    return 'DO-2' in info
+    is_do_2 = 'DO-2' in info
+    is_do_1 = 'DO-1' in info
+    return is_do_2 or is_do_1
+
+
+def ble_ans_complete(v: bytes, tag):
+    if not v:
+        return
+    n = len(v)
+    te = tag.encode()
+
+    if v == b'ERR':
+        return True
+
+    if tag == RUN_CMD:
+        return v == b'RUN 00'
+    if tag == STOP_CMD:
+        return v == b'STP 00'
+    if tag == RWS_CMD:
+        return v == b'RWS 00'
+    if tag == SWS_CMD:
+        return v in (b'SWS 00', b'SWS 0200')
+    if tag == SET_TIME_CMD:
+        return v == b'STM 00'
+    if tag == LOGGER_INFO_CMD_W:
+        return v == b'WLI 00'
+    if tag == STATUS_CMD:
+        return v.startswith(te) and n == 8
+    if tag == BAT_CMD:
+        return v.startswith(te) and n == 10
+    if tag == TIME_CMD:
+        return v.startswith(te) and n == 25
+    if tag in SLOW_DWL_CMD:
+        return v.startswith(te) and n == 8
+    if tag in WAKE_CMD:
+        return v.startswith(te) and n == 8
+    if tag == CRC_CMD:
+        return v.startswith(te) and n == 14
+    if tag == FORMAT_CMD:
+        return v == b'FRM 00'
+    if tag == CONFIG_CMD:
+        return v == b'CFG 00'
+    if tag == DO_SENSOR_READINGS_CMD:
+        return v.startswith(te) and n == 18
+    if tag == DIR_CMD:
+        return v.endswith(b'\x04\n\r') or v.endswith(b'\x04')

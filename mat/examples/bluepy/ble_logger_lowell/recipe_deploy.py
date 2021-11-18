@@ -24,22 +24,24 @@ def deploy(c_d: dict, cla=LoggerControllerBLELowell):
         print('> set info MA: {}'.format(rv))
         rv = lc.ble_cmd_cfg(c_d)
         print('> config cmd: {}'.format(rv))
+        rv = lc.ble_cmd_run()
+        print('> run: {}'.format(rv))
+
     else:
         print('{} connection error'.format(__name__))
     lc.close()
 
 
 if __name__ == '__main__':
-    # todo > re-check this conf is valid
-    _cfg_dict = {
+    d = {
         "DFN": "low",
         "TMP": 0, "PRS": 0,
         "DOS": 1, "DOP": 1, "DOT": 1,
-        "TRI": 10, "ORI": 10, "DRI": 900,
-        "PRR": 8,
-        "PRN": 4,
+        "TRI": 10, "ORI": 10, "DRI": 30,
+        "PRR": 1,
+        "PRN": 1,
         "STM": "2012-11-12 12:14:00",
         "ETM": "2030-11-12 12:14:20",
         "LED": 1
     }
-    deploy(_cfg_dict)
+    deploy(d)
