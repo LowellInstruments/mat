@@ -10,8 +10,8 @@ from bluepy import btle
 from os.path import expanduser
 
 
-def utils_logger_is_moana(mac):
-    return False
+def utils_logger_is_moana(mac, info):
+    return 'MOANA' in info
 
 
 class LCBLEMoanaDelegate(bluepy.btle.DefaultDelegate):
@@ -32,8 +32,9 @@ class LoggerControllerMoana:
     def _clear_buffers(self):
         self.dlg.buf = bytes()
 
-    def __init__(self, mac):
+    def __init__(self, mac, h=0):
         self.mac = mac
+        self.h = h
         self.per = None
         self.svc = None
         self.c_r = None
@@ -46,13 +47,16 @@ class LoggerControllerMoana:
     def open(self):
         try:
             t_r = btle.ADDR_TYPE_RANDOM
-            self.per = bluepy.btle.Peripheral(self.mac, t_r, timeout=10)
+            self.per = bluepy.btle.Peripheral(self.mac, iface=self.h,
+                                              addrType=t_r, timeout=10)
+            time.sleep(1.1)
             self.per.setDelegate(self.dlg)
             self.svc = self.per.getServiceByUUID(self.UUID_S)
             self.c_r = self.svc.getCharacteristics(self.UUID_R)[0]
             self.c_w = self.svc.getCharacteristics(self.UUID_W)[0]
             desc = self.c_r.valHandle + 1
             self.per.writeCharacteristic(desc, b'\x01\x00')
+            self.per.setMTU(27)
             return True
 
         except (AttributeError, bluepy.btle.BTLEException) as ex:
@@ -68,7 +72,9 @@ class LoggerControllerMoana:
     def _wait_answer(self, a=''):
         # map c_f: caller function to (timeout, good answer)
         cf = str(stack()[1].function)
+
         m = {
+            'ping': b'ping_made_up_command',
             'auth': b'*Xa{"Authenticated":true}',
             'time_sync': a.encode(),
             'file_info': a.encode(),
@@ -76,44 +82,47 @@ class LoggerControllerMoana:
         }
 
         # long timeout
-        till = time.perf_counter() + 10
+        till = time.perf_counter() + 2
         while 1:
-
-            # reduce timeout when we received once
-            if self.per.waitForNotifications(.1):
-                till = time.perf_counter() + 2
-                continue
 
             # absolute timeout
             if time.perf_counter() > till:
                 break
 
             # for 'auth' answers
-            if self.dlg.buf.endswith(m[cf]):
-                print('    ans {} -> '.format(cf), end='')
+            v = self.dlg.buf
+            if v.endswith(m[cf]):
+                # print('{} -> {}'.format(cf, v))
                 break
 
             # for 'time_sync' / 'file_info' answers
-            if a and a.encode() in self.dlg.buf:
-                print('    ans {} -> '.format(cf), end='')
+            if a and a.encode() in v:
+                # print('{} -> {}'.format(cf, v))
                 break
 
-        # sleep between commands
-        time.sleep(.5)
+            if self.per.waitForNotifications(.01):
+                till = time.perf_counter() + 1
 
-    def auth(self):
+    def ping(self):
+        # needed or Moana won't answer
         self._clear_buffers()
-        self._ble_tx(b'*EA123')
+        self._ble_tx(b'...')
         self._wait_answer()
         return self.dlg.buf
 
-    def time_sync(self):
+    def auth(self) -> bool:
+        self._clear_buffers()
+        self._ble_tx(b'*EA123')
+        self._wait_answer()
+        return self.dlg.buf == b'*Xa{"Authenticated":true}'
+
+    def time_sync(self) -> bool:
         self._clear_buffers()
         epoch_s = str(int(time.time()))
         t = '*LT{}'.format(epoch_s).encode()
         self._ble_tx(t)
         self._wait_answer(epoch_s)
-        return self.dlg.buf
+        return epoch_s.encode() in self.dlg.buf
 
     def file_info(self):
         self._clear_buffers()
