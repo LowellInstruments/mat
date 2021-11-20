@@ -1,5 +1,6 @@
 import datetime
 import json
+import pathlib
 from datetime import timezone
 import os
 import struct
@@ -7,7 +8,6 @@ import time
 from inspect import stack
 import bluepy
 from bluepy import btle
-from os.path import expanduser
 
 
 def utils_logger_is_moana(mac, info):
@@ -40,6 +40,7 @@ class LoggerControllerMoana:
         self.c_r = None
         self.c_w = None
         self.dlg = LCBLEMoanaDelegate()
+        self.sn = ''
 
     def _ble_tx(self, data):
         self.c_w.write(data, withResponse=True)
@@ -131,10 +132,11 @@ class LoggerControllerMoana:
         # a: b'*004dF\x00{"FileName":"x.csv","FileSizeEstimate":907,"ArchiveBit":"+"}'
         a = self.dlg.buf.decode()
         j = json.loads(a[a.index('{'):])
+        self.sn = j['FileName'].split('_')[1]
         return j
 
     def file_get(self):
-        print('downloading file...')
+        print('downloading file in logger {}'.format(self.sn))
         self._clear_buffers()
         self._ble_tx(b'*BB')
         self._wait_answer()
@@ -145,19 +147,16 @@ class LoggerControllerMoana:
         if not data:
             return ''
         t = int(time.time())
-        home = expanduser("~")
-        name = '{}/Downloads/file_{}.csv'.format(home, t)
-        print('saving data to {}'.format(name))
+        name = 'moana_{}.bin'.format(t)
         with open(name, 'wb') as f:
             f.write(data)
+        print('saved to {}'.format(name))
         return name
 
-    @staticmethod
-    def file_cnv(name) -> bool:
+    def file_cnv(self, name, dst_fol) -> bool:
         if not os.path.isfile(name):
             print('can\'t find {} to convert'.format(name))
             return False
-        print('converting file {}...'.format(name))
 
         # find '\x03' byte
         with open(name, 'rb') as f:
@@ -169,8 +168,19 @@ class LoggerControllerMoana:
             return False
         j = i + 5
 
-        # get the first timestamp as integer
+        # get the first timestamp as integer and pivot
         ts = int(struct.unpack('<i', content[i+1:i+5])[0])
+
+        nt = '/moana_{}_Temperature.csv'.format(self.sn)
+        nt = str(pathlib.Path(dst_fol)) + nt
+        np = '/moana_{}_Pressure.csv'.format(self.sn)
+        np = str(pathlib.Path(dst_fol)) + np
+
+        print('input -> converting {}'.format(name))
+        ft = open(nt, 'w')
+        fp = open(np, 'w')
+        ft.write('ISO 8601 Time,Temperature (C)\n')
+        fp.write('ISO 8601 Time,Pressure (dbar)\n')
 
         while 1:
             line = content[j:j+6]
@@ -185,12 +195,16 @@ class LoggerControllerMoana:
             temp = int(struct.unpack('<H', line[4:6])[0])
             press = '{:4.2f}'.format((press / 10) - 10)
             temp = '{:4.2f}'.format((temp / 1000) - 10)
-            print('{} | {}\t{}'.format(dt, press, temp))
+            # print('{} | {}\t{}'.format(dt, press, temp))
             j += 6
+            dt = dt.isoformat('T', 'milliseconds')
+            ft.write('{},{}\n'.format(dt, temp))
+            fp.write('{},{}\n'.format(dt, press))
+
+        ft.close()
+        fp.close()
+
+        print('output -> {}'.format(nt))
+        print('output -> {}'.format(np))
 
         return True
-
-
-if __name__ == '__main__':
-    lc = LoggerControllerMoana('whatever')
-    lc.file_cnv('/root/Downloads/file_1632762268.csv')

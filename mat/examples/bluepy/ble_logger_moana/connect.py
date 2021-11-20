@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+
 from mat.bluepy.logger_controller_ble_moana import LoggerControllerMoana
 from mat.examples.bluepy.ble_logger_moana.macs import MAC_MOANA
 import time
@@ -18,20 +20,14 @@ def moana_test():
         return
     print('\nconnected OK to {}'.format(mac))
 
-    rv = lc.auth()
-    print(rv)
-
-    rv = lc.time_sync()
-    print(rv)
-
-    rv = lc.file_info()
-    print(rv)
-
+    lc.auth()
+    lc.time_sync()
+    lc.file_info()
     data = lc.file_get()
-
     name = lc.file_save(data)
 
-    rv = lc.file_cnv(name)
+    fol = str(Path.home()) + '/Downloads'
+    rv = lc.file_cnv(name, fol)
     print('conversion {}'.format(rv))
 
     # not doing next 2 allows repetitive download tests
