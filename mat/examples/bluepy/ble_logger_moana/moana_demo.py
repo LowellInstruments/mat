@@ -9,27 +9,31 @@ mac = MAC_MOANA
 
 def moana_demo(fol):
 
+    print('reaching moana {}...'.format(mac))
     lc = LoggerControllerMoana(mac)
     if not lc.open():
-        print('\nconnection error')
+        print('connection error')
         return
-    print('\nconnected OK to {}'.format(mac))
 
     lc.auth()
     lc.time_sync()
-    lc.file_info()
+    rv = lc.file_info()
+    print(rv)
 
-    print('downloading file...')
+    name_csv_moana = rv['FileName']
+    print('downloading file {}...').format(name_csv_moana)
     data = lc.file_get()
-    name = lc.file_save(data)
-    if name:
-        print('saved to {}'.format(name))
-        lc.file_cnv(name, fol)
-        print('converted')
+    name_bin_local = lc.file_save(data)
+    if name_bin_local:
+        print('saved to {}'.format(name_bin_local))
+        name_csv_local = lc.file_cnv(name_bin_local, fol)
+        print('converted -> {}* files'.format(name_csv_local))
 
     # omit next 2 for repetitive download tests
-    # todo > cmd 'archive-> delete data file from sensor
-    # todo > cmd 'disconnect' -> makes stop Adv
+    if not lc.file_clear():
+        print('error file_clear')
+
+    lc.moana_end()
 
     lc.close()
 

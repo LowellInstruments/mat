@@ -6,6 +6,8 @@ import os
 import struct
 import time
 from inspect import stack
+from json import JSONDecodeError
+
 import bluepy
 from bluepy import btle
 
@@ -79,7 +81,8 @@ class LoggerControllerMoana:
             'auth': b'*Xa{"Authenticated":true}',
             'time_sync': a.encode(),
             'file_info': a.encode(),
-            'file_get': b'*0005D\x00'
+            'file_get': b'*0005D\x00',
+            'file_clear': b'*Vc{"ArchiveBit":false}'
         }
 
         # long timeout
@@ -90,13 +93,13 @@ class LoggerControllerMoana:
             if time.perf_counter() > till:
                 break
 
-            # for 'auth' answers
+            # exact answers -> auth, file_clear
             v = self.dlg.buf
             if v.endswith(m[cf]):
                 # print('{} -> {}'.format(cf, v))
                 break
 
-            # for 'time_sync' / 'file_info' answers
+            # mutable answers -> time_sync / file_info
             if a and a.encode() in v:
                 # print('{} -> {}'.format(cf, v))
                 break
@@ -131,15 +134,35 @@ class LoggerControllerMoana:
         self._wait_answer('ArchiveBit')
         # a: b'*004dF\x00{"FileName":"x.csv","FileSizeEstimate":907,"ArchiveBit":"+"}'
         a = self.dlg.buf.decode()
-        j = json.loads(a[a.index('{'):])
-        self.sn = j['FileName'].split('_')[1]
-        return j
+        try:
+            j = json.loads(a[a.index('{'):])
+            self.sn = j['FileName'].split('_')[1]
+            return j
+        except JSONDecodeError:
+            return
 
     def file_get(self):
         self._clear_buffers()
         self._ble_tx(b'*BB')
         self._wait_answer()
         return self.dlg.buf
+
+    def file_clear(self):
+        # delete all data in sensor
+        # this also makes logger stop ADV
+        self._clear_buffers()
+        self._ble_tx(b'*BC')
+        self._wait_answer()
+        return self.dlg.buf == b'*Vc{"ArchiveBit":false}'
+
+    def moana_end(self):
+        # shuts off BLE ADV, obviously waits no answer
+        self._clear_buffers()
+        try:
+            self._ble_tx(b'*B.')
+        except bluepy.BTLEDisconnectError:
+            pass
+        time.sleep(2)
 
     @staticmethod
     def file_save(data) -> str:
