@@ -136,7 +136,6 @@ class LoggerControllerMoana:
         return j
 
     def file_get(self):
-        print('downloading file in logger {}'.format(self.sn))
         self._clear_buffers()
         self._ble_tx(b'*BB')
         self._wait_answer()
@@ -147,13 +146,12 @@ class LoggerControllerMoana:
         if not data:
             return ''
         t = int(time.time())
-        name = 'moana_{}.bin'.format(t)
+        name = '/tmp/moana_{}.bin'.format(t)
         with open(name, 'wb') as f:
             f.write(data)
-        print('saved to {}'.format(name))
         return name
 
-    def file_cnv(self, name, dst_fol) -> bool:
+    def file_cnv(self, name, dst_fol):
         if not os.path.isfile(name):
             print('can\'t find {} to convert'.format(name))
             return False
@@ -165,7 +163,7 @@ class LoggerControllerMoana:
 
         # skip ext and first timestamp
         if i == 0:
-            return False
+            return
         j = i + 5
 
         # get the first timestamp as integer and pivot
@@ -176,7 +174,7 @@ class LoggerControllerMoana:
         np = '/moana_{}_Pressure.csv'.format(self.sn)
         np = str(pathlib.Path(dst_fol)) + np
 
-        print('input -> converting {}'.format(name))
+        # print('input -> converting {}'.format(name))
         ft = open(nt, 'w')
         fp = open(np, 'w')
         ft.write('ISO 8601 Time,Temperature (C)\n')
@@ -204,7 +202,8 @@ class LoggerControllerMoana:
         ft.close()
         fp.close()
 
-        print('output -> {}'.format(nt))
-        print('output -> {}'.format(np))
+        # print('output -> {}'.format(nt))
+        # print('output -> {}'.format(np))
 
-        return True
+        # return the prefix
+        return 'moana_{}'.format(self.sn)
