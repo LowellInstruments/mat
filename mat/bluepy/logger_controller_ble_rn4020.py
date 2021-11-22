@@ -2,7 +2,7 @@ import time
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
 from mat.bluepy.logger_controller_ble_rn4020_utils import ble_connect_rn4020_logger
 from mat.bluepy.xmodem_rn4020 import ble_xmd_get_file_rn4020
-from mat.logger_controller import SWS_CMD
+from mat.logger_controller import SWS_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cmd import BTC_CMD
 
 
@@ -43,6 +43,20 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
         time.sleep(1)
         rv = self.ble_cmd_dir_ext('*')
         return rv
+
+    def ble_cmd_bat(self):
+        a = self._ble_cmd(SENSOR_READINGS_CMD)
+
+        # bat as hex string, little endian
+        bh = '0000'
+        if a and len(a.split()) == 2:
+            # a: b'GSR 2811...99'
+            _ = a.split()[1].decode()[2:]
+            bh = _[28:32]
+            bh = bh[-2:] + bh[:2]
+
+        bat = int(bh, 16)
+        return bat
 
     def ble_cmd_sws(self, s):
         # slightly different than newer loggers

@@ -2,7 +2,7 @@ import time
 import bluepy
 
 from mat.logger_controller import DIR_CMD, RUN_CMD, SWS_CMD, SET_TIME_CMD, STATUS_CMD, TIME_CMD, RWS_CMD, STOP_CMD, \
-    LOGGER_INFO_CMD_W, DO_SENSOR_READINGS_CMD
+    LOGGER_INFO_CMD_W, DO_SENSOR_READINGS_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cmd import *
 
 
@@ -168,3 +168,5 @@ def ble_ans_complete(v: bytes, tag):
         return v.startswith(te) and n == 18
     if tag == DIR_CMD:
         return v.endswith(b'\x04\n\r') or v.endswith(b'\x04')
+    if tag == SENSOR_READINGS_CMD:
+        return len(v) == 32 + 6 or len(v) == 40 + 6

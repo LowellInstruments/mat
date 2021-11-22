@@ -21,7 +21,7 @@ def moana_demo(fol):
     print(rv)
 
     name_csv_moana = rv['FileName']
-    print('downloading file {}...').format(name_csv_moana)
+    print('downloading file {}...'.format(name_csv_moana))
     data = lc.file_get()
     name_bin_local = lc.file_save(data)
     if name_bin_local:
@@ -30,10 +30,9 @@ def moana_demo(fol):
         print('converted -> {}* files'.format(name_csv_local))
 
     # omit next 2 for repetitive download tests
-    if not lc.file_clear():
-        print('error file_clear')
-
-    lc.moana_end()
+    # if not lc.file_clear():
+    #     print('error file_clear')
+    # lc.moana_end()
 
     lc.close()
 

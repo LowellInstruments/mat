@@ -11,13 +11,10 @@ async def cmd_tx(cli, s):
     return await cli.write_gatt_char(UUID_W, s.encode())
 
 
+# todo > copy this from bluepy implementation
 async def ans_rx():
     c = bs.g_cmd
     m = {
-        # 'file_info': (10, c.encode()),
-        # todo: 10 works for small file downloads
-        # you must calculate the timeout for big ones
-        # 'file_get': (10, b'*0005D\x00')
     }
 
     # default 5 seconds
@@ -33,8 +30,6 @@ async def ans_rx():
         if c.startswith('*BF') and b'ArchiveBit' in a:
             # a: b'..."ArchiveBit":"+"}'
             break
-
-        # todo >> do the file saving one
 
         till -= 1
         await asyncio.sleep(.1)
