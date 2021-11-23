@@ -3,21 +3,25 @@
 import platform
 from setuptools import setup, find_packages
 
-# installation based on file "requirements.txt"
+# installation uses "requirements.txt", but it removes the
+# git+ format used in it because setup.py does not like it
 rr = list(map(str.strip, open("requirements.txt").readlines()))
-
-
-# setup.py does not like the git+ format used in requirements.txt file
 rr.remove('git+https://github.com/LowellInstruments/bluepy.git')
 
 
-# bluepy only for Linux installations
+# add our bluepy, but only for Linux installations
 if platform.system() == 'Linux':
     rr.append('bluepy @ https://github.com/LowellInstruments/bluepy/archive/refs/heads/master.zip')
 
 
+# version management
+v = {}
+with open("mat/version.py") as fp:
+    exec(fp.read(), v)
+
+
 setup(name='lowell-mat',
-      version='2.0',
+      version=v['__version__'],
       description='Shared package for Lowell Instruments software',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',

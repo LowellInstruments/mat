@@ -138,7 +138,8 @@ class LoggerControllerMoana:
             j = json.loads(a[a.index('{'):])
             self.sn = j['FileName'].split('_')[1]
             return j
-        except JSONDecodeError:
+        except (JSONDecodeError, ValueError):
+            # moana sometimes fails here
             return
 
     def file_get(self):
@@ -191,10 +192,12 @@ class LoggerControllerMoana:
 
         # get the first timestamp as integer and pivot
         ts = int(struct.unpack('<i', content[i+1:i+5])[0])
+        first_dt = datetime.datetime.fromtimestamp(ts)
+        first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
 
-        nt = '/moana_{}_Temperature.csv'.format(self.sn)
+        nt = '/moana_{}_{}_Temperature.csv'.format(self.sn, first_dt)
         nt = str(pathlib.Path(dst_fol)) + nt
-        np = '/moana_{}_Pressure.csv'.format(self.sn)
+        np = '/moana_{}_{}_Pressure.csv'.format(self.sn, first_dt)
         np = str(pathlib.Path(dst_fol)) + np
 
         # print('input -> converting {}'.format(name))

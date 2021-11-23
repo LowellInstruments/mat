@@ -25,9 +25,14 @@ def moana_demo(fol):
     data = lc.file_get()
     name_bin_local = lc.file_save(data)
     if name_bin_local:
-        print('saved to {}'.format(name_bin_local))
+        print('saved as {}'.format(name_bin_local))
         name_csv_local = lc.file_cnv(name_bin_local, fol)
-        print('converted -> {}* files'.format(name_csv_local))
+        if name_csv_local:
+            print('conversion OK')
+            p = '{}/{}'.format(fol, name_csv_local)
+            print('renamed files as {}*'.format(p))
+        else:
+            print('conversion error')
 
     # omit next 2 for repetitive download tests
     # if not lc.file_clear():
