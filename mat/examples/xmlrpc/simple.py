@@ -1,6 +1,6 @@
 import os
 import queue
-from mat.bluepy.ble_xmlrpc_client import XS_BLE_CMD_CONNECT, XS_BLE_CMD_STS, XS_BLE_BYE, XS_BLE_EXC_LC, XS_BLE_EXC_XS
+from mat.bluepy.xmlrpc_lc_ble_client import XS_BLE_CMD_CONNECT, XS_BLE_CMD_STS, XS_BLE_BYE, XS_BLE_EXC_LC, XS_BLE_EXC_XS
 from mat.examples.bleak.do2.macs import MAC_DO2_0_DUMMY, MAC_DO2_0
 from mat.examples.xmlrpc._common import xr_launch_threads
 

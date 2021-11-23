@@ -1,4 +1,4 @@
-from mat.bluepy.ble_xmlrpc_client import XS_BLE_CMD_GTM
+from mat.bluepy.xmlrpc_lc_ble_client import XS_BLE_CMD_GTM
 from mat.examples.xmlrpc.simple import simple
 
 

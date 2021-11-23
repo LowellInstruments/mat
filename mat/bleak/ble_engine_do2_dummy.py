@@ -1,16 +1,17 @@
 import asyncio
 import threading
 from bleak import BleakError
+
+from mat.bleak.ble_utils_engine import EngineException
 from mat.bleak.ble_utils_logger_do2_dummy import cmd_tx, ans_rx
-from mat.bleak.ble_engine import ble_engine
-from mat.ble_utils_shared import EngineException
+from mat.bleak.engine import _engine_fxn
 import mat.ble_utils_shared as bs
 
 
 def ble_engine_do2_dummy(q_c, q_a):
     def _f():
         try:
-            asyncio.run(ble_engine(q_c, q_a, bs.g_hooks))
+            asyncio.run(_engine_fxn(q_c, q_a, bs.g_hooks))
 
         except EngineException as ex:
             print('\t\t(en) exception: {}'.format(ex))

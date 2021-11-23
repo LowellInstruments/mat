@@ -6,7 +6,7 @@ import time
 from getmac import get_mac_address
 from pika.exceptions import AMQPError
 from mat.bluepy.ble_bluepy import ble_linux_hard_reset
-from mat.bluepy.ble_xmlrpc_client import run_thread, XS_PID_FILE
+from mat.bluepy.xmlrpc_lc_ble_client import run_thread, XS_PID_FILE
 from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             AG_N2LL_ANS_ROUTE_ERR_ALREADY, AG_N2LL_ANS_ROUTE_OK_FULL,
                             AG_N2LL_CMD_WHO, AG_N2LL_CMD_BYE, AG_N2LL_CMD_QUERY,
@@ -18,7 +18,7 @@ from mat.n2ll_utils import (AG_N2LL_ANS_BYE, AG_N2LL_ANS_ROUTE_ERR_PERMISSIONS,
                             n2ll_url,
                             )
 from mat.utils import linux_is_process_running_by_name, linux_get_pid_of_a_process, linux_is_rpi
-from mat.bluepy.ble_xmlrpc_server import xs_run, XS_DEFAULT_PORT
+from mat.bluepy.xmlrpc_lc_ble_server import xs_run, XS_DEFAULT_PORT
 from mat.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)

@@ -42,16 +42,16 @@ def engine_parse_cmd_disconnect(c, q):
 
 
 def engine_parse_cmd_connect(c):
-    if c.startswith(ENGINE_CMD_CON):
-        return True
+    return c.startswith(ENGINE_CMD_CON)
 
 
-async def engine_parse_cmd_scan(c, s, q):
-    # s: valid names
+async def engine_parse_cmd_scan(c, s: list, q):
+    # c: bleak client
+    # s: ('MATP-2W', )
     if c.startswith(ENGINE_CMD_SCAN):
         scanner = BleakScanner()
         await scanner.start()
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(10.0)
         await scanner.stop()
         rv = scanner.discovered_devices
         rv = [i.address for i in rv if i.name in s]

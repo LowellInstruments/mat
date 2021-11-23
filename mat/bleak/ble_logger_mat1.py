@@ -1,7 +1,8 @@
 import queue
+import threading
 from mat.bleak.ble_logger_do2 import BLELogger
-from mat.bleak.ble_engine_mat1 import ble_engine_mat1
-from mat.bleak.ble_utils_logger_mat1 import ble_cmd_dir_result_as_dict_rn4020
+from mat.bleak.engine_mat1 import engine_mat1
+from mat.bleak.engine_mat1_utils import ble_cmd_dir_result_as_dict_rn4020
 from mat.ble_utils_shared import xmd_frame_check_crc
 from mat.logger_controller import DIR_CMD
 from mat.logger_controller_ble_cmd import GET_FILE_CMD
@@ -13,7 +14,7 @@ class BLELoggerMAT1(BLELogger):
         super(BLELoggerMAT1).__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
-        self.th = ble_engine_mat1(self.q1, self.q2)
+        self.th = threading.Thread(target=engine_mat1, args=(self.q1, self.q2,))
         self.th.start()
 
     def ble_cmd_btc(self):

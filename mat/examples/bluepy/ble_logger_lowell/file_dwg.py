@@ -1,6 +1,6 @@
 from mat.data_converter import default_parameters, DataConverter
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
-from mat.examples.bluepy.macs import get_mac
+from mat.examples.macs import get_mac
 
 
 def file_convert(path):

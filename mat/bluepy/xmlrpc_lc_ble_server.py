@@ -11,7 +11,7 @@ if platform.system() == 'Linux':
         ble_scan_bluepy
     )
 from mat.bleak.ble_logger_do2 import BLELogger
-from mat.bluepy.ble_xmlrpc_client import (
+from mat.bluepy.xmlrpc_lc_ble_client import (
     XS_DEFAULT_PORT,
     xr_assert_api_or_die, XS_BLE_EXC_XS
 )

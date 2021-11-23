@@ -1,5 +1,5 @@
 from mat.bluepy.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
-from mat.examples.bluepy.macs import get_mac
+from mat.examples.macs import get_mac
 
 
 def get_sensor_bat(cla=LoggerControllerBLERN4020):

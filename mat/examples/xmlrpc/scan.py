@@ -1,6 +1,6 @@
 import queue
 
-from mat.bluepy.ble_xmlrpc_client import XS_BLE_CMD_SCAN, XS_BLE_CMD_SCAN_DUMMY, XS_BLE_BYE
+from mat.bluepy.xmlrpc_lc_ble_client import XS_BLE_CMD_SCAN, XS_BLE_CMD_SCAN_DUMMY, XS_BLE_BYE
 from mat.examples.xmlrpc._common import xr_launch_threads
 
 

@@ -1,6 +1,6 @@
 import time
-from mat.bluepy.ble_xmlrpc_server import xs_run
-from mat.bluepy.ble_xmlrpc_client import XS_DEFAULT_PORT, xc_run, run_thread
+from mat.bluepy.xmlrpc_lc_ble_server import xs_run
+from mat.bluepy.xmlrpc_lc_ble_client import XS_DEFAULT_PORT, xc_run, run_thread
 
 
 def xr_launch_threads(q_cmd, q_ans):

@@ -1,7 +1,7 @@
 import time
 from mat.bluepy.logger_controller_ble_lowell import LoggerControllerBLELowell
 from mat.bluepy.logger_controller_ble_rn4020_utils import ble_connect_rn4020_logger
-from mat.bluepy.xmodem_rn4020 import ble_xmd_get_file_rn4020
+from mat.bluepy.logger_controller_ble_rn4020_xmodem import ble_xmd_get_file_rn4020
 from mat.logger_controller import SWS_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble_cmd import BTC_CMD
 

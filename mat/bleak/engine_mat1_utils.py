@@ -1,7 +1,7 @@
 import asyncio
 from mat.logger_controller_ble_cmd import BTC_CMD, GET_FILE_CMD
 from mat.logger_controller import STATUS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD
-import mat.ble_utils_shared as bs
+import mat.bleak.ble_utils_engine as be
 
 
 UUID_C = '00035b03-58e6-07dd-021a-08123a000301'
@@ -53,20 +53,20 @@ def _is_answer_done(cmd, ans):
         done = True
 
     # debug
-    s = '    dbg: tag {} len {} done {}'
+    s = '    dbg: tag rn4020 {} len {} done {}'
     print(s.format(tag, len(ans), done))
 
     return done
 
 
 async def ans_rx():
-    # 5 seconds timeout
-    till = 50
+    # 10 seconds timeout, steps 10 millis (.01)
+    till = 100
     while till:
-        if _is_answer_done(bs.g_cmd, bs.g_ans):
+        if _is_answer_done(be.g_cmd, be.g_ans):
             break
         # .1 == xmodem speed 4.8, .01 == 5.5
-        await asyncio.sleep(.1)
+        await asyncio.sleep(.01)
         till -= 1
 
 

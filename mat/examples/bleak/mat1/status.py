@@ -1,6 +1,9 @@
 from mat.bleak.ble_logger_mat1 import BLELoggerMAT1
 from mat.bleak.ble_logger_mat1_dummy import BLELoggerMAT1Dummy
-from mat.examples.bleak.mat1.macs import mac
+from mat.examples.macs import MAC_LOGGER_MAT1_1
+
+
+mac = MAC_LOGGER_MAT1_1
 
 
 def status(dummy=False):

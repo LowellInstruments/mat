@@ -3,7 +3,7 @@ import bluepy.btle as ble
 from mat.bluepy.logger_controller_ble_rn4020 import LoggerControllerBLERN4020
 from mat.data_converter import default_parameters, DataConverter
 from mat.examples.bluepy.ble_logger_lowell.file_list import file_list
-from mat.examples.bluepy.macs import get_mac
+from mat.examples.macs import get_mac
 from mat.utils import PrintColors as PC
 import subprocess as sp
 
