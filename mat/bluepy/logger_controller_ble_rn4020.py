@@ -71,13 +71,16 @@ class LoggerControllerBLERN4020(LoggerControllerBLELowell):  # pragma: no cover
             f.write(str(0))
             f.close()
 
+        # separate any previous unwanted stuff
+        time.sleep(1)
+
         # real download
         self.dlg.buf = bytes()
         cmd = 'GET {:02x}{}\r'.format(len(name), name)
         self.ble_write(cmd.encode())
-        till = time.perf_counter() + 5
+        till = time.perf_counter() + 20
         while 1:
-            self.per.waitForNotifications(.1)
+            self.per.waitForNotifications(.01)
             if time.perf_counter() > till:
                 return bytes()
             _ = self.dlg.buf.decode().strip()
