@@ -5,7 +5,6 @@ from unittest.mock import patch
 from unittest import TestCase
 from serial import SerialException
 from mat.converter import Converter
-from mat.logger_controller_ble import ERR_MAT_ANS
 from mat.logger_controller_usb import LoggerControllerUSB
 from mat.logger_controller import (
     RESET_CMD,
@@ -111,7 +110,7 @@ class FakeSerial:
 
 
 class FakeSerialReader(FakeSerial):
-    data = ERR_MAT_ANS.encode()
+    data = 'ERR'.encode()
 
     def __init__(self, path, baud=9600):
         super().__init__(path, baud)

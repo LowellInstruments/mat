@@ -1,5 +1,5 @@
-# this can be installed via pip
-# or, setup.py also calls it
+# setup.py also calls this file
+# or, can also installed via pip
 
 atomicwrites==1.4.0
 attrs==21.2.0
@@ -26,3 +26,4 @@ git+https://github.com/LowellInstruments/bluepy.git
 bleak==0.12.1
 getmac==0.8.2
 pika==1.2.0
+parse==1.19.0
