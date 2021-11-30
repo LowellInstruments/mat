@@ -9,7 +9,9 @@ from inspect import stack
 from json import JSONDecodeError
 
 import bluepy
+import pytz
 from bluepy import btle
+from bluepy.btle import BTLEDisconnectError
 
 
 def utils_logger_is_moana(mac, info):
@@ -122,7 +124,8 @@ class LoggerControllerMoana:
 
     def time_sync(self) -> bool:
         self._clear_buffers()
-        epoch_s = str(int(time.time()))
+        now = datetime.datetime.now(datetime.timezone.utc)
+        epoch_s = str(int(now.timestamp()))
         t = '*LT{}'.format(epoch_s).encode()
         self._ble_tx(t)
         self._wait_answer(epoch_s)
@@ -161,7 +164,8 @@ class LoggerControllerMoana:
         self._clear_buffers()
         try:
             self._ble_tx(b'*B.')
-        except bluepy.BTLEDisconnectError:
+        except BTLEDisconnectError:
+            # this happens always :)
             pass
         time.sleep(2)
 
@@ -192,7 +196,7 @@ class LoggerControllerMoana:
 
         # get the first timestamp as integer and pivot
         ts = int(struct.unpack('<i', content[i+1:i+5])[0])
-        first_dt = datetime.datetime.fromtimestamp(ts)
+        first_dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
         first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
 
         nt = '/moana_{}_{}_Temperature.csv'.format(self.sn, first_dt)

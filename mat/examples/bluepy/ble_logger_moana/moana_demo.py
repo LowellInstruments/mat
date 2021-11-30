@@ -16,7 +16,6 @@ def moana_demo(fol):
         return
 
     lc.auth()
-    lc.time_sync()
     rv = lc.file_info()
     print(rv)
 
@@ -34,10 +33,14 @@ def moana_demo(fol):
         else:
             print('conversion error')
 
-    # omit next 2 for repetitive download tests
-    # if not lc.file_clear():
-    #     print('error file_clear')
-    # lc.moana_end()
+    # we are doing OK
+    lc.time_sync()
+
+    # comment next 2 -> repetitive download tests
+    # uncomment them -> make the logger record
+    if not lc.file_clear():
+        print('error file_clear')
+    lc.moana_end()
 
     lc.close()
 
