@@ -6,8 +6,22 @@ from mat.ble.bluepy.moana_logger_controller import LoggerControllerMoana
 mac = MAC_MOANA
 
 
-def moana_demo(fol):
+def just_delete_file_n_time_sync():
+    print('reaching moana to time sync {}...'.format(mac))
+    lc = LoggerControllerMoana(mac)
+    if not lc.open():
+        print('connection error')
+        return
 
+    lc.auth()
+    if not lc.time_sync():
+        print('error time sync')
+    if not lc.file_clear():
+        print('error file_clear')
+    lc.close()
+
+
+def full_demo(fol):
     print('reaching moana {}...'.format(mac))
     lc = LoggerControllerMoana(mac)
     if not lc.open():
@@ -36,7 +50,7 @@ def moana_demo(fol):
     lc.time_sync()
 
     # comment next 2 -> repetitive download tests
-    # uncomment them -> make the logger record
+    # uncomment them -> re-run logger
     if not lc.file_clear():
         print('error file_clear')
     lc.moana_end()
@@ -50,4 +64,7 @@ if __name__ == '__main__':
         os.mkdir(files_fol)
     except OSError as error:
         pass
-    moana_demo(files_fol)
+
+    full_demo(files_fol)
+
+    # just_delete_file_n_time_sync()

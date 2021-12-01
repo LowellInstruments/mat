@@ -1,3 +1,5 @@
+# additional commands for new BLE loggers
+
 SIZ_CMD = 'SIZ'
 OXYGEN_SENSOR_CMD = 'GDO'
 BAT_CMD = 'BAT'

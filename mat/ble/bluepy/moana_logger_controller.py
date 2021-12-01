@@ -120,15 +120,6 @@ class LoggerControllerMoana:
         self._wait_answer()
         return self.dlg.buf == b'*Xa{"Authenticated":true}'
 
-    def time_sync(self) -> bool:
-        self._clear_buffers()
-        now = datetime.datetime.now(datetime.timezone.utc)
-        epoch_s = str(int(now.timestamp()))
-        t = '*LT{}'.format(epoch_s).encode()
-        self._ble_tx(t)
-        self._wait_answer(epoch_s)
-        return epoch_s.encode() in self.dlg.buf
-
     def file_info(self):
         self._clear_buffers()
         self._ble_tx(b'*BF')
@@ -177,6 +168,16 @@ class LoggerControllerMoana:
             f.write(data)
         return name
 
+    def time_sync(self) -> bool:
+        self._clear_buffers()
+        # time() -> seconds since epoch, in UTC
+        # src: www.tutorialspoint.com/python/time_time.htm
+        epoch_s = str(int(time.time()))
+        t = '*LT{}'.format(epoch_s).encode()
+        self._ble_tx(t)
+        self._wait_answer(epoch_s)
+        return epoch_s.encode() in self.dlg.buf
+
     def file_cnv(self, name, dst_fol):
         if not os.path.isfile(name):
             print('can\'t find {} to convert'.format(name))
@@ -194,9 +195,13 @@ class LoggerControllerMoana:
 
         # get the first timestamp as integer and pivot
         ts = int(struct.unpack('<i', content[i+1:i+5])[0])
-        first_dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
-        first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
 
+        # this saves the file with UTC times
+        first_dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
+        # this saves the file with local times
+        # first_dt = datetime.datetime.fromtimestamp(ts)
+
+        first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
         nt = '/moana_{}_{}_Temperature.csv'.format(self.sn, first_dt)
         nt = str(pathlib.Path(dst_fol)) + nt
         np = '/moana_{}_{}_Pressure.csv'.format(self.sn, first_dt)
@@ -214,7 +219,12 @@ class LoggerControllerMoana:
                 break
             last_ts = int(struct.unpack('<H', line[0:2])[0])
             ts += last_ts
+
+            # this saves the file with UTC times
             dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
+            # this saves the file with local times
+            # dt = datetime.datetime.fromtimestamp(ts)
+
             # remove the +00:00 part when considering utc
             dt = dt.replace(tzinfo=None)
             press = int(struct.unpack('<H', line[2:4])[0])
