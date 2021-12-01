@@ -4,8 +4,9 @@ import math
 import platform
 import time
 from abc import ABC, abstractmethod
-
-from mat.ble.bleak_beta.ble_utils_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, ENGINE_CMD_EXC
+from datetime import datetime
+from mat.ble.bleak_beta.ble_utils_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, \
+    ENGINE_CMD_EXC
 from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import XS_BLE_EXC_LC
 from mat.logger_controller_ble import *
 from mat.ble.bleak_beta.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
@@ -92,8 +93,11 @@ class BLELogger(ABC):
         return self._cmd(c)
 
     def ble_cmd_stm(self):
+        # time() -> seconds since epoch, in UTC
+        # src: www.tutorialspoint.com/python/time_time.htm
+        dt = datetime.fromtimestamp(time.time(), tz=datetime.timezone.utc)
         fmt = '%Y/%m/%d %H:%M:%S'
-        s = datetime.datetime.now().strftime(fmt)
+        s = dt.strftime(fmt)
         c = self._cmd_build(SET_TIME_CMD, s)
         return self._cmd(c)
 

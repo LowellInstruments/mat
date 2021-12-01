@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import math
 from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, connect_cc26x2r, MTU_SIZE, \
@@ -180,8 +180,13 @@ class LoggerControllerCC26X2R(LoggerController):
         return a == b'LED 00'
 
     def ble_cmd_stm(self) -> bool:
+        # time() -> seconds since epoch, in UTC
+        # src: www.tutorialspoint.com/python/time_time.htm
+        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
         fmt = '%Y/%m/%d %H:%M:%S'
-        s = datetime.now().strftime(fmt)
+        s = dt.strftime(fmt)
+        print(s)
+        # s: 2021/12/01 16:33:16
         a = self._ble_cmd(SET_TIME_CMD, s)
         return a == b'STM 00'
 
