@@ -8,6 +8,8 @@ from mat.ble.bleak_beta.engine import _engine_fxn
 import mat.ble_utils_shared as bs
 
 
+# todo > do it as in mat1_engine.py
+
 def ble_engine_do2_dummy(q_c, q_a):
     def _f():
         try:
