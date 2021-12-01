@@ -1,10 +1,9 @@
 import platform
 import queue
 import time
-
 from tendo import singleton
 from mat.ble.bleak_beta.ble_engine_moana import ble_engine_moana
-from mat.ble_utils_shared import ENGINE_CMD_BYE, ENGINE_CMD_SCAN, ENGINE_CMD_DISC, ENGINE_CMD_CON
+from mat.ble.bleak_beta.ble_utils_engine import ENGINE_CMD_DISC, ENGINE_CMD_SCAN, ENGINE_CMD_CON, ENGINE_CMD_BYE
 
 
 class BLELoggerMoana:

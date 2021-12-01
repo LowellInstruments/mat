@@ -6,9 +6,9 @@ import time
 from abc import ABC, abstractmethod
 
 from mat.ble.bleak_beta.ble_utils_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, ENGINE_CMD_EXC
+from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import XS_BLE_EXC_LC
 from mat.logger_controller_ble import *
 from mat.ble.bleak_beta.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
-from mat.ble.bluepy import XS_BLE_EXC_LC
 from mat.logger_controller import (
     STATUS_CMD,
     FIRMWARE_VERSION_CMD,

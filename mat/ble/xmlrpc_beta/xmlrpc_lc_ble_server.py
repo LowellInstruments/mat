@@ -3,7 +3,7 @@ import platform
 from xmlrpc.client import Binary
 from xmlrpc.server import SimpleXMLRPCServer
 
-from mat.ble.bleak_beta.examples_need_fixing.scan import ble_scan_bleak
+from mat.ble.bleak_beta.examples.scan import ble_scan_bleak
 
 if platform.system() == 'Linux':
     from mat.ble.bluepy.bluepy_utils import (
