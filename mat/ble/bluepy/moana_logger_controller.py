@@ -136,19 +136,12 @@ class LoggerControllerMoana:
 
     def file_get(self):
         self._clear_buffers()
-        t = time.perf_counter() + 3
-        while 1:
-            self._ble_tx(b'*BB')
 
-            while self.per.waitForNotifications(.1):
-                t = time.perf_counter() + 1
+        self._ble_tx(b'*BB')
+        while self.per.waitForNotifications(3):
+            pass
 
-            if self.dlg.buf.endswith(b'*0005D\x00'):
-                print('get end, len == ', len(self.dlg.buf))
-                return self.dlg.buf
-
-            if time.perf_counter() > t:
-                break
+        return self.dlg.buf
 
     def file_clear(self):
         # delete all data in sensor
@@ -178,32 +171,6 @@ class LoggerControllerMoana:
             f.write(data)
         return name
 
-    @staticmethod
-    def file_interval(name):
-        if not os.path.isfile(name):
-            print('can\'t find {} to convert'.format(name))
-            return False
-
-        # find '\x03' byte
-        with open(name, 'rb') as f:
-            content = f.read()
-            i = content.find(b'\x03')
-
-        # skip ext and first timestamp
-        if i == 0:
-            return
-        i += 1
-
-        # todo > fix this
-        while 1:
-            line = content[i:i + 4]
-            if not line:
-                break
-            interval = int(struct.unpack('<i', line)[0])
-            print(interval)
-            i += 6
-
-
     def time_sync(self) -> bool:
         self._clear_buffers()
         # time() -> seconds since epoch, in UTC
@@ -214,7 +181,7 @@ class LoggerControllerMoana:
         self._wait_answer(epoch_s)
         return epoch_s.encode() in self.dlg.buf
 
-    def file_cnv(self, name, dst_fol):
+    def file_cnv(self, name, dst_fol, length):
         if not os.path.isfile(name):
             print('can\'t find {} to convert'.format(name))
             return False
@@ -230,11 +197,11 @@ class LoggerControllerMoana:
         j = i + 5
 
         # get the first timestamp as integer and pivot
-        ts = int(struct.unpack('<i', content[i+1:i+5])[0])
+        i_ts = int(struct.unpack('<i', content[i+1:i+5])[0])
 
-        # this saves the file with UTC times
-        first_dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
-        # this saves the file with local times
+        # saves file w/ UTC times
+        first_dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
+        # saves file w/ local times
         # first_dt = datetime.datetime.fromtimestamp(ts)
 
         first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
@@ -249,16 +216,18 @@ class LoggerControllerMoana:
         ft.write('ISO 8601 Time,Temperature (C)\n')
         fp.write('ISO 8601 Time,Pressure (dbar)\n')
 
-        while 1:
-            line = content[j:j+6]
-            if not line:
-                break
-            last_ts = int(struct.unpack('<H', line[0:2])[0])
-            ts += last_ts
+        submerged = False
 
-            # this saves the file with UTC times
-            dt = datetime.datetime.fromtimestamp(ts, tz=timezone.utc)
-            # this saves the file with local times
+        while 1:
+            if j + 6 > length:
+                break
+            line = content[j:j+6]
+            i_last_ts = int(struct.unpack('<H', line[0:2])[0])
+            i_ts += i_last_ts
+
+            # saves file w/ UTC times
+            dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
+            # saves file w/ local times
             # dt = datetime.datetime.fromtimestamp(ts)
 
             # remove the +00:00 part when considering utc
@@ -272,6 +241,15 @@ class LoggerControllerMoana:
             dt = dt.isoformat('T', 'milliseconds')
             ft.write('{},{}\n'.format(dt, temp))
             fp.write('{},{}\n'.format(dt, press))
+
+            # detect immersions
+            p = int(float(press))
+            if not submerged and p > 10:
+                submerged = True
+                print('sub at', dt)
+            elif submerged and p <= 10:
+                submerged = False
+                print('air at', dt)
 
         ft.close()
         fp.close()
