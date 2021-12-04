@@ -1,8 +1,7 @@
 import asyncio
 from bleak import BleakClient, BleakError
-from mat.ble.bleak_beta.ble_utils_engine import EngineException, engine_parse_cmd_bye, engine_parse_cmd_disconnect, engine_parse_cmd_scan, engine_parse_cmd_connect
-from mat.ble.bleak_beta.ble_utils_logger_do2 import MAX_MTU_SIZE
-import mat.ble.bleak_beta.ble_utils_engine as be
+from mat.ble.bleak_beta.engine_base_utils import EngineException, engine_parse_cmd_bye, engine_parse_cmd_disconnect, engine_parse_cmd_scan, engine_parse_cmd_connect
+import mat.ble.bleak_beta.engine_base_utils as be
 import mat.ble_utils_shared as bs
 
 
@@ -52,6 +51,8 @@ async def _engine_fxn(q_cmd, q_ans, hooks):
             mac = be.g_cmd.split()[1]
             cli = BleakClient(mac, timeout=30)
             if await cli.connect():
+                # todo > study this hardcoded
+                MAX_MTU_SIZE = 247
                 cli._mtu_size = MAX_MTU_SIZE
                 await asyncio.sleep(1.1)
                 await cli.start_notify(uuid_c, _nh)

@@ -1,9 +1,10 @@
+from mat.ble.bleak_beta.engine_base import engine
+import mat.ble.bleak_beta.engine_base_utils as ebu
 import asyncio
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, SWS_CMD, \
     RUN_CMD, RWS_CMD
 from mat.logger_controller_ble import *
-import mat.ble_utils_shared as bs
 
 
 UUID_C = 'f0001132-0451-4000-b000-000000000000'
@@ -11,27 +12,13 @@ UUID_W = 'f0001131-0451-4000-b000-000000000000'
 MAX_MTU_SIZE = 247
 
 
-def ble_cmd_dir_result_as_dict(ls: bytes) -> dict:
-    if b'ERR' in ls:
-        return {'ERR': 0}
-
-    # ls : b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r\n\rMAT.cfg\t\t\t189\n\r\x04\n\r'
-    d = {}
-    i = 0
-    ls = ls.split()
-
-    # iterate name and size pairs
-    while i < len(ls):
-        name = ls[i]
-        if name in [b'\x04']:
-            break
-        name = ls[i].decode()
-        size = int(ls[i + 1].decode())
-        if name not in ('.', '..'):
-            d[name] = size
-        i += 2
-    # d: { 'MAT.cfg': 189 }
-    return d
+def engine_do2(q_c, q_a):
+    print('starting ble_engine_do2...')
+    ebu.g_hooks['uuid_c'] = UUID_C
+    ebu.g_hooks['cmd_cb'] = cmd_tx
+    ebu.g_hooks['ans_cb'] = ans_rx
+    ebu.g_hooks['names'] = ('DO-1', 'DO-2')
+    engine(q_c, q_a, ebu.g_hooks)
 
 
 def is_answer_done(cmd, ans):
@@ -120,7 +107,7 @@ async def ans_rx():
 
     # estimate time as units of 10 milliseconds
     units = .01
-    tag = bs.g_cmd.split()[0]
+    tag = ebu.g_cmd.split()[0]
     _ = {
         # 3000 * 10 ms = 30 s
         MY_TOOL_SET_CMD: 3000,
@@ -134,13 +121,13 @@ async def ans_rx():
 
     # leave: at timeout or _nh() says so
     while 1:
-        if is_answer_done(bs.g_cmd, bs.g_ans):
-            print('[ OK ] {}'.format(bs.g_cmd))
+        if is_answer_done(ebu.g_cmd, ebu.g_ans):
+            print('[ OK ] {}'.format(ebu.g_cmd))
             break
         if till == 0:
             break
         if till % 500 == 0:
-            print('[ .. ] {}'.format(bs.g_cmd))
+            print('[ .. ] {}'.format(ebu.g_cmd))
         await asyncio.sleep(units)
         till -= 1
 
@@ -148,3 +135,4 @@ async def ans_rx():
 async def cmd_tx(cli, s):
     # s: 'STS \r'
     return await cli.write_gatt_char(UUID_W, s.encode())
+

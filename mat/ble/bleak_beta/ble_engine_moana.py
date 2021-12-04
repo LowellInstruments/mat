@@ -2,8 +2,8 @@ import asyncio
 import threading
 from bleak import BleakError
 
-from mat.ble.bleak_beta.ble_utils_engine import EngineException
-from mat.ble.bleak_beta.engine import _engine_fxn
+from mat.ble.bleak_beta.engine_base_utils import EngineException
+from mat.ble.bleak_beta.engine_base import _engine_fxn
 from mat.ble.bleak_beta.ble_utils_logger_moana import UUID_C, cmd_tx, ans_rx
 import mat.ble_utils_shared as bs
 

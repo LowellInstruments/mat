@@ -1,5 +1,5 @@
 from mat.ble.ble_macs import MAC_LOGGER_DO2_0_MODBUS
-from mat.ble.bleak_beta.mat1_logger import BLELoggerMAT1
+from mat.ble.bleak_beta.logger_mat import BLELoggerMAT1
 
 
 def list_files():

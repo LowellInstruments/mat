@@ -10,7 +10,7 @@ if platform.system() == 'Linux':
         ble_linux_hard_reset,
         ble_scan_bluepy
     )
-from mat.ble.bleak_beta.ble_logger_do2 import BLELogger
+from mat.ble.bleak_beta.logger_do2 import LoggerBLE
 
 from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import (
     XS_DEFAULT_PORT,
@@ -114,7 +114,7 @@ class BLEXmlRpcServer:
             return self.lc.close()
 
     def xs_ble_cmd_connect(self, mac, h):
-        self.lc = BLELogger()
+        self.lc = LoggerBLE()
         return self.lc.ble_connect(mac)
 
     def xs_ble_bye(self):

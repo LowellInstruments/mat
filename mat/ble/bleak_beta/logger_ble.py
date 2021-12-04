@@ -5,11 +5,10 @@ import platform
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from mat.ble.bleak_beta.ble_utils_engine import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, \
+from mat.ble.bleak_beta.engine_base_utils import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, \
     ENGINE_CMD_EXC
 from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import XS_BLE_EXC_LC
 from mat.logger_controller_ble import *
-from mat.ble.bleak_beta.ble_utils_logger_do2 import ble_cmd_dir_result_as_dict
 from mat.logger_controller import (
     STATUS_CMD,
     FIRMWARE_VERSION_CMD,
@@ -27,7 +26,7 @@ from mat.logger_controller import (
 from tendo import singleton
 
 
-class BLELogger(ABC):
+class LoggerBLE(ABC):
     @abstractmethod
     def __init__(self):
         # these are defined in subclasses
@@ -298,3 +297,27 @@ class BLELogger(ABC):
         # special command for testing my exceptions
         self.q1.put(XS_BLE_EXC_LC)
         return XS_BLE_EXC_LC
+
+
+
+def ble_cmd_dir_result_as_dict(ls: bytes) -> dict:
+    if b'ERR' in ls:
+        return {'ERR': 0}
+
+    # ls : b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r\n\rMAT.cfg\t\t\t189\n\r\x04\n\r'
+    d = {}
+    i = 0
+    ls = ls.split()
+
+    # iterate name and size pairs
+    while i < len(ls):
+        name = ls[i]
+        if name in [b'\x04']:
+            break
+        name = ls[i].decode()
+        size = int(ls[i + 1].decode())
+        if name not in ('.', '..'):
+            d[name] = size
+        i += 2
+    # d: { 'MAT.cfg': 189 }
+    return d

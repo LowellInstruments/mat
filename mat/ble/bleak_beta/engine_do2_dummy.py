@@ -1,7 +1,9 @@
+from mat.ble.bleak_beta.engine_base import engine
 import os
 import sqlite3
 import time
-import mat.ble_utils_shared as bs
+import mat.ble.bleak_beta.engine_base_utils as ebu
+from mat.ble.ble_macs import MAC_LOGGER_DO2_DUMMY
 from mat.logger_controller_ble import *
 from mat.logger_controller import STATUS_CMD, FIRMWARE_VERSION_CMD, DIR_CMD, SET_TIME_CMD, STOP_CMD, TIME_CMD, \
     SD_FREE_SPACE_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_INFO_CMD, CALIBRATION_CMD, LOGGER_HSA_CMD_W, RUN_CMD
@@ -9,7 +11,13 @@ from mat.utils import PrintColors as PC
 import datetime
 
 
-MAC_LOGGER_DO2_DUMMY = '11:22:33:44:55:66'
+def engine_do2_dummy(q_c, q_a):
+    print('starting ble_engine_do2_dummy...')
+    ebu.g_hooks['uuid_c'] = None
+    ebu.g_hooks['cmd_cb'] = cmd_tx
+    ebu.g_hooks['ans_cb'] = ans_rx
+    ebu.g_hooks['names'] = None
+    engine(q_c, q_a, ebu.g_hooks)
 
 
 def _is_it_running(_db):
@@ -71,8 +79,8 @@ def create_dummy_database(mac):
 
 
 async def cmd_tx(_, s):
-    bs.g_cmd = s
-    tag = bs.g_cmd.split()[0]
+    ebu.g_cmd = s
+    tag = ebu.g_cmd.split()[0]
 
     # use database for more realism
     g_db = create_dummy_database(MAC_LOGGER_DO2_DUMMY)
@@ -82,202 +90,202 @@ async def cmd_tx(_, s):
         s = 'SELECT VALUE from OTHERS where NAME = (?)'
         ex = g_db.execute(s, ('STATUS', ))
         r = ex.fetchall()
-        bs.g_ans = b'STS 02' + r[0][0].encode()
+        ebu.g_ans = b'STS 02' + r[0][0].encode()
 
     if tag == BAT_CMD:
-        bs.g_ans = b'STS 049908'
+        ebu.g_ans = b'STS 049908'
 
     if tag == DIR_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        bs.g_ans = b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r'
+        ebu.g_ans = b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r'
         ex = g_db.execute("SELECT NAME, SIZE from FILES")
         for _ in ex:
             s = '\n\r{}\t\t\t{}\n\r'.format(_[0], _[1])
-            bs.g_ans += s.encode()
-        bs.g_ans += '\x04\n\r'.encode()
+            ebu.g_ans += s.encode()
+        ebu.g_ans += '\x04\n\r'.encode()
 
     if tag == SET_TIME_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         now = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
         g_db.execute(s, (now, 'TIME',))
         g_db.commit()
-        bs.g_ans = b'STM 00'
+        ebu.g_ans = b'STM 00'
 
     if tag == TIME_CMD:
         s = 'SELECT VALUE from OTHERS where NAME = (?)'
         ex = g_db.execute(s, ('TIME', ))
         r = ex.fetchall()
-        bs.g_ans = b'GTM 13' + r[0][0].encode()
+        ebu.g_ans = b'GTM 13' + r[0][0].encode()
 
     if tag == FIRMWARE_VERSION_CMD:
-        bs.g_ans = b'GFV 063.0.00'
+        ebu.g_ans = b'GFV 063.0.00'
 
     if tag == STOP_CMD:
         s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
         g_db.execute(s, ('01', 'STATUS',))
         g_db.commit()
-        bs.g_ans = b'STP 00'
+        ebu.g_ans = b'STP 00'
 
     if tag == RUN_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         s = 'UPDATE OTHERS set VALUE = (?) where NAME = (?);'
         g_db.execute(s, ('00', 'STATUS',))
         g_db.commit()
-        bs.g_ans = b'RUN 00'
+        ebu.g_ans = b'RUN 00'
 
     if tag == DWG_FILE_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        file_name = bs.g_cmd.split()[1][2:]
+        file_name = ebu.g_cmd.split()[1][2:]
         s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
         cursor = g_db.execute(s, (file_name, ))
         if len(cursor.fetchall()) == 0:
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        bs.g_ans = b'DWG 00'
+        ebu.g_ans = b'DWG 00'
 
     if tag == SLOW_DWL_CMD:
-        bs.g_ans = b'SLW 0201'
+        ebu.g_ans = b'SLW 0201'
 
     if tag == DWL_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        bs.g_ans = b'*' * 2048
+        ebu.g_ans = b'*' * 2048
 
     if tag == LED_CMD:
         for i in range(3):
             # green dots
             print(PC.OKGREEN + u'\u25cf' + PC.ENDC)
             time.sleep(.5)
-        bs.g_ans = b'LED 00'
+        ebu.g_ans = b'LED 00'
 
     if tag == MY_TOOL_SET_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         size = 1 + int(time.time() % 10000)
         s = 'dummy_{}.lid'.format(size)
         g_db.execute('INSERT INTO FILES VALUES (null, ?, ?);', (s, size))
         g_db.commit()
-        bs.g_ans = b'MTS 00'
+        ebu.g_ans = b'MTS 00'
 
     if tag == DEL_FILE_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        file_name = bs.g_cmd.split()[1][2:]
+        file_name = ebu.g_cmd.split()[1][2:]
         s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
         cursor = g_db.execute(s, (file_name, ))
         if len(cursor.fetchall()) == 0:
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         s = 'DELETE from FILES where NAME = (?)'
         g_db.execute(s, (file_name, ))
         g_db.commit()
-        bs.g_ans = b'DEL 00'
+        ebu.g_ans = b'DEL 00'
 
     if tag == FORMAT_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        bs.g_ans = b'FRM 00'
+        ebu.g_ans = b'FRM 00'
         g_db.execute('DELETE from FILES')
         g_db.commit()
 
     if tag == LOGGER_INFO_CMD_W:
         # WLI 09SN1111111
-        what = bs.g_cmd.split()[1][2:4]
-        v = bs.g_cmd.split()[1][4:]
+        what = ebu.g_cmd.split()[1][2:4]
+        v = ebu.g_cmd.split()[1][4:]
         if what not in ('SN', 'BA', 'MA', 'BA'):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         if len(v) < 4 or len(v) > 7:
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         s = 'UPDATE INFO set VALUE = (?) where NAME = (?);'
         g_db.execute(s, (v, what))
         g_db.commit()
-        bs.g_ans = b'WLI 00'
+        ebu.g_ans = b'WLI 00'
 
     if tag == LOGGER_INFO_CMD:
         # RLI 02SN
-        what = bs.g_cmd.split()[1][2:4]
+        what = ebu.g_cmd.split()[1][2:4]
         s = 'SELECT * from INFO where NAME = (?);'
         cur = g_db.execute(s, (what, ))
         rows = cur.fetchall()
         n = len(rows[0][2])
         s = '{} {:02X}{}'.format('RLI', n, rows[0][2])
-        bs.g_ans = s.encode()
+        ebu.g_ans = s.encode()
 
     if tag == SD_FREE_SPACE_CMD:
-        bs.g_ans = b'CFS 080040CC05'
+        ebu.g_ans = b'CFS 080040CC05'
 
     if tag == CONFIG_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        bs.g_ans = b'CFG 00'
+        ebu.g_ans = b'CFG 00'
 
     if tag == OXYGEN_SENSOR_CMD:
-        bs.g_ans = b'GDO 0C001100220033'
+        ebu.g_ans = b'GDO 0C001100220033'
 
     if tag == LOGGER_HSA_CMD_W:
         # WHS 09TMO12345
-        what = bs.g_cmd.split()[1][2:5]
-        v = bs.g_cmd.split()[1][5:]
+        what = ebu.g_cmd.split()[1][2:5]
+        v = ebu.g_cmd.split()[1][5:]
         if what not in ('TMO', 'TMA', 'TMB', 'TMC', 'TMR'):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         if len(v) != 5:
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         s = 'UPDATE HSA set VALUE = (?) where NAME = (?);'
         g_db.execute(s, (v, what))
         g_db.commit()
-        bs.g_ans = b'WHS 00'
+        ebu.g_ans = b'WHS 00'
 
     if tag == CALIBRATION_CMD:
         # RHS 03TMO
-        what = bs.g_cmd.split()[1][2:5]
+        what = ebu.g_cmd.split()[1][2:5]
         s = 'SELECT * from HSA where NAME = (?);'
         cur = g_db.execute(s, (what, ))
         rows = cur.fetchall()
         n = len(rows[0][2])
         s = '{} {:02X}{}'.format('RHS', n, rows[0][2])
-        bs.g_ans = s.encode()
+        ebu.g_ans = s.encode()
 
     if tag == LOG_EN_CMD:
-        bs.g_ans = b'LOG 0201'
+        ebu.g_ans = b'LOG 0201'
 
     if tag == MOBILE_CMD:
-        bs.g_ans = b'MBL 0201'
+        ebu.g_ans = b'MBL 0201'
 
     if tag == SIZ_CMD:
         if _is_it_running(g_db):
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
-        file_name = bs.g_cmd.split()[1][2:]
+        file_name = ebu.g_cmd.split()[1][2:]
         s = 'SELECT NAME, SIZE from FILES where NAME = (?)'
         cur = g_db.execute(s, (file_name, ))
         rows = cur.fetchall()
         if len(rows) == 0:
-            bs.g_ans = b'ERR'
+            ebu.g_ans = b'ERR'
             return
         n = len(str(rows[0][1]))
         s = '{} {:02X}{}'.format('SIZ', n, rows[0][1])
-        bs.g_ans = s.encode()
+        ebu.g_ans = s.encode()
 
     if tag == WAKE_CMD:
-        bs.g_ans = b'WAK 0201'
+        ebu.g_ans = b'WAK 0201'
 
 
 async def ans_rx():
@@ -285,5 +293,5 @@ async def ans_rx():
     # just simulate some delay
     time.sleep(.2)
     s = '[ OK ]'
-    print('    {} {}'.format(s, bs.g_cmd))
-    bs.g_cmd = ''
+    print('    {} {}'.format(s, ebu.g_cmd))
+    ebu.g_cmd = ''

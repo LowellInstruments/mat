@@ -1,17 +1,17 @@
 import platform
 import queue
-from mat.ble.bleak_beta.ble_engine_do2_dummy import ble_engine_do2_dummy
-from mat.ble.bleak_beta.ble_logger_do2 import BLELogger
-from mat.ble.bleak_beta.ble_utils_logger_do2_dummy import MAC_LOGGER_DO2_DUMMY
+import threading
+from mat.ble.ble_macs import MAC_LOGGER_DO2_DUMMY
+from mat.ble.bleak_beta.logger_do2 import LoggerBLE
+from mat.ble.bleak_beta.engine_do2_dummy import engine_do2_dummy
 
 
-class BLELoggerDO2Dummy(BLELogger):
-
+class LoggerDO2Dummy(LoggerBLE):
     def __init__(self):
-        super(BLELoggerDO2Dummy).__init__()
+        super(LoggerDO2Dummy).__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
-        self.th = ble_engine_do2_dummy(self.q1, self.q2)
+        self.th = threading.Thread(target=engine_do2_dummy, args=(self.q1, self.q2,))
         self.th.start()
 
     def ble_connect(self, mac):
