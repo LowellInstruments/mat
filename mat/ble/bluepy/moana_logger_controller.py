@@ -86,7 +86,7 @@ class LoggerControllerMoana:
         }
 
         # long timeout
-        till = time.perf_counter() + 2
+        till = time.perf_counter() + 5
         while 1:
 
             # absolute timeout
@@ -167,6 +167,39 @@ class LoggerControllerMoana:
         with open(name, 'wb') as f:
             f.write(data)
         return name
+
+    @staticmethod
+    def file_interval(name):
+        if not os.path.isfile(name):
+            print('can\'t find {} to convert'.format(name))
+            return False
+
+        # find '\x03' byte
+        with open(name, 'rb') as f:
+            content = f.read()
+            i = content.find(b'\x03')
+
+        # skip ext and first timestamp
+        if i == 0:
+            return
+        j = i + 5
+
+        # get the first timestamp as integer and pivot
+        ts = int(struct.unpack('<i', content[i+1:i+5])[0])
+        print(ts)
+
+        while 1:
+            line = content[j:j+6]
+            if not line:
+                break
+            last_ts = int(struct.unpack('<H', line[0:2])[0])
+            print(last_ts)
+            ts += last_ts
+            j += 6
+
+
+
+
 
     def time_sync(self) -> bool:
         self._clear_buffers()

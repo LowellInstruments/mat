@@ -36,25 +36,30 @@ def full_demo(fol):
     name_csv_moana = rv['FileName']
     print('downloading file {}...'.format(name_csv_moana))
     data = lc.file_get()
+
     name_bin_local = lc.file_save(data)
     if name_bin_local:
         print('saved as {}'.format(name_bin_local))
-        name_csv_local = lc.file_cnv(name_bin_local, fol)
-        if name_csv_local:
-            print('conversion OK')
-            p = '{}/{}'.format(fol, name_csv_local)
-            print('renamed files as {}*'.format(p))
-        else:
-            print('conversion error')
+
+        lc.file_interval(name_bin_local)
+
+
+        # name_csv_local = lc.file_cnv(name_bin_local, fol)
+        # if name_csv_local:
+        #     print('conversion OK')
+        #     p = '{}/{}'.format(fol, name_csv_local)
+        #     print('renamed files as {}*'.format(p))
+        # else:
+        #     print('conversion error')
 
     # we are doing OK
     lc.time_sync()
 
     # comment next 2 -> repetitive download tests
     # uncomment them -> re-run logger
-    if not lc.file_clear():
-        print('error file_clear')
-    lc.moana_end()
+    # if not lc.file_clear():
+    #     print('error file_clear')
+    # lc.moana_end()
 
     lc.close()
 
