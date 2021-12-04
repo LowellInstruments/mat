@@ -40,7 +40,6 @@ def full_demo(fol):
     name_bin_local = lc.file_save(data)
     if name_bin_local:
         print('saved as {}'.format(name_bin_local))
-
         lc.file_interval(name_bin_local)
 
 
@@ -53,7 +52,7 @@ def full_demo(fol):
         #     print('conversion error')
 
     # we are doing OK
-    lc.time_sync()
+    # lc.time_sync()
 
     # comment next 2 -> repetitive download tests
     # uncomment them -> re-run logger

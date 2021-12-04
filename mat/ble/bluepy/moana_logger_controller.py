@@ -136,9 +136,19 @@ class LoggerControllerMoana:
 
     def file_get(self):
         self._clear_buffers()
-        self._ble_tx(b'*BB')
-        self._wait_answer()
-        return self.dlg.buf
+        t = time.perf_counter() + 3
+        while 1:
+            self._ble_tx(b'*BB')
+
+            while self.per.waitForNotifications(.1):
+                t = time.perf_counter() + 1
+
+            if self.dlg.buf.endswith(b'*0005D\x00'):
+                print('get end, len == ', len(self.dlg.buf))
+                return self.dlg.buf
+
+            if time.perf_counter() > t:
+                break
 
     def file_clear(self):
         # delete all data in sensor
@@ -182,23 +192,16 @@ class LoggerControllerMoana:
         # skip ext and first timestamp
         if i == 0:
             return
-        j = i + 5
+        i += 1
 
-        # get the first timestamp as integer and pivot
-        ts = int(struct.unpack('<i', content[i+1:i+5])[0])
-        print(ts)
-
+        # todo > fix this
         while 1:
-            line = content[j:j+6]
+            line = content[i:i + 4]
             if not line:
                 break
-            last_ts = int(struct.unpack('<H', line[0:2])[0])
-            print(last_ts)
-            ts += last_ts
-            j += 6
-
-
-
+            interval = int(struct.unpack('<i', line)[0])
+            print(interval)
+            i += 6
 
 
     def time_sync(self) -> bool:
