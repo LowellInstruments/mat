@@ -190,34 +190,33 @@ class LoggerControllerMoana:
         with open(name, 'rb') as f:
             content = f.read()
             i = content.find(b'\x03')
-
-        # skip ext and first timestamp
         if i == 0:
             return
-        j = i + 5
 
-        # get the first timestamp as integer and pivot
+        # get first timestamp as integer and pivot
+        # saves file w/ UTC times (local when tz=None)
         i_ts = int(struct.unpack('<i', content[i+1:i+5])[0])
-
-        # saves file w/ UTC times
         first_dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
-        # saves file w/ local times
-        # first_dt = datetime.datetime.fromtimestamp(ts)
-
         first_dt = first_dt.strftime('%Y%m%dT%H%M%S')
+
+        # use timestamps for file naming
         nt = '/moana_{}_{}_Temperature.csv'.format(self.sn, first_dt)
         nt = str(pathlib.Path(dst_fol)) + nt
         np = '/moana_{}_{}_Pressure.csv'.format(self.sn, first_dt)
         np = str(pathlib.Path(dst_fol)) + np
-
-        # print('input -> converting {}'.format(name))
         ft = open(nt, 'w')
         fp = open(np, 'w')
         ft.write('ISO 8601 Time,Temperature (C)\n')
         fp.write('ISO 8601 Time,Pressure (dbar)\n')
+        print('converting {}'.format(name))
+        # print('    -> {}'.format(nt))
+        # print('    -> {}'.format(np))
 
+        # skip first timestamp
+        j = i + 5
+
+        # loop through data
         submerged = False
-
         while 1:
             if j + 6 > length:
                 break
@@ -225,37 +224,34 @@ class LoggerControllerMoana:
             i_last_ts = int(struct.unpack('<H', line[0:2])[0])
             i_ts += i_last_ts
 
-            # saves file w/ UTC times
+            # saves file w/ UTC times (local when tz=None)
+            # & removes the +00:00 part
             dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
-            # saves file w/ local times
-            # dt = datetime.datetime.fromtimestamp(ts)
-
-            # remove the +00:00 part when considering utc
             dt = dt.replace(tzinfo=None)
             press = int(struct.unpack('<H', line[2:4])[0])
             temp = int(struct.unpack('<H', line[4:6])[0])
             press = '{:4.2f}'.format((press / 10) - 10)
             temp = '{:4.2f}'.format((temp / 1000) - 10)
-            # print('{} | {}\t{}'.format(dt, press, temp))
             j += 6
             dt = dt.isoformat('T', 'milliseconds')
             ft.write('{},{}\n'.format(dt, temp))
             fp.write('{},{}\n'.format(dt, press))
+            # print('{} | {}\t{}'.format(dt, press, temp))
 
             # detect immersions
             p = int(float(press))
-            if not submerged and p > 10:
+            threshold_meters = 2
+            if not submerged and p > threshold_meters:
+                # todo > maybe close files here
                 submerged = True
                 print('sub at', dt)
-            elif submerged and p <= 10:
+            elif submerged and p <= threshold_meters:
+                # todo > maybe create files here
                 submerged = False
                 print('air at', dt)
 
         ft.close()
         fp.close()
-
-        # print('output -> {}'.format(nt))
-        # print('output -> {}'.format(np))
 
         # return the prefix
         return 'moana_{}'.format(self.sn)
