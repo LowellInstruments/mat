@@ -13,12 +13,11 @@ MAX_MTU_SIZE = 247
 
 
 def engine_do2(q_c, q_a):
-    print('starting ble_engine_do2...')
     ebu.g_hooks['uuid_c'] = UUID_C
     ebu.g_hooks['cmd_cb'] = cmd_tx
     ebu.g_hooks['ans_cb'] = ans_rx
     ebu.g_hooks['names'] = ('DO-1', 'DO-2')
-    engine(q_c, q_a, ebu.g_hooks)
+    engine(q_c, q_a, ebu.g_hooks, __name__)
 
 
 def is_answer_done(cmd, ans):

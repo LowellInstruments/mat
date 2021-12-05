@@ -16,6 +16,7 @@ def simple(c, mac):
     print('-> {}'.format(a))
 
     # step 2 -> whatever command
+    print('<-', c)
     q_cmd.put((c,))
     a = q_ans.get()
     if a in (XS_BLE_EXC_LC, XS_BLE_EXC_XS):

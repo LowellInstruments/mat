@@ -12,12 +12,11 @@ import datetime
 
 
 def engine_do2_dummy(q_c, q_a):
-    print('starting ble_engine_do2_dummy...')
     ebu.g_hooks['uuid_c'] = None
     ebu.g_hooks['cmd_cb'] = cmd_tx
     ebu.g_hooks['ans_cb'] = ans_rx
     ebu.g_hooks['names'] = None
-    engine(q_c, q_a, ebu.g_hooks)
+    engine(q_c, q_a, ebu.g_hooks, __name__)
 
 
 def _is_it_running(_db):

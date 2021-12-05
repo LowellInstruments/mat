@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 from bleak import BleakClient, BleakError
 from mat.ble.bleak_beta.engine_base_utils import EngineException, engine_parse_cmd_bye, engine_parse_cmd_disconnect, engine_parse_cmd_scan, engine_parse_cmd_connect
 import mat.ble.bleak_beta.engine_base_utils as be
@@ -65,7 +67,11 @@ async def _engine_fxn(q_cmd, q_ans, hooks):
 
 
 # generic bleak BLE engine
-def engine(q_c, q_a, h):
+def engine(q_c, q_a, h, s):
+
+    print('running {}...'.format(s), flush=True)
+    time.sleep(.5)
+
     try:
         asyncio.run(_engine_fxn(q_c, q_a, h))
 

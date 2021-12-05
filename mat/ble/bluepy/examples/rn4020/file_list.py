@@ -3,5 +3,5 @@ from mat.ble.bluepy.examples.cc26x2r.file_list import file_list
 
 
 if __name__ == '__main__':
-    for i in range(10):
+    for i in range(1):
         file_list(cla=LoggerControllerRN4020)

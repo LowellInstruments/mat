@@ -73,15 +73,17 @@ class LoggerControllerMoana:
             pass
 
     def _wait_answer(self, a=''):
-        # map c_f: caller function to (timeout, good answer)
+        # map caller function to expected answer
         cf = str(stack()[1].function)
+
+        # 'file_get' works differently
+        assert cf != 'file_get'
 
         m = {
             'ping': b'ping_made_up_command',
             'auth': b'*Xa{"Authenticated":true}',
             'time_sync': a.encode(),
             'file_info': a.encode(),
-            'file_get': b'*0005D\x00',
             'file_clear': b'*Vc{"ArchiveBit":false}'
         }
 
@@ -104,11 +106,12 @@ class LoggerControllerMoana:
                 # print('{} -> {}'.format(cf, v))
                 break
 
+            # re-shape timeout
             if self.per.waitForNotifications(.01):
                 till = time.perf_counter() + 1
 
     def ping(self):
-        # needed or Moana won't answer
+        # made-up command, needed or Moana won't answer
         self._clear_buffers()
         self._ble_tx(b'...')
         self._wait_answer()
@@ -135,31 +138,29 @@ class LoggerControllerMoana:
             return
 
     def file_get(self):
+        # simply accumulate for a while
         self._clear_buffers()
-
         self._ble_tx(b'*BB')
         while self.per.waitForNotifications(3):
             pass
-
         return self.dlg.buf
 
     def file_clear(self):
-        # delete all data in sensor
-        # this also makes logger stop ADV
+        # delete senor file and stops advertising
         self._clear_buffers()
         self._ble_tx(b'*BC')
         self._wait_answer()
         return self.dlg.buf == b'*Vc{"ArchiveBit":false}'
 
     def moana_end(self):
-        # shuts off BLE ADV, obviously waits no answer
+        # disconnects BLE -> obviously waits no answer
         self._clear_buffers()
         try:
             self._ble_tx(b'*B.')
         except BTLEDisconnectError:
-            # this happens always :)
+            # this happens :)
             pass
-        time.sleep(2)
+        time.sleep(1)
 
     @staticmethod
     def file_save(data) -> str:
@@ -173,7 +174,7 @@ class LoggerControllerMoana:
 
     def time_sync(self) -> bool:
         self._clear_buffers()
-        # time() -> seconds since epoch, in UTC
+        # time() -> epoch seconds in UTC
         # src: www.tutorialspoint.com/python/time_time.htm
         epoch_s = str(int(time.time()))
         t = '*LT{}'.format(epoch_s).encode()

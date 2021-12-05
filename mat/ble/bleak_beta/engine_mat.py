@@ -1,4 +1,6 @@
 import asyncio
+import time
+
 from mat.logger_controller_ble import BTC_CMD, GET_FILE_CMD
 from mat.logger_controller import STATUS_CMD, TIME_CMD, SET_TIME_CMD, DIR_CMD
 from mat.ble.bleak_beta.engine_base import engine
@@ -9,12 +11,11 @@ UUID_C = '00035b03-58e6-07dd-021a-08123a000301'
 
 
 def engine_mat(q_c, q_a):
-    print('starting bleak BLE engine_mat...')
     ebu.g_hooks['uuid_c'] = UUID_C
     ebu.g_hooks['cmd_cb'] = cmd_tx
     ebu.g_hooks['ans_cb'] = ans_rx
     ebu.g_hooks['names'] = ('MATP-2W',)
-    engine(q_c, q_a, ebu.g_hooks)
+    engine(q_c, q_a, ebu.g_hooks, __name__)
 
 
 def _is_answer_done(cmd, ans):

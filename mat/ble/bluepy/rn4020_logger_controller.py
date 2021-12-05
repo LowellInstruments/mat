@@ -2,8 +2,10 @@ import time
 from mat.ble.bluepy.cc26x2r_logger_controller import LoggerControllerCC26X2R
 from mat.ble.bluepy.rn4020_utils import connect_rn4020
 from mat.ble.bluepy.rn4020_xmodem import rn4020_xmodem_get_file
-from mat.logger_controller import SWS_CMD, SENSOR_READINGS_CMD
-from mat.logger_controller_ble import BTC_CMD
+from mat.logger_controller_ble import *
+from mat.logger_controller import STATUS_CMD, TIME_CMD, \
+    SET_TIME_CMD, LOGGER_INFO_CMD_W, \
+    RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, DIR_CMD, SENSOR_READINGS_CMD, DEL_FILE_CMD
 
 
 class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
@@ -21,8 +23,9 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
         return self._ble_write(data, response)
 
     def _ble_cmd(self, *args):  # pragma: no cover
-        # RN4020 answers have \r\n and \r\n
+        # call PARENT's _ble_cmd() function
         a = super()._ble_cmd(*args)
+        # adjust RN4020 answer prefixes & suffixes
         a = a[2:] if a and a.startswith(b'\n\r') else a
         a = a[:-2] if a and a.endswith(b'\r\n') else a
         return a
@@ -47,7 +50,7 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
     def ble_cmd_bat(self):
         a = self._ble_cmd(SENSOR_READINGS_CMD)
 
-        # bat as hex string, little endian
+        # battery as hex string, little endian
         bh = '0000'
         if a and len(a.split()) == 2:
             # a: b'GSR 2811...99'
@@ -98,3 +101,38 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
             time.sleep(1)
         return False
 
+    def _answer_complete(self, tag):
+        v = self.dlg.buf
+        if not v:
+            return
+        n = len(v)
+
+        # prefix and suffix of RN4020
+        te = b'\n\r' + tag.encode()
+
+        if v == b'ERR':
+            return True
+
+        if tag == RUN_CMD:
+            return v.startswith(te) and n == 10
+        if tag == STOP_CMD:
+            # b'\n\rSTP 0200\r\n'
+            return v.startswith(te) and n == 12
+        if tag == RWS_CMD:
+            return v == b'RWS 00'
+        if tag == SWS_CMD:
+            return v.startswith(te) and n == 12
+        if tag == SET_TIME_CMD:
+            return v == b'\n\rSTM 00\r\n'
+        if tag == LOGGER_INFO_CMD_W:
+            return v == b'\n\rWLI 00\r\n'
+        if tag == STATUS_CMD:
+            return v.startswith(te) and n == 12
+        if tag == TIME_CMD:
+            return v.startswith(te) and n == 29
+        if tag == DIR_CMD:
+            return v.endswith(b'\x04\n\r')
+        if tag == SENSOR_READINGS_CMD:
+            return len(v) == 38 + 4 or len(v) == 46 + 4
+        if tag == DEL_FILE_CMD:
+            return v == b'\n\rDEL 00\r\n'

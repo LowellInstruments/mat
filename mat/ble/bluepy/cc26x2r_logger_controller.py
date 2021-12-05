@@ -3,10 +3,10 @@ from datetime import datetime, timezone
 import json
 import math
 from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, connect_cc26x2r, MTU_SIZE, \
-    calculate_answer_timeout, answer_complete, build_command
+    calculate_answer_timeout, build_command
 from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
-    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD
+    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
 from mat.utils import is_valid_mac_address, lowell_file_list_as_dict
 
@@ -61,7 +61,7 @@ class LoggerControllerCC26X2R(LoggerController):
                 break
 
             # no more wait needed
-            if answer_complete(self.dlg.buf, tag):
+            if self._answer_complete(tag):
                 break
 
         return self.dlg.buf
@@ -71,8 +71,6 @@ class LoggerControllerCC26X2R(LoggerController):
 
         to_send, tag = build_command(*args)
         self._ble_write(to_send.encode())
-        # todo > use instance for a nice way to split cc262r and rn4020 answer treatments :)
-        print(isinstance(self, LoggerControllerCC26X2R))
         return self._ble_ans(tag)
 
     def command(self, *args) -> bytes:
@@ -86,6 +84,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return int(self.per.status()['mtu'][0])
 
     def ble_cmd_gtm(self) -> datetime:
+        # remember -> logger's time is UTC
         rv = self._ble_cmd(TIME_CMD)
         if len(rv) == 25:
             # rv: b'GTM 132000/01/01 01:44:49'
@@ -414,3 +413,49 @@ class LoggerControllerCC26X2R(LoggerController):
         if rv == v:
             return True
         return False
+
+    def _answer_complete(self, tag):
+        v = self.dlg.buf
+        if not v:
+            return
+        n = len(v)
+        te = tag.encode()
+
+        if v == b'ERR':
+            return True
+
+        if tag == RUN_CMD:
+            return v == b'RUN 00'
+        if tag == STOP_CMD:
+            return v == b'STP 00'
+        if tag == RWS_CMD:
+            return v == b'RWS 00'
+        if tag == SWS_CMD:
+            return v == b'SWS 00'
+        if tag == SET_TIME_CMD:
+            return v == b'STM 00'
+        if tag == LOGGER_INFO_CMD_W:
+            return v == b'WLI 00'
+        if tag == STATUS_CMD:
+            return v.startswith(te) and n == 8
+        if tag == BAT_CMD:
+            return v.startswith(te) and n == 10
+        if tag == TIME_CMD:
+            return v.startswith(te) and n == 25
+        if tag in SLOW_DWL_CMD:
+            return v.startswith(te) and n == 8
+        if tag in WAKE_CMD:
+            return v.startswith(te) and n == 8
+        if tag == CRC_CMD:
+            return v.startswith(te) and n == 14
+        if tag == FORMAT_CMD:
+            return v == b'FRM 00'
+        if tag == CONFIG_CMD:
+            return v == b'CFG 00'
+        if tag == DO_SENSOR_READINGS_CMD:
+            return v.startswith(te) and n == 18
+        # todo > test this one
+        if tag == DIR_CMD:
+            return v.endswith(b'\x04')
+        if tag == SENSOR_READINGS_CMD:
+            return len(v) == 32 + 6 or len(v) == 40 + 6

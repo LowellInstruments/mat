@@ -158,7 +158,8 @@ def _n2ll_cmd_xs_start(_, macs):
         return 0, '{} => XS already running'.format(mac)
 
     # launch XR server as thread, fork() gives RabbitMQ error
-    run_thread(xs_run)
+    th = threading.thread(target=xs_run)
+    th.start()
     time.sleep(2)
 
     # check launched properly
