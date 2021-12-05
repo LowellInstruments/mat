@@ -62,11 +62,11 @@ def xr_assert_api_or_die(s, api: list):
     os._exit(1)
 
 
-def xc_run(url, q_cmd_in, sig, q_ans_out=None):
+def xc_run(url, q_cmd_in, q_ans_out=None):
 
     # url: 'http://localhost:<port>'
     xc = xmlrpc.client.ServerProxy(url, allow_none=True)
-    print('th_xb: started with url {}'.format(url))
+    print('th_xc: started at url {}'.format(url))
 
     while 1:
 
@@ -86,18 +86,6 @@ def xc_run(url, q_cmd_in, sig, q_ans_out=None):
                 a = xc.xs_client_entry_point(c)
                 if q_ans_out:
                     q_ans_out.put(a)
-                if sig:
-                    sig.emit((c[0], a))
-            except xmlrpc.client.Fault as xcf:
-                s = 'XR cli exc -> {}'.format(xcf)
-                if sig:
-                    sig.emit((c[0], s))
-            except RemoteDisconnected as xrd:
-                s = 'XR cli exc -> {}'.format(xrd)
-                if sig:
-                    sig.emit((c[0], s))
 
-
-def run_thread(fxn, *args):
-    th = threading.Thread(target=fxn, args=args)
-    th.start()
+            except (xmlrpc.client.Fault, RemoteDisconnected) as ex:
+                print('XR cli exc -> {}'.format(ex))

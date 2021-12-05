@@ -46,7 +46,7 @@ def full_demo(fol):
         if name_csv_local:
             print('conversion OK')
             p = '{}/{}'.format(fol, name_csv_local)
-            print('renamed files as {}*'.format(p))
+            print('output files -> {}*'.format(p))
         else:
             print('conversion error')
 

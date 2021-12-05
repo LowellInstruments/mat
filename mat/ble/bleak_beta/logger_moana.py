@@ -2,18 +2,18 @@ import platform
 import queue
 import time
 from tendo import singleton
-from mat.ble.bleak_beta.ble_engine_moana import ble_engine_moana
 from mat.ble.bleak_beta.engine_base_utils import ENGINE_CMD_DISC, ENGINE_CMD_SCAN, ENGINE_CMD_CON, ENGINE_CMD_BYE
+from mat.ble.bleak_beta.engine_moana import engine_moana
 
 
-class BLELoggerMoana:
+class LoggerMoana:
 
     def __init__(self):
         self.connected = False
         singleton.SingleInstance()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
-        self.th = ble_engine_moana(self.q1, self.q2)
+        self.th = engine_moana(self.q1, self.q2)
         self.th.start()
 
     def _cmd(self, c):

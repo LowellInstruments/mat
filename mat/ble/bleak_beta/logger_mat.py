@@ -2,16 +2,16 @@ import queue
 import threading
 from mat.ble.bleak_beta.logger_do2 import LoggerBLE
 from mat.ble.bleak_beta.engine_mat import engine_mat
-from mat.ble.bleak_beta.engine_mat import ble_cmd_dir_result_as_dict_rn4020
 from mat.ble_utils_shared import xmd_frame_check_crc
 from mat.logger_controller import DIR_CMD
 from mat.logger_controller_ble import GET_FILE_CMD
+from mat.utils import lowell_file_list_as_dict
 
 
-class BLELoggerMAT1(LoggerBLE):
+class LoggerMAT(LoggerBLE):
 
     def __init__(self):
-        super(BLELoggerMAT1).__init__()
+        super(LoggerMAT).__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
         self.th = threading.Thread(target=engine_mat, args=(self.q1, self.q2,))
@@ -24,7 +24,7 @@ class BLELoggerMAT1(LoggerBLE):
     def ble_cmd_dir(self):
         c = self._cmd_build(DIR_CMD)
         rv = self._cmd(c)
-        return ble_cmd_dir_result_as_dict_rn4020(rv)
+        return lowell_file_list_as_dict(rv, ext='*')
 
     def ble_cmd_get(self, s):
         c = self._cmd_build(GET_FILE_CMD, s)

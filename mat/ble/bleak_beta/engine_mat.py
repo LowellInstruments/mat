@@ -17,27 +17,6 @@ def engine_mat(q_c, q_a):
     engine(q_c, q_a, ebu.g_hooks)
 
 
-def ble_cmd_dir_result_as_dict_rn4020(ls: bytes) -> dict:
-    if b'ERR' in ls:
-        return {'ERR': 0}
-
-    # ls: b'\n\rSystem Volume Information\t\t\t0\n\rMAT.cfg\t\t\t208\n\r\x04\n\r'
-    d = {}
-    i = 0
-    ls = ls.split(b'\n\r')
-
-    # ls: [b'', b'System Volume Information\t\t\t0', b'MAT.cfg\t\t\t208', b'\x04', b'']
-    for i in ls:
-        if i == b'':
-            continue
-        if i == b'\x04':
-            break
-        name, size = i.decode().split('\t\t\t')
-        d[name] = int(size)
-    # d: { 'MAT.cfg': 189 }
-    return d
-
-
 def _is_answer_done(cmd, ans):
 
     done = False
@@ -62,9 +41,8 @@ def _is_answer_done(cmd, ans):
     if tag == GET_FILE_CMD and ans == b'\n\rGET 00\r\n':
         done = True
 
-    # debug
-    s = '    dbg: tag rn4020 {} len {} done {}'
-    print(s.format(tag, len(ans), done))
+    # s = '    debug -> tag rn4020 {} len {} done {}'
+    # print(s.format(tag, len(ans), done))
 
     return done
 

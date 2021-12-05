@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from mat.ble.bleak_beta.engine_base_utils import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, \
     ENGINE_CMD_EXC
-from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import XS_BLE_EXC_LC
+from mat.ble.bluepy.xc_ble_lowell import XS_BLE_EXC_LC
 from mat.logger_controller_ble import *
 from mat.logger_controller import (
     STATUS_CMD,
@@ -24,6 +24,8 @@ from mat.logger_controller import (
     DEL_FILE_CMD, SD_FREE_SPACE_CMD, RUN_CMD
 )
 from tendo import singleton
+
+from mat.utils import lowell_file_list_as_dict
 
 
 class LoggerBLE(ABC):
@@ -85,7 +87,7 @@ class LoggerBLE(ABC):
     def ble_cmd_dir(self):
         c = self._cmd_build(DIR_CMD)
         b = self._cmd(c)
-        return ble_cmd_dir_result_as_dict(b)
+        return lowell_file_list_as_dict(b)
 
     def ble_cmd_dwg(self, s):
         c = self._cmd_build(DWG_FILE_CMD, s)
@@ -297,27 +299,3 @@ class LoggerBLE(ABC):
         # special command for testing my exceptions
         self.q1.put(XS_BLE_EXC_LC)
         return XS_BLE_EXC_LC
-
-
-
-def ble_cmd_dir_result_as_dict(ls: bytes) -> dict:
-    if b'ERR' in ls:
-        return {'ERR': 0}
-
-    # ls : b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r\n\rMAT.cfg\t\t\t189\n\r\x04\n\r'
-    d = {}
-    i = 0
-    ls = ls.split()
-
-    # iterate name and size pairs
-    while i < len(ls):
-        name = ls[i]
-        if name in [b'\x04']:
-            break
-        name = ls[i].decode()
-        size = int(ls[i + 1].decode())
-        if name not in ('.', '..'):
-            d[name] = size
-        i += 2
-    # d: { 'MAT.cfg': 189 }
-    return d

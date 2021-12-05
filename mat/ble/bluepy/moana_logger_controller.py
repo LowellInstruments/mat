@@ -254,4 +254,4 @@ class LoggerControllerMoana:
         fp.close()
 
         # return the prefix
-        return 'moana_{}'.format(self.sn)
+        return 'moana_{}_{}'.format(self.sn, first_dt)

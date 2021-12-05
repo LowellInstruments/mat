@@ -1,7 +1,7 @@
 import queue
 
-from mat.ble.xmlrpc_beta.examples._common import xr_launch_threads
-from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import *
+from mat.ble.bluepy.examples.xmlrpc._common import xr_launch_threads
+from mat.ble.bluepy.xc_ble_lowell import *
 
 
 def dwg_file(mac, s, n, dummy=False):

@@ -16,8 +16,8 @@ from mat.utils import linux_is_process_running_by_name, linux_get_pid_of_a_proce
 from mat.n2ll_beta.n2ll_utils import (
     mq_exchange_for_masters,
     mq_exchange_for_slaves)
-from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_client import *
-from mat.ble.xmlrpc_beta.xmlrpc_lc_ble_server import *
+from mat.ble.bluepy.xc_ble_lowell import *
+from mat.ble.bluepy.xs_ble_lowell import *
 
 
 def _p(s):
