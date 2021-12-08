@@ -119,13 +119,15 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
             # b'\n\rSTP 0200\r\n'
             return v.startswith(te) and n == 12
         if tag == RWS_CMD:
-            return v == b'RWS 00'
+            # RN4020 does not has RWS
+            time.sleep(1)
+            assert False
         if tag == SWS_CMD:
             return v.startswith(te) and n == 12
         if tag == SET_TIME_CMD:
-            return v == b'\n\rSTM 00\r\n'
+            return v.endswith(b'STM 00\r\n')
         if tag == LOGGER_INFO_CMD_W:
-            return v == b'\n\rWLI 00\r\n'
+            return v.endswith(b'WLI 00\r\n')
         if tag == STATUS_CMD:
             return v.startswith(te) and n == 12
         if tag == TIME_CMD:
@@ -135,4 +137,4 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
         if tag == SENSOR_READINGS_CMD:
             return len(v) == 38 + 4 or len(v) == 46 + 4
         if tag == DEL_FILE_CMD:
-            return v == b'\n\rDEL 00\r\n'
+            return v.endswith(b'DEL 00\r\n')

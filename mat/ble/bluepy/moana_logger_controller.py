@@ -243,16 +243,15 @@ class LoggerControllerMoana:
             p = int(float(press))
             threshold_meters = 2
             if not submerged and p > threshold_meters:
-                # todo > maybe close files here
                 submerged = True
                 print('sub at', dt)
             elif submerged and p <= threshold_meters:
-                # todo > maybe create files here
                 submerged = False
                 print('air at', dt)
 
         ft.close()
         fp.close()
 
-        # return the prefix
-        return 'moana_{}_{}'.format(self.sn, first_dt)
+        # prefix: 'moana_0113_20211206T144237'
+        prefix = 'moana_{}_{}'.format(self.sn, first_dt)
+        return prefix

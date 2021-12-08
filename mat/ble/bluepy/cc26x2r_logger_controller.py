@@ -57,7 +57,8 @@ class LoggerControllerCC26X2R(LoggerController):
 
             # timeout fully expired
             if time.perf_counter() > till:
-                print('timeout -> {}'.format(self.dlg.buf))
+                e = 'timeout -> tag {} -> {}'
+                print(e.format(tag, self.dlg.buf))
                 break
 
             # no more wait needed

@@ -2,7 +2,7 @@ from mat.ble.bluepy.cc26x2r_logger_controller import LoggerControllerCC26X2R
 from mat.ble.bluepy.examples.examples_utils import get_mac
 
 
-def file_rm(s: str, cla=LoggerControllerCC26X2R):
+def file_del(s: str, cla=LoggerControllerCC26X2R):
 
     mac = get_mac(cla)
     lc = cla(mac)
@@ -16,4 +16,4 @@ def file_rm(s: str, cla=LoggerControllerCC26X2R):
 
 
 if __name__ == '__main__':
-    file_rm('dummy_32.lid')
+    file_del('dummy_32.lid')
