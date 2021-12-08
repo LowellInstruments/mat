@@ -32,7 +32,6 @@ def full_demo(fol):
 
     lc.auth()
     rv = lc.file_info()
-    print(rv)
 
     name_csv_moana = rv['FileName']
     print('downloading file {}...'.format(name_csv_moana))
@@ -59,9 +58,6 @@ def full_demo(fol):
     time.sleep(1)
     if not lc.file_clear():
         print('error file_clear')
-
-    time.sleep(1)
-    lc.moana_end()
 
     lc.close()
 

@@ -152,16 +152,6 @@ class LoggerControllerMoana:
         self._wait_answer()
         return self.dlg.buf == b'*Vc{"ArchiveBit":false}'
 
-    def moana_end(self):
-        # disconnects BLE -> obviously waits no answer
-        self._clear_buffers()
-        try:
-            self._ble_tx(b'*B.')
-        except BTLEDisconnectError:
-            # this happens :)
-            pass
-        time.sleep(1)
-
     @staticmethod
     def file_save(data) -> str:
         if not data:

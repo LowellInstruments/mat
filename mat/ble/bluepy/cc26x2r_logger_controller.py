@@ -191,7 +191,6 @@ class LoggerControllerCC26X2R(LoggerController):
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
         fmt = '%Y/%m/%d %H:%M:%S'
         s = dt.strftime(fmt)
-        print(s)
         # s: 2021/12/01 16:33:16
         a = self._ble_cmd(SET_TIME_CMD, s)
         return a == b'STM 00'

@@ -10,7 +10,6 @@ def rws(cla=LoggerControllerCC26X2R):
     if lc.open():
         s = 'hello'
         rv = lc.ble_cmd_rws(s)
-        print(rv)
         print('> run: {}'.format(rv))
     else:
         print('{} connection error'.format(__name__))

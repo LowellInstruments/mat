@@ -22,7 +22,7 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
     _len = 0
 
     # enable debug
-    verbose = True
+    verbose = False
 
     # send C character
     _debug('<- C', verbose)
