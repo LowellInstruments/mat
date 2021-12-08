@@ -17,7 +17,7 @@ def connect_rn4020(lc):
         desc = lc.cha.valHandle + 1
         lc.per.writeCharacteristic(desc, b'\x01\x00')
         # do not remove, damn Jim!
-        time.sleep(1)
+        time.sleep(1.5)
         return True
 
     except (AttributeError, bluepy.btle.BTLEException) as ex:
@@ -27,6 +27,6 @@ def connect_rn4020(lc):
 def utils_logger_is_rn4020(mac, info):
     if mac.startswith('00:1e:c0'):
         return True
+
     if 'MATP-2W' in info:
-        print('caca')
         return True

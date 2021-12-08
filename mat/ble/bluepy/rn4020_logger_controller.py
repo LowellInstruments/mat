@@ -138,3 +138,5 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
             return len(v) == 38 + 4 or len(v) == 46 + 4
         if tag == DEL_FILE_CMD:
             return v.endswith(b'DEL 00\r\n')
+        if tag == BTC_CMD:
+            return v.endswith(b'\n\rCMD\r\nAOK\r\nMLDP\r\n')

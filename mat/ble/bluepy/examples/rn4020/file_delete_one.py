@@ -3,5 +3,5 @@ from mat.ble.bluepy.examples.cc26x2r.file_delete_one import file_del
 
 
 if __name__ == '__main__':
-    s = 'file_name.lid'
+    s = '2110407_T&P_(0).lid'
     file_del(s, cla=LoggerControllerRN4020)

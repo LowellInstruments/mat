@@ -89,7 +89,7 @@ def main():
     dl_n_cnv_ok = 0
 
     file_list(cla=LoggerControllerRN4020)
-    name, size = '2011605_TP_1m_(0).lid', 326492
+    name, size = '2110407_T&P_(0).lid', 33048
 
     n = 1
     for i in range(n):

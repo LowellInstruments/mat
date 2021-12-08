@@ -108,7 +108,7 @@ class LoggerControllerMoana:
 
             # re-shape timeout
             if self.per.waitForNotifications(.01):
-                till = time.perf_counter() + 1
+                till = time.perf_counter() + 2
 
     def ping(self):
         # made-up command, needed or Moana won't answer

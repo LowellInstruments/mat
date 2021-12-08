@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 from mat.ble.bluepy.examples.moana.macs import MAC_MOANA
 from mat.ble.bluepy.moana_logger_controller import LoggerControllerMoana
@@ -55,9 +56,12 @@ def full_demo(fol):
 
     # comment next 2 -> repetitive download tests
     # uncomment them -> re-run logger
-    # if not lc.file_clear():
-    #     print('error file_clear')
-    # lc.moana_end()
+    time.sleep(1)
+    if not lc.file_clear():
+        print('error file_clear')
+
+    time.sleep(1)
+    lc.moana_end()
 
     lc.close()
 

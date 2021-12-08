@@ -21,6 +21,9 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
     _rt = 0
     _len = 0
 
+    # enable debug
+    verbose = True
+
     # send C character
     _debug('<- C', verbose)
     lc.ble_write(b'C')

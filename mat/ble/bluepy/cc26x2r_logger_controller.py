@@ -51,8 +51,8 @@ class LoggerControllerCC26X2R(LoggerController):
 
         while 1:
             # reduce timeout when we received once
-            if self.per.waitForNotifications(.001):
-                till = time.perf_counter() + 2
+            if self.per.waitForNotifications(.01):
+                till = time.perf_counter() + 3
                 continue
 
             # timeout fully expired
@@ -83,6 +83,10 @@ class LoggerControllerCC26X2R(LoggerController):
 
     def ble_get_mtu(self) -> int:
         return int(self.per.status()['mtu'][0])
+
+    def ble_cmd_btc(self):
+        # cc26x2r does not have BTC command
+        assert False
 
     def ble_cmd_gtm(self) -> datetime:
         # remember -> logger's time is UTC

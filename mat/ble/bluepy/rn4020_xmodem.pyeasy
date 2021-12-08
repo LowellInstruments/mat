@@ -1,0 +1,61 @@
+import time
+from mat.ble_utils_shared import xmd_frame_check_crc
+
+
+def rn4020_xmodem_get_file(lc, size, p=False):
+    time.sleep(1)
+    size = int(size)
+    data = bytes()
+
+    # ---------------
+    # send starting C
+    # ---------------
+    lc.dlg.buf = bytes()
+    lc.ble_write(b'C')
+    till = time.perf_counter() + 1
+    while 1:
+        lc.per.waitForNotifications(.01)
+        if len(lc.dlg.buf) == 1029:
+            break
+        if time.perf_counter() > till:
+            break
+
+    # --------------------
+    # xmodem receive loop
+    # --------------------
+    i = 0
+    while 1:
+        a = lc.dlg.buf
+        if len(a) != 1029:
+            print('bad length xmodem {}'.format(len(a)))
+            break
+
+        rv = xmd_frame_check_crc(a)
+        if not rv:
+            print('bad crc xmodem')
+            break
+
+        # aggregate data: skip header & crc
+        data += a[3:-2]
+
+        # indicate next
+        i += 1
+        print('chunk', i)
+
+        # send ACK
+        lc.dlg.buf = bytes()
+        lc.ble_write(b'\x06')
+
+        # receive chunk
+        till = time.perf_counter() + 1
+        while 1:
+            lc.per.waitForNotifications(.1)
+            if len(lc.dlg.buf) == 1029:
+                break
+            if time.perf_counter() > till:
+                break
+
+    # truncate
+    # if len(data) >= size:
+    #     data = data[:size]
+    #     return data
