@@ -27,6 +27,7 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
         a = super()._ble_cmd(*args)
         # adjust RN4020 answer prefixes & suffixes
         a = a[2:] if a and a.startswith(b'\n\r') else a
+        a = a[2:] if a and a.startswith(b'\r\n') else a
         a = a[:-2] if a and a.endswith(b'\r\n') else a
         return a
 
@@ -132,11 +133,12 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
             return v.startswith(te) and n == 12
         if tag == TIME_CMD:
             return v.startswith(te) and n == 29
-        if tag == DIR_CMD:
-            return v.endswith(b'\x04\n\r')
         if tag == SENSOR_READINGS_CMD:
             return len(v) == 38 + 4 or len(v) == 46 + 4
         if tag == DEL_FILE_CMD:
+            print(v)
             return v.endswith(b'DEL 00\r\n')
         if tag == BTC_CMD:
             return v.endswith(b'\n\rCMD\r\nAOK\r\nMLDP\r\n')
+        if tag == DIR_CMD:
+            return v.endswith(b'\x04\n\r') or v.endswith(b'\x04')

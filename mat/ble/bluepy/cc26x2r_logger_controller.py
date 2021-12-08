@@ -224,6 +224,8 @@ class LoggerControllerCC26X2R(LoggerController):
     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
         # todo > check why sometimes no \x04
         f_l = self._ble_cmd(DIR_CMD)
+        # removes DIR bad trailing sometimes
+        self.per.waitForNotifications(.1)
         return lowell_file_list_as_dict(f_l, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover
