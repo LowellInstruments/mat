@@ -1,8 +1,11 @@
 from mat.sensor_data_file import SensorDataFile
 from math import ceil
-from mat.utils import parse_tags, epoch
+from mat.utils import parse_tags, epoch, write_sws_file, consecutive_numbers
 from datetime import datetime
 import numpy as np
+
+
+STOP_WITH_STRING_MARKER = -258
 
 
 class LidDataFile(SensorDataFile):
@@ -33,9 +36,17 @@ class LidDataFile(SensorDataFile):
         ind = (self.data_start
                + (i * self.PAGE_SIZE) + self.mini_header_length())
         self._file.seek(ind)
-        return np.fromfile(self.file(),
-                           dtype='<i2',
-                           count=(self.PAGE_SIZE-self.mini_header_length())//2)
+        data = np.fromfile(
+            self.file(),
+            dtype='<i2',
+            count=(self.PAGE_SIZE-self.mini_header_length())//2)
+        if i == self.n_pages()-1:
+            stop_idx = consecutive_numbers(data, STOP_WITH_STRING_MARKER, 7)
+            if stop_idx < len(data):
+                write_sws_file(self._file_path.replace('.lid', '.gps'),
+                               data[stop_idx+7:])
+            data = data[:stop_idx]
+        return data
 
     def page_times(self):
         if self._page_times:

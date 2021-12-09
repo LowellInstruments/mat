@@ -161,23 +161,6 @@ def is_valid_mac_address(mac):
     return re.search(re.compile(regex), mac)
 
 
-def linux_is_ble_connection_recent(mac) -> bool:  # pragma: no cover
-
-    # /dev/shm is cleared every reboot
-    mac = str(mac).replace(':', '')
-    path = pathlib.Path('/dev/shm/{}'.format(mac))
-    if path.exists():
-        return True
-    path.touch()
-    return False
-
-
-def linux_sudo_permissions_check():
-    if 'SUDO_UID' not in os.environ.keys():
-        print('bluetooth requires root permissions')
-        os._exit(1)
-
-
 def lowell_file_list_as_dict(ls, ext, match=True):
     if ls is None:
         return {}
@@ -212,3 +195,26 @@ def lowell_file_list_as_dict(ls, ext, match=True):
             files[name.decode()] = int(ls[idx + 1])
         idx += 2
     return files
+
+
+def write_sws_file(path, data):
+    # the data are in int16 format. Convert back to 8 bit ascii values
+    data.dtype = np.uint8
+
+    # strip any nulls, etc.
+    sws = ''.join([chr(x) for x in data if chr(x).isprintable()])
+
+    with open(path, 'w') as f:
+        f.write('SWS: ' + sws)
+
+
+def consecutive_numbers(data, number, count):
+    c = 0
+    for i, val in enumerate(data):
+        if val == number:
+            c += 1
+        else:
+            c = 0
+        if c == count:
+            return i-count+1
+    return len(data)
