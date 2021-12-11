@@ -1,138 +1,167 @@
-import serial
-import datetime
 import time
-from collections import namedtuple
+import datetime
+import serial
+import sys
+from serial import SerialException
 
 
-# how to test this with coverage:
-# python3 -m pytest
-#       tests/test_gps.py
-#       --cov mat.gps_bu_353_s4
-#       --cov-report=html:<output_dir>
+# hardcoded, since they are FIXED on SixFab hats
+PORT_CTRL = '/dev/ttyUSB2'
+PORT_DATA = '/dev/ttyUSB1'
 
 
-def parse_int(x):
-    return int(x) if x else None
+def _coord_decode(coord: str):
+    # src: stackoverflow 18442158 latitude format
+
+    x = coord.split(".")
+    head = x[0]
+    deg = head[:-2]
+    minutes = '{}.{}'.format(head[-2:], x[1])
+    decimal = int(deg) + float(minutes) / 60
+    return decimal
 
 
-def parse_float(x):
-    return float(x) if x else None
+def _gps_parse_rmc_frame(data: str):
+    """ grab a long comma-separated string, parse fields """
 
+    s = data.split(",")
+    if s[2] == 'V':
+        return
 
-RMC_ID = '$GPRMC'
+    _t = s[1][0:2] + ":" + s[1][2:4] + ":" + s[1][4:6]
+    _day = s[9][0:2] + "/" + s[9][2:4] + "/" + s[9][4:6]
 
+    # lat, direction, lon, direction, speed, course, variation
+    lat = _coord_decode(s[3])
+    dir_lat = s[4]
+    lon = _coord_decode(s[5])
+    dir_lon = s[6]
+    speed = s[7]
+    _course = s[8]
+    variation = s[10]
 
-class GPS:
-    """ 
-        GPS class for USB device BU_353_S4
-        waits for and parses GPS RMC frames
-    """
+    # GPS date and time are UTC
+    fmt = '{} {}'.format(_day, _t)
+    gps_time = datetime.datetime.strptime(fmt, '%d/%m/%y %H:%M:%S')
 
-    BAUD_RATE_BU_353_S4 = 4800
-    RMC_Frame = namedtuple('RMC_Frame',
-                           'valid timestamp '
-                           'latitude '
-                           'longitude '
-                           'knots '
-                           'course')
+    # display
+    # print('time {} date {} lat {} lon {}'.format(_t, _day, lat, lon))
+    # print('speed {} mag_var {} course {}'.format(speed, variation, _course))
 
-    def __init__(self, port, br=BAUD_RATE_BU_353_S4):
-        try:
-            self.port = serial.Serial(port, br)
-        except serial.SerialException:
-            print('GPS: port exception {}'.format(port))
-            self.port = None
-        self.handlers = {
-            RMC_ID: self._on_rmc,
-        }
-        self.last_rmc = None
+    # return some strings
+    lat = lat * 1 if dir_lat == 'N' else lat * -1
+    lon = lon * 1 if dir_lon == 'E' else lon * -1
 
-    @staticmethod
-    def _to_deg(value, nsew):
-        # BU-353-S4 lat, lon: DDMM.mmmm, or empty if no coverage
-        if not value:
-            return None
-        a, b = value.split('.')
-        if len(a) < 4:
-            raise ValueError
-        degrees = int(a) // 100
-        minutes = int(a) % 100
-        minutes += float(int(b) / 10 ** len(b))
-        result = degrees + minutes / 60.0
-        if nsew in 'SW':
-            result = -result
-        return result
-
-    def _on_rmc(self, a):
-        # populates self.last_rmc on success
-        if a[1] != 'A':
-            return
-        t = datetime.datetime.strptime(a[8] + a[0], '%d%m%y%H%M%S.%f')
-        lat = GPS._to_deg(a[2], a[3])
-        lon = GPS._to_deg(a[4], a[5])
-        knots = parse_float(a[6])
-        course = parse_float(a[7])
-        self.last_rmc = GPS.RMC_Frame(a[1], t, lat, lon, knots, course)
-
-    @staticmethod
-    def _verify_string(data, checksum):
-        # lose '$' character at the beginning of gps_bu_353_s4 sentence
-        data = data[1:]
-        crc_as_dec = int(checksum, 16)
-        int_values = [ord(x) for x in data]
-        crc = 0
-        for x in int_values:
-            crc = crc ^ x
-        return crc == crc_as_dec
-
-    def _parse_line(self, b: bytes, f_t):
-        """
-        Parse a GPS string and call its handler, if any
-        :param b: bytes from USB
-        :param f_t: frame_type expected, e.g. '$GPRMC'
-        :return: GPS full string or None
-        """
-        try:
-            if b.startswith('$'.encode('ASCII')):
-                s = b.decode('ASCII')
-                data, checksum = s.split('*')
-                tokens = data.split(',')
-                f_t, a = tokens[0], tokens[1:]
-                h = self.handlers.get(f_t)
-                if GPS._verify_string(data, checksum) is False\
-                        or f_t != f_t \
-                        or h is None:
-                    return None
-                # try to populate self.last_rmc
-                h(a)
-                return s
-            return None
-        except (ValueError, AttributeError):
-            return None
-
-    def _wait_frame(self, f_t, timeout):
-        """
-        Listens for a GPS frame
-        :param f_t: frame_type expected, e.g. '$GPRMC'
-        :param timeout: how long till failure
-        :return: GPS string if OK else None
-        """
-        till = time.perf_counter() + timeout
-        while 1:
-            if time.perf_counter() >= till:
-                return None
-            b = self.port.readline().strip()
-            rx = self._parse_line(b, f_t)
-            if rx:
-                return rx
-            time.sleep(0.1)
-
-    def get_gps_info(self, timeout=3) -> namedtuple:
-        if not self.port:
-            return None
-
-        if self._wait_frame('$GPRMC', timeout):
-            # fields needed to consider RMC frame as valid
-            if self.last_rmc and self.last_rmc.timestamp:
-                return self.last_rmc
+    # checksum skipping initial '$'
+    cs_in = data.split('*')[1][:2]
+    cs_calc = 0
+    for c in data[1:].split('*')[0]:
+        cs_calc ^= ord(c)
+    cs_calc = '{:02x}'.format(int(cs_calc))
+    if cs_in != cs_calc.upper():
         return None
+
+    # everything went ok
+    return lat, lon, gps_time
+
+
+# def gps_configure_quectel() -> int:
+#     """ only needed once, configures Quectel GPS via USB and closes port """
+#     rv = 0
+#     sp = None
+#     try:
+#         sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
+#         # ensure GPS disabled, try to enable it
+#         sp.readline()
+#         sp.write(b'AT+QGPSEND\r\n')
+#         sp.write(b'AT+QGPSEND\r\n')
+#         sp.readline()
+#         sp.write(b'AT+QGPS=1\r\n')
+#         ans = sp.readline()
+#
+#         # good cases, error 504 means already on
+#         rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
+#
+#         # error: 505 (not activated)
+#         if ans.startswith(b'+CME ERROR: '):
+#             rv = ans.decode()[-3:]
+#
+#     except (FileNotFoundError, SerialException) as ex:
+#         rv = 1
+#         print(ex)
+#
+#     finally:
+#         if sp:
+#             sp.close()
+#         return rv
+
+
+def gps_configure_quectel() -> int:
+    """ only needed once, configures Quectel GPS via USB and closes port """
+
+    rv, sp = 0, None
+    try:
+        sp = serial.Serial(PORT_CTRL, baudrate=115200, timeout=0.5)
+        sp.readline()
+        sp.write(b'AT+QGPS=1\r\n')
+        sp.readline()
+        ans = sp.readline()
+
+        # good cases, error 504 means already on
+        rv = 0 if ans in [b'OK\r\n', b'+CME ERROR: 504\r\n'] else 2
+
+        # no answer
+        rv = rv if ans else 9
+
+        # error: 505 (not activated)
+        if rv and ans and ans.startswith(b'+CME ERROR: '):
+            rv = int(ans.decode()[-5:-2]) if rv != '504' else 0
+
+        if rv:
+            print('GPS: configure error {}'.format(rv))
+
+    except (FileNotFoundError, SerialException) as ex:
+        rv = 1
+        print(ex)
+
+    finally:
+        if sp:
+            sp.close()
+        return rv
+
+
+def gps_get_rmc_data(timeout=2):
+    """ returns (lat, lon, dt object) or None """
+
+    rv, sp = None, None
+    try:
+        sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.1)
+        _till = time.perf_counter() + timeout
+        # there is approx 1 RMC frame / second so, we are ok
+        while True:
+            if time.perf_counter() > _till:
+                break
+            data = sp.readline()
+            if b'$GPRMC' in data:
+                rv = _gps_parse_rmc_frame(data.decode())
+                if rv:
+                    # None / (lat, lon, gps_time)
+                    return rv
+    except SerialException as se:
+        rv = None
+        print(se)
+    finally:
+        if sp:
+            sp.close()
+        return rv
+
+
+# for testing purposes
+if __name__ == '__main__':
+    _ = gps_configure_quectel()
+    if _:
+        print('cannot enable GPS Quectel, error {}'.format(_))
+        sys.exit(1)
+    while True:
+        print(gps_get_rmc_data())
+        time.sleep(1)
