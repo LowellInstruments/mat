@@ -1,31 +1,33 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
-import os
-from setuptools import setup
+import platform
+from setuptools import setup, find_packages
 
-requirements = [
-    'numpy',
-    'pyserial',
-    'h5py==2.10.0',
-    'crc16==0.1.1',
-    'pika',
-    'getmac',
-]
+# installation based on "requirements.txt"
+# it skips git+ format in file because setup.py does not like it
+rr = list(map(str.strip, open("requirements.txt").readlines()))
+rr.remove('git+https://github.com/LowellInstruments/bluepy.git')
 
-if os.name == 'posix':
-    requirements.append(
-        'bluepy@git+https://github.com/LowellInstruments/bluepy.git'
-    )
-    requirements.append('python-crontab')
+
+# add OUR bluepy library -> only for Linux installations
+if platform.system() == 'Linux':
+    rr.append('bluepy @ https://github.com/LowellInstruments/bluepy/archive/refs/heads/master.zip')
+
+
+# version management
+v = {}
+with open("mat/version.py") as fp:
+    exec(fp.read(), v)
+
 
 setup(name='lowell-mat',
-      version='1.2',
+      version=v['__version__'],
       description='Shared package for Lowell Instruments software',
       url='https://github.com/LowellInstruments/lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
-      packages=['mat'],
-      install_requires=requirements,
+      packages=find_packages(),
+      install_requires=rr,
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",

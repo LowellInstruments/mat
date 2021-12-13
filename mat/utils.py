@@ -1,7 +1,6 @@
 import pathlib
-import socket
+import re
 from platform import machine
-import crc16
 from numpy import array, mod
 from datetime import datetime
 import numpy as np
@@ -105,49 +104,19 @@ class PrintColors:
         print(PrintColors.OKGREEN + s + PrintColors.ENDC)
 
 
-def xmd_frame_check_crc(lc):
-    data = lc.dlg.x_buf[3:-2]
-    rx_crc = lc.dlg.x_buf[-2:]
-    calc_crc_int = crc16.crc16xmodem(data)
-    calc_crc_bytes = calc_crc_int.to_bytes(2, byteorder='big')
-    return calc_crc_bytes == rx_crc
+def linux_check_ngrok_can_be_run():
+    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        print('ngrok found')
+        return True
+    print('error: ngrok not in /usr/bin or bad binary format')
 
 
-def is_service_active(name: str):
-    # just name, not name.service
-    s = 'systemctl is-active --quiet {}'.format(name)
-    rv = sp.run(s, shell=True)
-    print('service active {} ? {}'.format(name, rv.returncode == 0))
-    return rv.returncode == 0
+def linux_is_process_running_by_name(name):
+    return linux_get_pid_of_a_process(name)
 
 
-def is_service_enabled(name: str):
-    # just name, not name.service
-    s = 'systemctl is-enabled --quiet {}'.format(name)
-    rv = sp.run(s, shell=True)
-    print('service enabled {} ? {}'.format(name, rv.returncode == 0))
-    return rv.returncode == 0
-
-
-def show_services_running():
-    # running: currently being executed, may be enabled or not
-    s = 'systemctl | grep running'
-    rv = sp.run(s, shell=True, stdout=sp.PIPE)
-    print(rv.stdout)
-
-
-def show_services_enabled():
-    # enabled: will start on next boot, may be currently running or not
-    s = 'systemctl list-unit-files | grep enabled'
-    rv = sp.run(s, shell=True, stdout=sp.PIPE)
-    print(rv.stdout)
-
-
-def is_process_running_by_name(name):
-    return get_pid_of_a_process(name)
-
-
-def get_pid_of_a_process(name):
+def linux_get_pid_of_a_process(name):
     # awk and so they do not work here because they use {}
     s = 'ps -aux | grep {} | grep -v grep'.format(name)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -176,6 +145,56 @@ def linux_is_rpi():
 
 def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
+
+
+def is_valid_mac_address(mac):
+
+    if mac is None:
+        return False
+
+    # src: geeks for geeks website
+    regex = ("^([0-9A-Fa-f]{2}[:])" +
+             "{5}([0-9A-Fa-f]{2})|" +
+             "([0-9a-fA-F]{4}\\." +
+             "[0-9a-fA-F]{4}\\." +
+             "[0-9a-fA-F]{4})$")
+    return re.search(re.compile(regex), mac)
+
+
+def lowell_file_list_as_dict(ls, ext, match=True):
+    if ls is None:
+        return {}
+
+    if b'ERR' in ls:
+        return b'ERR'
+
+    if type(ext) is str:
+        ext = ext.encode()
+
+    files, idx = {}, 0
+
+    # ls: b'\n\r.\t\t\t0\n\r\n\r..\t\t\t0\n\r\n\rMAT.cfg\t\t\t189\n\r\x04\n\r'
+    ls = ls.replace(b'System Volume Information\t\t\t0\n\r', b'')
+    ls = ls.split()
+
+    while idx < len(ls):
+        name = ls[idx]
+        if name in [b'\x04']:
+            break
+
+        names_to_omit = (
+            b'.',
+            b'..',
+        )
+
+        # wild-card case
+        if ext == b'*' and name not in names_to_omit:
+            files[name.decode()] = int(ls[idx + 1])
+        # specific extension case
+        elif name.endswith(ext) == match and name not in names_to_omit:
+            files[name.decode()] = int(ls[idx + 1])
+        idx += 2
+    return files
 
 
 def write_sws_file(path, data):
