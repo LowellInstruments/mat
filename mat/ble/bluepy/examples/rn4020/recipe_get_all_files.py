@@ -50,6 +50,11 @@ def _get_n_convert(lc, f_name, f_size):
 
 def recipe_get_all_files():
 
+    # ---------------------------------------------
+    # feel free to call this to see any BLE around
+    # devs = ble_scan_for_loggers(0, 5.0)
+    # ---------------------------------------------
+
     # -------------------------
     # set mac to be downloaded
     # -------------------------
