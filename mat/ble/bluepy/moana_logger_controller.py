@@ -218,6 +218,7 @@ class LoggerControllerMoana:
             # saves file w/ UTC times (local when tz=None)
             # & removes the +00:00 part
             dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
+            # todo > is next line needed?
             dt = dt.replace(tzinfo=None)
             press = int(struct.unpack('<H', line[2:4])[0])
             temp = int(struct.unpack('<H', line[4:6])[0])
