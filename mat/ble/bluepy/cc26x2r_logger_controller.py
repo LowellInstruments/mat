@@ -401,7 +401,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return self.dlg.buf == b'DWG 00'
 
     def ble_cmd_slw_ensure(self, v: str) -> bool:
-        assert v in ('on', 'off')
+        assert v.lower() in ('on', 'off')
         rv = self.ble_cmd_slw()
         if rv == v:
             return True
@@ -411,7 +411,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return False
 
     def ble_cmd_wak_ensure(self, v: str) -> bool:
-        assert v in ('on', 'off')
+        assert v.lower() in ('on', 'off')
         rv = self.ble_cmd_wak()
         if rv == v:
             return True
@@ -462,6 +462,6 @@ class LoggerControllerCC26X2R(LoggerController):
             return v.startswith(te) and n == 18
         # todo > test this one
         if tag == DIR_CMD:
-            return v.endswith(b'\x04')
+            return v.endswith(b'\x04') or v.endswith(b'\x04\n\r')
         if tag == SENSOR_READINGS_CMD:
             return len(v) == 32 + 6 or len(v) == 40 + 6
