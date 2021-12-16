@@ -159,6 +159,8 @@ class LoggerControllerCC26X2R(LoggerController):
             dos = dos[-2:] + dos[:2]
             dop = dop[-2:] + dop[:2]
             dot = dot[-2:] + dot[:2]
+            if dos == 'CCD0' or dop == 'CCD0' or dot == 'CCD0':
+                print('error: check DO sensor connection')
         return dos, dop, dot
 
     def ble_cmd_log(self) -> str:
