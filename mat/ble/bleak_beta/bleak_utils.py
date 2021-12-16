@@ -18,7 +18,3 @@ def ble_scan_bleak() -> dict:
     loop = asyncio.get_event_loop()
     a = loop.run_until_complete(run())
     return a
-
-
-if __name__ == '__main__':
-    print(ble_scan_bleak())
