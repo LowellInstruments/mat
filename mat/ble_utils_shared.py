@@ -5,18 +5,22 @@ from mat.data_converter import default_parameters, DataConverter
 
 
 def check_bluez_version():
-    # cannot check bluez on non-linux platforms
     if not platform.system() in ('Linux', 'linux'):
         return True
 
-    # old bluez give 'write not permitted' errors
-    # when working with RN4020 loggers
+    # RN4020 loggers gave 'write not permitted' errors
     s = 'bluetoothctl -v'
-    rv = sp.run(s, shell=True, stdout=sp.PIPE)
-    v = rv.stdout.decode()
+    v = sp.run(s, shell=True, stdout=sp.PIPE)
+    v = v.stdout.decode()
     v = v.replace('bluetoothctl: ', '')
     v = v.replace('\n', '')
-    return version.parse(v) >= version.parse('5.61')
+    # -------------------------------
+    # error -> 5.47, 5.50, 5.56, 5.58
+    # maybe -> 5.51
+    # works -> 5.61
+    # -------------------------------
+    a = version.parse(v) == version.parse('5.61')
+    assert a, 'careful with bleak & bluez versions!'
 
 
 def crc16(data):

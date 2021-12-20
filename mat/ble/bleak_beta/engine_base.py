@@ -1,10 +1,12 @@
 import asyncio
 import time
-
 from bleak import BleakClient, BleakError
 from mat.ble.bleak_beta.engine_base_utils import EngineException, engine_parse_cmd_bye, engine_parse_cmd_disconnect, engine_parse_cmd_scan, engine_parse_cmd_connect
 import mat.ble.bleak_beta.engine_base_utils as be
 import mat.ble_utils_shared as bs
+
+
+MAX_MTU_SIZE = 247
 
 
 async def _nh(_, data):
@@ -20,7 +22,7 @@ async def _parse_command(cmd_tx_cb, ans_rx_cb, cli, q):
 
 
 async def _engine_fxn(q_cmd, q_ans, hooks):
-    assert bs.check_bluez_version()
+    bs.check_bluez_version()
 
     uuid_c = hooks['uuid_c']
     cmd_tx_cb = hooks['cmd_cb']
@@ -53,8 +55,6 @@ async def _engine_fxn(q_cmd, q_ans, hooks):
             mac = be.g_cmd.split()[1]
             cli = BleakClient(mac, timeout=30)
             if await cli.connect():
-                # todo > study this hardcoded
-                MAX_MTU_SIZE = 247
                 cli._mtu_size = MAX_MTU_SIZE
                 await asyncio.sleep(1.1)
                 await cli.start_notify(uuid_c, _nh)
@@ -68,7 +68,6 @@ async def _engine_fxn(q_cmd, q_ans, hooks):
 
 # generic bleak BLE engine
 def engine(q_c, q_a, h, s):
-
     print('running {}...'.format(s), flush=True)
     time.sleep(.5)
 
