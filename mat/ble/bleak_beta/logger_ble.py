@@ -1,10 +1,9 @@
-import datetime
 import json
 import math
 import platform
 import time
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from mat.ble.bleak_beta.engine_base_utils import ENGINE_CMD_BYE, ENGINE_CMD_DISC, ENGINE_CMD_CON, ENGINE_CMD_SCAN, \
     ENGINE_CMD_EXC
 from mat.ble.bluepy.xc_ble_lowell import XS_BLE_EXC_LC
@@ -96,7 +95,7 @@ class LoggerBLE(ABC):
     def ble_cmd_stm(self):
         # time() -> seconds since epoch, in UTC
         # src: www.tutorialspoint.com/python/time_time.htm
-        dt = datetime.fromtimestamp(time.time(), tz=datetime.timezone.utc)
+        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
         fmt = '%Y/%m/%d %H:%M:%S'
         s = dt.strftime(fmt)
         c = self._cmd_build(SET_TIME_CMD, s)
