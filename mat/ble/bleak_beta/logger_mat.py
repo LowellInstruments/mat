@@ -11,7 +11,7 @@ from mat.utils import lowell_file_list_as_dict
 class LoggerMAT(LoggerBLE):
 
     def __init__(self):
-        super(LoggerMAT).__init__()
+        super().__init__()
         self.q1 = queue.Queue()
         self.q2 = queue.Queue()
         self.th = threading.Thread(target=engine_mat, args=(self.q1, self.q2,))

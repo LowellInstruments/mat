@@ -1,6 +1,7 @@
 name: mat_dev
 
 # this is under construction but we want to keep it to minimum
+# conda env create --file=env_conda_mat_dev.yml
 
 dependencies:
   - python=3.8
@@ -11,6 +12,7 @@ dependencies:
   - pip
   - pip:
     - git+https://github.com/LowellInstruments/bluepy.git
+    # bleak may require exactly bluez==5.6.1 on Linux
     - bleak==0.12.1
     - getmac==0.8.2
     - pika==1.2.0

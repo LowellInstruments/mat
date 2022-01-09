@@ -53,7 +53,7 @@ async def _engine_fxn(q_cmd, q_ans, hooks):
 
         if engine_parse_cmd_connect(be.g_cmd):
             mac = be.g_cmd.split()[1]
-            cli = BleakClient(mac, timeout=30)
+            cli = BleakClient(mac)
             if await cli.connect():
                 cli._mtu_size = MAX_MTU_SIZE
                 await asyncio.sleep(1.1)
