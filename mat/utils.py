@@ -187,6 +187,8 @@ def lowell_file_list_as_dict(ls, ext, match=True):
             b'..',
         )
 
+        if type(ext) is str:
+            ext = ext.encode()
         # wild-card case
         if ext == b'*' and name not in names_to_omit:
             files[name.decode()] = int(ls[idx + 1])

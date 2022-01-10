@@ -460,6 +460,8 @@ class LoggerControllerCC26X2R(LoggerController):
             return v == b'FRM 00'
         if tag == CONFIG_CMD:
             return v == b'CFG 00'
+        if tag == DEL_FILE_CMD:
+            return v == b'DEL 00'
         if tag == DO_SENSOR_READINGS_CMD:
             return v.startswith(te) and n == 18
         # todo > test this one

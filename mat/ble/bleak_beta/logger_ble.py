@@ -86,7 +86,7 @@ class LoggerBLE(ABC):
     def ble_cmd_dir(self):
         c = self._cmd_build(DIR_CMD)
         b = self._cmd(c)
-        return lowell_file_list_as_dict(b)
+        return lowell_file_list_as_dict(b, '*')
 
     def ble_cmd_dwg(self, s):
         c = self._cmd_build(DWG_FILE_CMD, s)

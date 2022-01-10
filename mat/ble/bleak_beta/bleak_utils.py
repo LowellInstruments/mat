@@ -1,6 +1,8 @@
 import asyncio
 from bleak import BleakScanner
 
+from mat.ble.bleak_beta.logger_mat import LoggerMAT
+
 
 async def run():
     scanner = BleakScanner()

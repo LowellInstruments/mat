@@ -1,6 +1,8 @@
 import subprocess as sp
 from packaging import version
 import platform
+
+from mat.ble.bluepy.rn4020_utils import utils_logger_is_rn4020
 from mat.data_converter import default_parameters, DataConverter
 
 
@@ -59,5 +61,4 @@ def utils_mat_convert_data(data, path, size):
     except Exception as ex:
         print(ex)
         return False
-
 
