@@ -88,7 +88,7 @@ class LoggerControllerMoana:
         }
 
         # long timeout
-        till = time.perf_counter() + 5
+        till = time.perf_counter() + 10
         while 1:
 
             # absolute timeout
@@ -129,11 +129,15 @@ class LoggerControllerMoana:
         self._wait_answer('ArchiveBit')
         # a: b'*004dF\x00{"FileName":"x.csv","FileSizeEstimate":907,"ArchiveBit":"+"}'
         a = self.dlg.buf.decode()
+
         try:
-            j = json.loads(a[a.index('{'):])
-            self.sn = j['FileName'].split('_')[1]
-            return j
-        except (JSONDecodeError, ValueError):
+            i_colon = a.index(':') + 2
+            i_comma = a.index(',') - 1
+            file_name = a[i_colon:i_comma]
+            self.sn = file_name.split('_')[1]
+            return file_name
+
+        except (AttributeError, ValueError):
             # moana sometimes fails here
             return
 
