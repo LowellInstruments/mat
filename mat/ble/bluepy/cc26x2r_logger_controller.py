@@ -173,14 +173,11 @@ class LoggerControllerCC26X2R(LoggerController):
         _ = {b'WAK 0201': 'on', b'WAK 0200': 'off'}
         return _.get(a, 'error')
 
-    def ble_cmd_slw(self) -> str:
-        a = self._ble_cmd(SLOW_DWL_CMD)
-        _ = {b'SLW 0201': 'on', b'SLW 0200': 'off'}
-        return _.get(a, 'error')
-
     def ble_cmd_mbl(self) -> str:
         a = self._ble_cmd(MOBILE_CMD)
-        _ = {b'MBL 0201': 'on', b'MBL 0200': 'off'}
+        _ = {b'MBL 0201': 'on_1',
+             b'MBL 0202': 'on_2',
+             b'MBL 0200': 'off'}
         return _.get(a, 'error')
 
     def ble_cmd_led(self) -> bool:
@@ -402,14 +399,14 @@ class LoggerControllerCC26X2R(LoggerController):
         self.per.waitForNotifications(5)
         return self.dlg.buf == b'DWG 00'
 
-    def ble_cmd_slw_ensure(self, v: str) -> bool:
-        assert v.lower() in ('on', 'off')
-        rv = self.ble_cmd_slw()
-        if rv == v:
-            return True
-        rv = self.ble_cmd_slw()
-        if rv == v:
-            return True
+    def ble_cmd_mbl_ensure(self, v: str) -> bool:
+        assert v in '012'
+        for i in range(3):
+            rv = self.ble_cmd_mbl()
+            if v in '12' and v in ('on_1', 'on_2'):
+                return True
+            if v == '0' and rv == 'off':
+                return True
         return False
 
     def ble_cmd_wak_ensure(self, v: str) -> bool:
@@ -450,7 +447,7 @@ class LoggerControllerCC26X2R(LoggerController):
             return v.startswith(te) and n == 10
         if tag == TIME_CMD:
             return v.startswith(te) and n == 25
-        if tag in SLOW_DWL_CMD:
+        if tag in MOBILE_CMD:
             return v.startswith(te) and n == 8
         if tag in WAKE_CMD:
             return v.startswith(te) and n == 8
