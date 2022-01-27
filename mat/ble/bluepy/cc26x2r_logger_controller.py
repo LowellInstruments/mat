@@ -121,9 +121,9 @@ class LoggerControllerCC26X2R(LoggerController):
     def ble_cmd_bat(self) -> int:
         a = self._ble_cmd(BAT_CMD)
         if a and len(a.split()) == 2:
-            # a: b'BAT 044E08'
+            # a: b'BAT 04CDBA'
             _ = a.split()[1].decode()
-            b = _[-2:] + _[:2]
+            b = _[-2:] + _[-4:-2]
             return int(b, 16)
         return 0
 
@@ -162,6 +162,17 @@ class LoggerControllerCC26X2R(LoggerController):
             if dos == 'CCD0' or dop == 'CCD0' or dot == 'CCD0':
                 print('error: check DO sensor connection')
         return dos, dop, dot
+
+    def ble_cmd_gsr(self) -> int:
+        a = self._ble_cmd(SENSOR_READINGS_CMD)
+        tmp, prs, bat = '', '', ''
+        if a and len(a.split()) == 2:
+            # a: b'GSR 28...'
+            _ = a.split()[1].decode()
+            tmp = _[2+0:2+4]
+            prs = _[2+4:2+8]
+            bat = _[2+28:2+32]
+        return tmp, prs, bat
 
     def ble_cmd_log(self) -> str:
         a = self._ble_cmd(LOG_EN_CMD)
