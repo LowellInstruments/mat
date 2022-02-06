@@ -3,6 +3,10 @@ name: mat_dev
 # this is under construction but we want to keep it to minimum
 # conda env create --file=env_conda_mat_dev.yml
 
+# ------------------------------------------------------
+# todo: do these version as similar as possible to DDH
+# ------------------------------------------------------
+
 dependencies:
   - python=3.8
   - pytest=6.2.3=py38h06a4308_2
