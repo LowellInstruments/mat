@@ -62,7 +62,7 @@ def _gps_parse_rmc_frame(data: str):
         return None
 
     # everything went ok
-    return lat, lon, gps_time
+    return lat, lon, gps_time, speed
 
 
 # def gps_configure_quectel() -> int:
@@ -145,7 +145,7 @@ def gps_get_rmc_data(timeout=2):
             if b'$GPRMC' in data:
                 rv = _gps_parse_rmc_frame(data.decode())
                 if rv:
-                    # None / (lat, lon, gps_time)
+                    # None / (lat, lon, gps_time, speed)
                     return rv
     except SerialException as se:
         rv = None
