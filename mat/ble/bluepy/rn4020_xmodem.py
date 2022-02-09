@@ -40,7 +40,7 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
 
         _bef = time.perf_counter()
         # wait for one second as maximum
-        if not lc.per.waitForNotifications(1):
+        if not lc.per.waitForNotifications(3):
             # timeout control byte
             _debug('-> timeout rx control byte', verbose)
             _nak(lc)
@@ -72,17 +72,29 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
             continue
 
         # rx rest of frame
-        _now = time.perf_counter()
-        _rem = 1 - (_now - _bef)
-        _till = _now + _rem
+        # _now = time.perf_counter()
+        # _rem = 1 - (_now - _bef)
+        # _till = _now + _rem
+        # timeout = False
+        # while 1:
+        #     lc.per.waitForNotifications(0.1)
+        #     if time.perf_counter() > _till:
+        #         timeout = True
+        #         break
+        #     if len(lc.dlg.buf) == _len:
+        #         break
+
+        # rx rest of frame
+        _till = time.perf_counter() + 1
         timeout = False
         while 1:
-            lc.per.waitForNotifications(0.1)
+            lc.per.waitForNotifications(0.01)
             if time.perf_counter() > _till:
                 timeout = True
                 break
-            if len(lc.dlg.buf) == _len:
+            if len(lc.dlg.buf) >= _len:
                 break
+
         if timeout:
             # timeout rest of frame
             _rt += 1
