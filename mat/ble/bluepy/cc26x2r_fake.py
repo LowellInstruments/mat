@@ -1,8 +1,7 @@
+import datetime
 import time
-
 from mat.ble.bluepy.cc26x2r_logger_controller import LoggerControllerCC26X2R
 from mat.ble.bluepy.cc26x2r_utils import build_command, MTU_SIZE
-from mat.logger_controller import STATUS_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, DWL_CMD
 from mat.utils import is_valid_mac_address
 
@@ -38,56 +37,27 @@ class CC26X2RFake(LoggerControllerCC26X2R):
         assert tag not in (DWG_FILE_CMD, DWL_CMD)
         if tag == 'STS':
             return b'STS 0201'
+        elif tag == 'GTM':
+            a = datetime.datetime.now()
+            a = a.strftime('%Y/%m/%d %H:%M:%S')
+            return b'GTM 13' + a.encode()
+        elif tag == 'GFV':
+            return b'GFV 061.2.45'
+        elif tag == 'BAT':
+            return b'BAT 041209'
+        elif tag == 'UTM':
+            return b'UTM 0812345678'
 
     def command(self, *args) -> bytes:
         return self._ble_cmd(*args)
 
-    # --------------------
-    # Lowell API commands
-    # --------------------
+    # ------------------------------------------------
+    # Lowell API commands different from real cc26x2r
+    # ------------------------------------------------
 
     def ble_get_mtu(self) -> int:
         return MTU_SIZE
 
-#     def ble_cmd_gtm(self) -> datetime:
-#         # remember -> logger's time is UTC
-#         rv = self._ble_cmd(TIME_CMD)
-#         if len(rv) == 25:
-#             # rv: b'GTM 132000/01/01 01:44:49'
-#             rv = rv.decode()[6:]
-#             dt = datetime.strptime(rv, '%Y/%m/%d %H:%M:%S')
-#             return dt
-
-    def ble_cmd_sts(self) -> str:
-        a = self._ble_cmd(STATUS_CMD)
-        _ = {
-            '0200': 'running',
-            '0201': 'stopped',
-            '0203': 'delayed',
-            # depending on version 'delayed' has 2
-            '0202': 'delayed',
-            '0209': 'matcfg_error'
-        }
-        # a: b'STS 0201'
-        if a and len(a.split()) == 2:
-            return _[a.split()[1].decode()]
-        return 'error'
-
-#     def ble_cmd_gfv(self) -> str:
-#         a = self._ble_cmd(FIRMWARE_VERSION_CMD)
-#         if a and len(a.split()) == 2:
-#             return a.split()[1].decode()[2:]
-#         return 'error'
-#
-#     def ble_cmd_bat(self) -> int:
-#         a = self._ble_cmd(BAT_CMD)
-#         if a and len(a.split()) == 2:
-#             # a: b'BAT 04CDBA'
-#             _ = a.split()[1].decode()
-#             b = _[-2:] + _[-4:-2]
-#             return int(b, 16)
-#         return 0
-#
 #     def ble_cmd_utm(self) -> int:
 #         a = self._ble_cmd(UP_TIME_CMD)
 #         if a and len(a.split()) == 2:
@@ -391,58 +361,16 @@ class CC26X2RFake(LoggerControllerCC26X2R):
 #             return True
 #         return False
 #
-#     def _answer_complete(self, tag):
-#         v = self.dlg.buf
-#         if not v:
-#             return
-#         n = len(v)
-#         te = tag.encode()
-#
-#         if v == b'ERR':
-#             return True
-#
-#         if tag == RUN_CMD:
-#             return v == b'RUN 00'
-#         if tag == STOP_CMD:
-#             return v == b'STP 00'
-#         if tag == RWS_CMD:
-#             return v == b'RWS 00'
-#         if tag == SWS_CMD:
-#             return v == b'SWS 00'
-#         if tag == SET_TIME_CMD:
-#             return v == b'STM 00'
-#         if tag == LOGGER_INFO_CMD_W:
-#             return v == b'WLI 00'
-#         if tag == STATUS_CMD:
-#             return v.startswith(te) and n == 8
-#         if tag == BAT_CMD:
-#             return v.startswith(te) and n == 10
-#         if tag == TIME_CMD:
-#             return v.startswith(te) and n == 25
-#         if tag in MOBILE_CMD:
-#             return v.startswith(te) and n == 8
-#         if tag in WAKE_CMD:
-#             return v.startswith(te) and n == 8
-#         if tag == CRC_CMD:
-#             return v.startswith(te) and n == 14
-#         if tag == FORMAT_CMD:
-#             return v == b'FRM 00'
-#         if tag == CONFIG_CMD:
-#             return v == b'CFG 00'
-#         if tag == DEL_FILE_CMD:
-#             return v == b'DEL 00'
-#         if tag == DO_SENSOR_READINGS_CMD:
-#             return v.startswith(te) and n == 18
-#         # todo > test this one
-#         if tag == DIR_CMD:
-#             return v.endswith(b'\x04') or v.endswith(b'\x04\n\r')
-#         if tag == SENSOR_READINGS_CMD:
-#             return len(v) == 32 + 6 or len(v) == 40 + 6
 
 
 if __name__ == '__main__':
     mac = '11:22:33:44:55:66'
     lc = CC26X2RFake(mac)
     lc.open()
-    a = lc.ble_cmd_sts()
-    print(a)
+    # rv = lc.ble_cmd_sts()
+    # rv = lc.ble_cmd_gtm()
+    # rv = lc.ble_cmd_gfv()
+    rv = lc.ble_cmd_bat()
+    # rv = lc.ble_cmd_utm()
+
+    print(rv)
