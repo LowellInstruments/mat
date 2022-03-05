@@ -1,15 +1,12 @@
 import datetime
-import json
 import pathlib
 from datetime import timezone
 import os
 import struct
 import time
 from inspect import stack
-from json import JSONDecodeError
 import bluepy
 from bluepy import btle
-from bluepy.btle import BTLEDisconnectError
 
 
 def utils_logger_is_moana(mac, info):
@@ -142,6 +139,7 @@ class LoggerControllerMoana:
 
         except (AttributeError, ValueError):
             # moana sometimes fails here
+            pass
 
     def file_info_get_size(self):
         self._clear_buffers()
