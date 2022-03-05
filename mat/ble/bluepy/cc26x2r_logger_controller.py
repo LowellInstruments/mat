@@ -105,7 +105,8 @@ class LoggerControllerCC26X2R(LoggerController):
             '0203': 'delayed',
             # depending on version 'delayed' has 2
             '0202': 'delayed',
-            '0209': 'matcfg_error'
+            '0209': 'matcfg_error',
+            '0205': 'sdcard_error'
         }
         # a: b'STS 0201'
         if a and len(a.split()) == 2:

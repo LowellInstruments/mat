@@ -118,10 +118,13 @@ class LoggerControllerMoana:
         return self.dlg.buf
 
     def auth(self) -> bool:
-        self._clear_buffers()
-        self._ble_tx(b'*EA123')
-        self._wait_answer()
-        return self.dlg.buf == b'*Xa{"Authenticated":true}'
+        for i in range(3):
+            self._clear_buffers()
+            self._ble_tx(b'*EA123')
+            self._wait_answer()
+            if self.dlg.buf == b'*Xa{"Authenticated":true}':
+                return True
+            time.sleep(2)
 
     def file_info(self):
         self._clear_buffers()

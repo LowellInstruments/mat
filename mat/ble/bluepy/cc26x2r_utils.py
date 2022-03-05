@@ -27,6 +27,8 @@ def calculate_answer_timeout(tag):
     t = 10
     if tag == MY_TOOL_SET_CMD:
         t = 30
+    if tag == TEST_CMD:
+        t = 2
     return time.perf_counter() + t
 
 
