@@ -139,7 +139,21 @@ class LoggerControllerMoana:
 
         except (AttributeError, ValueError):
             # moana sometimes fails here
-            return
+
+    def file_info_get_size(self):
+        self._clear_buffers()
+        self._ble_tx(b'*BF')
+        self._wait_answer('ArchiveBit')
+        # a: b'*004dF\x00{"FileName":"x.csv","FileSizeEstimate":907,"ArchiveBit":"+"}'
+        a = self.dlg.buf.decode()
+
+        try:
+            size = int(a[a.index("FileSizeEstimate") + 18:a.index("ArchiveBit") + -2])
+            return int(size)
+
+        except (AttributeError, ValueError):
+            # moana sometimes fails here
+            pass
 
     def file_get(self):
         # simply accumulate for a while
