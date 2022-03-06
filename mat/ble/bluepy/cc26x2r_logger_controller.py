@@ -26,7 +26,12 @@ class LoggerControllerCC26X2R(LoggerController):
         self.what = what
 
     def open(self) -> bool:
-        return connect_cc26x2r(self)
+        for i in range(3):
+            rv = connect_cc26x2r(self)
+            if rv:
+                return True
+            time.sleep(3)
+        return False
 
     def close(self) -> bool:
         rv = False
