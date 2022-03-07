@@ -474,6 +474,8 @@ class LoggerControllerCC26X2R(LoggerController):
             return v == b'FRM 00'
         if tag == CONFIG_CMD:
             return v == b'CFG 00'
+        if tag == MY_TOOL_SET_CMD:
+            return v == b'MTS 00'
         if tag == DEL_FILE_CMD:
             return v == b'DEL 00'
         if tag == DO_SENSOR_READINGS_CMD:
