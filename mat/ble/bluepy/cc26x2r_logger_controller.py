@@ -131,7 +131,6 @@ class LoggerControllerCC26X2R(LoggerController):
             _ = a.split()[1].decode()
             b = _[-2:] + _[-4:-2]
             return int(b, 16)
-        return 0
 
     def ble_cmd_utm(self) -> int:
         a = self._ble_cmd(UP_TIME_CMD)
