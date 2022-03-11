@@ -162,6 +162,8 @@ class LoggerControllerCC26X2R(LoggerController):
             dos = dos[-2:] + dos[:2]
             dop = dop[-2:] + dop[:2]
             dot = dot[-2:] + dot[:2]
+            if dos == '0000' and dop == '0000' and dot == '0000':
+                return 'e', 'e', 'e'
             if dos.isnumeric():
                 return dos, dop, dot
         return 'e', 'e', 'e'
