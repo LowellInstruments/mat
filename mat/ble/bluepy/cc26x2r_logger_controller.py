@@ -163,9 +163,14 @@ class LoggerControllerCC26X2R(LoggerController):
             dop = dop[-2:] + dop[:2]
             dot = dot[-2:] + dot[:2]
             if dos == '0000' and dop == '0000' and dot == '0000':
-                return 'e', 'e', 'e'
+                # zeros
+                return 'z', 'z', 'z'
             if dos.isnumeric():
+                # good one
                 return dos, dop, dot
+            # unexpected
+            return 'u', 'u', 'u'
+        # error
         return 'e', 'e', 'e'
 
     def ble_cmd_gsr(self) -> int:
