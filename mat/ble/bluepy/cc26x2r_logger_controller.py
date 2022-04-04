@@ -492,7 +492,6 @@ class LoggerControllerCC26X2R(LoggerController):
             return v == b'DEL 00'
         if tag == DO_SENSOR_READINGS_CMD:
             return v.startswith(te) and n == 18
-        # todo > test this one
         if tag == DIR_CMD:
             return v.endswith(b'\x04') or v.endswith(b'\x04\n\r')
         if tag == SENSOR_READINGS_CMD:

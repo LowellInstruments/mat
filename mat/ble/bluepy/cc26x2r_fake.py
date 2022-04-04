@@ -162,7 +162,6 @@ class CC26X2RFake(LoggerControllerCC26X2R):
 #         return a == b'FRM 00'
 #
 #     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
-#         # todo > check why sometimes no \x04
 #         f_l = self._ble_cmd(DIR_CMD)
 #         # removes DIR bad trailing sometimes
 #         self.per.waitForNotifications(.1)
