@@ -81,7 +81,8 @@ class LoggerControllerMoana:
             'auth': b'*Xa{"Authenticated":true}',
             'time_sync': a.encode(),
             'file_info': a.encode(),
-            'file_clear': b'*Vc{"ArchiveBit":false}'
+            'file_clear': b'*Vc{"ArchiveBit":false}',
+            'file_info_get_size': a.encode()
         }
 
         # long timeout

@@ -2,20 +2,22 @@ import json
 import os
 import boto3
 import botocore
+from botocore.config import Config
 
 
-def get_aws_client():
-    _k_ = os.getenv('DDH_AWS_KEY_ID')
-    _s_ = os.getenv('DDH_AWS_SECRET')
-
+def get_aws_sns_client():
+    _k = os.getenv('DDH_AWS_KEY_ID')
+    _s = os.getenv('DDH_AWS_SECRET')
+    _cnf = Config(connect_timeout=5, retries={'max_attempts': 0})
     return boto3.client('sns',
-                        aws_access_key_id=_k_,
-                        aws_secret_access_key=_s_,
-                        region_name='us-east-1')
+                        aws_access_key_id=_k,
+                        aws_secret_access_key=_s,
+                        region_name='us-east-1',
+                        config=_cnf)
 
 
 def get_list_of_topics():
-    cli = get_aws_client()
+    cli = get_aws_sns_client()
     try:
         list_of_topics = cli.list_topics()
         for each in list_of_topics['Topics']:
@@ -26,7 +28,7 @@ def get_list_of_topics():
 
 
 def get_list_of_subscription_of_one_topic(s: str):
-    cli = get_aws_client()
+    cli = get_aws_sns_client()
     try:
         list_of_subs = cli.list_subscriptions_by_topic(TopicArn=s)
         for each in list_of_subs['Subscriptions']:
@@ -42,7 +44,7 @@ def get_list_of_subscription_of_one_topic(s: str):
 
 
 def publish_example(topic_arn):
-    cli = get_aws_client()
+    cli = get_aws_sns_client()
     try:
         msg_not_email_or_sms = {"foo": "bar"}
         response = cli.publish(

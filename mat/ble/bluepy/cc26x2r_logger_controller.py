@@ -417,10 +417,11 @@ class LoggerControllerCC26X2R(LoggerController):
         assert v in '012'
         for i in range(3):
             rv = self.ble_cmd_mbl()
-            if v in '12' and v in ('on_1', 'on_2'):
+            if v in '12' and rv in ('on_1', 'on_2'):
                 return True
             if v == '0' and rv == 'off':
                 return True
+            time.sleep(1)
         return False
 
     def ble_cmd_wak_ensure(self, v: str) -> bool:
@@ -432,6 +433,18 @@ class LoggerControllerCC26X2R(LoggerController):
         if rv == v:
             return True
         return False
+
+    def ble_cmd_bsy(self) -> str:
+        a = self._ble_cmd(BUSY_CMD)
+        _ = {
+            '0200': 'not_busy',
+            '0201': 'busy',
+        }
+
+        # a: b'BSY 0201'
+        if a and len(a.split()) == 2:
+            return _[a.split()[1].decode()]
+        return 'error'
 
     def _answer_complete(self, tag):
         v = self.dlg.buf
@@ -456,6 +469,8 @@ class LoggerControllerCC26X2R(LoggerController):
         if tag == LOGGER_INFO_CMD_W:
             return v == b'WLI 00'
         if tag == STATUS_CMD:
+            return v.startswith(te) and n == 8
+        if tag == BUSY_CMD:
             return v.startswith(te) and n == 8
         if tag == BAT_CMD:
             return v.startswith(te) and n == 10
