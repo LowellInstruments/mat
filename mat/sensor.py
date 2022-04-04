@@ -137,9 +137,9 @@ class Sensor:
     def _average_bursts(self, data, time):
         if self.burst_count == 1:
             return data, time
-        data = np.mean(np.reshape(data, (self.channels,
-                                         -1,
-                                         self.burst_count)), axis=2)
+        data = np.nanmean(
+            np.reshape(data, (self.channels, -1, self.burst_count)),
+            axis=2)
         time = time[::self.burst_count]
         return data, time
 
@@ -154,11 +154,23 @@ class Sensor:
             return self.cache['data']
         raw_data, time = self._parse_page(data_page)
         data = self.converter.convert(raw_data)
+        data = self._check_range(data)
         if average:
             data, time = self._average_bursts(data, time)
         time += page_time
         self.cache = {'page_time': page_time, 'data': (data, time)}
         return self.cache['data']
+
+    def _check_range(self, data):
+        valid_range = self.sensor_spec.valid_range
+        not_valid = np.logical_or(data < valid_range[0], data > valid_range[1])
+        data[not_valid] = np.nan
+        if np.any(not_valid) and self.sensor_spec.channels > 1:
+            # in multi channel sensors, delete the other samples in the other
+            # channels when a bad sample is encountered
+            bad_cols = np.unique(np.where(not_valid)[1])
+            data[:, bad_cols] = np.nan
+        return data
 
 
 class TempDependantSensor(Sensor):
