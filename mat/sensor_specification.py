@@ -9,6 +9,7 @@ from mat.light import Light
 from mat.pressure import Pressure
 from mat.temperature import Temperature
 from mat.binary_coded_decimal import BinaryCodedDecimal
+from mat.water_detect import WaterDetect
 
 
 SensorSpec = namedtuple('SensorSpec', [
@@ -16,6 +17,7 @@ SensorSpec = namedtuple('SensorSpec', [
     'enabled_tag',
     'order',
     'channels',
+    'valid_range',
     'interval_tag',
     'burst_rate_tag',
     'burst_count_tag',
@@ -31,6 +33,7 @@ AVAILABLE_SENSORS = [
                enabled_tag='TMP',
                order=1,
                channels=1,
+               valid_range=[-100, 100],
                interval_tag='TRI',
                burst_rate_tag=None,
                burst_count_tag=None,
@@ -44,6 +47,7 @@ AVAILABLE_SENSORS = [
                enabled_tag='PRS',
                order=2,
                channels=1,
+               valid_range=[-float('inf'), float('inf')],
                interval_tag='TRI',
                burst_rate_tag='PRR',
                burst_count_tag='PRN',
@@ -57,6 +61,7 @@ AVAILABLE_SENSORS = [
                enabled_tag='PHD',
                order=3,
                channels=1,
+               valid_range=[-float('inf'), float('inf')],
                interval_tag='TRI',
                burst_rate_tag=None,
                burst_count_tag=None,
@@ -70,6 +75,7 @@ AVAILABLE_SENSORS = [
                enabled_tag='ACL',
                order=4,
                channels=3,
+               valid_range=[-4, 4],
                interval_tag='ORI',
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
@@ -83,6 +89,7 @@ AVAILABLE_SENSORS = [
                enabled_tag='MGN',
                order=5,
                channels=3,
+               valid_range=[-float('inf'), float('inf')],
                interval_tag='ORI',
                burst_rate_tag='BMR',
                burst_count_tag='BMN',
@@ -96,7 +103,8 @@ AVAILABLE_SENSORS = [
                enabled_tag='DOS',
                order=6,
                channels=1,
-               interval_tag='ORI',
+               valid_range=[-float('inf'), float('inf')],
+               interval_tag='DRI',
                burst_rate_tag=None,
                burst_count_tag=None,
                data_type='int16',
@@ -109,7 +117,8 @@ AVAILABLE_SENSORS = [
                enabled_tag='DOP',
                order=7,
                channels=1,
-               interval_tag='ORI',
+               valid_range=[-float('inf'), float('inf')],
+               interval_tag='DRI',
                burst_rate_tag=None,
                burst_count_tag=None,
                data_type='int16',
@@ -122,7 +131,8 @@ AVAILABLE_SENSORS = [
                enabled_tag='DOT',
                order=8,
                channels=1,
-               interval_tag='ORI',
+               valid_range=[-float('inf'), float('inf')],
+               interval_tag='DRI',
                burst_rate_tag=None,
                burst_count_tag=None,
                data_type='int16',
@@ -130,4 +140,18 @@ AVAILABLE_SENSORS = [
                converter=BinaryCodedDecimal,
                format='{:0.2f}',
                temp_dependant=False),
+
+    SensorSpec(name='WaterDetect',
+               enabled_tag='WAT',
+               order=9,
+               channels=1,
+               valid_range=[0, 100],
+               interval_tag='DRI',
+               burst_rate_tag=None,
+               burst_count_tag=None,
+               data_type='int16',
+               header='Water Detect (%)',
+               converter=WaterDetect,
+               format='{:0.0f}',
+               temp_dependant=False)
 ]
