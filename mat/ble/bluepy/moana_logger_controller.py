@@ -7,6 +7,7 @@ import time
 from inspect import stack
 import bluepy
 from bluepy import btle
+import subprocess as sp
 
 
 def utils_logger_is_moana(mac, info):
@@ -158,11 +159,35 @@ class LoggerControllerMoana:
             pass
 
     def file_get(self):
-        # simply accumulate for a while
-        self._clear_buffers()
-        self._ble_tx(b'*BB')
-        while self.per.waitForNotifications(3):
-            pass
+        # --------------------------------------------
+        # because it works with phones, the size of
+        # Moana BLE notifications is 20 bytes
+        # --------------------------------------------
+        sp.run('rm /home/kaz/Downloads/moana_demo/*', shell=True)
+
+        data = bytes()
+        marker_file_end = b'*0005D\x00'
+
+        while 1:
+            pre = len(self.dlg.buf)
+            self._clear_buffers()
+            self._ble_tx(b'*BB')
+            while self.per.waitForNotifications(3):
+                # accumulate
+                pass
+            post = len(self.dlg.buf)
+
+            # lose header only of intermediate packets
+            data += self.dlg.buf[0:] if not data else self.dlg.buf[7:]
+
+            if self.dlg.buf[-7:] == marker_file_end:
+                # reached file end
+                break
+            if pre == post:
+                # detects timeouts
+                break
+
+        self.dlg.buf = data
         return self.dlg.buf
 
     def file_clear(self):
@@ -255,10 +280,10 @@ class LoggerControllerMoana:
             threshold_meters = 2
             if not submerged and p > threshold_meters:
                 submerged = True
-                print('sub at', dt)
+                # print('sub at', dt)
             elif submerged and p <= threshold_meters:
                 submerged = False
-                print('air at', dt)
+                # print('air at', dt)
 
         ft.close()
         fp.close()

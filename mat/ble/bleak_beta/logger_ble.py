@@ -241,26 +241,6 @@ class LoggerBLE(ABC):
         c = self._cmd_build(CRC_CMD, s)
         return self._cmd(c)
 
-    def ble_cmd_slw(self):
-        c = self._cmd_build(SLOW_DWL_CMD)
-        return self._cmd(c)
-
-    def ble_cmd_ensure_slw_on(self):
-        a = self.ble_cmd_slw()
-        if a.decode()[-1] == '1':
-            return 'OK'
-        a = self.ble_cmd_slw()
-        if a.decode()[-1] == '1':
-            return 'OK'
-
-    def ble_cmd_ensure_slw_off(self):
-        a = self.ble_cmd_slw()
-        if a.decode()[-1] == '0':
-            return 'OK'
-        a = self.ble_cmd_slw()
-        if a.decode()[-1] == '0':
-            return 'OK'
-
     def ble_cmd_mbl(self):
         c = self._cmd_build(MOBILE_CMD)
         return self._cmd(c)

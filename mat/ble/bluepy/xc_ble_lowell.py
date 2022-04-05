@@ -47,7 +47,6 @@ XS_BLE_CMD_RUN = 'xs_ble_cmd_run'
 XS_BLE_CMD_STP = 'xs_ble_cmd_stp'
 XS_BLE_CMD_RWS = 'xs_ble_cmd_rws'
 XS_BLE_CMD_SWS = 'xs_ble_cmd_sws'
-XS_BLE_CMD_SLW = 'xs_ble_cmd_slw'
 XS_BLE_CMD_CFG = 'xs_ble_cmd_cfg'
 
 

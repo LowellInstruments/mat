@@ -46,8 +46,6 @@ def is_answer_done(cmd, ans):
         done = True
     if tan == tag == TIME_CMD and len(ans) == 25:
         done = True
-    if tan == tag == SLOW_DWL_CMD and len(ans) == 8:
-        done = True
     if tan == tag == FORMAT_CMD and len(ans) == 6:
         done = True
     if tan == tag == MY_TOOL_SET_CMD and len(ans) == 6:

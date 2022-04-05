@@ -151,9 +151,6 @@ async def cmd_tx(_, s):
             return
         ebu.g_ans = b'DWG 00'
 
-    if tag == SLOW_DWL_CMD:
-        ebu.g_ans = b'SLW 0201'
-
     if tag == DWL_CMD:
         if _is_it_running(g_db):
             ebu.g_ans = b'ERR'
