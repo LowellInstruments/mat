@@ -225,7 +225,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return a == b'TST 00'
 
     def ble_cmd_mts(self) -> bool:
-        a = self._ble_cmd(MY_TOOL_SET_CMD, 'SN')
+        a = self._ble_cmd(MY_TOOL_SET_CMD)
         return a == b'MTS 00'
 
     def ble_cmd_frm(self) -> bool:

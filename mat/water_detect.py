@@ -2,8 +2,8 @@ MAX_INT16 = 65535
 
 
 class WaterDetect:
-    def __init__(self):
+    def __init__(self, hs=None):
         pass
 
     def convert(self, raw_value):
-        return round((raw_value/MAX_INT16)*100)
+        return ((raw_value/MAX_INT16)*100).round()
