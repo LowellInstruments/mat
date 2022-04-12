@@ -222,6 +222,7 @@ class LoggerControllerCC26X2R(LoggerController):
 
     def ble_cmd_tst(self) -> bool:
         a = self._ble_cmd(TEST_CMD)
+        print(a)
         return a == b'TST 00'
 
     def ble_cmd_mts(self) -> bool:
@@ -446,6 +447,12 @@ class LoggerControllerCC26X2R(LoggerController):
             return _[a.split()[1].decode()]
         return 'error'
 
+    def ble_cmd_con(self) -> str:
+        a = self._ble_cmd(CONN_PAR_UPDATE_CMD)
+        if a:
+            return a.decode()
+        return 'error'
+
     def _answer_complete(self, tag):
         v = self.dlg.buf
         if not v:
@@ -480,6 +487,8 @@ class LoggerControllerCC26X2R(LoggerController):
             return v.startswith(te) and n == 8
         if tag in WAKE_CMD:
             return v.startswith(te) and n == 8
+        if tag in CONN_PAR_UPDATE_CMD:
+            return v in (b'CO0', b'CO1', b'CO2')
         if tag == CRC_CMD:
             return v.startswith(te) and n == 14
         if tag == FORMAT_CMD:
