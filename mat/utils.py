@@ -103,6 +103,22 @@ class PrintColors:
     def G(s):
         print(PrintColors.OKGREEN + s + PrintColors.ENDC)
 
+    @staticmethod
+    def B(s):
+        print(PrintColors.OKBLUE + s + PrintColors.ENDC)
+
+    @staticmethod
+    def Y(s):
+        print(PrintColors.WARNING + s + PrintColors.ENDC)
+
+    @staticmethod
+    def R(s):
+        print(PrintColors.FAIL + s + PrintColors.ENDC)
+
+    @staticmethod
+    def N(s):
+        print(s)
+
 
 def linux_check_ngrok_can_be_run():
     rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
