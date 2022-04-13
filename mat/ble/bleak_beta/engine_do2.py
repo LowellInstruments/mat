@@ -69,8 +69,6 @@ def is_answer_done(cmd, ans):
         done = True
     if tan == tag == LOG_EN_CMD and len(ans) == 8:
         done = True
-    if tan == tag == MOBILE_CMD and len(ans) == 8:
-        done = True
     if tan == tag == SIZ_CMD:
         done = True
     if tan == tag == WAKE_CMD and len(ans) == 8:

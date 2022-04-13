@@ -241,10 +241,6 @@ class LoggerBLE(ABC):
         c = self._cmd_build(CRC_CMD, s)
         return self._cmd(c)
 
-    def ble_cmd_mbl(self):
-        c = self._cmd_build(MOBILE_CMD)
-        return self._cmd(c)
-
     def ble_cmd_siz(self, s):
         c = self._cmd_build(SIZ_CMD, s)
         return self._cmd(c)

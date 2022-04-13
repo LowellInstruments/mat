@@ -77,7 +77,6 @@ class BLEXmlRpcServer:
     def xs_ble_cmd_stm(self): return self.lc.ble_cmd_stm()
     def xs_ble_cmd_wak(self): return self.lc.ble_cmd_wak()
     def xs_ble_cmd_log(self): return self.lc.ble_cmd_log()
-    def xs_ble_cmd_mbl(self): return self.lc.ble_cmd_mbl()
     def xs_ble_cmd_led(self): return self.lc.ble_cmd_led()
     def xs_ble_cmd_ebr(self): return self.lc.ble_cmd_ebr()
     def xs_ble_cmd_cfs(self): return self.lc.ble_cmd_cfs()

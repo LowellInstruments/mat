@@ -262,9 +262,6 @@ async def cmd_tx(_, s):
     if tag == LOG_EN_CMD:
         ebu.g_ans = b'LOG 0201'
 
-    if tag == MOBILE_CMD:
-        ebu.g_ans = b'MBL 0201'
-
     if tag == SIZ_CMD:
         if _is_it_running(g_db):
             ebu.g_ans = b'ERR'
