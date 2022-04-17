@@ -29,6 +29,7 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(3):
             rv = connect_cc26x2r(self)
             if rv:
+                time.sleep(.1)
                 return True
             time.sleep(3)
         return False
@@ -457,10 +458,16 @@ class LoggerControllerCC26X2R(LoggerController):
             return v == b'STM 00'
         if tag == LOGGER_INFO_CMD_W:
             return v == b'WLI 00'
+        if tag == LOGGER_INFO_CMD:
+            return v.startswith(te) and n in (10, 13)
+        if tag == LED_CMD:
+            return v == b'LED 00'
         if tag == STATUS_CMD:
             return v.startswith(te) and n == 8
         if tag == BUSY_CMD:
             return v.startswith(te) and n == 8
+        if tag == FIRMWARE_VERSION_CMD:
+            return v.startswith(te) and n == 12
         if tag == BAT_CMD:
             return v.startswith(te) and n == 10
         if tag == TIME_CMD:
