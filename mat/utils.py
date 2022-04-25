@@ -159,6 +159,12 @@ def linux_is_rpi():
     return os.uname().nodename in ('raspberrypi', 'rpi')
 
 
+def linux_is_rpi3():
+    c = 'cat /proc/cpuinfo'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return b'Raspberry Pi 3' in rv.stdout
+
+
 def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
 

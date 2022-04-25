@@ -8,7 +8,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWA
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
-from mat.utils import is_valid_mac_address, lowell_file_list_as_dict
+from mat.utils import is_valid_mac_address, lowell_file_list_as_dict, linux_is_rpi3
 
 
 class LoggerControllerCC26X2R(LoggerController):
@@ -167,7 +167,7 @@ class LoggerControllerCC26X2R(LoggerController):
                 return dos, dop, dot
         return '', '', ''
 
-    def ble_cmd_gsr(self) -> int:
+    def ble_cmd_gsr(self) -> tuple:
         a = self._ble_cmd(SENSOR_READINGS_CMD)
         tmp, prs, bat = '', '', ''
         if a and len(a.split()) == 2:
@@ -368,28 +368,28 @@ class LoggerControllerCC26X2R(LoggerController):
 
         return timeout, data
 
-    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
+    @staticmethod
+    def _progress_dl(p, v, size):
+        if not p:
+            return
+        f = open(p, 'w+')
+        _ = int(v) / int(size) * 100
+        _ = _ if _ < 100 else 100
+        f.write(str(_))
+        f.close()
+
+    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
         # do not remove this, in case buffer has 'DWG 00'
         self.dlg.buf = bytes()
         data_file = bytes()
-        number_of_chunks = math.ceil(file_size / 2048)
-
-        # file-system based progress indicator
-        if p:
-            f = open(p, 'w+')
-            f.write(str(0))
-            f.close()
+        n = math.ceil(file_size / 2048)
+        self._progress_dl(p, 0, file_size)
 
         # download and update file w/ progress
-        for i in range(number_of_chunks):
+        for i in range(n):
             timeout, data_chunk = self._dwl_chunk(i)
             data_file += data_chunk
-            if p:
-                f = open(p, 'w+')
-                _ = len(data_file) / file_size * 100
-                _ = _ if _ < 100 else 100
-                f.write(str(_))
-                f.close()
+            self._progress_dl(p, len(data_file), file_size)
 
         # truncate and return
         self.dlg.buf = bytes()
@@ -397,6 +397,31 @@ class LoggerControllerCC26X2R(LoggerController):
             return bytes()
         data_file = data_file[:file_size]
         return data_file
+
+    def _ble_cmd_dwl_rpi3(self, file_size, p=None) -> bytes:
+        # ----------------------------------------------------
+        # fw: 100 ms connection event, internal hci, wait .4
+        # fw: 100 ms connection event, external hci, wait .2
+        # fw:  50 ms connection event, external hci, wait .1
+        # ----------------------------------------------------
+
+        self.dlg.buf = bytes()
+        n = math.ceil(file_size / 2048)
+        self._progress_dl(p, 0, file_size)
+
+        for i in range(n):
+            cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
+            self._ble_write(cmd.encode())
+            while self.per.waitForNotifications(.4):
+                pass
+            self._progress_dl(p, len(self.dlg.buf), file_size)
+            # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
+        return self.dlg.buf
+
+    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
+        if linux_is_rpi3():
+            return self._ble_cmd_dwl_rpi3(file_size, p)
+        return self._ble_cmd_dwl(file_size, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """
