@@ -398,12 +398,15 @@ class LoggerControllerCC26X2R(LoggerController):
         data_file = data_file[:file_size]
         return data_file
 
-    def _ble_cmd_dwl_rpi3(self, file_size, p=None) -> bytes:
-        # ----------------------------------------------------
-        # fw: 100 ms connection event, internal hci, wait .4
-        # fw: 100 ms connection event, external hci, wait .2
-        # fw:  50 ms connection event, external hci, wait .1
-        # ----------------------------------------------------
+    def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.3) -> bytes:
+        # ------------------------------------------------------------
+        # CE: connection event, fw: firmware, ex / internal, w: wait
+        # fw: 100 ms CE, in hci, w .4
+        # fw:  50 ms CE, in hci, w .3 ==  4.5 KBps, DDH v2 safe
+        # fw:  50 ms CE, in hci, w .1 == 11.0 KBps
+        # fw: 100 ms CE, ex hci, w .2
+        # fw:  50 ms CE, ex hci, w .1
+        # ------------------------------------------------------------
 
         self.dlg.buf = bytes()
         n = math.ceil(file_size / 2048)
@@ -412,7 +415,7 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
-            while self.per.waitForNotifications(.4):
+            while self.per.waitForNotifications(w):
                 pass
             self._progress_dl(p, len(self.dlg.buf), file_size)
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
