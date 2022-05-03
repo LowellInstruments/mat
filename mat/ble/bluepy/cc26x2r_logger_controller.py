@@ -398,7 +398,7 @@ class LoggerControllerCC26X2R(LoggerController):
         data_file = data_file[:file_size]
         return data_file
 
-    def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.3) -> bytes:
+    def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.4) -> bytes:
         # ------------------------------------------------------------
         # CE: connection event, fw: firmware, ex / internal, w: wait
         # fw: 100 ms CE, in hci, w .4
