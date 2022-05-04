@@ -249,12 +249,12 @@ class LoggerControllerCC26X2R(LoggerController):
             return a.split()[1].decode()[2:]
         return 'error'
 
-    def ble_cmd_wli(self, info) -> str:
+    def ble_cmd_wli(self, info) -> bool:
         # info: 'SN1234567
         valid = ['SN', 'BA', 'CA', 'MA']
         assert info[:2] in valid
         a = self._ble_cmd(LOGGER_INFO_CMD_W, info)
-        return 'ok' if a == b'WLI 00' else 'error'
+        return a == b'WLI 00'
 
     def ble_cmd_rli(self) -> dict:
         info = {}
