@@ -70,44 +70,43 @@ class LoggerControllerMoana:
         except AttributeError:
             pass
 
-    def _wait_answer(self, a=''):
-        # map caller function to expected answer
+    def _wait_answer(self, exp_ans=''):
+
+        # gets caller function
         cf = str(stack()[1].function)
 
-        # 'file_get' works differently
+        # 'file_get' is implemented somewhere else
         assert cf != 'file_get'
 
+        # maps caller function to expected answer
         m = {
             'ping': b'ping_made_up_command',
             'auth': b'*Xa{"Authenticated":true}',
-            'time_sync': a.encode(),
-            'file_info': a.encode(),
             'file_clear': b'*Vc{"ArchiveBit":false}',
-            'file_info_get_size': a.encode()
+            'time_sync': exp_ans.encode(),
+            'file_info': exp_ans.encode(),
+            'file_info_get_size': exp_ans.encode(),
+            'file_crc': exp_ans.encode()
         }
 
-        # long timeout
-        till = time.perf_counter() + 10
-        while 1:
+        # -------------------------
+        # waits for command answer
+        # -------------------------
 
-            # absolute timeout
+        till = time.perf_counter() + 2
+        while 1:
+            self.per.waitForNotifications(.1)
             if time.perf_counter() > till:
                 break
-
-            # exact answers -> auth, file_clear
             v = self.dlg.buf
+
+            # fixed answers: auth, file_clear
             if v.endswith(m[cf]):
-                # print('{} -> {}'.format(cf, v))
                 break
 
-            # mutable answers -> time_sync / file_info
-            if a and a.encode() in v:
-                # print('{} -> {}'.format(cf, v))
+            # variable answers: -> time_sync, file_info
+            if exp_ans and exp_ans.encode() in v:
                 break
-
-            # re-shape timeout
-            if self.per.waitForNotifications(.01):
-                till = time.perf_counter() + 2
 
     def ping(self):
         # made-up command, needed or Moana won't answer
@@ -137,6 +136,7 @@ class LoggerControllerMoana:
             i_comma = a.index(',') - 1
             file_name = a[i_colon:i_comma]
             self.sn = file_name.split('_')[1]
+            self.dlg.buf = bytes()
             return file_name
 
         except (AttributeError, ValueError):
@@ -158,27 +158,33 @@ class LoggerControllerMoana:
             # moana sometimes fails here
             pass
 
-    def file_get(self):
+    def file_get(self, rm_demo=False):
         # --------------------------------------------
         # because it works with phones, the size of
         # Moana BLE notifications is 20 bytes
         # --------------------------------------------
-        sp.run('rm /home/kaz/Downloads/moana_demo/*', shell=True)
+        if rm_demo:
+            sp.run('rm /home/kaz/Downloads/moana_demo/*', shell=True)
 
         data = bytes()
         marker_file_end = b'*0005D\x00'
+        is_first_packet = True
 
         while 1:
             pre = len(self.dlg.buf)
             self._clear_buffers()
             self._ble_tx(b'*BB')
             while self.per.waitForNotifications(3):
-                # accumulate
+                # accumulate till nothing more arrives
                 pass
             post = len(self.dlg.buf)
 
             # lose header only of intermediate packets
-            data += self.dlg.buf[0:] if not data else self.dlg.buf[7:]
+            if is_first_packet:
+                data += self.dlg.buf[0:]
+                is_first_packet = False
+            else:
+                data += self.dlg.buf[7:]
 
             if self.dlg.buf[-7:] == marker_file_end:
                 # reached file end
@@ -187,7 +193,9 @@ class LoggerControllerMoana:
                 # detects timeouts
                 break
 
-        self.dlg.buf = data
+        # data: b',"ArchiveBit":"+"}*0173D\x00Download Time...'
+        k = data.index(b'*')
+        self.dlg.buf = data[k:]
         return self.dlg.buf
 
     def file_clear(self):
@@ -198,14 +206,24 @@ class LoggerControllerMoana:
         return self.dlg.buf == b'*Vc{"ArchiveBit":false}'
 
     @staticmethod
-    def file_save(data) -> str:
+    def file_save(fol, data) -> str:
         if not data:
             return ''
         t = int(time.time())
-        name = '/tmp/moana_{}.bin'.format(t)
+        name = '{}/moana_{}.bin'.format(fol, t)
         with open(name, 'wb') as f:
             f.write(data)
         return name
+
+    # def file_crc(self):
+    #     self._clear_buffers()
+    #     self._ble_tx(b'*BZ')
+    #     self._wait_answer('*Jz')
+    #     crc = self.dlg.buf
+    #     # crc: b'*Jzeb983b79
+    #     # print('moana file remote crc ->', crc)
+    #     if len(crc) == 11:
+    #         return crc[-8:]
 
     def time_sync(self) -> bool:
         self._clear_buffers()
@@ -291,3 +309,43 @@ class LoggerControllerMoana:
         # prefix: 'moana_0113_20211206T144237'
         prefix = 'moana_{}_{}'.format(self.sn, first_dt)
         return prefix
+
+
+# def calculate_moana_file_crc(data: bytes):
+#
+#     # ---------------------------------------------------------------------
+#     # Moana CRC is weird, downloading the same file gives slightly
+#     # different values every time, so let's consider a CRC match of
+#     # 24 MSb, that is 3 MSB, that is the first 6 digits of the
+#     # calculation good enough (just a 16-bit CRC DETECTS 99% of errors)
+#     # src: https://barrgroup.com/embedded-systems/how-to/crc-math-theory
+#     # ---------------------------------------------------------------------
+#
+#     checksum = np.uint32(0)
+#     for c in data:
+#         checksum = np.uint32(checksum) ^ c
+#         checksum = np.uint32(checksum) << 1
+#         if np.uint32(checksum) & 0x80000000:
+#             checksum = np.uint32(checksum) | 1
+#
+#     # sometimes needs these couple adjusts
+#     checksum -= 0x104
+#     if checksum > 0xFFFFFFFF:
+#        checksum -= 0x100000000
+#
+#     s = '{:08x}'.format(checksum)
+#     # print('moana file local crc ->', s)
+#     return s
+#
+#
+# def compare_moana_file_crc(a: bytes, b):
+#     # a: b'*Jz2b983b40'
+#     # b: '2b983b40'
+#     print('moana: comparing local crc vs remote crc', a, b)
+#     if not a or not b:
+#         return
+#     if len(a) != len(b) != 8:
+#         return
+#     # 24-bit CRC is enough (detects 99% errors)
+#     rv = a.decode()[:6] == b[:6]
+#     return rv
