@@ -24,6 +24,8 @@ jobs:
         pip install pytest
         pip install pytest-cov
         pip install git+https://github.com/LowellInstruments/bluepy.git
+        wget https://raw.githubusercontent.com/LowellInstruments/lowell-mat/master/requirements.txt
+        pip install -r requirements.txt
 
     - name: LOWELL -> RUNNING TESTS and COVERAGE ANALYSIS
       run: |
