@@ -368,6 +368,9 @@ class LoggerControllerCC26X2R(LoggerController):
 
         return timeout, data
 
+    # ---------------------------
+    # download functions section
+    # ---------------------------
     @staticmethod
     def _progress_dl(p, v, size):
         if not p:
@@ -378,7 +381,7 @@ class LoggerControllerCC26X2R(LoggerController):
         f.write(str(_))
         f.close()
 
-    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
+    def _ble_cmd_dwl_old(self, file_size, p=None) -> bytes:
         # do not remove this, in case buffer has 'DWG 00'
         self.dlg.buf = bytes()
         data_file = bytes()
@@ -399,15 +402,6 @@ class LoggerControllerCC26X2R(LoggerController):
         return data_file
 
     def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.4) -> bytes:
-        # ------------------------------------------------------------
-        # CE: connection event, fw: firmware, ex / internal, w: wait
-        # fw: 100 ms CE, in hci, w .4
-        # fw:  50 ms CE, in hci, w .3 ==  4.5 KBps, DDH v2 safe
-        # fw:  50 ms CE, in hci, w .1 == 11.0 KBps
-        # fw: 100 ms CE, ex hci, w .2
-        # fw:  50 ms CE, ex hci, w .1
-        # ------------------------------------------------------------
-
         self.dlg.buf = bytes()
         n = math.ceil(file_size / 2048)
         self._progress_dl(p, 0, file_size)
@@ -421,9 +415,14 @@ class LoggerControllerCC26X2R(LoggerController):
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 
-    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
+    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
+        return self._ble_cmd_dwl_rpi3(file_size, p, w=.2)
+
+    def ble_cmd_dwl(self, file_size, p=None, old=False) -> bytes:
         if linux_is_rpi3():
             return self._ble_cmd_dwl_rpi3(file_size, p)
+        if old:
+            return self._ble_cmd_dwl_old(file_size, p)
         return self._ble_cmd_dwl(file_size, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
