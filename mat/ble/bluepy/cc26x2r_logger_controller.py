@@ -340,6 +340,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return 'error'
 
     def _dwl_chunk(self, chunk_number) -> tuple:
+
         # send DWL command
         c_n = chunk_number
         cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
@@ -349,9 +350,12 @@ class LoggerControllerCC26X2R(LoggerController):
         timeout = False
         data = bytes()
         last = time.perf_counter()
+
+        # accumulate BLE notifications
+        w = .2
         while 1:
-            # keep accumulating BLE notifications
-            if self.per.waitForNotifications(.1):
+            # May 18 2022: do NOT change 'w' value
+            if self.per.waitForNotifications(w):
                 last = time.perf_counter()
 
             # timeout == last fragment (good) or error (bad)
@@ -381,7 +385,7 @@ class LoggerControllerCC26X2R(LoggerController):
         f.write(str(_))
         f.close()
 
-    def _ble_cmd_dwl_old(self, file_size, p=None) -> bytes:
+    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
         # do not remove this, in case buffer has 'DWG 00'
         self.dlg.buf = bytes()
         data_file = bytes()
@@ -415,14 +419,9 @@ class LoggerControllerCC26X2R(LoggerController):
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 
-    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
-        return self._ble_cmd_dwl_rpi3(file_size, p, w=.2)
-
-    def ble_cmd_dwl(self, file_size, p=None, old=False) -> bytes:
+    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
         if linux_is_rpi3():
             return self._ble_cmd_dwl_rpi3(file_size, p)
-        if old:
-            return self._ble_cmd_dwl_old(file_size, p)
         return self._ble_cmd_dwl(file_size, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
@@ -455,12 +454,6 @@ class LoggerControllerCC26X2R(LoggerController):
         # a: b'BSY 0201'
         if a and len(a.split()) == 2:
             return _[a.split()[1].decode()]
-        return 'error'
-
-    def ble_cmd_con(self) -> str:
-        a = self._ble_cmd(CONN_PAR_UPDATE_CMD)
-        if a:
-            return a.decode()
         return 'error'
 
     def _answer_complete(self, tag):
@@ -501,8 +494,6 @@ class LoggerControllerCC26X2R(LoggerController):
             return v.startswith(te) and n == 25
         if tag in WAKE_CMD:
             return v.startswith(te) and n == 8
-        if tag in CONN_PAR_UPDATE_CMD:
-            return v in (b'CO0', b'CO1', b'CO2')
         if tag == CRC_CMD:
             return v.startswith(te) and n == 14
         if tag == FORMAT_CMD:
