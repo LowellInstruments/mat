@@ -1,7 +1,10 @@
 name: mat_dev
 
-# this is under construction but we want to keep it to minimum
+
+# pre: you may need "apt-get install libglib2.0-dev"
+
 # conda env create --file=env_conda_mat_dev.yml
+
 
 dependencies:
   - python=3.7

@@ -510,3 +510,5 @@ class LoggerControllerCC26X2R(LoggerController):
             return v.endswith(b'\x04') or v.endswith(b'\x04\n\r')
         if tag == SENSOR_READINGS_CMD:
             return len(v) == 32 + 6 or len(v) == 40 + 6
+        if tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
+            return v.startswith(te) and n == 8
