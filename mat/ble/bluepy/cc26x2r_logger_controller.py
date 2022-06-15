@@ -419,10 +419,17 @@ class LoggerControllerCC26X2R(LoggerController):
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 
+    def _ble_cmd_dwl_rpi4(self, file_size, p=None) -> bytes:
+        return self._ble_cmd_dwl_rpi3(file_size, p, w=.3)
+
     def ble_cmd_dwl(self, file_size, p=None) -> bytes:
         if linux_is_rpi3():
             return self._ble_cmd_dwl_rpi3(file_size, p)
-        return self._ble_cmd_dwl(file_size, p)
+        # ---------
+        # patched
+        # ---------
+        # return self._ble_cmd_dwl(file_size, p)
+        return self._ble_cmd_dwl_rpi4(file_size, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """
