@@ -314,6 +314,12 @@ class LoggerControllerCC26X2R(LoggerController):
         a = self._ble_cmd(CONFIG_CMD, s)
         return a == b'CFG 00'
 
+    def ble_cmd_pcs(self, cfg_s) -> bool:
+        assert type(cfg_s) is str
+        # cfg_s: 'key_str, 123'
+        a = self._ble_cmd(DDP_CONFIG_CMD, cfg_s)
+        return a == b'PCS 00'
+
     def ble_cmd_run(self) -> bool:
         a = self._ble_cmd(RUN_CMD)
         return a == b'RUN 00'
