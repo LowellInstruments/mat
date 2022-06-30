@@ -133,6 +133,14 @@ class LoggerControllerCC26X2R(LoggerController):
             b = _[-2:] + _[-4:-2]
             return int(b, 16)
 
+    def ble_cmd_wat(self) -> int:
+        a = self._ble_cmd(WAT_CMD)
+        if a and len(a.split()) == 2:
+            # a: b'WAT 0297'
+            _ = a.split()[1].decode()
+            b = _[-2:]
+            return int(b)
+
     def ble_cmd_utm(self) -> int:
         a = self._ble_cmd(UP_TIME_CMD)
         if a and len(a.split()) == 2:
@@ -524,4 +532,6 @@ class LoggerControllerCC26X2R(LoggerController):
         if tag == SENSOR_READINGS_CMD:
             return len(v) == 32 + 6 or len(v) == 40 + 6
         if tag == ERROR_WHEN_BOOT_OR_RUN_CMD:
+            return v.startswith(te) and n == 8
+        if tag == WAT_CMD:
             return v.startswith(te) and n == 8
