@@ -1,3 +1,4 @@
+import socket
 import time
 from datetime import datetime, timezone
 import json
@@ -353,71 +354,31 @@ class LoggerControllerCC26X2R(LoggerController):
             return a.split()[1].decode()[2:]
         return 'error'
 
-    def _dwl_chunk(self, chunk_number) -> tuple:
-
-        # send DWL command
-        c_n = chunk_number
-        cmd = 'DWL {:02x}{}\r'.format(len(str(c_n)), c_n)
-        self._ble_write(cmd.encode())
-
-        # receive DWL answer
-        timeout = False
-        data = bytes()
-        last = time.perf_counter()
-
-        # accumulate BLE notifications
-        w = .2
-        while 1:
-            # May 18 2022: do NOT change 'w' value
-            if self.per.waitForNotifications(w):
-                last = time.perf_counter()
-
-            # timeout == last fragment (good) or error (bad)
-            if time.perf_counter() > last + 2:
-                data += self.dlg.buf
-                timeout = True
-                break
-
-            # got 1 entire chunk, use >= because of race conditions
-            if len(self.dlg.buf) >= 2048:
-                data += self.dlg.buf[:2048]
-                self.dlg.buf = self.dlg.buf[2048:]
-                break
-
-        return timeout, data
-
     # ---------------------------
     # download functions section
     # ---------------------------
     @staticmethod
     def _progress_dl(p, v, size):
-        if not p:
-            return
-        f = open(p, 'w+')
+
         _ = int(v) / int(size) * 100
         _ = _ if _ < 100 else 100
-        f.write(str(_))
-        f.close()
 
-    def _ble_cmd_dwl(self, file_size, p=None) -> bytes:
-        # do not remove this, in case buffer has 'DWG 00'
-        self.dlg.buf = bytes()
-        data_file = bytes()
-        n = math.ceil(file_size / 2048)
-        self._progress_dl(p, 0, file_size)
+        # ----------------------
+        # old, file-system based
+        # ----------------------
 
-        # download and update file w/ progress
-        for i in range(n):
-            timeout, data_chunk = self._dwl_chunk(i)
-            data_file += data_chunk
-            self._progress_dl(p, len(data_file), file_size)
+        if p:
+            f = open(p, 'w+')
+            f.write(str(_))
+            f.close()
+            return
 
-        # truncate and return
-        self.dlg.buf = bytes()
-        if len(data_file) < file_size:
-            return bytes()
-        data_file = data_file[:file_size]
-        return data_file
+        # ----------------------
+        # new, UDP socket based
+        # ----------------------
+
+        _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        _sk.sendto(str(_).encode(), ('127.0.0.1', 12349))
 
     def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.4) -> bytes:
         self.dlg.buf = bytes()
@@ -438,12 +399,12 @@ class LoggerControllerCC26X2R(LoggerController):
 
     def ble_cmd_dwl(self, file_size, p=None) -> bytes:
         if linux_is_rpi3():
-            return self._ble_cmd_dwl_rpi3(file_size, p)
+            return self._ble_cmd_dwl_rpi3(file_size, p=None)
         # ---------
         # patched
         # ---------
         # return self._ble_cmd_dwl(file_size, p)
-        return self._ble_cmd_dwl_rpi4(file_size, p)
+        return self._ble_cmd_dwl_rpi4(file_size, p=None)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """
