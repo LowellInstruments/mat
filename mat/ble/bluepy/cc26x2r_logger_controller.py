@@ -197,6 +197,11 @@ class LoggerControllerCC26X2R(LoggerController):
         _ = {b'WAK 0201': 'on', b'WAK 0200': 'off'}
         return _.get(a, 'error')
 
+    def ble_cmd_slw(self) -> str:
+        a = self._ble_cmd(SLOW_CMD)
+        _ = {b'SLW 0201': 'on', b'SLW 0200': 'off'}
+        return _.get(a, 'error')
+
     def ble_cmd_led(self) -> bool:
         a = self._ble_cmd(LED_CMD)
         return a == b'LED 00'
@@ -426,6 +431,16 @@ class LoggerControllerCC26X2R(LoggerController):
             return True
         return False
 
+    def ble_cmd_slw_ensure(self, v: str) -> bool:
+        assert v.lower() in ('on', 'off')
+        rv = self.ble_cmd_slw()
+        if rv == v:
+            return True
+        rv = self.ble_cmd_slw()
+        if rv == v:
+            return True
+        return False
+
     def ble_cmd_bsy(self) -> str:
         a = self._ble_cmd(BUSY_CMD)
         _ = {
@@ -475,6 +490,8 @@ class LoggerControllerCC26X2R(LoggerController):
         if tag == TIME_CMD:
             return v.startswith(te) and n == 25
         if tag in WAKE_CMD:
+            return v.startswith(te) and n == 8
+        if tag in SLOW_CMD:
             return v.startswith(te) and n == 8
         if tag == CRC_CMD:
             return v.startswith(te) and n == 14
