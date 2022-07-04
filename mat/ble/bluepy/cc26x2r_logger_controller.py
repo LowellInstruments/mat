@@ -9,7 +9,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWA
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
-from mat.utils import is_valid_mac_address, lowell_file_list_as_dict, linux_is_rpi3
+from mat.utils import is_valid_mac_address, lowell_file_list_as_dict, linux_is_rpi3, linux_is_rpi4
 
 
 class LoggerControllerCC26X2R(LoggerController):
@@ -53,18 +53,16 @@ class LoggerControllerCC26X2R(LoggerController):
 
     def _ble_ans(self, tag) -> bytes:
         assert tag not in (DWG_FILE_CMD, DWL_CMD)
+
         self.dlg.buf = bytes()
         till = calculate_answer_timeout(tag)
 
         while 1:
-            # reduce timeout when we received once
-            if self.per.waitForNotifications(.01):
-                till = time.perf_counter() + 3
-                continue
+            self.per.waitForNotifications(.1)
 
             # timeout fully expired
             if time.perf_counter() > till:
-                e = 'timeout -> tag {} -> {}'
+                e = 'cmd timeout -> tag {} -> {}\nmaybe logger BSY?'
                 print(e.format(tag, self.dlg.buf))
                 break
 
@@ -385,31 +383,34 @@ class LoggerControllerCC26X2R(LoggerController):
         _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         _sk.sendto(str(_).encode(), ('127.0.0.1', 12349))
 
-    def _ble_cmd_dwl_rpi3(self, file_size, p=None, w=.4) -> bytes:
+    def _ble_cmd_dwl_rpi3(self, z, p, w=.4) -> bytes:
+        # z: file size
         self.dlg.buf = bytes()
-        n = math.ceil(file_size / 2048)
-        self._progress_dl(p, 0, file_size)
+        n = math.ceil(z / 2048)
+        self._progress_dl(p, 0, z)
 
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
             while self.per.waitForNotifications(w):
                 pass
-            self._progress_dl(p, len(self.dlg.buf), file_size)
-            # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
+            self._progress_dl(p, len(self.dlg.buf), z)
+            print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 
-    def _ble_cmd_dwl_rpi4(self, file_size, p=None) -> bytes:
-        return self._ble_cmd_dwl_rpi3(file_size, p, w=.3)
+    def _ble_cmd_dwl_rpi4(self, z, p) -> bytes:
+        # same for now
+        return self._ble_cmd_dwl_rpi3(z, p, w=.3)
 
-    def ble_cmd_dwl(self, file_size, p=None) -> bytes:
+    def _ble_cmd_dwl(self, z, p) -> bytes:
+        return self._ble_cmd_dwl_rpi3(z, p, w=.1)
+
+    def ble_cmd_dwl(self, z, p=None) -> bytes:
         if linux_is_rpi3():
-            return self._ble_cmd_dwl_rpi3(file_size, p=None)
-        # ---------
-        # patched
-        # ---------
-        # return self._ble_cmd_dwl(file_size, p)
-        return self._ble_cmd_dwl_rpi4(file_size, p=None)
+            return self._ble_cmd_dwl_rpi3(z, p)
+        if linux_is_rpi4():
+            return self._ble_cmd_dwl_rpi4(z, p)
+        return self._ble_cmd_dwl(z, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """
