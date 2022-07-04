@@ -395,7 +395,7 @@ class LoggerControllerCC26X2R(LoggerController):
             while self.per.waitForNotifications(w):
                 pass
             self._progress_dl(p, len(self.dlg.buf), z)
-            print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
+            # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 
     def _ble_cmd_dwl_rpi4(self, z, p) -> bytes:
@@ -403,7 +403,7 @@ class LoggerControllerCC26X2R(LoggerController):
         return self._ble_cmd_dwl_rpi3(z, p, w=.3)
 
     def _ble_cmd_dwl(self, z, p) -> bytes:
-        return self._ble_cmd_dwl_rpi3(z, p, w=.1)
+        return self._ble_cmd_dwl_rpi3(z, p, w=.2)
 
     def ble_cmd_dwl(self, z, p=None) -> bytes:
         if linux_is_rpi3():
