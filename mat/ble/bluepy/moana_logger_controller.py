@@ -10,7 +10,7 @@ from bluepy import btle
 import subprocess as sp
 
 
-def utils_logger_is_moana(mac, info):
+def utils_logger_is_moana(mac, info: str):
     return 'MOANA' in info
 
 

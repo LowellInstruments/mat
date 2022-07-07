@@ -22,9 +22,7 @@ def ble_scan_bluepy_unordered(hci_if: int, my_to=3.0):    # pragma: no cover
 
 
 def ble_scan_bluepy(hci_if: int, my_to=3.0) -> dict:
-    # sort scan results by RSSI: reverse=True, farther ones first
-    sr = ble_scan_bluepy_unordered(hci_if, my_to=my_to)
-    return sorted(sr, key=lambda x: x.rssi, reverse=False)
+    return ble_scan_bluepy_unordered(hci_if, my_to=my_to)
 
 
 def ble_linux_hard_reset():

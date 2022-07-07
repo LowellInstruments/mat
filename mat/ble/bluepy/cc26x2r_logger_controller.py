@@ -381,7 +381,7 @@ class LoggerControllerCC26X2R(LoggerController):
         # ----------------------
 
         _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        _ = 'dl_progress/{}'.format(_)
+        _ = 'state_download_progress/{}'.format(_)
         _sk.sendto(str(_).encode(), (ip, port))
 
     def ble_cmd_dwl(self, z, p=None, w=.1, ip='127.0.0.1', port=12349) -> bytes:

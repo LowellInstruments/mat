@@ -85,7 +85,7 @@ def ble_cmd_file_list_only_lid_files(lc) -> dict:
     return lc.ble_cmd_dir_ext(b'lid')
 
 
-def utils_logger_is_cc26x2r(mac, info):
+def utils_logger_is_cc26x2r(mac, info: str):
     is_do_2 = 'DO-2' in info
     is_do_1 = 'DO-1' in info
     return is_do_2 or is_do_1

@@ -24,7 +24,7 @@ def connect_rn4020(lc):
         return False
 
 
-def utils_logger_is_rn4020(mac, info):
+def utils_logger_is_rn4020(mac, info: str):
     if mac.startswith('00:1e:c0'):
         return True
 
