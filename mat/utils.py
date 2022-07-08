@@ -2,6 +2,8 @@ import pathlib
 import platform
 import re
 import shlex
+import socket
+import sys
 from platform import machine
 from numpy import array, mod
 from datetime import datetime
@@ -273,3 +275,19 @@ def consecutive_numbers(data, number, count):
         if c == count:
             return i-count+1
     return len(data)
+
+
+def ensure_we_run_only_one_instance(name):
+    """ ensures only 1 APP runs at a given time """
+
+    ooi = ensure_we_run_only_one_instance
+    ooi._lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+    try:
+        # '\0' so does not take a filesystem entry
+        ooi._lock_socket.bind('\0' + name)
+
+    except socket.error:
+        s = '{} already running so NOT executing this one'
+        print(s.format(name))
+        sys.exit(1)

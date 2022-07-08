@@ -2,6 +2,8 @@ import json
 import os
 import socket
 from pathlib import Path
+
+from mat.data_converter import default_parameters
 from mat.utils import linux_is_rpi
 
 
@@ -40,7 +42,11 @@ def get_ddh_settings_file() -> Path:
 
 
 def get_ddh_disabled_ble_file_flag() -> str:
-    return '/tmp/ddh_disabled_ble_file_flag'
+    return '/tmp/ddh_disabled_ble_file.flag'
+
+
+def get_ddh_app_override_file_flag() -> str:
+    return '/tmp/ddh_app_override_file.flag'
 
 
 def get_ddh_db_history() -> str:
@@ -165,6 +171,112 @@ def ddh_get_json_mac_dns(mac):
         name = _mac_dns_no_case(mac.upper())
     rv = name if name else mac
     return rv
+
+
+def get_mac_from_folder_path(fol):
+    """ returns '11:22:33' from 'dl_files/11-22-33' """
+
+    try:
+        return fol.split('/')[-1].replace('-', ':')
+    except (ValueError, Exception):
+        return None
+
+
+def get_dl_folder_path_from_mac(mac):
+    """ returns 'dl_files/11-22-33' from '11:22:33' """
+
+    fol = get_ddh_folder_path_dl_files()
+    fol = fol / '{}/'.format(mac.replace(':', '-').lower())
+    return fol
+
+
+def create_folder_logger_by_mac(mac):
+    """ mkdir folder based on mac, replaces ':' with '-' """
+
+    fol = get_ddh_folder_path_dl_files()
+    fol = fol / '{}/'.format(mac.replace(':', '-').lower())
+    os.makedirs(fol, exist_ok=True)
+    return fol
+
+
+def ddh_get_commit():
+    import git
+    _r = git.Repo(get_ddh_folder_path_root())
+    c = _r.head.commit
+    return str(c)[:5]
+
+
+def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
+
+    if not Path(fol).is_dir():
+        l_e_('[ SYS ] error -> folder {} not found'.format(fol))
+        return False, []
+
+    # ---------------------------
+    # check asked suffix exists
+    # ---------------------------
+    valid_suffixes = ('_DissolvedOxygen', '_Temperature', '_Pressure')
+    if suf not in valid_suffixes:
+        l_e_('[ SYS ] error -> unknown suffix {}'.format(suf))
+        return False, []
+
+    # needed variables for conversion
+    parameters = default_parameters()
+    err_files = []
+    all_ok = True
+    global _g_files_we_cannot_convert
+    lid_files = linux_ls_by_ext(fol, 'lid')
+
+    # ----------------------------------------------
+    # iterate all lid files in this logger's folder
+    # ----------------------------------------------
+    for f in lid_files:
+
+        # skip already converted files
+        _ = '{}{}.csv'.format(f.split('.')[0], suf)
+        if Path(_).is_file():
+            continue
+
+        # skip files we know as bad ones
+        if f in _g_files_we_cannot_convert:
+            continue
+
+        # ---------------
+        # try to convert
+        # ---------------
+        try:
+
+            # skip files not containing this sensor data
+            if not _lid_file_has_sensor_data_type(f, suf):
+                # s = '[ SYS ] file {} -> no {} data'
+                # l_d_(s.format(f, suf))
+                continue
+
+            DataConverter(f, parameters).convert()
+            l_i_('[ CNV ] {}, suffix {}'.format(f, suf))
+
+            # --------------------------------
+            # hack for RN4020 pressure adjust
+            # --------------------------------
+            if ('_Pressure' in suf) and ('moana' not in f):
+                l_d_('[ SYS ] adjusting LI file {}'.format(f))
+                # f: ends with.lid
+                fp_csv = f[:-4] + '_Pressure.csv'
+                df = pd.read_csv(fp_csv)
+                c = 'Pressure (dbar)'
+                df[c] = df['Pressure (dbar)'] - DDH_BPSL
+                df[c] = df[c].apply(lambda x: x if x > 0 else 0)
+                df.to_csv(fp_csv, index=False)
+
+        except (ValueError, Exception) as ve:
+            all_ok = False
+            err_files.append(f)
+            l_e_('[ CNV ] error {} -> {}'.format(f, ve))
+            if f not in _g_files_we_cannot_convert:
+                l_e_('[ CNV ] error: ignoring file {} from now on'.format(f))
+                _g_files_we_cannot_convert.append(f)
+
+    return all_ok, err_files
 
 
 def main():
