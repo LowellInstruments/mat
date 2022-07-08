@@ -25,6 +25,10 @@ def get_ddh_folder_path_dl_files() -> Path:
     return r / 'dl_files'
 
 
+def get_ddh_folder_path_settings() -> Path:
+    return r / 'settings'
+
+
 def get_ddh_folder_path_dl_logs() -> Path:
     return r / 'logs'
 
@@ -33,12 +37,8 @@ def get_ddh_folder_path_res() -> Path:
     return r / 'ddh/gui/res'
 
 
-def get_ddh_folder_path_settings() -> Path:
-    return r / 'ddh/gui/settings'
-
-
 def get_ddh_settings_file() -> Path:
-    return r / 'settings/ddh.json'
+    return r / 'ddh.json'
 
 
 def get_ddh_disabled_ble_file_flag() -> str:
