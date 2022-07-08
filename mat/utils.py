@@ -1,5 +1,7 @@
 import pathlib
+import platform
 import re
+import shlex
 from platform import machine
 from numpy import array, mod
 from datetime import datetime
@@ -173,6 +175,29 @@ def linux_is_rpi4():
 
 def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
+
+
+def linux_app_write_pid(s):
+    if platform.system() != 'Linux':
+        return
+    path = '/tmp/{}.pid'.format(s)
+    if os.path.exists(path):
+        os.remove(path)
+    pid = str(os.getpid())
+    f = open(path, 'w')
+    f.write(pid)
+    f.close()
+
+
+def linux_set_datetime(s):
+    # requires root or $ setcap CAP_SYS_TIME+ep /bin/date
+    # w/ NTP enabled, time gets re-set very fast so,
+    # when testing, just go offline
+
+    s = 'date -s "{}"'.format(s)
+    o = sp.DEVNULL
+    rv = sp.run(shlex.split(s), stdout=o, stderr=o)
+    return rv.returncode == 0
 
 
 def is_valid_mac_address(mac):
