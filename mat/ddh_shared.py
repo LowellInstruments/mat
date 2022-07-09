@@ -49,20 +49,16 @@ def get_ddh_app_override_file_flag() -> str:
     return '/tmp/ddh_app_override_file.flag'
 
 
+def get_ddh_black_macs_purge_file_flag() -> str:
+    return '/tmp/ddh_black_macs_purge_file.flag'
+
+
 def get_ddh_db_history() -> str:
     return str(r / 'ddh/db/db_his.db')
 
 
 def get_ddh_db_plots() -> str:
     return str(r / 'ddh/db/db_plt.db')
-
-
-def get_ddh_db_macs() -> str:
-    return str(r / 'ddh/db/db_macs.db')
-
-
-def get_ddh_db_sns() -> str:
-    return str(r / 'ddh/db/db_sns.db')
 
 
 def get_ddh_file_mc_fallback() -> Path:
