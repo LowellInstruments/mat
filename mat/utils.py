@@ -1,3 +1,4 @@
+import glob
 import pathlib
 import platform
 import re
@@ -291,3 +292,13 @@ def ensure_we_run_only_one_instance(name):
         s = '{} already running so NOT executing this one'
         print(s.format(name))
         sys.exit(1)
+
+
+def linux_ls_by_ext(fol, extension):
+    """ recursively collect all logger files w/ indicated extension """
+
+    if not fol:
+        return []
+    if os.path.isdir(fol):
+        wildcard = fol + '/**/*.' + extension
+        return glob.glob(wildcard, recursive=True)

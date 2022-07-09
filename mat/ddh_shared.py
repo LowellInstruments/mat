@@ -2,9 +2,10 @@ import json
 import os
 import socket
 from pathlib import Path
-
-from mat.data_converter import default_parameters
-from mat.utils import linux_is_rpi
+import pandas as pd
+from mat.data_converter import default_parameters, DataConverter
+from mat.data_file_factory import load_data_file
+from mat.utils import linux_is_rpi, linux_ls_by_ext
 
 
 DDH_GUI_UDP_PORT = 12349
@@ -22,23 +23,22 @@ def get_ddh_folder_path_root() -> Path:
     return Path.home() / 'PycharmProjects' / 'ddh'
 
 
-r = get_ddh_folder_path_root()
+def get_dds_folder_path_root():
+    if linux_is_rpi():
+        return Path.home() / 'li' / 'dds'
+    return Path.home() / 'PycharmProjects' / 'dds'
 
 
-def get_ddh_folder_path_dl_files() -> Path:
-    return r / 'dl_files'
-
-
-def get_ddh_folder_path_settings() -> Path:
-    return r / 'settings'
+rh = get_ddh_folder_path_root()
+rs = get_dds_folder_path_root()
 
 
 def get_ddh_folder_path_res() -> Path:
-    return r / 'ddh/gui/res'
+    return rh / 'ddh/gui/res'
 
 
-def get_ddh_settings_file() -> Path:
-    return r / 'settings/ddh.json'
+def get_dds_settings_file() -> Path:
+    return rs / 'settings/ddh.json'
 
 
 def get_ddh_disabled_ble_file_flag() -> str:
@@ -54,24 +54,28 @@ def get_ddh_black_macs_purge_file_flag() -> str:
 
 
 def get_ddh_db_history() -> str:
-    return str(r / 'ddh/db/db_his.db')
+    return str(rh / 'ddh/db/db_his.db')
+
+
+def get_ddh_db_sns() -> str:
+    return str(rs / 'dds/db/db_sns.db')
 
 
 def get_ddh_db_plots() -> str:
-    return str(r / 'ddh/db/db_plt.db')
+    return str(rh / 'ddh/db/db_plt.db')
 
 
 def get_ddh_file_mc_fallback() -> Path:
-    return get_ddh_folder_path_dl_files() / 'MAT_fallback.cfg'
+    return get_dds_folder_path_dl_files() / 'MAT_fallback.cfg'
 
 
 def get_ddh_file_version() -> str:
-    return str(r / 'ddh/version.py')
+    return str(rh / 'ddh/version.py')
 
 
 def ddh_check_conf_json_file():
     try:
-        j = str(get_ddh_settings_file())
+        j = str(get_dds_settings_file())
         with open(j) as f:
             cfg = json.load(f)
             del cfg['db_logger_macs']
@@ -100,7 +104,7 @@ def ddh_check_conf_json_file():
 
 
 def ddh_get_macs_from_json_file():
-    j = str(get_ddh_settings_file())
+    j = str(get_dds_settings_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -111,7 +115,7 @@ def ddh_get_macs_from_json_file():
 
 
 def ddh_get_json_plot_type():
-    j = str(get_ddh_settings_file())
+    j = str(get_dds_settings_file())
     with open(j) as f:
         cfg = json.load(f)
         v = cfg['last_haul']
@@ -124,7 +128,7 @@ def ddh_get_json_app_type():
 
 
 def ddh_get_json_vessel_name():
-    j = str(get_ddh_settings_file())
+    j = str(get_dds_settings_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -134,7 +138,7 @@ def ddh_get_json_vessel_name():
 
 
 def ddh_get_json_moving_speed() -> list:
-    j = str(get_ddh_settings_file())
+    j = str(get_dds_settings_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -149,7 +153,7 @@ def ddh_get_json_moving_speed() -> list:
 def _mac_dns_no_case(mac):
     """ returns logger name from its mac, not case-sensitive """
 
-    j = str(get_ddh_settings_file())
+    j = str(get_dds_settings_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -181,7 +185,7 @@ def get_mac_from_folder_path(fol):
 def get_dl_folder_path_from_mac(mac):
     """ returns 'dl_files/11-22-33' from '11:22:33' """
 
-    fol = get_ddh_folder_path_dl_files()
+    fol = get_dds_folder_path_dl_files()
     fol = fol / '{}/'.format(mac.replace(':', '-').lower())
     return fol
 
@@ -189,7 +193,7 @@ def get_dl_folder_path_from_mac(mac):
 def create_folder_logger_by_mac(mac):
     """ mkdir folder based on mac, replaces ':' with '-' """
 
-    fol = get_ddh_folder_path_dl_files()
+    fol = get_dds_folder_path_dl_files()
     fol = fol / '{}/'.format(mac.replace(':', '-').lower())
     os.makedirs(fol, exist_ok=True)
     return fol
@@ -202,10 +206,25 @@ def ddh_get_commit():
     return str(c)[:5]
 
 
+BAROMETRIC_PRESSURE_SEA_LEVEL_IN_DECIBAR = 10.1
+DDH_BPSL = BAROMETRIC_PRESSURE_SEA_LEVEL_IN_DECIBAR
+_g_files_we_cannot_convert = []
+
+
+def _lid_file_has_sensor_data_type(path, suffix):
+    _map = {
+        '_DissolvedOxygen': 'DOS',
+        '_Temperature': 'TMP',
+        '_Pressure': 'PRS'
+    }
+    header = load_data_file(path).header()
+    return header.tag(_map[suffix])
+
+
 def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
 
     if not Path(fol).is_dir():
-        l_e_('[ SYS ] error -> folder {} not found'.format(fol))
+        print('[ SYS ] error -> folder {} not found'.format(fol))
         return False, []
 
     # ---------------------------
@@ -213,7 +232,7 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
     # ---------------------------
     valid_suffixes = ('_DissolvedOxygen', '_Temperature', '_Pressure')
     if suf not in valid_suffixes:
-        l_e_('[ SYS ] error -> unknown suffix {}'.format(suf))
+        print('[ SYS ] error -> unknown suffix {}'.format(suf))
         return False, []
 
     # needed variables for conversion
@@ -249,13 +268,13 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
                 continue
 
             DataConverter(f, parameters).convert()
-            l_i_('[ CNV ] {}, suffix {}'.format(f, suf))
+            print('[ CNV ] {}, suffix {}'.format(f, suf))
 
             # --------------------------------
             # hack for RN4020 pressure adjust
             # --------------------------------
             if ('_Pressure' in suf) and ('moana' not in f):
-                l_d_('[ SYS ] adjusting LI file {}'.format(f))
+                print('[ SYS ] adjusting LI file {}'.format(f))
                 # f: ends with.lid
                 fp_csv = f[:-4] + '_Pressure.csv'
                 df = pd.read_csv(fp_csv)
@@ -267,12 +286,20 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
         except (ValueError, Exception) as ve:
             all_ok = False
             err_files.append(f)
-            l_e_('[ CNV ] error {} -> {}'.format(f, ve))
+            print('[ CNV ] error {} -> {}'.format(f, ve))
             if f not in _g_files_we_cannot_convert:
-                l_e_('[ CNV ] error: ignoring file {} from now on'.format(f))
+                print('[ CNV ] error: ignoring file {} from now on'.format(f))
                 _g_files_we_cannot_convert.append(f)
 
     return all_ok, err_files
+
+
+def get_dds_folder_path_dl_files() -> Path:
+    return rs / 'dl_files'
+
+
+def get_dds_folder_path_settings() -> Path:
+    return rs / 'settings'
 
 
 def main():
