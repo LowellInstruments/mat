@@ -302,6 +302,10 @@ def get_dds_folder_path_logs() -> Path:
     return rs / 'logs'
 
 
+def get_dds_folder_path_macs() -> Path:
+    return rs / 'macs'
+
+
 def get_dds_folder_path_settings() -> Path:
     return rs / 'settings'
 
