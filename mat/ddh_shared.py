@@ -298,6 +298,10 @@ def get_dds_folder_path_dl_files() -> Path:
     return rs / 'dl_files'
 
 
+def get_dds_folder_path_logs() -> Path:
+    return rs / 'logs'
+
+
 def get_dds_folder_path_settings() -> Path:
     return rs / 'settings'
 
