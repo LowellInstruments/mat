@@ -53,6 +53,10 @@ def get_ddh_black_macs_purge_file_flag() -> str:
     return '/tmp/ddh_black_macs_purge_file.flag'
 
 
+def get_ddh_aws_has_something_to_do_flag() -> str:
+    return '/tmp/ddh_aws_has_something_to_do.flag'
+
+
 def get_ddh_db_history() -> str:
     return str(rh / 'ddh/db/db_his.db')
 
