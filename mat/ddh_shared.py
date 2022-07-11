@@ -49,12 +49,20 @@ def get_ddh_app_override_file_flag() -> str:
     return '/tmp/ddh_app_override_file.flag'
 
 
+def get_ddh_sns_force_file_flag() -> str:
+    return '/tmp/ddh_sns_force_file.flag'
+
+
 def get_ddh_black_macs_purge_file_flag() -> str:
     return '/tmp/ddh_black_macs_purge_file.flag'
 
 
 def get_ddh_aws_has_something_to_do_flag() -> str:
     return '/tmp/ddh_aws_has_something_to_do.flag'
+
+
+def get_dds_is_ble_downloading_flag() -> str:
+    return '/tmp/get_dds_is_ble_downloading_flag'
 
 
 def get_ddh_db_history() -> str:
@@ -131,7 +139,7 @@ def ddh_get_json_app_type():
     return ddh_get_json_plot_type()
 
 
-def ddh_get_json_vessel_name():
+def dds_get_json_vessel_name():
     j = str(get_dds_settings_file())
     try:
         with open(j) as f:
@@ -141,7 +149,7 @@ def ddh_get_json_vessel_name():
         return 'Unnamed ship'
 
 
-def ddh_get_json_moving_speed() -> list:
+def dds_get_json_moving_speed() -> list:
     j = str(get_dds_settings_file())
     try:
         with open(j) as f:
@@ -206,6 +214,13 @@ def create_folder_logger_by_mac(mac):
 def ddh_get_commit():
     import git
     _r = git.Repo(get_ddh_folder_path_root())
+    c = _r.head.commit
+    return str(c)[:5]
+
+
+def dds_get_commit():
+    import git
+    _r = git.Repo(get_dds_folder_path_root())
     c = _r.head.commit
     return str(c)[:5]
 
@@ -310,8 +325,23 @@ def get_dds_folder_path_macs() -> Path:
     return rs / 'macs'
 
 
+def get_dds_folder_path_sns() -> Path:
+    return rs / 'sns'
+
+
 def get_dds_folder_path_settings() -> Path:
     return rs / 'settings'
+
+
+def get_dds_loggers_forget_time() -> int:
+    j = str(get_dds_settings_file())
+    try:
+        with open(j) as f:
+            cfg = json.load(f)
+            return cfg['forget_time']
+
+    except (FileNotFoundError, TypeError, KeyError):
+        return -1
 
 
 def main():

@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import socket
 from datetime import timezone
 import os
 import struct
@@ -158,7 +159,7 @@ class LoggerControllerMoana:
             # moana sometimes fails here
             pass
 
-    def file_get(self, rm_demo=False):
+    def file_get(self, size, ip='127.0.0.1', port=12349, rm_demo=False):
         # --------------------------------------------
         # because it works with phones, the size of
         # Moana BLE notifications is 20 bytes
@@ -169,6 +170,9 @@ class LoggerControllerMoana:
         data = bytes()
         marker_file_end = b'*0005D\x00'
         is_first_packet = True
+        _skg = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        _ = 'state_download_progress/0'
+        _skg.sendto(str(_).encode(), (ip, port))
 
         while 1:
             pre = len(self.dlg.buf)
@@ -178,6 +182,10 @@ class LoggerControllerMoana:
                 # accumulate till nothing more arrives
                 pass
             post = len(self.dlg.buf)
+
+            _ = (post / size) * 100
+            _ = 'state_download_progress/{}'.format(_)
+            _skg.sendto(str(_).encode(), (ip, port))
 
             # lose header only of intermediate packets
             if is_first_packet:
@@ -192,6 +200,11 @@ class LoggerControllerMoana:
             if pre == post:
                 # detects timeouts
                 break
+
+        # final percentage progress update
+        _ = (post / size) * 100
+        _ = 'state_download_progress/{}'.format(_)
+        _skg.sendto(str(_).encode(), (ip, port))
 
         # data: b',"ArchiveBit":"+"}*0173D\x00Download Time...'
         k = data.index(b'*')

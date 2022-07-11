@@ -9,7 +9,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWA
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
-from mat.utils import is_valid_mac_address, lowell_file_list_as_dict, linux_is_rpi
+from mat.utils import is_valid_mac_address, lowell_file_list_as_dict
 
 
 class LoggerControllerCC26X2R(LoggerController):
@@ -361,43 +361,29 @@ class LoggerControllerCC26X2R(LoggerController):
     # download functions section
     # ---------------------------
     @staticmethod
-    def _progress_dl(p, v, size, ip, port):
+    def _progress_dl(v, size, ip, port):
 
         _ = int(v) / int(size) * 100
         _ = _ if _ < 100 else 100
-
-        # ----------------------
-        # old, file-system based
-        # ----------------------
-
-        if p:
-            f = open(p, 'w+')
-            f.write(str(_))
-            f.close()
-            return
-
-        # ----------------------
-        # new, UDP socket based
-        # ----------------------
-
         _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print('{} %'.format(int(_)))
         _ = 'state_download_progress/{}'.format(_)
         _sk.sendto(str(_).encode(), (ip, port))
 
-    def ble_cmd_dwl(self, z, p=None, w=.1, ip='127.0.0.1', port=12349) -> bytes:
+    def ble_cmd_dwl(self, z, w=.2, ip='127.0.0.1', port=12349) -> bytes:
         # z: file size
         # w: smaller is faster
         #       .1 -> 11 KBps DO-1
         self.dlg.buf = bytes()
         n = math.ceil(z / 2048)
-        self._progress_dl(p, 0, z, ip, port)
+        self._progress_dl(0, z, ip, port)
 
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
             while self.per.waitForNotifications(w):
                 pass
-            self._progress_dl(p, len(self.dlg.buf), z, ip, port)
+            self._progress_dl(len(self.dlg.buf), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
 

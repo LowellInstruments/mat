@@ -1,4 +1,5 @@
 import math
+import socket
 import time
 from mat.ble_utils_shared import xmd_frame_check_crc
 
@@ -16,7 +17,7 @@ def _debug(s, verbose):
         print(s)
 
 
-def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
+def rn4020_xmodem_get_file(lc, file_size, ip, port):
     file_built = bytes()
     _rt = 0
     _len = 0
@@ -24,9 +25,16 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
     # enable debug
     verbose = False
 
+    # percentage progress update
+    _skg = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
     # send C character
     _debug('<- C', verbose)
     lc.ble_write(b'C')
+
+    # GUI progress update
+    _ = 'state_download_progress/0'
+    _skg.sendto(str(_).encode(), (ip, port))
 
     while 1:
         # start anew at every frame
@@ -72,19 +80,6 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
             continue
 
         # rx rest of frame
-        # _now = time.perf_counter()
-        # _rem = 1 - (_now - _bef)
-        # _till = _now + _rem
-        # timeout = False
-        # while 1:
-        #     lc.per.waitForNotifications(0.1)
-        #     if time.perf_counter() > _till:
-        #         timeout = True
-        #         break
-        #     if len(lc.dlg.buf) == _len:
-        #         break
-
-        # rx rest of frame
         _till = time.perf_counter() + 1
         timeout = False
         while 1:
@@ -108,18 +103,19 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
             lc.dlg.buf = lc.dlg.buf[_len:]
             _ack(lc)
             _rt = 0
-            # notify GUI, if any
-            if p:
-                f = open(p, 'w+')
-                _ = len(file_built) / file_size * 100
-                _ = _ if _ < 100 else 100
-                f.write(str(math.ceil(_)))
-                f.close()
+
+            # notify GUI progress update
+            _ = len(file_built) / file_size * 100
+            _ = 'state_download_progress/{}'.format(_)
+            _skg.sendto(str(_).encode(), (ip, port))
         else:
             # PARSE DATA not OK, yes retries left
             _debug('<- crc NAK', verbose)
             _rt += 1
             _nak(lc)
+
+    _ = 'state_download_progress/100'
+    _skg.sendto(str(_).encode(), (ip, port))
 
 
 def _ack(lc):
