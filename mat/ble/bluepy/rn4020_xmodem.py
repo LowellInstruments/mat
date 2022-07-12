@@ -2,7 +2,7 @@ import math
 import socket
 import time
 from mat.ble_utils_shared import xmd_frame_check_crc
-
+from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
 
 SOH = b'\x01'
 STX = b'\x02'
@@ -33,7 +33,7 @@ def rn4020_xmodem_get_file(lc, file_size, ip, port):
     lc.ble_write(b'C')
 
     # GUI progress update
-    _ = 'state_download_progress/0'
+    _ = '{}/0'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
     _skg.sendto(str(_).encode(), (ip, port))
 
     while 1:
@@ -106,7 +106,7 @@ def rn4020_xmodem_get_file(lc, file_size, ip, port):
 
             # notify GUI progress update
             _ = len(file_built) / file_size * 100
-            _ = 'state_download_progress/{}'.format(_)
+            _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
             _skg.sendto(str(_).encode(), (ip, port))
         else:
             # PARSE DATA not OK, yes retries left
@@ -114,7 +114,7 @@ def rn4020_xmodem_get_file(lc, file_size, ip, port):
             _rt += 1
             _nak(lc)
 
-    _ = 'state_download_progress/100'
+    _ = '{}/100'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
     _skg.sendto(str(_).encode(), (ip, port))
 
 

@@ -13,7 +13,8 @@ _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
 def send_ddh_udp_gui(s, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
-    assert '/' in s
+    if '/' not in s:
+        s += '/'
     _sk.sendto(s.encode(), (ip, port))
 
 
@@ -57,7 +58,7 @@ def get_ddh_black_macs_purge_file_flag() -> str:
     return '/tmp/ddh_black_macs_purge_file.flag'
 
 
-def get_ddh_aws_has_something_to_do_flag() -> str:
+def get_dds_aws_has_something_to_do_flag() -> str:
     return '/tmp/ddh_aws_has_something_to_do.flag'
 
 
@@ -243,7 +244,7 @@ def _lid_file_has_sensor_data_type(path, suffix):
 def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
 
     if not Path(fol).is_dir():
-        print('[ SYS ] error -> folder {} not found'.format(fol))
+        print('[ CNV ] error -> folder {} not found'.format(fol))
         return False, []
 
     # ---------------------------
@@ -251,7 +252,7 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
     # ---------------------------
     valid_suffixes = ('_DissolvedOxygen', '_Temperature', '_Pressure')
     if suf not in valid_suffixes:
-        print('[ SYS ] error -> unknown suffix {}'.format(suf))
+        print('[ CNV ] error -> unknown suffix {}'.format(suf))
         return False, []
 
     # needed variables for conversion
@@ -282,7 +283,7 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
 
             # skip files not containing this sensor data
             if not _lid_file_has_sensor_data_type(f, suf):
-                # s = '[ SYS ] file {} -> no {} data'
+                # s = '[ CNV ] file {} -> no {} data'
                 # l_d_(s.format(f, suf))
                 continue
 
@@ -293,7 +294,7 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
             # hack for RN4020 pressure adjust
             # --------------------------------
             if ('_Pressure' in suf) and ('moana' not in f):
-                print('[ SYS ] adjusting LI file {}'.format(f))
+                print('[ CNV ] adjusting LI file {}'.format(f))
                 # f: ends with.lid
                 fp_csv = f[:-4] + '_Pressure.csv'
                 df = pd.read_csv(fp_csv)
@@ -323,6 +324,10 @@ def get_dds_folder_path_logs() -> Path:
 
 def get_dds_folder_path_macs() -> Path:
     return rs / 'macs'
+
+
+def get_dds_folder_path_macs_black() -> Path:
+    return get_dds_folder_path_macs() / 'black'
 
 
 def get_dds_folder_path_sns() -> Path:

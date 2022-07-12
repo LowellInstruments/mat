@@ -10,6 +10,8 @@ import bluepy
 from bluepy import btle
 import subprocess as sp
 
+from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
+
 
 def utils_logger_is_moana(mac, info: str):
     return 'MOANA' in info
@@ -171,7 +173,7 @@ class LoggerControllerMoana:
         marker_file_end = b'*0005D\x00'
         is_first_packet = True
         _skg = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        _ = 'state_download_progress/0'
+        _ = '{}/0'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
         _skg.sendto(str(_).encode(), (ip, port))
 
         while 1:
@@ -184,7 +186,7 @@ class LoggerControllerMoana:
             post = len(self.dlg.buf)
 
             _ = (post / size) * 100
-            _ = 'state_download_progress/{}'.format(_)
+            _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
             _skg.sendto(str(_).encode(), (ip, port))
 
             # lose header only of intermediate packets
@@ -203,7 +205,7 @@ class LoggerControllerMoana:
 
         # final percentage progress update
         _ = (post / size) * 100
-        _ = 'state_download_progress/{}'.format(_)
+        _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
         _skg.sendto(str(_).encode(), (ip, port))
 
         # data: b',"ArchiveBit":"+"}*0173D\x00Download Time...'

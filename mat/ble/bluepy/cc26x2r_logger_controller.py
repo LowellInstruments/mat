@@ -5,6 +5,7 @@ import json
 import math
 from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, connect_cc26x2r, MTU_SIZE, \
     calculate_answer_timeout, build_command
+from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
 from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
@@ -367,7 +368,7 @@ class LoggerControllerCC26X2R(LoggerController):
         _ = _ if _ < 100 else 100
         _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         print('{} %'.format(int(_)))
-        _ = 'state_download_progress/{}'.format(_)
+        _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
         _sk.sendto(str(_).encode(), (ip, port))
 
     def ble_cmd_dwl(self, z, w=.2, ip='127.0.0.1', port=12349) -> bytes:
