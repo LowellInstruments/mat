@@ -31,9 +31,8 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(3):
             rv = connect_cc26x2r(self)
             if rv:
-                time.sleep(.1)
                 return True
-            time.sleep(3)
+            time.sleep(1)
         return False
 
     def close(self) -> bool:
@@ -382,8 +381,15 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
-            while self.per.waitForNotifications(w):
-                pass
+
+            # while self.per.waitForNotifications(w):
+            #     pass
+
+            for j in range(20):
+                self.per.waitForNotifications(.05)
+                if len(self.dlg.buf) == 2048 * (i + 1):
+                    break
+
             self._progress_dl(len(self.dlg.buf), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf

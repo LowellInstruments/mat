@@ -64,9 +64,7 @@ def connect_cc26x2r(lc):
     uuid_w = 'f0001131-0451-4000-b000-000000000000'
 
     try:
-        # connection update request from cc26x2 takes 1 sec
         lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
-        time.sleep(1.1)
         lc.per.setDelegate(lc.dlg)
         lc.svc = lc.per.getServiceByUUID(uuid_s)
         lc.cha = lc.svc.getCharacteristics(uuid_c)[0]
