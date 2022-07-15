@@ -1,8 +1,11 @@
+import git
 import json
 import os
 import socket
 from pathlib import Path
 import pandas as pd
+from git import InvalidGitRepositoryError
+
 from mat.data_converter import default_parameters, DataConverter
 from mat.data_file_factory import load_data_file
 from mat.utils import linux_is_rpi, linux_ls_by_ext
@@ -219,17 +222,21 @@ def create_folder_logger_by_mac(mac):
 
 
 def ddh_get_commit():
-    import git
-    _r = git.Repo(get_ddh_folder_path_root())
-    c = _r.head.commit
-    return str(c)[:5]
+    try:
+        _r = git.Repo(get_ddh_folder_path_root())
+        c = _r.head.commit
+        return str(c)[:5]
+    except InvalidGitRepositoryError:
+        return 'none'
 
 
 def dds_get_commit():
-    import git
-    _r = git.Repo(get_dds_folder_path_root())
-    c = _r.head.commit
-    return str(c)[:5]
+    try:
+        _r = git.Repo(get_dds_folder_path_root())
+        c = _r.head.commit
+        return str(c)[:5]
+    except InvalidGitRepositoryError:
+        return 'none'
 
 
 BAROMETRIC_PRESSURE_SEA_LEVEL_IN_DECIBAR = 10.1
