@@ -1,8 +1,8 @@
-import socket
 import time
 from mat.ble.bluepy.cc26x2r_logger_controller import LoggerControllerCC26X2R
 from mat.ble.bluepy.rn4020_utils import connect_rn4020
 from mat.ble.bluepy.rn4020_xmodem import rn4020_xmodem_get_file
+from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
 from mat.logger_controller_ble import *
 from mat.logger_controller import STATUS_CMD, TIME_CMD, \
     SET_TIME_CMD, LOGGER_INFO_CMD_W, \
@@ -68,7 +68,7 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
         a = self._ble_cmd(SWS_CMD, s)
         return a == b'SWS 0200'
 
-    def ble_cmd_get(self, name, size, ip='127.0.0.1', port=12349) -> bytes:  # pragma: no cover
+    def ble_cmd_get(self, name, size, ip='127.0.0.1', port=_DGP) -> bytes:  # pragma: no cover
 
         # separate any previous unwanted stuff
         time.sleep(1)

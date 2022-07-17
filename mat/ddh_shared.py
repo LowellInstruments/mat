@@ -5,16 +5,9 @@ import socket
 from pathlib import Path
 import pandas as pd
 from git import InvalidGitRepositoryError
-
 from mat.data_converter import default_parameters, DataConverter
 from mat.data_file_factory import load_data_file
 from mat.utils import linux_is_rpi, linux_ls_by_ext
-
-
-# todo: use these constants in service and GUI
-PERIOD_SERVICE_BLE_MS = 20000
-PERIOD_SERVICE_AWS_MS = 20000
-PERIOD_SERVICE_NET_MS = 60000
 
 
 DDH_GUI_UDP_PORT = 12349

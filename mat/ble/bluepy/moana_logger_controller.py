@@ -9,7 +9,7 @@ from inspect import stack
 import bluepy
 from bluepy import btle
 import subprocess as sp
-import numpy as np
+from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
 from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
 
 
@@ -170,7 +170,7 @@ class LoggerControllerMoana:
         if len(crc) == 11:
             return crc[-8:]
 
-    def file_get(self, size, ip='127.0.0.1', port=12349, rm_demo=False):
+    def file_get(self, size, ip='127.0.0.1', port=_DGP, rm_demo=False):
         # --------------------------------------------
         # because it works with phones, the size of
         # Moana BLE notifications is 20 bytes

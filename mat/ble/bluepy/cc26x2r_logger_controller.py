@@ -3,12 +3,17 @@ import time
 from datetime import datetime, timezone
 import json
 import math
-from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, connect_cc26x2r, MTU_SIZE, \
+from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, \
+    connect_cc26x2r, MTU_SIZE, \
     calculate_answer_timeout, build_command
+from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
 from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
-from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
-    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
-    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
+from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
+    FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
+    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, \
+    DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
+    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, \
+    SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
 from mat.utils import is_valid_mac_address, lowell_file_list_as_dict
 
@@ -370,10 +375,8 @@ class LoggerControllerCC26X2R(LoggerController):
         _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
         _sk.sendto(str(_).encode(), (ip, port))
 
-    def ble_cmd_dwl(self, z, w=.2, ip='127.0.0.1', port=12349) -> bytes:
+    def ble_cmd_dwl(self, z, ip='127.0.0.1', port=_DGP) -> bytes:
         # z: file size
-        # w: smaller is faster
-        #       .1 -> 11 KBps DO-1
         self.dlg.buf = bytes()
         n = math.ceil(z / 2048)
         self._progress_dl(0, z, ip, port)
@@ -381,9 +384,6 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
-
-            # while self.per.waitForNotifications(w):
-            #     pass
 
             for j in range(20):
                 self.per.waitForNotifications(.05)
