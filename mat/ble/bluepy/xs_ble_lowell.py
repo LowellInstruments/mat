@@ -111,7 +111,6 @@ class BLEXmlRpcServer:
             return self.lc.close()
 
     def xs_ble_cmd_connect(self, mac, h):
-        # todo > assert > only bluepy classes
         self.lc = LoggerControllerRN4020(mac)
         return self.lc.open()
 
