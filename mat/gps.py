@@ -133,27 +133,28 @@ def gps_configure_quectel() -> int:
 def gps_get_rmc_data(timeout=2):
     """ returns (lat, lon, dt object) or None """
 
-    rv, sp = None, None
+    g, sp = None, None
+    _till = time.perf_counter() + timeout
+
     try:
         sp = serial.Serial(PORT_DATA, baudrate=115200, timeout=0.1)
-        _till = time.perf_counter() + timeout
         # there is approx 1 RMC frame / second so, we are ok
         while True:
             if time.perf_counter() > _till:
                 break
             data = sp.readline()
             if b'$GPRMC' in data:
-                rv = _gps_parse_rmc_frame(data.decode())
-                if rv:
+                g = _gps_parse_rmc_frame(data.decode())
+                if g:
                     # None / (lat, lon, gps_time, speed)
-                    return rv
+                    return g
     except SerialException as se:
-        rv = None
+        g = None
         print(se)
     finally:
         if sp:
             sp.close()
-        return rv
+        return g
 
 
 # for testing purposes
