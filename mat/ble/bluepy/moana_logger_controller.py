@@ -196,6 +196,11 @@ class LoggerControllerMoana:
         # data: b',"ArchiveBit":"+"}*0173D\x00Download Time...'
         k = data.index(b'*')
         self.dlg.buf = data[k:]
+
+        # e-mail patch
+        patch = b'*0ff0D\x00'
+        if patch in self.dlg.buf:
+            self.dlg.buf = self.dlg.buf.replace(patch, b'')
         return self.dlg.buf
 
     def file_clear(self):
