@@ -54,3 +54,8 @@ class TestSensorDataFile(TestCase):
     def test_no_data_in_lid_file(self):
         with self.assertRaises(NoDataError):
             load_data_file(reference_file('No_Channels_Enabled.lid'))
+
+    def test_mini_header_voltages(self):
+        data_file = load_data_file(reference_file('two_page_file.lid'))
+        voltages = data_file.page_voltages()
+        assert voltages == [3.998, 3.998]
