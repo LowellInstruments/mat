@@ -22,7 +22,7 @@ class LidDataFile(SensorDataFile):
         successful_reads = 0
         try:
             for n in range(ideal_n):
-                self._read_mini_header(n)
+                self._mini_headers.append(self._read_mini_header(n))
                 successful_reads += 1
         except ValueError:
             self.header_error = (successful_reads, ideal_n)
@@ -53,9 +53,7 @@ class LidDataFile(SensorDataFile):
             return self._page_times
         page_start_times = []
         for page_n in range(self.n_pages()):
-            header_string = self._read_mini_header(page_n)
-            mini_header = parse_tags(header_string)
-            time = mini_header['CLK']
+            time = self._mini_headers[page_n]['CLK']
             page_time = datetime.strptime(time, '%Y-%m-%d %H:%M:%S')
             epoch_time = epoch(page_time)
             # The timestamp on all pages after the first have an
@@ -66,6 +64,13 @@ class LidDataFile(SensorDataFile):
         self._page_times = page_start_times
         return self._page_times
 
+    def page_voltages(self):
+        voltages = []
+        for page_n in range(self.n_pages()):
+            voltage_hex = self._mini_headers[page_n]['BAT']
+            voltages.append(int(voltage_hex, 16)/1000)
+        return voltages
+
     def _read_mini_header(self, page):
         file_position = self.file().tell()
         self.file().seek(self.data_start + self.PAGE_SIZE * page)
@@ -75,7 +80,7 @@ class LidDataFile(SensorDataFile):
         if not header_string.startswith('MHS'):
             raise ValueError('MHS tag missing from mini-header')
         header_string = header_string[5:-5]  # remove HDE\r\n and HDS\r\n
-        return header_string
+        return parse_tags(header_string)
 
     def mini_header_length(self):
         if self._mini_header_length:
