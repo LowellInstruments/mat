@@ -14,9 +14,21 @@ DDH_GUI_UDP_PORT = 12349
 _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
+PID_FILE_DDH = '/tmp/ddh.pid'
+PID_FILE_DDS = '/tmp/dds.pid'
+PID_FILE_DDS_CNV = '/tmp/dds-cnv.pid'
+PID_FILE_DDS_AWS = '/tmp/dds-aws.pid'
+
+
 def send_ddh_udp_gui(s, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     if '/' not in s:
         s += '/'
+
+    _sk.sendto(s.encode(), (ip, port))
+    if ip == '127.0.0.1':
+        # only once on local cases
+        return
+    # on remote cases, both local and remote
     _sk.sendto(s.encode(), (ip, port))
 
 

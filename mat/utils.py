@@ -180,10 +180,7 @@ def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
 
 
-def linux_app_write_pid(s):
-    if platform.system() != 'Linux':
-        return
-    path = '/tmp/{}.pid'.format(s)
+def linux_app_write_pid(path):
     if os.path.exists(path):
         os.remove(path)
     pid = str(os.getpid())
