@@ -63,6 +63,11 @@ def connect_cc26x2r(lc):
     uuid_c = 'f0001132-0451-4000-b000-000000000000'
     uuid_w = 'f0001131-0451-4000-b000-000000000000'
 
+    if lc.what == 'mod':
+        uuid_s = 'f000c0c0-0451-4000-b000-000000000000'
+        uuid_c = 'f000c0c2-0451-4000-b000-000000000000'
+        uuid_w = 'f000c0c1-0451-4000-b000-000000000000'
+
     try:
         lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
         lc.per.setDelegate(lc.dlg)
@@ -84,6 +89,10 @@ def ble_cmd_file_list_only_lid_files(lc) -> dict:
 
 
 def utils_logger_is_cc26x2r(mac, info: str):
-    is_do_2 = 'DO-2' in info
     is_do_1 = 'DO-1' in info
-    return is_do_2 or is_do_1
+    is_do_2 = 'DO-2' in info
+    return is_do_1 or is_do_2
+
+
+def utils_logger_is_cc26x2r_new(mac, info: str):
+    return 'DO-3' in info
