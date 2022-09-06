@@ -63,7 +63,7 @@ def connect_cc26x2r(lc):
     uuid_c = 'f0001132-0451-4000-b000-000000000000'
     uuid_w = 'f0001131-0451-4000-b000-000000000000'
 
-    if lc.what == 'mod':
+    if lc.what == 'DO-X':
         uuid_s = 'f000c0c0-0451-4000-b000-000000000000'
         uuid_c = 'f000c0c2-0451-4000-b000-000000000000'
         uuid_w = 'f000c0c1-0451-4000-b000-000000000000'
@@ -95,4 +95,4 @@ def utils_logger_is_cc26x2r(mac, info: str):
 
 
 def utils_logger_is_cc26x2r_new(mac, info: str):
-    return 'DO-3' in info
+    return 'DO-4' in info
