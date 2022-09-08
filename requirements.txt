@@ -1,7 +1,7 @@
 # todo > unify requirements with Jeff / domino, once we merge MAT branches
 
 h5py
-numpy
+numpy==1.21.0
 pyserial==3.5
 pytest==6.2.5
 pytest-cov==3.0.0
