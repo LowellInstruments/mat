@@ -100,7 +100,7 @@ def get_ddh_file_version() -> str:
     return str(rh / 'ddh/version.py')
 
 
-def ddh_check_conf_json_file():
+def dds_check_conf_json_file():
     try:
         j = str(get_dds_settings_file())
         with open(j) as f:
@@ -130,7 +130,7 @@ def ddh_check_conf_json_file():
         return 1
 
 
-def ddh_get_macs_from_json_file():
+def dds_get_macs_from_json_file():
     j = str(get_dds_settings_file())
     try:
         with open(j) as f:
@@ -148,6 +148,10 @@ def ddh_get_json_plot_type():
         v = cfg['last_haul']
         assert v in (0, 1)
         return v
+
+
+def ddh_get_is_last_haul():
+    return ddh_get_json_plot_type()
 
 
 def ddh_get_json_app_type():
@@ -261,6 +265,9 @@ def _lid_file_has_sensor_data_type(path, suffix):
 
 def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
 
+    s = '[ CNV ] asked conversion of {}, suffix {}'
+    print(s.format(fol, suf))
+
     if not Path(fol).is_dir():
         print('[ CNV ] error -> folder {} not found'.format(fol))
         return False, []
@@ -346,6 +353,10 @@ def get_dds_folder_path_macs() -> Path:
 
 def get_dds_folder_path_macs_black() -> Path:
     return get_dds_folder_path_macs() / 'black'
+
+
+def get_dds_folder_path_macs_orange() -> Path:
+    return get_dds_folder_path_macs() / 'orange'
 
 
 def get_dds_folder_path_sns() -> Path:

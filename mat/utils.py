@@ -214,7 +214,7 @@ def is_valid_mac_address(mac):
     return re.search(re.compile(regex), mac)
 
 
-def lowell_file_list_as_dict(ls, ext, match=True):
+def dir_ans_to_dict(ls, ext, match=True):
     if ls is None:
         return {}
 

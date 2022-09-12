@@ -15,7 +15,7 @@ from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
     CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, \
     SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
-from mat.utils import is_valid_mac_address, lowell_file_list_as_dict
+from mat.utils import is_valid_mac_address, dir_ans_to_dict
 
 
 class LoggerControllerCC26X2R(LoggerController):
@@ -249,7 +249,7 @@ class LoggerControllerCC26X2R(LoggerController):
         f_l = self._ble_cmd(DIR_CMD)
         # removes DIR bad trailing sometimes
         self.per.waitForNotifications(.1)
-        return lowell_file_list_as_dict(f_l, ext, match=True)
+        return dir_ans_to_dict(f_l, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover
         rv = self.ble_cmd_dir_ext('*')

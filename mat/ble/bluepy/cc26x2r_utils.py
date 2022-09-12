@@ -95,4 +95,4 @@ def utils_logger_is_cc26x2r(mac, info: str):
 
 
 def utils_logger_is_cc26x2r_new(mac, info: str):
-    return 'DO-4' in info
+    return 'DO-X' in info

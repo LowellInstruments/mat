@@ -1,4 +1,5 @@
 # todo > unify requirements with Jeff / domino, once we merge MAT branches
+# todo > express requirements not with == but >=
 
 h5py
 numpy==1.21.0
@@ -6,7 +7,6 @@ pyserial==3.5
 pytest==6.2.5
 pytest-cov==3.0.0
 pytest-mock==3.6.1
-tzlocal
 pandas
 boto3
 
