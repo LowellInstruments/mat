@@ -1,5 +1,6 @@
 STATE_DDS_NOTIFY_BOAT_NAME = 'boat_name'
 STATE_DDS_NOTIFY_GPS = 'gps'
+STATE_DDS_NOTIFY_GPS_BOOT = 'gps_boot'
 STATE_DDS_NOTIFY_HISTORY = 'history'
 
 
