@@ -32,77 +32,61 @@ def send_ddh_udp_gui(s, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     _sk.sendto(s.encode(), (ip, port))
 
 
-def get_ddh_folder_path_root() -> Path:
+def ddh_get_folder_path_root() -> Path:
     if linux_is_rpi():
         return Path.home() / 'li' / 'ddh'
     return Path.home() / 'PycharmProjects' / 'ddh'
 
 
-def get_dds_folder_path_root():
+def dds_get_folder_path_root():
     if linux_is_rpi():
         return Path.home() / 'li' / 'dds'
     return Path.home() / 'PycharmProjects' / 'dds'
 
 
-rh = get_ddh_folder_path_root()
-rs = get_dds_folder_path_root()
+rh = ddh_get_folder_path_root()
+rs = dds_get_folder_path_root()
 
 
-def get_ddh_folder_path_res() -> Path:
+def ddh_get_folder_path_res() -> Path:
     return rh / 'ddh/gui/res'
 
 
-def get_dds_settings_file() -> Path:
+def dds_get_settings_json_file() -> Path:
     return rs / 'settings/ddh.json'
 
 
-def get_ddh_disabled_ble_file_flag() -> str:
+def ddh_get_disabled_ble_file_flag() -> str:
     return '/tmp/ddh_disabled_ble_file.flag'
 
 
-def get_ddh_app_override_file_flag() -> str:
+def ddh_get_app_override_file_flag() -> str:
     return '/tmp/ddh_app_override_file.flag'
 
 
-def get_ddh_sns_force_file_flag() -> str:
+def dds_get_sns_force_file_flag() -> str:
     return '/tmp/ddh_sns_force_file.flag'
 
 
-def get_ddh_black_macs_purge_file_flag() -> str:
+def dds_get_black_macs_purge_file_flag() -> str:
     return '/tmp/ddh_black_macs_purge_file.flag'
 
 
-def get_dds_aws_has_something_to_do_flag() -> str:
+def dds_get_aws_has_something_to_do_flag() -> str:
     return '/tmp/ddh_aws_has_something_to_do.flag'
 
 
-def get_dds_is_ble_downloading_flag() -> str:
-    return '/tmp/get_dds_is_ble_downloading_flag'
-
-
-def get_ddh_db_history() -> str:
+def ddh_get_db_history() -> str:
     return str(rh / 'ddh/db/db_his.db')
 
 
-def get_ddh_db_sns() -> str:
-    return str(rs / 'dds/db/db_sns.db')
-
-
-def get_ddh_db_plots() -> str:
+def ddh_get_db_plots() -> str:
     return str(rh / 'ddh/db/db_plt.db')
-
-
-def get_ddh_file_mc_fallback() -> Path:
-    return get_dds_folder_path_dl_files() / 'MAT_fallback.cfg'
-
-
-def get_ddh_file_version() -> str:
-    return str(rh / 'ddh/version.py')
 
 
 def dds_check_conf_json_file():
     try:
-        j = str(get_dds_settings_file())
+        j = str(dds_get_settings_json_file())
         with open(j) as f:
             cfg = json.load(f)
             del cfg['db_logger_macs']
@@ -131,7 +115,7 @@ def dds_check_conf_json_file():
 
 
 def dds_get_macs_from_json_file():
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -142,7 +126,7 @@ def dds_get_macs_from_json_file():
 
 
 def ddh_get_json_plot_type():
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     with open(j) as f:
         cfg = json.load(f)
         v = cfg['last_haul']
@@ -159,7 +143,7 @@ def ddh_get_json_app_type():
 
 
 def dds_get_json_vessel_name():
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -169,7 +153,7 @@ def dds_get_json_vessel_name():
 
 
 def dds_get_json_moving_speed() -> list:
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -184,7 +168,7 @@ def dds_get_json_moving_speed() -> list:
 def _mac_dns_no_case(mac):
     """ returns logger name from its mac, not case-sensitive """
 
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -193,7 +177,7 @@ def _mac_dns_no_case(mac):
         return None
 
 
-def ddh_get_json_mac_dns(mac):
+def dds_get_json_mac_dns(mac):
     """ returns non-case-sensitive logger name (known) or mac (unknown) """
 
     # check for both upper() and lower() cases
@@ -232,7 +216,7 @@ def create_folder_logger_by_mac(mac):
 
 def ddh_get_commit():
     try:
-        _r = git.Repo(get_ddh_folder_path_root())
+        _r = git.Repo(ddh_get_folder_path_root())
         c = _r.head.commit
         return str(c)[:5]
     except InvalidGitRepositoryError:
@@ -241,7 +225,7 @@ def ddh_get_commit():
 
 def dds_get_commit():
     try:
-        _r = git.Repo(get_dds_folder_path_root())
+        _r = git.Repo(dds_get_folder_path_root())
         c = _r.head.commit
         return str(c)[:5]
     except InvalidGitRepositoryError:
@@ -368,7 +352,7 @@ def get_dds_folder_path_settings() -> Path:
 
 
 def get_dds_loggers_forget_time() -> int:
-    j = str(get_dds_settings_file())
+    j = str(dds_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -379,7 +363,7 @@ def get_dds_loggers_forget_time() -> int:
 
 
 def main():
-    print(get_ddh_folder_path_root())
+    print(ddh_get_folder_path_root())
 
 
 if __name__ == '__main__':

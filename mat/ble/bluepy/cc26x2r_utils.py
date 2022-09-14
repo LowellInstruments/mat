@@ -91,8 +91,8 @@ def ble_cmd_file_list_only_lid_files(lc) -> dict:
 def utils_logger_is_cc26x2r(mac, info: str):
     is_do_1 = 'DO-1' in info
     is_do_2 = 'DO-2' in info
+    is_do_x = 'DO-X' in info
+    is_do_3 = 'DO-3' in info
+    is_do_4 = 'DO-4' in info
     return is_do_1 or is_do_2
 
-
-def utils_logger_is_cc26x2r_new(mac, info: str):
-    return 'DO-X' in info
