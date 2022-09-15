@@ -247,7 +247,7 @@ def _lid_file_has_sensor_data_type(path, suffix):
     return header.tag(_map[suffix])
 
 
-+# todo > maybe move this to cnv.py
+# todo > maybe move this to cnv.py
 def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
 
     s = '[ CNV ] asked conversion of {}, suffix {}'
