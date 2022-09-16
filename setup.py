@@ -3,15 +3,9 @@
 import platform
 from setuptools import setup, find_packages
 
+
 # installation based on "requirements.txt"
-# it skips git+ format in file because setup.py does not like it
 rr = list(map(str.strip, open("requirements.txt").readlines()))
-rr.remove('git+https://github.com/LowellInstruments/bluepy.git')
-
-
-# add OUR bluepy library -> only for Linux installations
-if platform.system() == 'Linux':
-    rr.append('bluepy @ https://github.com/LowellInstruments/bluepy/archive/refs/heads/master.zip')
 
 
 # version management
