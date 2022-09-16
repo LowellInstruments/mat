@@ -40,7 +40,7 @@ jobs:
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
       with:
-        coverageCommand: pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
+        coverageCommand: python -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
         coverageLocations: ${{github.workspace}}/cov.xml:coverage.py
         debug: true
 
