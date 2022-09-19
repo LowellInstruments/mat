@@ -64,10 +64,6 @@ def ddh_get_app_override_file_flag() -> str:
     return '/tmp/ddh_app_override_file.flag'
 
 
-def dds_get_sns_force_file_flag() -> str:
-    return '/tmp/ddh_sns_force_file.flag'
-
-
 def dds_get_black_macs_purge_file_flag() -> str:
     return '/tmp/ddh_black_macs_purge_file.flag'
 
@@ -344,8 +340,8 @@ def get_dds_folder_path_macs_orange() -> Path:
     return get_dds_folder_path_macs() / 'orange'
 
 
-def get_dds_folder_path_sns() -> Path:
-    return rs / 'sns'
+def get_dds_folder_path_sqs() -> Path:
+    return rs / 'sqs'
 
 
 def get_dds_folder_path_settings() -> Path:
