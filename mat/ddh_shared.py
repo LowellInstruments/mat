@@ -10,14 +10,52 @@ from mat.data_file_factory import load_data_file
 from mat.utils import linux_is_rpi, linux_ls_by_ext
 
 
+STATE_DDS_NOTIFY_BOAT_NAME = 'boat_name'
+STATE_DDS_NOTIFY_GPS = 'gps'
+STATE_DDS_NOTIFY_GPS_BOOT = 'gps_boot'
+STATE_DDS_NOTIFY_HISTORY = 'history'
+
+
+STATE_DDS_BLE_SCAN = 'state_dds_ble_scan'
+STATE_DDS_BLE_DOWNLOAD = 'state_dds_ble_download'
+STATE_DDS_BLE_DOWNLOAD_OK = 'state_dds_ble_download_ok'
+STATE_DDS_BLE_DOWNLOAD_ERROR = 'state_dds_ble_download_error'
+STATE_DDS_BLE_DOWNLOAD_WARNING = 'state_dds_ble_download_warning'
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
+STATE_DDS_BLE_HARDWARE_ERROR = 'state_dds_ble_hardware_error'
+STATE_DDS_BLE_DISABLED = 'state_dds_ble_disabled'
+STATE_DDS_BLE_APP_GPS_ERROR_POSITION = 'state_ble_dds_gps_error_position'
+STATE_DDS_BLE_APP_GPS_ERROR_SPEED = 'state_ble_dds_gps_error_speed'
+STATE_DDS_BLE_APP_BOOT = 'state_ble_dds_app_boot'
+STATE_DDS_BLE_SERVICE_INACTIVE = 'state_ble_dds_service_inactive'
+STATE_DDS_BLE_ANTENNA = 'state_ble_dds_antenna_is'
+STATE_DDS_BLE_PURGE_BLACK = 'state_dds_ble_purge_black_macs'
+
+
+STATE_DDS_NOTIFY_NET_VIA = 'net_via'
+STATE_DDS_NOTIFY_CLOUD_BUSY = 'cloud_busy'
+STATE_DDS_NOTIFY_CLOUD_LOGIN = 'cloud_login'
+STATE_DDS_NOTIFY_CLOUD_OK = 'cloud_ok'
+STATE_DDS_NOTIFY_CLOUD_ERR = 'cloud_error'
+
+
+STATE_DDS_NOTIFY_CONVERSION_ERR = 'conversion_error'
+STATE_DDS_NOTIFY_CONVERSION_OK = 'conversion_ok'
+
+
+STATE_DDS_REQUEST_PLOT = 'plot_request'
+STATE_DDS_NOTIFY_PLOT_RESULT_OK = 'state_dds_notify_plot_result_ok'
+STATE_DDS_NOTIFY_PLOT_RESULT_ERR = 'state_dds_notify_plot_result_err'
+
+
+
+
 DDH_GUI_UDP_PORT = 12349
 _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
 PID_FILE_DDH = '/tmp/ddh.pid'
 PID_FILE_DDS = '/tmp/dds.pid'
-PID_FILE_DDS_CNV = '/tmp/dds-cnv.pid'
-PID_FILE_DDS_AWS = '/tmp/dds-aws.pid'
 
 
 def send_ddh_udp_gui(s, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
@@ -39,9 +77,7 @@ def ddh_get_folder_path_root() -> Path:
 
 
 def dds_get_folder_path_root():
-    if linux_is_rpi():
-        return Path.home() / 'li' / 'dds'
-    return Path.home() / 'PycharmProjects' / 'dds'
+    return ddh_get_folder_path_root() / 'dds'
 
 
 rh = ddh_get_folder_path_root()
@@ -52,8 +88,8 @@ def ddh_get_folder_path_res() -> Path:
     return rh / 'ddh/gui/res'
 
 
-def dds_get_settings_json_file() -> Path:
-    return rs / 'settings/ddh.json'
+def ddh_get_settings_json_file() -> Path:
+    return rh / 'settings/ddh.json'
 
 
 def ddh_get_disabled_ble_file_flag() -> str:
@@ -82,7 +118,7 @@ def ddh_get_db_plots() -> str:
 
 def dds_check_conf_json_file():
     try:
-        j = str(dds_get_settings_json_file())
+        j = str(ddh_get_settings_json_file())
         with open(j) as f:
             cfg = json.load(f)
             del cfg['db_logger_macs']
@@ -111,7 +147,7 @@ def dds_check_conf_json_file():
 
 
 def dds_get_macs_from_json_file():
-    j = str(dds_get_settings_json_file())
+    j = str(ddh_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -122,7 +158,7 @@ def dds_get_macs_from_json_file():
 
 
 def ddh_get_json_plot_type():
-    j = str(dds_get_settings_json_file())
+    j = str(ddh_get_settings_json_file())
     with open(j) as f:
         cfg = json.load(f)
         v = cfg['last_haul']
@@ -139,7 +175,7 @@ def ddh_get_json_app_type():
 
 
 def dds_get_json_vessel_name():
-    j = str(dds_get_settings_json_file())
+    j = str(ddh_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -149,7 +185,7 @@ def dds_get_json_vessel_name():
 
 
 def dds_get_json_moving_speed() -> list:
-    j = str(dds_get_settings_json_file())
+    j = str(ddh_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -164,7 +200,7 @@ def dds_get_json_moving_speed() -> list:
 def _mac_dns_no_case(mac):
     """ returns logger name from its mac, not case-sensitive """
 
-    j = str(dds_get_settings_json_file())
+    j = str(ddh_get_settings_json_file())
     try:
         with open(j) as f:
             cfg = json.load(f)
@@ -184,6 +220,47 @@ def dds_get_json_mac_dns(mac):
     return rv
 
 
+def get_ddh_folder_path_dl_files() -> Path:
+    return rh / 'dl_files'
+
+
+def get_ddh_folder_path_logs() -> Path:
+    return rh / 'logs'
+
+
+def get_ddh_folder_path_macs() -> Path:
+    return rh / 'macs'
+
+
+def get_ddh_folder_path_macs_black() -> Path:
+    return get_ddh_folder_path_macs() / 'black'
+
+
+def get_ddh_folder_path_macs_orange() -> Path:
+    return get_ddh_folder_path_macs() / 'orange'
+
+
+def get_ddh_folder_path_sqs() -> Path:
+    return rh / 'sqs'
+
+
+def get_ddh_folder_path_settings() -> Path:
+    return rh / 'settings'
+
+
+def get_ddh_loggers_forget_time() -> int:
+    j = str(ddh_get_settings_json_file())
+    try:
+        with open(j) as f:
+            cfg = json.load(f)
+            return cfg['forget_time']
+
+    except (FileNotFoundError, TypeError, KeyError) as ex:
+        e = 'error get_ddh_loggers_forget_time {}'
+        print(e.format(ex))
+        os.exit(1)
+
+
 def get_mac_from_folder_path(fol):
     """ returns '11:22:33' from 'dl_files/11-22-33' """
 
@@ -196,7 +273,7 @@ def get_mac_from_folder_path(fol):
 def get_dl_folder_path_from_mac(mac):
     """ returns 'dl_files/11-22-33' from '11:22:33' """
 
-    fol = get_dds_folder_path_dl_files()
+    fol = get_ddh_folder_path_dl_files()
     fol = fol / '{}/'.format(mac.replace(':', '-').lower())
     return fol
 
@@ -204,13 +281,13 @@ def get_dl_folder_path_from_mac(mac):
 def create_folder_logger_by_mac(mac):
     """ mkdir folder based on mac, replaces ':' with '-' """
 
-    fol = get_dds_folder_path_dl_files()
+    fol = get_ddh_folder_path_dl_files()
     fol = fol / '{}/'.format(mac.replace(':', '-').lower())
     os.makedirs(fol, exist_ok=True)
     return fol
 
 
-def ddh_get_commit():
+def get_ddh_commit():
     try:
         _r = git.Repo(ddh_get_folder_path_root())
         c = _r.head.commit
@@ -219,7 +296,7 @@ def ddh_get_commit():
         return 'none'
 
 
-def dds_get_commit():
+def get_dds_commit():
     try:
         _r = git.Repo(dds_get_folder_path_root())
         c = _r.head.commit
@@ -318,45 +395,6 @@ def ddh_convert_lid_to_csv(fol, suf) -> (bool, list):
                 _g_files_we_cannot_convert.append(f)
 
     return all_ok, err_files
-
-
-def get_dds_folder_path_dl_files() -> Path:
-    return rs / 'dl_files'
-
-
-def get_dds_folder_path_logs() -> Path:
-    return rs / 'logs'
-
-
-def get_dds_folder_path_macs() -> Path:
-    return rs / 'macs'
-
-
-def get_dds_folder_path_macs_black() -> Path:
-    return get_dds_folder_path_macs() / 'black'
-
-
-def get_dds_folder_path_macs_orange() -> Path:
-    return get_dds_folder_path_macs() / 'orange'
-
-
-def get_dds_folder_path_sqs() -> Path:
-    return rs / 'sqs'
-
-
-def get_dds_folder_path_settings() -> Path:
-    return rs / 'settings'
-
-
-def get_dds_loggers_forget_time() -> int:
-    j = str(dds_get_settings_json_file())
-    try:
-        with open(j) as f:
-            cfg = json.load(f)
-            return cfg['forget_time']
-
-    except (FileNotFoundError, TypeError, KeyError):
-        return -1
 
 
 def main():

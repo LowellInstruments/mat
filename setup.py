@@ -1,11 +1,6 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
-import platform
 from setuptools import setup, find_packages
-
-
-# installation based on "requirements.txt"
-rr = list(map(str.strip, open("requirements.txt").readlines()))
 
 
 # version management
@@ -21,7 +16,13 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
-      install_requires=rr,
+      install_requires=[
+          'h5py',
+          'numpy>=1.21.6',
+          'pyserial>=3.5',
+          'pandas',
+          'boto3'
+      ],
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",

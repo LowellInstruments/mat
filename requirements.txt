@@ -1,9 +1,0 @@
-# todo > unify requirements with Jeff / domino, once we merge MAT branches
-# todo > express requirements not with == but >=
-
-h5py
-numpy>=1.21.6
-pyserial>=3.5
-pandas
-boto3
-
