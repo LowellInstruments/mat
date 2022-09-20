@@ -6,23 +6,7 @@ from mat.ble.bluepy.rn4020_utils import utils_logger_is_rn4020
 from mat.data_converter import default_parameters, DataConverter
 
 
-def check_bluez_version():
-    if not platform.system() in ('Linux', 'linux'):
-        return True
-
-    # RN4020 loggers gave 'write not permitted' errors
-    s = 'bluetoothctl -v'
-    v = sp.run(s, shell=True, stdout=sp.PIPE)
-    v = v.stdout.decode()
-    v = v.replace('bluetoothctl: ', '')
-    v = v.replace('\n', '')
-    # -------------------------------
-    # error -> 5.47, 5.50, 5.56, 5.58
-    # maybe -> 5.51
-    # works -> 5.61
-    # -------------------------------
-    a = version.parse(v) == version.parse('5.61')
-    assert a, 'careful with bleak & bluez versions!'
+# todo > move codes in this file to other places
 
 
 def crc16(data):

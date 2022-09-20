@@ -228,16 +228,16 @@ def get_ddh_folder_path_logs() -> Path:
     return rh / 'logs'
 
 
-def get_ddh_folder_path_macs() -> Path:
-    return rh / 'macs'
+def get_dds_folder_path_macs() -> Path:
+    return rs / 'macs'
 
 
 def get_ddh_folder_path_macs_black() -> Path:
-    return get_ddh_folder_path_macs() / 'black'
+    return get_dds_folder_path_macs() / 'black'
 
 
 def get_ddh_folder_path_macs_orange() -> Path:
-    return get_ddh_folder_path_macs() / 'orange'
+    return get_dds_folder_path_macs() / 'orange'
 
 
 def get_ddh_folder_path_sqs() -> Path:
@@ -285,6 +285,16 @@ def create_folder_logger_by_mac(mac):
     fol = fol / '{}/'.format(mac.replace(':', '-').lower())
     os.makedirs(fol, exist_ok=True)
     return fol
+
+
+def ddh_create_folder_dl_files():
+    r = get_ddh_folder_path_dl_files()
+    os.makedirs(r, exist_ok=True)
+
+
+def ddh_create_folder_logs():
+    r = get_ddh_folder_path_logs()
+    os.makedirs(r, exist_ok=True)
 
 
 def get_ddh_commit():
