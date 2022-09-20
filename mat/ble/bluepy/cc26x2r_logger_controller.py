@@ -7,7 +7,7 @@ from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, \
     connect_cc26x2r, MTU_SIZE, \
     calculate_answer_timeout, build_command
 from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
-from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
+from mat.ddh_shared import *
 from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, \

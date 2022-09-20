@@ -1,8 +1,8 @@
-import math
 import socket
 import time
 from mat.ble_utils_shared import xmd_frame_check_crc
-from mat.dds_states import STATE_DDS_BLE_DOWNLOAD_PROGRESS
+from mat.ddh_shared import STATE_DDS_BLE_DOWNLOAD_PROGRESS
+
 
 SOH = b'\x01'
 STX = b'\x02'
