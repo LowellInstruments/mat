@@ -1,7 +1,10 @@
 import socket
 import time
-from mat.ble_utils_shared import xmd_frame_check_crc
-from mat.ddh_shared import STATE_DDS_BLE_DOWNLOAD_PROGRESS
+
+
+# must match receptor
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 
 
 SOH = b'\x01'
@@ -10,6 +13,28 @@ EOT = b'\x04'
 ACK = b'\x06'
 CAN = b'\x18'
 NAK = b'\x15'
+
+
+def _crc16(data):
+    crc = 0x0000
+    length = len(data)
+    for i in range(0, length):
+        crc ^= data[i] << 8
+        for j in range(0,8):
+            if (crc & 0x8000) > 0:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc = crc << 1
+    v = crc & 0xFFFF
+    return v.to_bytes(2, 'big')
+
+
+def _xmd_frame_check_crc(b):
+    rx_crc = b[-2:]
+    data = b[3:-2]
+    calc_crc = _crc16(data)
+    # print(rx_crc, calc_crc)
+    return calc_crc == rx_crc
 
 
 def _debug(s, verbose):
@@ -98,7 +123,7 @@ def rn4020_xmodem_get_file(lc, file_size, ip, port):
             continue
 
         # PARSE DATA ok
-        if xmd_frame_check_crc(lc.dlg.buf):
+        if _xmd_frame_check_crc(lc.dlg.buf):
             file_built += lc.dlg.buf[3:_len - 2]
             lc.dlg.buf = lc.dlg.buf[_len:]
             _ack(lc)

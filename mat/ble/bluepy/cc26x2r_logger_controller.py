@@ -6,8 +6,6 @@ import math
 from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, \
     connect_cc26x2r, MTU_SIZE, \
     calculate_answer_timeout, build_command
-from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
-from mat.ddh_shared import *
 from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
     FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
     DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, \
@@ -16,6 +14,10 @@ from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
     SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
 from mat.utils import is_valid_mac_address, dir_ans_to_dict
+
+
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 
 
 class LoggerControllerCC26X2R(LoggerController):

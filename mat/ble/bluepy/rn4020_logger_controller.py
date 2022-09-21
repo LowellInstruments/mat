@@ -2,11 +2,13 @@ import time
 from mat.ble.bluepy.cc26x2r_logger_controller import LoggerControllerCC26X2R
 from mat.ble.bluepy.rn4020_utils import connect_rn4020
 from mat.ble.bluepy.rn4020_xmodem import rn4020_xmodem_get_file
-from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP
 from mat.logger_controller_ble import *
 from mat.logger_controller import STATUS_CMD, TIME_CMD, \
     SET_TIME_CMD, LOGGER_INFO_CMD_W, \
     RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, DIR_CMD, SENSOR_READINGS_CMD, DEL_FILE_CMD
+
+
+_DGP = DDH_GUI_UDP_PORT = 12349
 
 
 class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover

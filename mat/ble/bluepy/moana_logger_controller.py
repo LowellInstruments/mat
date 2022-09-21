@@ -9,8 +9,11 @@ from inspect import stack
 import bluepy
 from bluepy import btle
 import subprocess as sp
-from mat.ddh_shared import DDH_GUI_UDP_PORT as _DGP, \
-    STATE_DDS_BLE_DOWNLOAD_PROGRESS
+
+
+# must match receptor
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 
 
 def utils_logger_is_moana(mac, info: str):
