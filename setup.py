@@ -26,7 +26,7 @@ setup(name='lowell-mat',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
       install_requires=[
-          'h5py',
+          h5py,
           np,
           'pyserial>=3.5',
           'pandas',
