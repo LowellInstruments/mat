@@ -1,12 +1,21 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 from setuptools import setup, find_packages
+import platform
+from mat.utils import linux_is_rpi
 
 
 # version management
 v = {}
 with open("mat/version.py") as fp:
     exec(fp.read(), v)
+
+
+np = 'numpy'
+h5py = 'h5py'
+if platform.system() == 'Linux' and linux_is_rpi():
+    np = 'numpy>=1.16.5'
+    h5py = 'h5py>=2.10.0'
 
 
 setup(name='lowell-mat',
@@ -18,7 +27,7 @@ setup(name='lowell-mat',
       packages=find_packages(),
       install_requires=[
           'h5py',
-          'numpy>=1.21.6',
+          np,
           'pyserial>=3.5',
           'pandas',
           'boto3'
