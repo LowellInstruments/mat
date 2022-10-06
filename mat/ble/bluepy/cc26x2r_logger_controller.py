@@ -249,6 +249,7 @@ class LoggerControllerCC26X2R(LoggerController):
 
     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
         f_l = self._ble_cmd(DIR_CMD)
+        print(f_l)
         # removes DIR bad trailing sometimes
         self.per.waitForNotifications(.1)
         return dir_ans_to_dict(f_l, ext, match=True)
@@ -272,6 +273,7 @@ class LoggerControllerCC26X2R(LoggerController):
         valid = ['SN', 'BA', 'CA', 'MA']
         assert info[:2] in valid
         a = self._ble_cmd(LOGGER_INFO_CMD_W, info)
+        print(a)
         return a == b'WLI 00'
 
     def ble_cmd_rli(self) -> dict:
