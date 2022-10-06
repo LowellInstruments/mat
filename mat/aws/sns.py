@@ -1,21 +1,16 @@
-import os
 import boto3
 from botocore.config import Config
 from botocore.exceptions import EndpointConnectionError, ClientError
 import json
 
 
-def _get_sns_client(_s, _ls, _ta):
+def _get_sns_client(_s, _ls, _ta, key, secret):
     if not _ta:
-        print('[ SNS ] missing topic ARN')
+        print('[ MAT ] SNS | missing topic ARN')
         return 1
     if ':' not in _ta:
-        print('[ SNS ] topic ARN malformed')
+        print('[ MAT ] SNS | topic ARN malformed')
         return 1
-
-    # allow for different environment variables
-    key = os.getenv('DDN_AWS_KEY_ID_FOR_DDS')
-    secret = os.getenv('DDN_AWS_SECRET_FOR_DDS')
 
     rg = _ta.split(':')[3]
     _cnf = Config(connect_timeout=5, retries={'max_attempts': 0})
@@ -26,9 +21,9 @@ def _get_sns_client(_s, _ls, _ta):
                         config=_cnf)
 
 
-def sns_notify(short_s, long_s, topic_arn):
+def sns_notify(short_s, long_s, topic_arn, key, secret):
     try:
-        cli = _get_sns_client(short_s, long_s, topic_arn)
+        cli = _get_sns_client(short_s, long_s, topic_arn, key, secret)
         response = cli.publish(
             TargetArn=topic_arn,
             Message=json.dumps({'default': short_s,
@@ -40,9 +35,9 @@ def sns_notify(short_s, long_s, topic_arn):
 
         # response format very complicated, only use one field:
         if int(response['ResponseMetadata']['HTTPStatusCode']) == 200:
-            print('[ SNS ] message published OK -> {}'.format(short_s))
+            print('[ MAT ] SNS | message published OK -> {}'.format(short_s))
             return 0
 
     except (ClientError, EndpointConnectionError, Exception) as e:
-        print('[ SNS ] exception {}'.format(e))
+        print('[ MAT ] SNS | exception {}'.format(e))
         return 1

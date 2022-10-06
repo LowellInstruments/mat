@@ -4,9 +4,10 @@ from botocore.exceptions import ClientError
 def sqs_get_queue(q_name, session_sqs):
     try:
         queue = session_sqs.get_queue_by_name(QueueName=q_name)
-        print("Got queue '%s' with URL=%s", q_name, queue.url)
+        print('[ MAT ] SQS | got queue {}'.format(queue.url))
     except ClientError as error:
-        print("Couldn't get queue named %s.", q_name)
+        e = '[ MAT ] SQS | could not get queue {}'
+        print(e.format(q_name))
         raise error
     else:
         return queue
@@ -22,7 +23,8 @@ def sqs_enqueue_msg(queue, message_body, message_attributes=None):
             MessageAttributes=message_attributes
         )
     except ClientError as error:
-        print("Send message failed: %s", message_body)
+        e = '[ MAT ] SQS | error enqueuing {}'
+        print(e.format(message_body))
         raise error
     else:
         return response
@@ -35,10 +37,12 @@ def sqs_dequeue_msg(queue, max_number, wait_time):
             MaxNumberOfMessages=max_number,
             WaitTimeSeconds=wait_time
         )
-        for msg in messages:
-            print("Received message: %s: %s", msg.message_id, msg.body)
+        if messages:
+            s = '[ MAT ] SQS | de-queued {} messages'
+            print(s.format(len(messages)))
     except ClientError as error:
-        print("Couldn't receive messages from queue: %s", queue)
+        e = '[ MAT ] SQS | error de-queuing from {}'
+        print(e.format(queue))
         raise error
     else:
         return messages
@@ -55,7 +59,7 @@ def sqs_rm_queue_msg(message):
     """
     try:
         message.delete()
-        print("Deleted message: %s", message.message_id)
     except ClientError as error:
-        print("Couldn't delete message: %s", message.message_id)
+        e = '[ MAT ] SQS | error deleting message {}'
+        print(e.format(message.message_id))
         raise error
