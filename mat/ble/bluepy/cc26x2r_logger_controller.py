@@ -157,6 +157,10 @@ class LoggerControllerCC26X2R(LoggerController):
             return int(b, 16)
         return 0
 
+    def ble_cmd_mbl(self) -> int:
+        a = self._ble_cmd('MBL')
+        print(a)
+
     def ble_cmd_cfs(self) -> float:
         a = self._ble_cmd(SD_FREE_SPACE_CMD)
         if a and len(a.split()) == 2:
@@ -388,11 +392,15 @@ class LoggerControllerCC26X2R(LoggerController):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
 
+            # for j in range(20):
+            #     self.per.waitForNotifications(.05)
+            #     if len(self.dlg.buf) == 2048 * (i + 1):
+            #         break
+
             for j in range(20):
                 self.per.waitForNotifications(.05)
                 if len(self.dlg.buf) == 2048 * (i + 1):
                     break
-
             self._progress_dl(len(self.dlg.buf), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
