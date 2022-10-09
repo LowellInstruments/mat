@@ -4,7 +4,8 @@ import math
 import time
 import humanize
 from bleak import BleakError, BleakClient
-from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl
+from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_reset
+from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD
 from mat.utils import dir_ans_to_dict
@@ -19,11 +20,14 @@ class BleCC26X2:
         self.cli = None
         self.ans = bytes()
         self.tag = ''
-        self._cmd_done = False
+        # _cd: _command_done
+        self._cd = False
         assert h.startswith('hci')
         self.h = h
+        sh_bluetoothctl_reset()
 
     async def _cmd(self, c: str, empty=True):
+        self._cd = False
         self.tag = c[:3]
         if empty:
             self.ans = bytes()
@@ -31,12 +35,22 @@ class BleCC26X2:
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
     async def _ans_wait(self, timeout=1.0):
-        while (not self._cmd_done) and \
+        while (not self._cd) and \
                 (self.cli and self.cli.is_connected) and \
                 (timeout > 0):
+
             # accumulate in notification handler
             await asyncio.sleep(0.1)
             timeout -= 0.1
+
+            # see if no more to receive
+            self._cd = is_cmd_done(self.tag, self.ans)
+            if self._cd:
+                break
+
+        # print summary of executed command
+        if not self._cd:
+            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
         if self.tag != 'DWL':
             print('>', self.ans)
         return self.ans
@@ -123,19 +137,6 @@ class BleCC26X2:
         ok = len(rv) == 12 and rv.startswith(b'GFV')
         return 0 if ok else 1
 
-    async def cmd_utm(self):
-        await self._cmd('UTM \r')
-        rv = await self._ans_wait()
-        ok = len(rv) == 14 and rv.startswith(b'UTM')
-        if ok:
-            _ = self.ans.split()[1].decode()
-            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
-            t = int(b, 16)
-            s = humanize.naturaldelta(timedelta(seconds=t))
-            print('utm', s)
-            return 0, s
-        return 1, ''
-
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
         rv = await self._ans_wait(timeout=3.0)
@@ -189,6 +190,18 @@ class BleCC26X2:
                     return 0
             except (asyncio.TimeoutError, BleakError, OSError):
                 print('connection attempt {} of 3 failed'.format(i + 1))
-            finally:
-                time.sleep(3)
+                time.sleep(1)
         return 1
+
+    async def cmd_utm(self):
+        await self._cmd('UTM \r')
+        rv = await self._ans_wait()
+        ok = len(rv) == 14 and rv.startswith(b'UTM')
+        if ok:
+            _ = self.ans.split()[1].decode()
+            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
+            t = int(b, 16)
+            s = humanize.naturaldelta(timedelta(seconds=t))
+            print('utm', s)
+            return 0, s
+        return 1, ''

@@ -111,3 +111,9 @@ def ble_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
 
     # only maybe somewhere else :)
     # _sk.sendto(str(_).encode(), (ip, port))
+
+
+def sh_bluetoothctl_reset():
+    # if connected, will work, else just complains about missing argument
+    c = 'bluetoothctl -- disconnect'
+    sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
