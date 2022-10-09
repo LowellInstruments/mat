@@ -28,6 +28,7 @@ class BleRN4020:
         if empty:
             self.ans = bytes()
         print('<', c)
+        # todo > fix this for RN4020 for STM for example
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
     async def _ans_wait(self, timeout=1.0):
@@ -51,26 +52,26 @@ class BleRN4020:
             print('[ BLE ] timeout -> cmd {}'.format(self.tag))
         return self.ans
 
-    # async def cmd_stm(self):
-    #     # time() -> seconds since epoch, in UTC
-    #     dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
-    #     c, _ = build_cmd(SET_TIME_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     return 0 if rv == b'STM 00' else 1
-    #
+    async def cmd_stm(self):
+        # time() -> seconds since epoch, in UTC
+        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
+        c, _ = build_cmd(SET_TIME_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        return 0 if rv == b'\n\rSTM 00\r\n' else 1
+
     # async def cmd_del(self, s):
     #     c, _ = build_cmd(DEL_FILE_CMD, s)
     #     await self._cmd(c)
     #     rv = await self._ans_wait(timeout=10)
     #     return 0 if rv == b'DEL 00' else 1
-    #
-    # async def cmd_gtm(self):
-    #     await self._cmd('GTM \r')
-    #     rv = await self._ans_wait()
-    #     ok = len(rv) == 25 and rv.startswith(b'GTM')
-    #     return 0 if ok else 1
-    #
+
+    async def cmd_gtm(self):
+        await self._cmd('GTM \r')
+        rv = await self._ans_wait()
+        ok = len(rv) == 29 and rv.startswith(b'\n\rGTM')
+        return 0 if ok else 1
+
     async def cmd_stp(self):
         await self._cmd('STP \r')
         rv = await self._ans_wait()
@@ -107,12 +108,12 @@ class BleRN4020:
     #     ok = rv in (b'RWS 00', b'RWS 0200')
     #     return 0 if ok else 1
 
-    # async def cmd_gfv(self):
-    #     await self._cmd('GFV \r')
-    #     rv = await self._ans_wait()
-    #     ok = len(rv) == 12 and rv.startswith(b'GFV')
-    #     return 0 if ok else 1
-    #
+    async def cmd_gfv(self):
+        await self._cmd('GFV \r')
+        rv = await self._ans_wait()
+        ok = len(rv) == 16 and rv.startswith(b'\n\rGFV')
+        return 0 if ok else 1
+
     # async def cmd_dir(self) -> tuple:
     #     await self._cmd('DIR \r')
     #     rv = await self._ans_wait(timeout=3.0)

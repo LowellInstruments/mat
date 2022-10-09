@@ -15,11 +15,6 @@ def is_cmd_done(tag, ans):
     t, a = tag, ans
 
     if t in (
-            STOP_CMD,
-            STATUS_CMD
-    ):
-        return _ck(t, a, 12)
-    if t in (
         RWS_CMD,
         RUN_CMD,
         SWS_CMD,
@@ -29,13 +24,23 @@ def is_cmd_done(tag, ans):
 
     ):
         return _ck(t, a, 10)
+
+    if t in (
+            STOP_CMD,
+            STATUS_CMD
+    ):
+        return _ck(t, a, 12)
+
+    if t == FIRMWARE_VERSION_CMD:
+        return _ck(t, a, 16)
+
     if t == TIME_CMD:
         return _ck(t, a, 29)
+
     if t == LOGGER_INFO_CMD:
         n = len(a) if a else 0
         return a.startswith(t) and n in (14, 17)
-    if t == FIRMWARE_VERSION_CMD:
-        return _ck(t, a, 16)
+
     if t == DIR_CMD:
         b1, b2 = b'\x04', b'\x04\n\r'
         return a and a.endswith(b1) or a.endswith(b2)
