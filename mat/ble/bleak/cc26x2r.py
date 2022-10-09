@@ -35,6 +35,7 @@ class BleCC26X2:
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
     async def _ans_wait(self, timeout=1.0):
+        is_dwl = self.tag == 'DWL'
         while (not self._cd) and \
                 (self.cli and self.cli.is_connected) and \
                 (timeout > 0):
@@ -43,16 +44,23 @@ class BleCC26X2:
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
+            # dwl special case
+            if is_dwl:
+                continue
+
             # see if no more to receive
             self._cd = is_cmd_done(self.tag, self.ans)
             if self._cd:
                 break
 
         # print summary of executed command
-        if not self._cd:
-            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
-        if self.tag != 'DWL':
+        if is_dwl:
+            return self.ans
+
+        if self._cd:
             print('>', self.ans)
+        else:
+            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
         return self.ans
 
     async def cmd_stm(self):
@@ -162,6 +170,8 @@ class BleCC26X2:
             for j in range(20):
                 await self._ans_wait(timeout=.2)
                 if len(self.ans) == (i + 1) * 2048:
+                    break
+                if len(self.ans) == z:
                     break
             ble_progress_dl(len(self.ans), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.ans)))

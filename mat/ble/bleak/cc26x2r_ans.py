@@ -12,6 +12,9 @@ _ck = _check
 
 def is_cmd_done(tag, ans):
     t, a = tag, ans
+
+    assert t != 'DWL'
+
     if t == STATUS_CMD:
         return _ck(t, a, 8)
     if t == RUN_CMD:
