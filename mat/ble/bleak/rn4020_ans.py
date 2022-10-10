@@ -1,4 +1,5 @@
 from mat.logger_controller import *
+from mat.logger_controller_ble import GET_FILE_CMD
 
 
 def _check(tag, ans, n):
@@ -17,19 +18,23 @@ def is_cmd_done(tag, ans):
     if t in (
         RWS_CMD,
         RUN_CMD,
-        SWS_CMD,
         SET_TIME_CMD,
         LOGGER_INFO_CMD_W,
-        DEL_FILE_CMD,
-
+        GET_FILE_CMD,
     ):
         return _ck(t, a, 10)
 
     if t in (
             STOP_CMD,
-            STATUS_CMD
+            STATUS_CMD,
+            SWS_CMD
     ):
         return _ck(t, a, 12)
+
+    if t == DEL_FILE_CMD:
+        # this one is a bit different
+        cond = b'DEL 00' in a
+        return a and len(a) in (10, 12) and cond
 
     if t == FIRMWARE_VERSION_CMD:
         return _ck(t, a, 16)

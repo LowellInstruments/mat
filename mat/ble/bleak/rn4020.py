@@ -1,151 +1,144 @@
 import asyncio
-from datetime import datetime, timezone, timedelta
-import time
-from bleak import BleakError, BleakClient
-from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_reset
-from mat.ble.bleak.rn4020_ans import is_cmd_done
-from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD
-from mat.utils import dir_ans_to_dict
+from mat.ble.ble_utils import DDH_GUI_UDP_PORT, \
+    ble_progress_dl
+from mat.ble.bleak.rn4020_base import BleRN4020Base, UUID_T
 
 
-UUID_T = UUID_R = '00035b03-58e6-07dd-021a-08123a000301'
+SOH = b'\x01'
+STX = b'\x02'
+EOT = b'\x04'
+ACK = b'\x06'
+CAN = b'\x18'
+NAK = b'\x15'
 
 
-class BleRN4020:
-    def __init__(self, h='hci0'):
-        self.cli = None
+def _crc16(data):
+    crc = 0x0000
+    length = len(data)
+    for i in range(0, length):
+        crc ^= data[i] << 8
+        for j in range(0, 8):
+            if (crc & 0x8000) > 0:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc = crc << 1
+    v = crc & 0xFFFF
+    return v.to_bytes(2, 'big')
+
+
+def _xmd_frame_check_crc(b):
+    rx_crc = b[-2:]
+    data = b[3:-2]
+    calc_crc = _crc16(data)
+    # print(rx_crc, calc_crc)
+    return calc_crc == rx_crc
+
+
+class BleRN4020(BleRN4020Base):
+    """
+    this class has the RN4020 implementation
+    including Xmodem
+    """
+
+    def __init__(self, h):
+        super().__init__(h)
+
+    async def _ack(self):
+        await self.cli.write_gatt_char(UUID_T, b'\x06')
+
+    async def _nak(self):
+        await self.cli.write_gatt_char(UUID_T, NAK)
+
+    async def _can(self):
+        await self.cli.write_gatt_char(UUID_T, CAN)
+        await self.cli.write_gatt_char(UUID_T, CAN)
+        await self.cli.write_gatt_char(UUID_T, CAN)
+
+    async def cmd_xmodem(self, z, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
         self.ans = bytes()
-        self.tag = ''
-        # _cd: _command_done
-        self._cd = False
-        assert h.startswith('hci')
-        self.h = h
-        sh_bluetoothctl_reset()
+        file_built = bytes()
+        _rt = 0
+        _len = 0
+        _eot = 0
 
-    async def _cmd(self, c: str, empty=True):
-        self._cd = False
-        self.tag = c[:3]
-        if empty:
-            self.ans = bytes()
-        print('<', c)
-        # todo > fix this for RN4020 for STM for example
-        await self.cli.write_gatt_char(UUID_R, c.encode())
+        ble_progress_dl(0, z, ip, port)
 
-    async def _ans_wait(self, timeout=1.0):
-        while (not self._cd) and \
-                (self.cli and self.cli.is_connected) and \
-                (timeout > 0):
+        # send 'C' character, special case
+        print('<- C')
+        await self.cli.write_gatt_char(UUID_T, b'C')
 
-            # accumulate in notification handler
-            await asyncio.sleep(0.1)
-            timeout -= 0.1
+        # curious, internal sleep 1 is enough, external 2
+        # todo > test this
+        await asyncio.sleep(1.3)
 
-            # see if no more to receive
-            self._cd = is_cmd_done(self.tag, self.ans)
-            if self._cd:
+        while 1:
+
+            # rx last frame failure
+            if len(self.ans) == 0:
+                print('len self.ans == 0')
+                return 1, bytes()
+
+            # look first byte in, the control one
+            b = self.ans[0:1]
+            if b == EOT:
+                # good, finished
+                print('-> eot')
+                await self._ack()
+                _eot = 1
                 break
 
-        # print summary of executed command
-        if self._cd:
-            print('>', self.ans)
-        else:
-            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
-        return self.ans
+            elif b == SOH:
+                print('-> soh')
+                _len = 128 + 5
 
-    async def cmd_stm(self):
-        # time() -> seconds since epoch, in UTC
-        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
-        c, _ = build_cmd(SET_TIME_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        return 0 if rv == b'\n\rSTM 00\r\n' else 1
+            elif b == STX:
+                print('-> stx')
+                _len = 1024 + 5
 
-    # async def cmd_del(self, s):
-    #     c, _ = build_cmd(DEL_FILE_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait(timeout=10)
-    #     return 0 if rv == b'DEL 00' else 1
+            elif b == CAN:
+                # bad, canceled by remote
+                e = '-> can ctrl {}'.format(b)
+                print(e)
+                await self._ack()
+                return 2, bytes()
 
-    async def cmd_gtm(self):
-        await self._cmd('GTM \r')
-        rv = await self._ans_wait()
-        ok = len(rv) == 29 and rv.startswith(b'\n\rGTM')
-        return 0 if ok else 1
+            else:
+                # bad, weird control byte arrived
+                print('<- nak')
+                await self._nak()
+                await asyncio.sleep(5)
+                return 3, bytes()
 
-    async def cmd_stp(self):
-        await self._cmd('STP \r')
-        rv = await self._ans_wait()
-        ok = len(rv) == 12 and rv.startswith(b'\n\rSTP')
-        return 0 if ok else 1
+            # rx frame OK -> check CRC
+            if _xmd_frame_check_crc(self.ans):
+                file_built += self.ans[3:_len - 2]
+                _rt = 0
+                print('<- ack')
+                await self._ack()
 
-    # async def cmd_run(self):
-    #     await self._cmd('RUN \r')
-    #     rv = await self._ans_wait()
-    #     ok = rv in (b'RUN 00', b'RUN 0200')
-    #     return 0 if ok else 1
+                # notify GUI progress update
+                ble_progress_dl(len(file_built), z, ip, port)
 
-    # async def cmd_sws(self, g):
-    #     # STOP with STRING
-    #     lat, lon, _, __ = g
-    #     lat = '{:+.6f}'.format(float(lat))
-    #     lon = '{:+.6f}'.format(float(lon))
-    #     s = '{} {}'.format(lat, lon)
-    #     c, _ = build_cmd(SWS_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     ok = rv in (b'SWS 00', b'SWS 0200')
-    #     return 0 if ok else 1
-    #
-    # async def cmd_rws(self, g):
-    #     # RUN with STRING
-    #     lat, lon, _, __ = g
-    #     lat = '{:+.6f}'.format(float(lat))
-    #     lon = '{:+.6f}'.format(float(lon))
-    #     s = '{} {}'.format(lat, lon)
-    #     c, _ = build_cmd(RWS_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     ok = rv in (b'RWS 00', b'RWS 0200')
-    #     return 0 if ok else 1
+            else:
+                # PARSE DATA not OK, check retries left
+                _rt += 1
+                if _rt == 5:
+                    print('<- crc CAN')
+                    await self._can()
+                    return 4, bytes()
+                print('<- crc NAK')
+                await self._nak()
 
-    async def cmd_gfv(self):
-        await self._cmd('GFV \r')
-        rv = await self._ans_wait()
-        ok = len(rv) == 16 and rv.startswith(b'\n\rGFV')
-        return 0 if ok else 1
+            # next rx frame attempt
+            self.ans = bytes()
+            for i in range(10):
+                await asyncio.sleep(0.1)
+                if len(self.ans) >= _len:
+                    break
 
-    # async def cmd_dir(self) -> tuple:
-    #     await self._cmd('DIR \r')
-    #     rv = await self._ans_wait(timeout=3.0)
-    #     if not rv:
-    #         return 1, 'not'
-    #     if rv == b'ERR':
-    #         return 2, 'error'
-    #     if rv and not rv.endswith(b'\x04\n\r'):
-    #         return 3, 'partial'
-    #     ls = dir_ans_to_dict(rv, '*', match=True)
-    #     return 0, ls
+        # truncate to size instead of n * 1024
+        if _eot == 1:
+            file_built = file_built[0:z]
 
-    async def disconnect(self):
-        if self.cli and self.cli.is_connected:
-            await self.cli.disconnect()
-
-    async def connect(self, mac):
-        def cb_disc(_: BleakClient):
-            pass
-
-        def c_rx(_: int, b: bytearray):
-            self.ans += b
-
-        for i in range(3):
-            try:
-                # we pass hci here
-                h = self.h
-                self.cli = BleakClient(mac, adapter=h, disconnected_callback=cb_disc)
-                if await self.cli.connect():
-                    await self.cli.start_notify(UUID_T, c_rx)
-                    return 0
-            except (asyncio.TimeoutError, BleakError, OSError):
-                print('connection attempt {} of 3 failed'.format(i + 1))
-                time.sleep(1)
-        return 1
+        ble_progress_dl(100, z, ip, port)
+        return 0, file_built
