@@ -69,7 +69,7 @@ class BleRN4020(BleRN4020Base):
 
         # curious, internal sleep 1 is enough, external 2
         # todo > test this
-        await asyncio.sleep(1.3)
+        await asyncio.sleep(1)
 
         while 1:
 
