@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime, timezone, timedelta
 import math
 import time
@@ -6,8 +7,9 @@ import humanize
 from bleak import BleakError, BleakClient
 from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_disconnect
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
-from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD
-from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD
+from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
+    LOGGER_INFO_CMD
+from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD
 from mat.utils import dir_ans_to_dict
 
 
@@ -102,6 +104,80 @@ class BleCC26X2:
         await self._cmd('STP \r')
         rv = await self._ans_wait()
         ok = rv in (b'STP 00', b'STP 0200')
+        return 0 if ok else 1
+
+    async def cmd_led(self):
+        await self._cmd('LED \r')
+        rv = await self._ans_wait(timeout=3)
+        ok = rv == b'LED 00'
+        return 0 if ok else 1
+
+    async def cmd_frm(self):
+        await self._cmd('FRM \r')
+        rv = await self._ans_wait()
+        ok = rv == b'FRM 00'
+        return 0 if ok else 1
+
+    async def cmd_cfg(self, cfg_d):
+        assert type(cfg_d) is dict
+        s = json.dumps(cfg_d)
+        c, _ = build_cmd(CONFIG_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv == b'CFG 00'
+        return 0 if ok else 1
+
+    async def cmd_wli(self, s):
+        c, _ = build_cmd(LOGGER_INFO_CMD_W, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv == b'WLI 00'
+        return 0 if ok else 1
+
+    async def cmd_gdo(self):
+        c, _ = build_cmd(OXYGEN_SENSOR_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=4)
+        ok = len(rv) == 18 and rv.startswith(b'GDO')
+        if not ok:
+            return
+        a = rv
+        if a and len(a.split()) == 2:
+            # a: b'GDO 0c112233445566'
+            _ = a.split()[1].decode()
+            dos, dop, dot = _[2:6], _[6:10], _[10:14]
+            dos = dos[-2:] + dos[:2]
+            dop = dop[-2:] + dop[:2]
+            dot = dot[-2:] + dot[:2]
+            if dos.isnumeric():
+                return dos, dop, dot
+        return
+
+    async def cmd_wak(self, s):
+        assert s in ('on', 'off')
+        c, _ = build_cmd(WAKE_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if s == 'off' and rv == b'WAK 0200':
+            return 0
+        if s == 'on' and rv == b'WAK 0201':
+            return 0
+        return 1
+
+    async def cmd_rli(self):
+        info = {}
+        for each in ['SN', 'BA', 'CA', 'MA']:
+            c, _ = build_cmd(LOGGER_INFO_CMD, each)
+            await self._cmd(c)
+            rv = await self._ans_wait()
+            if rv and len(rv.split()) == 2:
+                info[each] = rv.split()[1].decode()[2:]
+        return 0 if len(info) == 4 else 1
+
+    async def cmd_sts(self):
+        await self._cmd('STS \r')
+        rv = await self._ans_wait()
+        ok = len(rv) == 8 and rv.startswith(b'STS')
         return 0 if ok else 1
 
     async def cmd_run(self):

@@ -45,7 +45,6 @@ def is_cmd_done(tag, ans):
 
     if t in (
         FIRMWARE_VERSION_CMD,
-        DO_SENSOR_READINGS_CMD
     ):
         return _ck(t, a, 12)
 
@@ -60,12 +59,15 @@ def is_cmd_done(tag, ans):
 
     if t == LOGGER_INFO_CMD:
         n = len(a) if a else 0
-        return a.startswith(t) and n in (10, 13)
+        return a and a.startswith(t.encode()) and n in (10, 13)
+
     if t == TIME_CMD:
         return _ck(t, a, 25)
+
     if t == DIR_CMD:
         b1, b2 = b'\x04', b'\x04\n\r'
         return a and a.endswith(b1) or a.endswith(b2)
+
     if t == SENSOR_READINGS_CMD:
         return a and len(a) in (38, 46)
 
