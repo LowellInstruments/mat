@@ -117,3 +117,8 @@ def sh_bluetoothctl_disconnect():
     # if connected, will work, else just complains about missing argument
     c = 'bluetoothctl -- disconnect'
     sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+
+def sh_hci_exists(h):
+    assert h.startswith('hci')
+    assert _hci_is_up(int(h[3]))

@@ -15,6 +15,9 @@ _ck = _check
 def is_cmd_done(tag, ans):
     t, a = tag, ans
 
+    if ans == b'ERR':
+        return True
+
     if t in (
         RWS_CMD,
         RUN_CMD,

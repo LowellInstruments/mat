@@ -14,6 +14,9 @@ def is_cmd_done(tag, ans):
 
     assert t != 'DWL'
 
+    if ans == b'ERR':
+        return True
+
     if t == STATUS_CMD:
         return _ck(t, a, 8)
     if t in (

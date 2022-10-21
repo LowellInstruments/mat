@@ -23,14 +23,11 @@ class BleRN4020Base:
         self.cli = None
         self.ans = bytes()
         self.tag = ''
-        # _cd: _command_done
-        self._cd = False
         assert h.startswith('hci')
         self.h = h
         sh_bluetoothctl_disconnect()
 
     async def _cmd(self, c: str, empty=True):
-        self._cd = False
         self.tag = c[:3]
         if empty:
             self.ans = bytes()
@@ -40,25 +37,22 @@ class BleRN4020Base:
             await asyncio.sleep(.01)
 
     async def _ans_wait(self, timeout=1.0):
-        while (not self._cd) and \
-                (self.cli and self.cli.is_connected) and \
-                (timeout > 0):
+
+        while self.cli and self.cli.is_connected:
+            # evaluate here, not in loop condition
+            if timeout <= 0:
+                break
 
             # accumulate in notification handler
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
             # see if no more to receive
-            self._cd = is_cmd_done(self.tag, self.ans)
-            if self._cd:
-                break
+            if is_cmd_done(self.tag, self.ans):
+                print('>', self.ans)
+                return self.ans
 
-        # print summary of executed command
-        if self._cd:
-            print('>', self.ans)
-        else:
-            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
-        return self.ans
+        print('[ BLE ] timeout -> cmd {}'.format(self.tag))
 
     async def cmd_stm(self):
         # time() -> seconds since epoch, in UTC

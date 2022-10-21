@@ -5,11 +5,12 @@ import math
 import time
 import humanize
 from bleak import BleakError, BleakClient
-from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_disconnect
+from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_disconnect, \
+    sh_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
-from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD
+from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD
 from mat.utils import dir_ans_to_dict
 
 
@@ -23,13 +24,12 @@ class BleCC26X2:
         self.ans = bytes()
         self.tag = ''
         # _cd: _command_done
-        self._cd = False
         assert h.startswith('hci')
+        sh_hci_exists(h)
         self.h = h
         sh_bluetoothctl_disconnect()
 
     async def _cmd(self, c: str, empty=True):
-        self._cd = False
         self.tag = c[:3]
         if empty:
             self.ans = bytes()
@@ -38,32 +38,30 @@ class BleCC26X2:
 
     async def _ans_wait(self, timeout=1.0):
         is_dwl = self.tag == 'DWL'
-        while (not self._cd) and \
-                (self.cli and self.cli.is_connected) and \
-                (timeout > 0):
 
+        while self.cli and self.cli.is_connected:
             # accumulate in notification handler
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
-            # dwl special case
+            # evaluate here, not in loop condition
+            if timeout <= 0:
+                break
+
+            # dwl special case, exhaust timeout
             if is_dwl:
                 continue
 
             # see if no more to receive
-            self._cd = is_cmd_done(self.tag, self.ans)
-            if self._cd:
-                break
+            if is_cmd_done(self.tag, self.ans):
+                print('>', self.ans)
+                return self.ans
 
         # print summary of executed command
         if is_dwl:
             return self.ans
 
-        if self._cd:
-            print('>', self.ans)
-        else:
-            print('[ BLE ] timeout -> cmd {}'.format(self.tag))
-        return self.ans
+        print('[ BLE ] timeout -> cmd {}'.format(self.tag))
 
     async def cmd_stm(self):
         # time() -> seconds since epoch, in UTC
@@ -151,7 +149,22 @@ class BleCC26X2:
             dot = dot[-2:] + dot[:2]
             if dos.isnumeric():
                 return dos, dop, dot
-        return
+
+    async def cmd_bat(self):
+        c, _ = build_cmd(BAT_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = len(rv) == 10 and rv.startswith(b'BAT')
+        if not ok:
+            return
+        a = rv
+        if a and len(a.split()) == 2:
+            # a: b'BAT 04BD08'
+            _ = a.split()[1].decode()
+            b = _[-2:] + _[-4:-2]
+            b = int(b, 16)
+            print('bat is {} mV'.format(b))
+            return b
 
     async def cmd_wak(self, s):
         assert s in ('on', 'off')
