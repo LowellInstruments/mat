@@ -40,22 +40,19 @@ class BleCC26X2:
         is_dwl = self.tag == 'DWL'
 
         while self.cli and self.cli.is_connected:
+
             # accumulate in notification handler
             await asyncio.sleep(0.1)
             timeout -= 0.1
-
-            # evaluate here, not in loop condition
-            if timeout <= 0:
-                break
-
-            # dwl special case, exhaust timeout
-            if is_dwl:
-                continue
 
             # see if no more to receive
             if is_cmd_done(self.tag, self.ans):
                 print('>', self.ans)
                 return self.ans
+
+            # evaluate here, not in loop condition
+            if timeout <= 0:
+                break
 
         # print summary of executed command
         if is_dwl:
@@ -212,7 +209,8 @@ class BleCC26X2:
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(SWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=3)
+        print(rv)
         ok = rv in (b'SWS 00', b'SWS 0200')
         return 0 if ok else 1
 

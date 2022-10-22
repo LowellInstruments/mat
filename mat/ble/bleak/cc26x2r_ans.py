@@ -12,13 +12,15 @@ _ck = _check
 def is_cmd_done(tag, ans):
     t, a = tag, ans
 
-    assert t != 'DWL'
+    if tag == 'DWL':
+        return False
 
     if ans == b'ERR':
         return True
 
     if t == STATUS_CMD:
         return _ck(t, a, 8)
+
     if t in (
         RUN_CMD,
         STOP_CMD,
