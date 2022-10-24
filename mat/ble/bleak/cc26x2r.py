@@ -132,7 +132,7 @@ class BleCC26X2:
     async def cmd_gdo(self):
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=4)
+        rv = await self._ans_wait(timeout=5)
         ok = len(rv) == 18 and rv.startswith(b'GDO')
         if not ok:
             return
@@ -210,7 +210,6 @@ class BleCC26X2:
         c, _ = build_cmd(SWS_CMD, s)
         await self._cmd(c)
         rv = await self._ans_wait(timeout=3)
-        print(rv)
         ok = rv in (b'SWS 00', b'SWS 0200')
         return 0 if ok else 1
 
@@ -222,7 +221,7 @@ class BleCC26X2:
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(RWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=3)
         ok = rv in (b'RWS 00', b'RWS 0200')
         return 0 if ok else 1
 
