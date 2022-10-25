@@ -36,7 +36,7 @@ class BleCC26X2:
         print('<', c)
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
-    async def _ans_wait(self, timeout=1.0):
+    async def _ans_wait(self, timeout=5.0):
         is_dwl = self.tag == 'DWL'
 
         while self.cli and self.cli.is_connected:
@@ -58,7 +58,17 @@ class BleCC26X2:
         if is_dwl:
             return self.ans
 
+        # useful in case we have errors
         print('[ BLE ] timeout -> cmd {}'.format(self.tag))
+        if not self.ans:
+            return
+        n = int(len(self.ans) / 2)
+        if self.ans[:n] == self.ans[n:]:
+            e = 'error duplicate answer: {} \n' \
+                'seems you used PWA recently \n' \
+                'and Linux BLE stack got crazy, \n' \
+                'just run $ systemctl restart bluetooth'
+            print(e.format(self.ans))
 
     async def cmd_stm(self):
         # time() -> seconds since epoch, in UTC
@@ -81,7 +91,7 @@ class BleCC26X2:
         ok = len(rv) == 14 and rv.startswith(b'CRC')
         if ok:
             return 0, rv[-8:].decode().lower()
-        return 1, 'crc_error'
+        return 1, ''
 
     async def cmd_del(self, s):
         c, _ = build_cmd(DEL_FILE_CMD, s)
@@ -92,8 +102,10 @@ class BleCC26X2:
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 25 and rv.startswith(b'GTM')
-        return 0 if ok else 1
+        ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
 
     async def cmd_stp(self):
         await self._cmd('STP \r')
@@ -161,6 +173,7 @@ class BleCC26X2:
             b = _[-2:] + _[-4:-2]
             b = int(b, 16)
             print('bat is {} mV'.format(b))
+            # todo > maybe return 0, b
             return b
 
     async def cmd_wak(self, s):
@@ -228,8 +241,10 @@ class BleCC26X2:
     async def cmd_gfv(self):
         await self._cmd('GFV \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 12 and rv.startswith(b'GFV')
-        return 0 if ok else 1
+        ok = rv and len(rv) == 12 and rv.startswith(b'GFV')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
 
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
@@ -285,14 +300,15 @@ class BleCC26X2:
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
             except (asyncio.TimeoutError, BleakError, OSError):
-                print('connection attempt {} of 3 failed'.format(i + 1))
+                e = 'connect attempt {} of 3 failed, h {}'
+                print(e.format(i + 1, h))
                 time.sleep(1)
         return 1
 
     async def cmd_utm(self):
         await self._cmd('UTM \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 14 and rv.startswith(b'UTM')
+        ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
         if ok:
             _ = self.ans.split()[1].decode()
             b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
