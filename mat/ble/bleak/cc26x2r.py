@@ -36,7 +36,7 @@ class BleCC26X2:
         print('<', c)
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
-    async def _ans_wait(self, timeout=5.0):
+    async def _ans_wait(self, timeout=10.0):
         is_dwl = self.tag == 'DWL'
 
         while self.cli and self.cli.is_connected:
@@ -81,7 +81,7 @@ class BleCC26X2:
     async def cmd_dwg(self, s):
         c, _ = build_cmd(DWG_FILE_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=5)
+        rv = await self._ans_wait()
         return 0 if rv == b'DWG 00' else 1
 
     async def cmd_crc(self, s):
@@ -248,7 +248,9 @@ class BleCC26X2:
 
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
-        rv = await self._ans_wait(timeout=3.0)
+        rv = await self._ans_wait(timeout=20.0)
+        print(rv)
+        print(self.ans)
         if not rv:
             return 1, 'not'
         if rv == b'ERR':
