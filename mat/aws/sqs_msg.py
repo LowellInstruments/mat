@@ -11,7 +11,7 @@ SQS_LOGGER_ERROR_OXYGEN = 'LOGGER_ERROR_OXYGEN'
 SQS_LOGGER_MAX_ERRORS = 'LOGGER_ERRORS_MAXED_RETRIES'
 
 
-def sqs_build_msg(rz, lat, lon, vn, dch, dcs, m_ver=1):
+def sqs_build_msg(rz, lat, lon, vn, dch, m_ver=1):
     t = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     u = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     rv_up = sp.run('uptime', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -22,11 +22,10 @@ def sqs_build_msg(rz, lat, lon, vn, dch, dcs, m_ver=1):
         plat = 'rpi4'
     d = {
         'reason': rz,
-        # todo > do this project thing
-        'project': "__this_need_to_be_implemented__",
+        # todo > do this project thing, cannot be always osu
+        'project': 'osu',
         'vessel': vn,
         'ddh_commit': dch,
-        'dds_commit': dcs,
         'utc_time': str(u),
         'local_time': str(t),
         'box_sn': os.getenv('DDH_BOX_SERIAL_NUMBER'),
