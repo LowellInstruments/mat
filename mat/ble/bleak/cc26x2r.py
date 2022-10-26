@@ -1,5 +1,6 @@
 import asyncio
 import json
+import platform
 from datetime import datetime, timezone, timedelta
 import math
 import time
@@ -23,9 +24,9 @@ class BleCC26X2:
         self.cli = None
         self.ans = bytes()
         self.tag = ''
-        # _cd: _command_done
-        assert h.startswith('hci')
-        sh_hci_exists(h)
+        if platform.system() == 'Linux':
+            assert h.startswith('hci')
+            sh_hci_exists(h)
         self.h = h
         sh_bluetoothctl_disconnect()
 
