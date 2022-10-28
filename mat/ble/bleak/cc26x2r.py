@@ -50,10 +50,6 @@ class BleCC26X2:
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
-            # allows debugging
-            if self.dbg_ans:
-                print('dbg_ans', self.ans)
-
             # see if no more to receive
             if is_cmd_done(self.tag, self.ans):
                 if self.dbg_ans:
@@ -68,10 +64,16 @@ class BleCC26X2:
         if is_dwl:
             return self.ans
 
+        # allows debugging
+        if self.dbg_ans:
+            print('dbg_ans', self.ans)
+
         # useful in case we have errors
         print('[ BLE ] timeout -> cmd {}'.format(self.tag))
         if not self.ans:
             return
+
+        # detect extra errors :)
         n = int(len(self.ans) / 2)
         if self.ans[:n] == self.ans[n:]:
             e = 'error duplicate answer: {} \n' \
