@@ -125,28 +125,6 @@ class PrintColors:
         print(s)
 
 
-def linux_check_ngrok_can_be_run():
-    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        print('ngrok found')
-        return True
-    print('error: ngrok not in /usr/bin or bad binary format')
-
-
-def linux_is_process_running_by_name(name):
-    return linux_get_pid_of_a_process(name)
-
-
-def linux_get_pid_of_a_process(name):
-    # awk and so they do not work here because they use {}
-    s = 'ps -aux | grep {} | grep -v grep'.format(name)
-    rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        pid = rv.stdout.decode().split()[1]
-        return int(pid)
-    return -1
-
-
 def linux_is_docker():
     return pathlib.Path('/.dockerenv').is_file()
 
@@ -214,7 +192,7 @@ def is_valid_mac_address(mac):
     return re.search(re.compile(regex), mac)
 
 
-def dir_ans_to_dict(ls, ext, match=True):
+def lowell_cmd_dir_ans_to_dict(ls, ext, match=True):
     if ls is None:
         return {}
 
@@ -275,10 +253,10 @@ def consecutive_numbers(data, number, count):
     return len(data)
 
 
-def ensure_we_run_only_one_instance(name):
+def linux_ensure_run_only_1_instance(name):
     """ ensures only 1 APP runs at a given time """
 
-    ooi = ensure_we_run_only_one_instance
+    ooi = linux_ensure_run_only_1_instance
     ooi._lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
     try:

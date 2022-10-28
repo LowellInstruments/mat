@@ -1,6 +1,6 @@
 import asyncio
-from mat.ble.ble_utils import DDH_GUI_UDP_PORT, \
-    ble_progress_dl
+from mat.ble.ble_mat_utils import DDH_GUI_UDP_PORT, \
+    ble_mat_progress_dl
 from mat.ble.bleak.rn4020_base import BleRN4020Base, UUID_T
 
 
@@ -61,7 +61,7 @@ class BleRN4020(BleRN4020Base):
         _len = 0
         _eot = 0
 
-        ble_progress_dl(0, z, ip, port)
+        ble_mat_progress_dl(0, z, ip, port)
 
         # send 'C' character, special case
         print('<- C')
@@ -117,7 +117,7 @@ class BleRN4020(BleRN4020Base):
                 await self._ack()
 
                 # notify GUI progress update
-                ble_progress_dl(len(file_built), z, ip, port)
+                ble_mat_progress_dl(len(file_built), z, ip, port)
 
             else:
                 # PARSE DATA not OK, check retries left
@@ -140,5 +140,5 @@ class BleRN4020(BleRN4020Base):
         if _eot == 1:
             file_built = file_built[0:z]
 
-        ble_progress_dl(100, z, ip, port)
+        ble_mat_progress_dl(100, z, ip, port)
         return 0, file_built

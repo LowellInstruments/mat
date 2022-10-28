@@ -6,13 +6,13 @@ import math
 import time
 import humanize
 from bleak import BleakError, BleakClient
-from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, ble_progress_dl, sh_bluetoothctl_disconnect, \
-    sh_hci_exists
+from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat_progress_dl, ble_mat_bluetoothctl_disconnect, \
+    ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD
-from mat.utils import dir_ans_to_dict
+from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
@@ -20,24 +20,28 @@ UUID_R = 'f0001131-0451-4000-b000-000000000000'
 
 
 class BleCC26X2:
-    def __init__(self, h='hci0'):
+    def __init__(self, h='hci0', dbg_ans=False):
         self.cli = None
         self.ans = bytes()
         self.tag = ''
+        self.dbg_ans = dbg_ans
         if platform.system() == 'Linux':
             assert h.startswith('hci')
-            sh_hci_exists(h)
+            ble_mat_hci_exists(h)
         self.h = h
-        sh_bluetoothctl_disconnect()
+        ble_mat_bluetoothctl_disconnect()
 
     async def _cmd(self, c: str, empty=True):
         self.tag = c[:3]
         if empty:
             self.ans = bytes()
-        print('<', c)
+
+        if self.dbg_ans:
+            print('<', c)
+
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
-    async def _ans_wait(self, timeout=10.0):
+    async def _ans_wait(self, timeout=10.0, dbg=False):
         is_dwl = self.tag == 'DWL'
 
         while self.cli and self.cli.is_connected:
@@ -46,9 +50,14 @@ class BleCC26X2:
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
+            # allows debugging
+            if self.dbg_ans:
+                print('dbg_ans', self.ans)
+
             # see if no more to receive
             if is_cmd_done(self.tag, self.ans):
-                print('>', self.ans)
+                if self.dbg_ans:
+                    print('>', self.ans)
                 return self.ans
 
             # evaluate here, not in loop condition
@@ -88,7 +97,7 @@ class BleCC26X2:
     async def cmd_crc(self, s):
         c, _ = build_cmd(CRC_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=10)
+        rv = await self._ans_wait()
         ok = len(rv) == 14 and rv.startswith(b'CRC')
         if ok:
             return 0, rv[-8:].decode().lower()
@@ -97,7 +106,7 @@ class BleCC26X2:
     async def cmd_del(self, s):
         c, _ = build_cmd(DEL_FILE_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=10)
+        rv = await self._ans_wait()
         return 0 if rv == b'DEL 00' else 1
 
     async def cmd_gtm(self):
@@ -116,7 +125,7 @@ class BleCC26X2:
 
     async def cmd_led(self):
         await self._cmd('LED \r')
-        rv = await self._ans_wait(timeout=3)
+        rv = await self._ans_wait()
         ok = rv == b'LED 00'
         return 0 if ok else 1
 
@@ -145,7 +154,7 @@ class BleCC26X2:
     async def cmd_gdo(self):
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=5)
+        rv = await self._ans_wait()
         ok = len(rv) == 18 and rv.startswith(b'GDO')
         if not ok:
             return
@@ -223,7 +232,7 @@ class BleCC26X2:
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(SWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=3)
+        rv = await self._ans_wait()
         ok = rv in (b'SWS 00', b'SWS 0200')
         return 0 if ok else 1
 
@@ -235,7 +244,7 @@ class BleCC26X2:
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(RWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=3)
+        rv = await self._ans_wait(timeout=20)
         ok = rv in (b'RWS 00', b'RWS 0200')
         return 0 if ok else 1
 
@@ -249,16 +258,14 @@ class BleCC26X2:
 
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
-        rv = await self._ans_wait(timeout=20.0)
-        print(rv)
-        print(self.ans)
+        rv = await self._ans_wait(timeout=20)
         if not rv:
             return 1, 'not'
         if rv == b'ERR':
             return 2, 'error'
         if rv and not rv.endswith(b'\x04\n\r'):
             return 3, 'partial'
-        ls = dir_ans_to_dict(rv, '*', match=True)
+        ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
         return 0, ls
 
     async def cmd_dwl(self, z, ip=None, port=None) -> tuple:
@@ -266,7 +273,7 @@ class BleCC26X2:
         # z: file size
         self.ans = bytes()
         n = math.ceil(z / 2048)
-        ble_progress_dl(0, z, ip, port)
+        ble_mat_progress_dl(0, z, ip, port)
 
         for i in range(n):
             c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
@@ -277,7 +284,7 @@ class BleCC26X2:
                     break
                 if len(self.ans) == z:
                     break
-            ble_progress_dl(len(self.ans), z, ip, port)
+            ble_mat_progress_dl(len(self.ans), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.ans)))
 
         rv = 0 if z == len(self.ans) else 1

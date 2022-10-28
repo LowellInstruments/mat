@@ -23,6 +23,11 @@ def _get_sns_client(_s, _ls, _ta, key, secret):
 
 def sns_notify(short_s, long_s, topic_arn, key, secret):
     try:
+
+        # --------------------
+        # get the SNS client
+        # --------------------
+
         cli = _get_sns_client(short_s, long_s, topic_arn, key, secret)
         response = cli.publish(
             TargetArn=topic_arn,

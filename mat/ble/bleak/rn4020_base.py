@@ -1,13 +1,14 @@
 import asyncio
+import platform
 from datetime import datetime, timezone
 import time
 from bleak import BleakError, BleakClient
-from mat.ble.ble_utils import ble_lowell_build_cmd as build_cmd, \
-    sh_bluetoothctl_disconnect
+from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, \
+    ble_mat_bluetoothctl_disconnect, ble_mat_hci_exists
 from mat.ble.bleak.rn4020_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD
 from mat.logger_controller_ble import GET_FILE_CMD
-from mat.utils import dir_ans_to_dict
+from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
 UUID_T = UUID_R = '00035b03-58e6-07dd-021a-08123a000301'
@@ -23,9 +24,11 @@ class BleRN4020Base:
         self.cli = None
         self.ans = bytes()
         self.tag = ''
-        assert h.startswith('hci')
+        if platform.system() == 'Linux':
+            assert h.startswith('hci')
+            ble_mat_hci_exists(h)
         self.h = h
-        sh_bluetoothctl_disconnect()
+        ble_mat_bluetoothctl_disconnect()
 
     async def _cmd(self, c: str, empty=True):
         self.tag = c[:3]
@@ -36,7 +39,7 @@ class BleRN4020Base:
             await self.cli.write_gatt_char(UUID_R, i.encode())
             await asyncio.sleep(.01)
 
-    async def _ans_wait(self, timeout=1.0):
+    async def _ans_wait(self, timeout=10.0):
 
         while self.cli and self.cli.is_connected:
             # evaluate here, not in loop condition
@@ -65,7 +68,7 @@ class BleRN4020Base:
     async def cmd_del(self, s):
         c, _ = build_cmd(DEL_FILE_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=3)
+        rv = await self._ans_wait()
         # this one is a bit different
         return 0 if rv and rv.endswith(b'DEL 00\r\n') else 1
 
@@ -111,19 +114,19 @@ class BleRN4020Base:
     async def cmd_get(self, s):
         c, _ = build_cmd(GET_FILE_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=5)
+        rv = await self._ans_wait()
         return 0 if rv == b'\n\rGET 00\r\n' else 1
 
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
-        rv = await self._ans_wait(timeout=3.0)
+        rv = await self._ans_wait()
         if not rv:
             return 1, 'not'
         if rv == b'ERR':
             return 2, 'error'
         if rv and not rv.endswith(b'\x04\n\r'):
             return 3, 'partial'
-        ls = dir_ans_to_dict(rv, '*', match=True)
+        ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
         return 0, ls
 
     async def disconnect(self):

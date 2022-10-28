@@ -11,7 +11,7 @@ STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 ael = asyncio.get_event_loop()
 
 
-def ble_lowell_build_cmd(*args):
+def ble_mat_lowell_build_cmd(*args):
 
     # phone commands use aggregated, a.k.a. transparent, mode
     # they do NOT follow LI proprietary format (DWG NNABCD...)
@@ -35,7 +35,7 @@ def ble_lowell_build_cmd(*args):
     return to_send, tag
 
 
-def ble_crc_local_vs_remote(path, remote_crc):
+def ble_mat_crc_local_vs_remote(path, remote_crc):
     """ calculates local file name CRC and compares to parameter """
 
     # remote_crc: logger, crc: local
@@ -64,10 +64,10 @@ def _hci_rpi_is_external(i: int) -> bool:
     return bool(rv.returncode)
 
 
-def ble_get_antenna_type():
+def ble_mat_get_antenna_type():
     n = len(glob.glob('/sys/class/bluetooth/hci*'))
 
-    # not raspberry, different rules apply
+    # not raspberry, different rules apply, just best guess
     if not linux_is_rpi():
         if n == 1:
             return 0, 'internal'
@@ -80,7 +80,7 @@ def ble_get_antenna_type():
         rv = 'external' if _hci_rpi_is_external(0) else 'internal'
         return 0, rv
 
-    # more than one hci, prefer external one
+    # more than one, prefer external
     if _hci_rpi_is_external(0):
         if _hci_is_up(0):
             return 0, 'external'
@@ -95,7 +95,7 @@ def ble_get_antenna_type():
     return 0, 'internal'
 
 
-def ble_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
+def ble_mat_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     _ = int(data_len) / int(size) * 100 if size else 0
     _ = _ if _ < 100 else 100
     _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -113,12 +113,12 @@ def ble_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     # _sk.sendto(str(_).encode(), (ip, port))
 
 
-def sh_bluetoothctl_disconnect():
+def ble_mat_bluetoothctl_disconnect():
     # if connected, will work, else just complains about missing argument
     c = 'bluetoothctl -- disconnect'
     sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
 
-def sh_hci_exists(h):
+def ble_mat_hci_exists(h):
     assert h.startswith('hci')
     assert _hci_is_up(int(h[3]))
