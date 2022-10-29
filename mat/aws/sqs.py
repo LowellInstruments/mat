@@ -5,6 +5,7 @@ def sqs_get_queue(q_name, session_sqs):
     try:
         queue = session_sqs.get_queue_by_name(QueueName=q_name)
         print('[ MAT ] SQS | got queue {}'.format(queue.url))
+
     except ClientError as error:
         e = '[ MAT ] SQS | could not get queue {}'
         print(e.format(q_name))
