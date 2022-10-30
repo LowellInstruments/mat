@@ -11,7 +11,8 @@ from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
-from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD
+from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
+    FILE_EXISTS_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
@@ -110,6 +111,31 @@ class BleCC26X2:
         await self._cmd(c)
         rv = await self._ans_wait()
         return 0 if rv == b'DEL 00' else 1
+
+    async def cmd_fex(self, s):
+        c, _ = build_cmd(FILE_EXISTS_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # caution: bad if file exists
+        return 1 if rv == b'FEX 00' else 0
+
+    async def cmd_del_ensure(self, s):
+        rv = self.cmd_del(s)
+        if rv == 0:
+            return 0
+
+        print('detected bad del, waiting')
+        await asyncio.sleep(1)
+        return self.cmd_fex(s)
+
+    async def cmd_run_ensure(self, s):
+        rv = self.cmd_rws(s) if s else self.cmd_run()
+        if rv == 0:
+            return 0
+        print('detected bad run, waiting')
+        await asyncio.sleep(1)
+        rv = self.cmd_sts()
+        return 0 if rv == b'STS 0200' else 1
 
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
