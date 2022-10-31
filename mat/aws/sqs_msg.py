@@ -12,6 +12,17 @@ SQS_LOGGER_MAX_ERRORS = 'LOGGER_ERRORS_MAXED_RETRIES'
 
 
 def sqs_build_msg(rz, lat, lon, vn, dch, m_ver=1):
+
+    # checks
+    box_sn = os.getenv('DDH_BOX_SERIAL_NUMBER')
+
+    # todo ---> add box_sn from somewhere
+    box_sn = box_sn if box_sn else '9999999'
+
+    if not box_sn:
+        print('sqs_build_msg missing box_sn')
+        os._exit(1)
+
     t = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     u = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     rv_up = sp.run('uptime', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -28,7 +39,7 @@ def sqs_build_msg(rz, lat, lon, vn, dch, m_ver=1):
         'ddh_commit': dch,
         'utc_time': str(u),
         'local_time': str(t),
-        'box_sn': os.getenv('DDH_BOX_SERIAL_NUMBER'),
+        'box_sn': box_sn,
         'hw_uptime': rv_up.stdout.decode(),
         'gps_position': '{},{}'.format(lat, lon),
         'platform': plat,

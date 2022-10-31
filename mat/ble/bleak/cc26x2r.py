@@ -42,6 +42,7 @@ class BleCC26X2:
 
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
+
     async def _ans_wait(self, timeout=10.0, dbg=False):
         is_dwl = self.tag == 'DWL'
 
@@ -82,6 +83,48 @@ class BleCC26X2:
                 'and Linux BLE stack got crazy, \n' \
                 'just run $ systemctl restart bluetooth'
             print(e.format(self.ans))
+
+
+    # async def _ans_wait(self, timeout=10.0, dbg=False):
+    #     is_dwl = self.tag == 'DWL'
+    #
+    #     while self.cli and self.cli.is_connected:
+    #
+    #         # accumulate in notification handler
+    #         await asyncio.sleep(0.1)
+    #         timeout -= 0.1
+    #
+    #         # see if no more to receive
+    #         if is_cmd_done(self.tag, self.ans):
+    #             if self.dbg_ans:
+    #                 print('>', self.ans)
+    #             return self.ans
+    #
+    #         # evaluate here, not in loop condition
+    #         if timeout <= 0:
+    #             break
+    #
+    #     # print summary of executed command
+    #     if is_dwl:
+    #         return self.ans
+    #
+    #     # allows debugging
+    #     if self.dbg_ans:
+    #         print('dbg_ans', self.ans)
+    #
+    #     # useful in case we have errors
+    #     print('[ BLE ] timeout -> cmd {}'.format(self.tag))
+    #     if not self.ans:
+    #         return
+    #
+    #     # detect extra errors :)
+    #     n = int(len(self.ans) / 2)
+    #     if self.ans[:n] == self.ans[n:]:
+    #         e = 'error duplicate answer: {} \n' \
+    #             'seems you used PWA recently \n' \
+    #             'and Linux BLE stack got crazy, \n' \
+    #             'just run $ systemctl restart bluetooth'
+    #         print(e.format(self.ans))
 
     async def cmd_stm(self):
         # time() -> seconds since epoch, in UTC
@@ -306,7 +349,7 @@ class BleCC26X2:
         for i in range(n):
             c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             await self._cmd(c, empty=False)
-            for j in range(20):
+            for _ in range(20):
                 await self._ans_wait(timeout=.2)
                 if len(self.ans) == (i + 1) * 2048:
                     break

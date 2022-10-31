@@ -28,10 +28,12 @@ def sqs_enqueue_msg(queue, message_body, message_attributes=None):
             MessageBody=message_body,
             MessageAttributes=message_attributes
         )
+
     except ClientError as error:
         e = '[ MAT ] SQS | error enqueuing {}'
         print(e.format(message_body))
         raise error
+
     else:
         return response
 
