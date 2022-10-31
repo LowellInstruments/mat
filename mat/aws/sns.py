@@ -27,7 +27,6 @@ def sns_notify(short_s, long_s, topic_arn, key, secret):
         # --------------------
         # get the SNS client
         # --------------------
-
         cli = _get_sns_client(short_s, long_s, topic_arn, key, secret)
         response = cli.publish(
             TargetArn=topic_arn,
@@ -40,7 +39,7 @@ def sns_notify(short_s, long_s, topic_arn, key, secret):
 
         # response format very complicated, only use one field:
         if int(response['ResponseMetadata']['HTTPStatusCode']) == 200:
-            print('[ MAT ] SNS | message published OK -> {}'.format(short_s))
+            # print('[ MAT ] SNS | message published OK -> {}'.format(short_s))
             return 0
 
     except (ClientError, EndpointConnectionError, Exception) as e:

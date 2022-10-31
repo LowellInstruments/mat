@@ -1,10 +1,15 @@
+import os
+
 from botocore.exceptions import ClientError
 
 
 def sqs_get_queue(q_name, session_sqs):
     try:
+        if not q_name:
+            print('error: q_name is empty')
+            os._exit(1)
         queue = session_sqs.get_queue_by_name(QueueName=q_name)
-        print('[ MAT ] SQS | got queue {}'.format(queue.url))
+        # print('[ MAT ] SQS | got queue {}'.format(queue.url))
 
     except ClientError as error:
         e = '[ MAT ] SQS | could not get queue {}'
@@ -38,9 +43,9 @@ def sqs_dequeue_msg(queue, max_number, wait_time):
             MaxNumberOfMessages=max_number,
             WaitTimeSeconds=wait_time
         )
-        if messages:
-            s = '[ MAT ] SQS | de-queued {} messages'
-            print(s.format(len(messages)))
+        # if messages:
+        #     s = '[ MAT ] SQS | de-queued {} messages'
+        #     print(s.format(len(messages)))
     except ClientError as error:
         e = '[ MAT ] SQS | error de-queuing from {}'
         print(e.format(queue))
