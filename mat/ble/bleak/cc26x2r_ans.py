@@ -33,7 +33,8 @@ def is_cmd_done(tag, ans):
         CONFIG_CMD,
         MY_TOOL_SET_CMD,
         DEL_FILE_CMD,
-        DWG_FILE_CMD
+        DWG_FILE_CMD,
+        FILE_EXISTS_CMD
     ):
         return _ck(t, a, 6)
 

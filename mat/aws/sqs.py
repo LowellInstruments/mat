@@ -34,7 +34,6 @@ def sqs_enqueue_msg(queue, message_body, message_attributes=None):
         response = queue.send_message(
             MessageBody=message_body,
             MessageAttributes=message_attributes,
-            # todo ---> research but seems to work to prevent SQS filtering our messages
             MessageGroupId=str(uuid.uuid4()),
             MessageDeduplicationId=str(uuid.uuid4())
         )

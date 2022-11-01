@@ -159,25 +159,30 @@ class BleCC26X2:
         c, _ = build_cmd(FILE_EXISTS_CMD, s)
         await self._cmd(c)
         rv = await self._ans_wait()
-        # caution: bad if file exists
-        return 1 if rv == b'FEX 00' else 0
+        # return 0 == OK if file exists
+        return 0 if rv == b'FEX 01' else 1
 
-    async def cmd_del_ensure(self, s):
-        rv = self.cmd_del(s)
+    async def cmd_ensure_del(self, s):
+        rv = await self.cmd_del(s)
         if rv == 0:
             return 0
 
         print('detected bad del, waiting')
         await asyncio.sleep(1)
-        return self.cmd_fex(s)
+        rv = await self.cmd_fex(s)
+        # exists == rv == 0 means bad, return 1
+        return 1 if rv == 0 else 0
 
-    async def cmd_run_ensure(self, s):
-        rv = self.cmd_rws(s) if s else self.cmd_run()
+    async def cmd_ensure_run(self, s):
+        if s:
+            rv = await self.cmd_rws(s)
+        else:
+            rv = await self.cmd_run()
         if rv == 0:
             return 0
         print('detected bad run, waiting')
         await asyncio.sleep(1)
-        rv = self.cmd_sts()
+        rv = await self.cmd_sts()
         return 0 if rv == b'STS 0200' else 1
 
     async def cmd_gtm(self):
@@ -253,9 +258,8 @@ class BleCC26X2:
             _ = a.split()[1].decode()
             b = _[-2:] + _[-4:-2]
             b = int(b, 16)
-            print('bat is {} mV'.format(b))
-            # todo > maybe return 0, b
-            return b
+            return 0, b
+        return 1, 0
 
     async def cmd_wak(self, s):
         assert s in ('on', 'off')
@@ -395,6 +399,5 @@ class BleCC26X2:
             b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
             t = int(b, 16)
             s = humanize.naturaldelta(timedelta(seconds=t))
-            print('utm', s)
             return 0, s
         return 1, ''
