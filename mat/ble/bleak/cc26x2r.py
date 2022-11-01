@@ -12,7 +12,7 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD
+    FILE_EXISTS_CMD, LAST_ANSWER_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
@@ -162,28 +162,12 @@ class BleCC26X2:
         # return 0 == OK if file exists
         return 0 if rv == b'FEX 01' else 1
 
-    async def cmd_ensure_del(self, s):
-        rv = await self.cmd_del(s)
-        if rv == 0:
-            return 0
-
-        print('detected bad del, waiting')
-        await asyncio.sleep(1)
-        rv = await self.cmd_fex(s)
-        # exists == rv == 0 means bad, return 1
-        return 1 if rv == 0 else 0
-
-    async def cmd_ensure_run(self, s):
-        if s:
-            rv = await self.cmd_rws(s)
-        else:
-            rv = await self.cmd_run()
-        if rv == 0:
-            return 0
-        print('detected bad run, waiting')
-        await asyncio.sleep(1)
-        rv = await self.cmd_sts()
-        return 0 if rv == b'STS 0200' else 1
+    async def cmd_lan(self):
+        c, _ = build_cmd(LAST_ANSWER_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # decided outside
+        return rv
 
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
@@ -401,3 +385,39 @@ class BleCC26X2:
             s = humanize.naturaldelta(timedelta(seconds=t))
             return 0, s
         return 1, ''
+
+    # ------------------------------------
+    # more demanding versions of commands
+    # ------------------------------------
+
+    async def cmd_ensure_mts(self):
+        rv = await self.cmd_mts()
+        if rv == 0:
+            return 0
+        print('detected bad mts, waiting...')
+        await asyncio.sleep(5)
+        rv = await self.cmd_lan()
+        return 0 if rv == 'MTS 00' else 1
+
+    async def cmd_ensure_del(self, s):
+        rv = await self.cmd_del(s)
+        if rv == 0:
+            return 0
+
+        print('detected bad del, waiting')
+        await asyncio.sleep(1)
+        rv = await self.cmd_fex(s)
+        # exists == rv == 0 means bad, return 1
+        return 1 if rv == 0 else 0
+
+    async def cmd_ensure_run(self, s):
+        if s:
+            rv = await self.cmd_rws(s)
+        else:
+            rv = await self.cmd_run()
+        if rv == 0:
+            return 0
+        print('detected bad run, waiting')
+        await asyncio.sleep(1)
+        rv = await self.cmd_sts()
+        return 0 if rv == b'STS 0200' else 1

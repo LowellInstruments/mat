@@ -1,5 +1,6 @@
 # additional commands for BLE loggers
 
+LAST_ANSWER_CMD = 'LAN'
 FILE_EXISTS_CMD = 'FEX'
 SIZ_CMD = 'SIZ'
 OXYGEN_SENSOR_CMD = 'GDO'
