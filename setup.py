@@ -21,7 +21,8 @@ setup(name='lowell-mat',
           'numpy>=1.21.6',
           'pyserial>=3.5',
           'pandas>=1.3.5',
-          'boto3>=1.24.74'
+          'boto3>=1.24.74',
+          'humanize>=4.3.0'
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",

@@ -12,12 +12,13 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, LAST_ANSWER_CMD
+    FILE_EXISTS_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
+GPS_FRM_STR = '{:+.6f}'
 
 
 class BleCC26X2:
@@ -42,38 +43,35 @@ class BleCC26X2:
 
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
+    async def _ans_wait(self, timeout=10.0):
 
-    async def _ans_wait(self, timeout=10.0, dbg=False):
-        is_dwl = self.tag == 'DWL'
+        # for benchmark purposes
+        start = time.time()
 
-        while self.cli and self.cli.is_connected:
-
-            # accumulate in notification handler
+        # accumulate command answer in notification handler
+        while self.cli and self.cli.is_connected and timeout > 0:
             await asyncio.sleep(0.1)
             timeout -= 0.1
-
-            # see if no more to receive
             if is_cmd_done(self.tag, self.ans):
                 if self.dbg_ans:
+                    # debug good answers
+                    elapsed = time.time() - start
                     print('>', self.ans)
+                    print('\ttook {} secs'.format(int(elapsed)))
                 return self.ans
 
-            # evaluate here, not in loop condition
-            if timeout <= 0:
-                break
-
-        # print summary of executed command
-        if is_dwl:
+        # DWL is sort of special command
+        if self.tag == 'DWL':
             return self.ans
 
-        # allows debugging
-        if self.dbg_ans:
-            print('dbg_ans', self.ans)
+        # allows debugging timeouts
+        elapsed = int(time.time() - start)
 
         # useful in case we have errors
-        print('[ BLE ] timeout -> cmd {}'.format(self.tag))
+        print('[ BLE ] timeout {} for cmd {}'.format(elapsed, self.tag))
         if not self.ans:
             return
+        print('\t dbg_ans:', self.ans)
 
         # detect extra errors :)
         n = int(len(self.ans) / 2)
@@ -83,48 +81,6 @@ class BleCC26X2:
                 'and Linux BLE stack got crazy, \n' \
                 'just run $ systemctl restart bluetooth'
             print(e.format(self.ans))
-
-
-    # async def _ans_wait(self, timeout=10.0, dbg=False):
-    #     is_dwl = self.tag == 'DWL'
-    #
-    #     while self.cli and self.cli.is_connected:
-    #
-    #         # accumulate in notification handler
-    #         await asyncio.sleep(0.1)
-    #         timeout -= 0.1
-    #
-    #         # see if no more to receive
-    #         if is_cmd_done(self.tag, self.ans):
-    #             if self.dbg_ans:
-    #                 print('>', self.ans)
-    #             return self.ans
-    #
-    #         # evaluate here, not in loop condition
-    #         if timeout <= 0:
-    #             break
-    #
-    #     # print summary of executed command
-    #     if is_dwl:
-    #         return self.ans
-    #
-    #     # allows debugging
-    #     if self.dbg_ans:
-    #         print('dbg_ans', self.ans)
-    #
-    #     # useful in case we have errors
-    #     print('[ BLE ] timeout -> cmd {}'.format(self.tag))
-    #     if not self.ans:
-    #         return
-    #
-    #     # detect extra errors :)
-    #     n = int(len(self.ans) / 2)
-    #     if self.ans[:n] == self.ans[n:]:
-    #         e = 'error duplicate answer: {} \n' \
-    #             'seems you used PWA recently \n' \
-    #             'and Linux BLE stack got crazy, \n' \
-    #             'just run $ systemctl restart bluetooth'
-    #         print(e.format(self.ans))
 
     async def cmd_stm(self):
         # time() -> seconds since epoch, in UTC
@@ -152,7 +108,7 @@ class BleCC26X2:
     async def cmd_del(self, s):
         c, _ = build_cmd(DEL_FILE_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=30)
         return 0 if rv == b'DEL 00' else 1
 
     async def cmd_fex(self, s):
@@ -161,13 +117,6 @@ class BleCC26X2:
         rv = await self._ans_wait()
         # return 0 == OK if file exists
         return 0 if rv == b'FEX 01' else 1
-
-    async def cmd_lan(self):
-        c, _ = build_cmd(LAST_ANSWER_CMD)
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        # decided outside
-        return rv
 
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
@@ -179,7 +128,7 @@ class BleCC26X2:
 
     async def cmd_stp(self):
         await self._cmd('STP \r')
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=30)
         ok = rv in (b'STP 00', b'STP 0200')
         return 0 if ok else 1
 
@@ -274,36 +223,36 @@ class BleCC26X2:
 
     async def cmd_run(self):
         await self._cmd('RUN \r')
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=30)
         ok = rv in (b'RUN 00', b'RUN 0200')
         return 0 if ok else 1
 
     async def cmd_mts(self):
         await self._cmd('MTS \r')
-        rv = await self._ans_wait(timeout=20)
+        rv = await self._ans_wait(timeout=60)
         return 0 if rv == b'MTS 00' else 1
 
     async def cmd_sws(self, g):
         # STOP with STRING
         lat, lon, _, __ = g
-        lat = '{:+.6f}'.format(float(lat))
-        lon = '{:+.6f}'.format(float(lon))
+        lat = GPS_FRM_STR.format(float(lat))
+        lon = GPS_FRM_STR.format(float(lon))
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(SWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=30)
         ok = rv in (b'SWS 00', b'SWS 0200')
         return 0 if ok else 1
 
     async def cmd_rws(self, g):
         # RUN with STRING
         lat, lon, _, __ = g
-        lat = '{:+.6f}'.format(float(lat))
-        lon = '{:+.6f}'.format(float(lon))
+        lat = GPS_FRM_STR.format(float(lat))
+        lon = GPS_FRM_STR.format(float(lon))
         s = '{} {}'.format(lat, lon)
         c, _ = build_cmd(RWS_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=20)
+        rv = await self._ans_wait(timeout=30)
         ok = rv in (b'RWS 00', b'RWS 0200')
         return 0 if ok else 1
 
@@ -317,7 +266,7 @@ class BleCC26X2:
 
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
-        rv = await self._ans_wait(timeout=20)
+        rv = await self._ans_wait(timeout=30)
         if not rv:
             return 1, 'not'
         if rv == b'ERR':
@@ -354,9 +303,6 @@ class BleCC26X2:
             await self.cli.disconnect()
 
     async def connect(self, mac):
-        def cb_disc(_: BleakClient):
-            pass
-
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
@@ -364,7 +310,7 @@ class BleCC26X2:
             try:
                 # we pass hci here
                 h = self.h
-                self.cli = BleakClient(mac, adapter=h, disconnected_callback=cb_disc)
+                self.cli = BleakClient(mac, adapter=h)
                 if await self.cli.connect():
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
@@ -385,39 +331,3 @@ class BleCC26X2:
             s = humanize.naturaldelta(timedelta(seconds=t))
             return 0, s
         return 1, ''
-
-    # ------------------------------------
-    # more demanding versions of commands
-    # ------------------------------------
-
-    async def cmd_ensure_mts(self):
-        rv = await self.cmd_mts()
-        if rv == 0:
-            return 0
-        print('detected bad mts, waiting...')
-        await asyncio.sleep(5)
-        rv = await self.cmd_lan()
-        return 0 if rv == 'MTS 00' else 1
-
-    async def cmd_ensure_del(self, s):
-        rv = await self.cmd_del(s)
-        if rv == 0:
-            return 0
-
-        print('detected bad del, waiting')
-        await asyncio.sleep(1)
-        rv = await self.cmd_fex(s)
-        # exists == rv == 0 means bad, return 1
-        return 1 if rv == 0 else 0
-
-    async def cmd_ensure_run(self, s):
-        if s:
-            rv = await self.cmd_rws(s)
-        else:
-            rv = await self.cmd_run()
-        if rv == 0:
-            return 0
-        print('detected bad run, waiting')
-        await asyncio.sleep(1)
-        rv = await self.cmd_sts()
-        return 0 if rv == b'STS 0200' else 1
