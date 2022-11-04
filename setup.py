@@ -22,7 +22,7 @@ setup(name='lowell-mat',
           'pyserial>=3.5',
           'pandas>=1.3.5',
           'humanize>=4.3.0',
-          'aws-cli',
+          'awscli',
           'boto3'
       ],
       classifiers=[
