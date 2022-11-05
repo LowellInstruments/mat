@@ -12,7 +12,7 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD
+    FILE_EXISTS_CMD, WAT_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
@@ -100,7 +100,7 @@ class BleCC26X2:
         c, _ = build_cmd(CRC_CMD, s)
         await self._cmd(c)
         rv = await self._ans_wait()
-        ok = len(rv) == 14 and rv.startswith(b'CRC')
+        ok = rv and len(rv) == 14 and rv.startswith(b'CRC')
         if ok:
             return 0, rv[-8:].decode().lower()
         return 1, ''
@@ -164,7 +164,7 @@ class BleCC26X2:
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
-        ok = len(rv) == 18 and rv.startswith(b'GDO')
+        ok = rv and len(rv) == 18 and rv.startswith(b'GDO')
         if not ok:
             return
         a = rv
@@ -182,7 +182,7 @@ class BleCC26X2:
         c, _ = build_cmd(BAT_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
-        ok = len(rv) == 10 and rv.startswith(b'BAT')
+        ok = rv and len(rv) == 10 and rv.startswith(b'BAT')
         if not ok:
             return
         a = rv
@@ -192,6 +192,23 @@ class BleCC26X2:
             b = _[-2:] + _[-4:-2]
             b = int(b, 16)
             return 0, b
+        return 1, 0
+
+    async def cmd_wat(self):
+        c, _ = build_cmd(WAT_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        print(rv)
+        ok = rv and len(rv) == 10 and rv.startswith(b'WAT')
+        print(rv)
+        if not ok:
+            return
+        a = rv
+        if a and len(a.split()) == 2:
+            _ = a.split()[1].decode()
+            w = _[-2:] + _[-4:-2]
+            w = int(w, 16)
+            return 0, w
         return 1, 0
 
     async def cmd_wak(self, s):
@@ -218,7 +235,7 @@ class BleCC26X2:
     async def cmd_sts(self):
         await self._cmd('STS \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 8 and rv.startswith(b'STS')
+        ok = rv and len(rv) == 8 and rv.startswith(b'STS')
         return 0 if ok else 1
 
     async def cmd_run(self):

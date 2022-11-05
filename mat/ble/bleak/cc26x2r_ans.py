@@ -42,11 +42,10 @@ def is_cmd_done(tag, ans):
         STATUS_CMD,
         WAKE_CMD,
         ERROR_WHEN_BOOT_OR_RUN_CMD,
-        WAT_CMD
     ):
         return _ck(t, a, 8)
 
-    if t == BAT_CMD:
+    if t in (BAT_CMD, WAT_CMD):
         return _ck(t, a, 10)
 
     if t in (
