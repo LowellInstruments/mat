@@ -31,7 +31,7 @@ setup(name='lowell-mat',
           'humanize>=4.3.0',
           'bleak>=0.17.0',
           'awscli',
-          'boto3'
+          my_boto3
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",
