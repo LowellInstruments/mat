@@ -11,7 +11,7 @@ SQS_LOGGER_ERROR_OXYGEN = 'LOGGER_ERROR_OXYGEN'
 SQS_LOGGER_MAX_ERRORS = 'LOGGER_ERRORS_MAXED_RETRIES'
 
 
-def sqs_build_msg(rz, lat, lon, vn, dch, box_sn, m_ver=1):
+def sqs_build_msg(rz, lat, lon, vn, dch, box_sn, pn, m_ver=1):
 
     if not box_sn:
         print('sqs_build_msg missing box_sn')
@@ -27,7 +27,7 @@ def sqs_build_msg(rz, lat, lon, vn, dch, box_sn, m_ver=1):
         plat = 'rpi4'
     d = {
         'reason': rz,
-        'project': os.getenv('DDH_PROJECT_NAME'),
+        'project': pn,
         'vessel': vn,
         'ddh_commit': dch,
         'utc_time': str(u),
