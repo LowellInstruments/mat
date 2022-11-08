@@ -16,8 +16,7 @@ UUID_T = UUID_R = '00035b03-58e6-07dd-021a-08123a000301'
 
 class BleRN4020Base:
     """
-    should never be called directly but developer
-    should call BleRN4020
+    never to be used directly but BleRN4020
     """
 
     def __init__(self, h='hci0'):
@@ -75,13 +74,13 @@ class BleRN4020Base:
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 29 and rv.startswith(b'\n\rGTM')
+        ok = rv and len(rv) == 29 and rv.startswith(b'\n\rGTM')
         return 0 if ok else 1
 
     async def cmd_stp(self):
         await self._cmd('STP \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 12 and rv.startswith(b'\n\rSTP')
+        ok = rv and len(rv) == 12 and rv.startswith(b'\n\rSTP')
         return 0 if ok else 1
 
     async def cmd_run(self):
@@ -108,7 +107,7 @@ class BleRN4020Base:
     async def cmd_gfv(self):
         await self._cmd('GFV \r')
         rv = await self._ans_wait()
-        ok = len(rv) == 16 and rv.startswith(b'\n\rGFV')
+        ok = rv and len(rv) == 16 and rv.startswith(b'\n\rGFV')
         return 0 if ok else 1
 
     async def cmd_get(self, s):
@@ -134,9 +133,6 @@ class BleRN4020Base:
             await self.cli.disconnect()
 
     async def connect(self, mac):
-        def cb_disc(_: BleakClient):
-            pass
-
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
@@ -144,7 +140,7 @@ class BleRN4020Base:
             try:
                 # we pass hci here
                 h = self.h
-                self.cli = BleakClient(mac, adapter=h, disconnected_callback=cb_disc)
+                self.cli = BleakClient(mac, adapter=h)
                 if await self.cli.connect():
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
@@ -154,7 +150,7 @@ class BleRN4020Base:
         return 1
 
     async def cmd_xmodem(self, z):
-        # never called, dynamically resolves to a method
-        # in superclass BleRN4020 w/o leading '_' character
+        # should never be called, dynamically resolves to a method
+        # in superclass BleRN4020
         print('cmd_xmodem should never be called')
         return 1, bytes()
