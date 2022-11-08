@@ -12,6 +12,7 @@ with open("mat/version.py") as fp:
 # RPi / non-RPi differences
 rpi = linux_is_rpi()
 my_numpy = 'numpy==1.21.4' if rpi else 'numpy>=1.21.4'
+my_boto3 = 'boto3==1.26.4' if rpi else 'boto3>=1.26.4'
 
 
 setup(name='lowell-mat',
