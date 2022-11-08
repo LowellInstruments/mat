@@ -2,11 +2,17 @@
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 from setuptools import setup, find_packages
 
+from mat.utils import linux_is_rpi
 
 # version management
 v = {}
 with open("mat/version.py") as fp:
     exec(fp.read(), v)
+
+# RPi / non-RPi differences
+my_numpy = 'numpy>=1.21.4'
+if linux_is_rpi():
+    'numpy==1.21.4',
 
 
 setup(name='lowell-mat',
@@ -18,6 +24,7 @@ setup(name='lowell-mat',
       packages=find_packages(),
       install_requires=[
           'h5py>=3.7.0',
+          my_numpy,
           'numpy>=1.21.4',
           'pyserial>=3.5',
           'pandas>=1.3.5',
