@@ -36,8 +36,7 @@ def _xmd_frame_check_crc(b):
 
 class BleRN4020(BleRN4020Base):
     """
-    this class has the RN4020 implementation
-    including Xmodem
+    RN4020 implementation including Xmodem
     """
 
     def __init__(self, h):
