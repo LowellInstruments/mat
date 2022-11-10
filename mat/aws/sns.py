@@ -1,65 +1,47 @@
-import json
-import os
 import boto3
-import botocore
 from botocore.config import Config
+from botocore.exceptions import EndpointConnectionError, ClientError
+import json
 
 
-def get_aws_sns_client(my_region='us-east-1'):
-    _k = os.getenv('DDH_AWS_KEY_ID')
-    _s = os.getenv('DDH_AWS_SECRET')
+def _get_sns_client(_s, _ls, _ta, key, secret):
+    if not _ta:
+        print('[ MAT ] SNS | missing topic ARN')
+        return 1
+    if ':' not in _ta:
+        print('[ MAT ] SNS | topic ARN malformed')
+        return 1
+
+    rg = _ta.split(':')[3]
     _cnf = Config(connect_timeout=5, retries={'max_attempts': 0})
     return boto3.client('sns',
-                        aws_access_key_id=_k,
-                        aws_secret_access_key=_s,
-                        region_name=my_region,
+                        aws_access_key_id=key,
+                        aws_secret_access_key=secret,
+                        region_name=rg,
                         config=_cnf)
 
 
-def get_list_of_topics():
-    cli = get_aws_sns_client(my_region='us-east-2')
+def sns_notify(short_s, long_s, topic_arn, key, secret):
     try:
-        list_of_topics = cli.list_topics()
-        for each in list_of_topics['Topics']:
-            print(each['TopicArn'])
-    except botocore.exceptions.ClientError as e:
-        print(e)
-        return 1
 
-
-def get_list_of_subscription_of_one_topic(s: str):
-    cli = get_aws_sns_client(my_region='us-east-2')
-    try:
-        list_of_subs = cli.list_subscriptions_by_topic(TopicArn=s)
-        for each in list_of_subs['Subscriptions']:
-            # each: {'SubscriptionArn': <subs_arn>',
-            # 'Owner': '...',
-            # 'Protocol': 'email',
-            # 'Endpoint': 'destination@gmail.com',
-            # 'TopicArn': '<topic_arn>'}
-            print(each['Endpoint'])
-    except botocore.exceptions.ClientError as e:
-        print(e)
-        return 1
-
-
-def publish_example(topic_arn):
-    cli = get_aws_sns_client(my_region='us-east-2')
-    try:
-        msg_not_email_or_sms = {"foo": "bar"}
+        # --------------------
+        # get the SNS client
+        # --------------------
+        cli = _get_sns_client(short_s, long_s, topic_arn, key, secret)
         response = cli.publish(
             TargetArn=topic_arn,
-            Message=json.dumps({'default': json.dumps(msg_not_email_or_sms),
-                                'sms': 'text -> short',
-                                'email': 'this is a longer TEXT'}),
-            Subject='SUBJECT: logger error',
+            Message=json.dumps({'default': short_s,
+                                'sms': short_s,
+                                'email': long_s}),
+            Subject=short_s,
             MessageStructure='json'
         )
-        # response format very complicated, only use:
+
+        # response format very complicated, only use one field:
         if int(response['ResponseMetadata']['HTTPStatusCode']) == 200:
-            print('message pub OK')
+            # print('[ MAT ] SNS | message published OK -> {}'.format(short_s))
             return 0
 
-    except botocore.exceptions.ClientError as e:
-        print(e)
+    except (ClientError, EndpointConnectionError, Exception) as e:
+        print('[ MAT ] SNS | exception {}'.format(e))
         return 1

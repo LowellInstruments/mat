@@ -4,6 +4,11 @@ from botocore.config import Config
 
 
 def get_aws_s3_client():
+
+    # --------------------
+    # get the S3 client
+    # --------------------
+
     _k = os.getenv('DDH_AWS_KEY_ID')
     _s = os.getenv('DDH_AWS_SECRET')
     _cnf = Config(connect_timeout=5, retries={'max_attempts': 0})

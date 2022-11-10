@@ -63,10 +63,14 @@ def connect_cc26x2r(lc):
     uuid_c = 'f0001132-0451-4000-b000-000000000000'
     uuid_w = 'f0001131-0451-4000-b000-000000000000'
 
+    if lc.what == 'DO-X':
+        uuid_s = 'f0001130-0451-4000-b000-000000000000'
+        uuid_c = 'f0001132-0451-4000-b000-000000000000'
+        uuid_w = 'f0001131-0451-4000-b000-000000000000'
+
+
     try:
-        # connection update request from cc26x2 takes 1 sec
         lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
-        time.sleep(1.1)
         lc.per.setDelegate(lc.dlg)
         lc.svc = lc.per.getServiceByUUID(uuid_s)
         lc.cha = lc.svc.getCharacteristics(uuid_c)[0]
@@ -85,7 +89,11 @@ def ble_cmd_file_list_only_lid_files(lc) -> dict:
     return lc.ble_cmd_dir_ext(b'lid')
 
 
-def utils_logger_is_cc26x2r(mac, info):
-    is_do_2 = 'DO-2' in info
+def utils_logger_is_cc26x2r(mac, info: str):
     is_do_1 = 'DO-1' in info
-    return is_do_2 or is_do_1
+    is_do_2 = 'DO-2' in info
+    is_do_x = 'DO-X' in info
+    is_do_3 = 'DO-3' in info
+    is_do_4 = 'DO-4' in info
+    return is_do_1 or is_do_2
+

@@ -1,23 +1,18 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
-import platform
 from setuptools import setup, find_packages
 
-# installation based on "requirements.txt"
-# it skips git+ format in file because setup.py does not like it
-rr = list(map(str.strip, open("requirements.txt").readlines()))
-rr.remove('git+https://github.com/LowellInstruments/bluepy.git')
-
-
-# add OUR bluepy library -> only for Linux installations
-if platform.system() == 'Linux':
-    rr.append('bluepy @ https://github.com/LowellInstruments/bluepy/archive/refs/heads/master.zip')
-
+from mat.utils import linux_is_rpi
 
 # version management
 v = {}
 with open("mat/version.py") as fp:
     exec(fp.read(), v)
+
+# RPi / non-RPi differences
+rpi = linux_is_rpi()
+my_numpy = 'numpy==1.21.4' if rpi else 'numpy>=1.21.4'
+my_boto3 = 'boto3==1.26.4' if rpi else 'boto3>=1.26.4'
 
 
 setup(name='lowell-mat',
@@ -27,7 +22,17 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
-      install_requires=rr,
+      install_requires=[
+          'h5py>=3.7.0',
+          my_numpy,
+          'numpy>=1.21.4',
+          'pyserial>=3.5',
+          'pandas>=1.3.5',
+          'humanize>=4.3.0',
+          'bleak>=0.17.0',
+          'awscli',
+          my_boto3
+      ],
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",

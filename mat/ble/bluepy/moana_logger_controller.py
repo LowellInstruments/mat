@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import socket
 from datetime import timezone
 import os
 import struct
@@ -10,7 +11,12 @@ from bluepy import btle
 import subprocess as sp
 
 
-def utils_logger_is_moana(mac, info):
+# must match receptor
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
+
+
+def utils_logger_is_moana(mac, info: str):
     return 'MOANA' in info
 
 
@@ -50,7 +56,6 @@ class LoggerControllerMoana:
             t_r = btle.ADDR_TYPE_RANDOM
             self.per = bluepy.btle.Peripheral(self.mac, iface=self.h,
                                               addrType=t_r, timeout=10)
-            time.sleep(1.1)
             self.per.setDelegate(self.dlg)
             self.svc = self.per.getServiceByUUID(self.UUID_S)
             self.c_r = self.svc.getCharacteristics(self.UUID_R)[0]
@@ -158,7 +163,17 @@ class LoggerControllerMoana:
             # moana sometimes fails here
             pass
 
-    def file_get(self, rm_demo=False):
+    def file_crc(self):
+        self._clear_buffers()
+        self._ble_tx(b'*BZ')
+        self._wait_answer('*Jz')
+        crc = self.dlg.buf
+        # crc: b'*Jzeb983b79
+        # print('moana file remote crc ->', crc)
+        if len(crc) == 11:
+            return crc[-8:]
+
+    def file_get(self, size, ip='127.0.0.1', port=_DGP, rm_demo=False):
         # --------------------------------------------
         # because it works with phones, the size of
         # Moana BLE notifications is 20 bytes
@@ -166,36 +181,40 @@ class LoggerControllerMoana:
         if rm_demo:
             sp.run('rm /home/kaz/Downloads/moana_demo/*', shell=True)
 
-        data = bytes()
-        marker_file_end = b'*0005D\x00'
+        b = bytes()
         is_first_packet = True
+        _skg = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        _ = '{}/0'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
+        _skg.sendto(str(_).encode(), (ip, port))
 
         while 1:
-            pre = len(self.dlg.buf)
+
+            # ask a chunk of file
             self._clear_buffers()
             self._ble_tx(b'*BB')
+
             while self.per.waitForNotifications(3):
-                # accumulate till nothing more arrives
+                # accumulate chunk
                 pass
-            post = len(self.dlg.buf)
 
-            # lose header only of intermediate packets
-            if is_first_packet:
-                data += self.dlg.buf[0:]
-                is_first_packet = False
-            else:
-                data += self.dlg.buf[7:]
+            # update any progress bar
+            _ = (len(b) / size) * 100
+            _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
+            _skg.sendto(str(_).encode(), (ip, port))
 
+            # lose intermediate packets' header, offset 7
+            i = 0 if is_first_packet else 7
+            is_first_packet = False
+            b += self.dlg.buf[i:]
+
+            # detect end of file
+            marker_file_end = b'*0005D\x00'
             if self.dlg.buf[-7:] == marker_file_end:
-                # reached file end
-                break
-            if pre == post:
-                # detects timeouts
                 break
 
         # data: b',"ArchiveBit":"+"}*0173D\x00Download Time...'
-        k = data.index(b'*')
-        self.dlg.buf = data[k:]
+        k = b.index(b'*')
+        self.dlg.buf = b[k:]
 
         # e-mail patch
         patch = b'*0ff0D\x00'
@@ -219,16 +238,6 @@ class LoggerControllerMoana:
         with open(name, 'wb') as f:
             f.write(data)
         return name
-
-    # def file_crc(self):
-    #     self._clear_buffers()
-    #     self._ble_tx(b'*BZ')
-    #     self._wait_answer('*Jz')
-    #     crc = self.dlg.buf
-    #     # crc: b'*Jzeb983b79
-    #     # print('moana file remote crc ->', crc)
-    #     if len(crc) == 11:
-    #         return crc[-8:]
 
     def time_sync(self) -> bool:
         self._clear_buffers()
@@ -286,7 +295,6 @@ class LoggerControllerMoana:
             # saves file w/ UTC times (local when tz=None)
             # & removes the +00:00 part
             dt = datetime.datetime.fromtimestamp(i_ts, tz=timezone.utc)
-            # todo > is next line needed?
             dt = dt.replace(tzinfo=None)
             press = int(struct.unpack('<H', line[2:4])[0])
             temp = int(struct.unpack('<H', line[4:6])[0])
@@ -334,15 +342,15 @@ class LoggerControllerMoana:
 #             checksum = np.uint32(checksum) | 1
 #
 #     # sometimes needs these couple adjusts
-#     checksum -= 0x104
-#     if checksum > 0xFFFFFFFF:
-#        checksum -= 0x100000000
+#     # checksum -= 0x104
+#     # if checksum > 0xFFFFFFFF:
+#     #    checksum -= 0x100000000
 #
 #     s = '{:08x}'.format(checksum)
-#     # print('moana file local crc ->', s)
+#     print('moana file local crc ->', s)
 #     return s
-#
-#
+
+
 # def compare_moana_file_crc(a: bytes, b):
 #     # a: b'*Jz2b983b40'
 #     # b: '2b983b40'
