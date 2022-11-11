@@ -27,12 +27,15 @@ class TestSensorDataFile(TestCase):
     def test_set_userdata(self):
         with _name_patch():
             appdata_path = reference_file("appdata_dir/")
-            environ["APPDATA"] = appdata_path
-            filename = "appdata.test"
-            set_userdata(filename, "field", "data")
-            assert cmp(userdata_path(filename),
-                       reference_file("appdata.test.expect"))
-            assert "field" in get_userdata(filename)
+            environ['APPDATA'] = appdata_path
+            filename = 'appdata.test'
+            set_userdata(filename, 'field', 'data')
+
+            userdata = get_userdata(filename)
+            expected_userdata = get_userdata(reference_file('appdata.test.expect'))
+
+            assert userdata == expected_userdata
+            assert userdata['field'] == 'data'
             rmtree(appdata_path)
 
 

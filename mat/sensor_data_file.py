@@ -22,6 +22,7 @@ class SensorDataFile(ABC):
         self._file_size = None
         self._mini_header_length = None
         self._samples_per_page = None
+        self._mini_headers = []
         self._n_pages = None
         self._n_pages = self.n_pages()
         if self.data_bytes() == 0:

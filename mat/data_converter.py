@@ -2,6 +2,9 @@ from mat.data_file_factory import load_data_file
 from mat.data_product import data_product_factory
 from mat.sensor import create_sensors, major_interval_info
 from math import floor
+from pathlib import Path
+from .time_converter import create_time_converter
+import numpy as np
 
 
 def default_parameters():
@@ -19,7 +22,8 @@ def default_parameters():
             'declination': 0,
             'split': None,
             'calibration': None,
-            'overwrite': True}
+            'overwrite': True,
+            'voltage': False}
 
 
 class DataConverter:
@@ -54,6 +58,12 @@ class DataConverter:
             self._write_to_outputs(outputs, page, page_times[i])
             percent = (i + 1) / self.source_file.n_pages() * 100
             self._update_observers(percent)
+        if self.parameters['voltage']:
+            # this is a gross little hack because the voltages aren't stored in the "page" data
+            file_path = Path(self.path)
+            parent = self.parameters['output_directory'] or file_path.parent
+            outfile = parent / (file_path.stem + '_Voltage.csv')
+            write_voltage_file(outfile, page_times, self.source_file.page_voltages())
 
     def _build_sensors(self):
         header = self.source_file.header()
@@ -85,3 +95,14 @@ class DataConverter:
 
     def __del__(self):
         self.close_source()
+
+
+def write_voltage_file(path, times, voltages):
+    time_converter = create_time_converter('iso8601')
+    iso_times = time_converter.convert(np.array(times).astype(np.float64))
+    data = zip(iso_times, voltages)
+    with open(path, 'w') as fid:
+        fid.write(f'{time_converter.header_str()},Voltage (V)\n')
+        for t, v in data:
+            fid.write(f'{t},{v}\n')
+
