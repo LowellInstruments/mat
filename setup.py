@@ -25,7 +25,6 @@ setup(name='lowell-mat',
       install_requires=[
           'h5py>=3.7.0',
           my_numpy,
-          'numpy>=1.21.4',
           'pyserial>=3.5',
           'pandas>=1.3.5',
           'humanize>=4.3.0',
