@@ -1,16 +1,24 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
 from setuptools import setup, find_packages
+import subprocess as sp
 
-from mat.utils import linux_is_rpi
 
+# -------------------
 # version management
+# -------------------
+
 v = {}
 with open("mat/version.py") as fp:
     exec(fp.read(), v)
 
+# ---------------------------
 # RPi / non-RPi differences
-rpi = linux_is_rpi()
+# ---------------------------
+
+c = 'cat /proc/cpuinfo | grep Raspberry'
+rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+rpi = rv.returncode == 0
 my_numpy = 'numpy==1.21.4' if rpi else 'numpy>=1.21.4'
 my_boto3 = 'boto3==1.26.4' if rpi else 'boto3>=1.26.4'
 
