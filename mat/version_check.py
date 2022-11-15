@@ -14,7 +14,7 @@ class VersionChecker:
             remote = urlopen(self.remote)
             text = remote.read().decode('IBM437')
             matches = re.findall(self.pattern, text)
-        except URLError:
+        except Exception:
             return None
 
         if not matches:
