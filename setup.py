@@ -32,13 +32,13 @@ setup(name='lowell-mat',
       packages=find_packages(),
       install_requires=[
           'h5py>=3.7.0',
-          my_numpy,
+          'numpy~=1.21.4',
           'pyserial>=3.5',
           'pandas>=1.3.5',
           'humanize>=4.3.0',
           'bleak>=0.17.0',
-          'awscli',
-          my_boto3
+          'awscli~=1.27.4',
+          'boto3~=1.26.4'
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",
