@@ -3,7 +3,6 @@
 from setuptools import setup, find_packages
 import subprocess as sp
 
-
 # -------------------
 # version management
 # -------------------
@@ -11,16 +10,6 @@ import subprocess as sp
 v = {}
 with open("mat/version.py") as fp:
     exec(fp.read(), v)
-
-# ---------------------------
-# RPi / non-RPi differences
-# ---------------------------
-
-c = 'cat /proc/cpuinfo | grep Raspberry'
-rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-rpi = rv.returncode == 0
-my_numpy = 'numpy==1.21.4' if rpi else 'numpy>=1.21.4'
-my_boto3 = 'boto3==1.26.4' if rpi else 'boto3>=1.26.4'
 
 
 setup(name='lowell-mat',
@@ -31,14 +20,16 @@ setup(name='lowell-mat',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
       install_requires=[
-          'h5py>=3.7.0',
+          'h5py~=3.7.0',
           'numpy~=1.21.4',
-          'pyserial>=3.5',
-          'pandas>=1.3.5',
-          'humanize>=4.3.0',
-          'bleak>=0.17.0',
+          'pyserial~=3.5',
+          'pandas~=1.3.5',
+          'humanize~=4.3.0',
+          'bleak~=0.17.0',
           'awscli~=1.27.4',
-          'boto3~=1.26.4'
+          'boto3~=1.26.4',
+          'tzlocal~=2.1'
+
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",
