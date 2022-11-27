@@ -12,6 +12,8 @@ with open("mat/version.py") as fp:
     exec(fp.read(), v)
 
 
+# todo > should we put ALL reqs in lowell-mat-dependant apps and zero in here?
+
 setup(name='lowell-mat',
       version=v['__version__'],
       description='Shared package for Lowell Instruments software',

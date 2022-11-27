@@ -70,7 +70,7 @@ def connect_cc26x2r(lc):
 
 
     try:
-        lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
+        lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.url_hh, timeout=10)
         lc.per.setDelegate(lc.dlg)
         lc.svc = lc.per.getServiceByUUID(uuid_s)
         lc.cha = lc.svc.getCharacteristics(uuid_c)[0]
