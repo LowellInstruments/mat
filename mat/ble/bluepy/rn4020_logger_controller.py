@@ -8,6 +8,9 @@ from mat.logger_controller import STATUS_CMD, TIME_CMD, \
     RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, DIR_CMD, SENSOR_READINGS_CMD, DEL_FILE_CMD
 
 
+_DGP = DDH_GUI_UDP_PORT = 12349
+
+
 class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
 
     def open(self):
@@ -67,18 +70,11 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
         a = self._ble_cmd(SWS_CMD, s)
         return a == b'SWS 0200'
 
-    def ble_cmd_get(self, name, size, p=None) -> bytes:  # pragma: no cover
-
-        # file-system based download percentage indicator
-        if p:
-            f = open(p, 'w+')
-            f.write(str(0))
-            f.close()
+    def ble_cmd_get(self, name, size, ip='127.0.0.1', port=_DGP) -> bytes:  # pragma: no cover
 
         # separate any previous unwanted stuff
         time.sleep(1)
 
-        # real download
         self.dlg.buf = bytes()
         cmd = 'GET {:02x}{}\r'.format(len(name), name)
         self.ble_write(cmd.encode())
@@ -91,7 +87,7 @@ class LoggerControllerRN4020(LoggerControllerCC26X2R):  # pragma: no cover
             if _ == 'GET 00':
                 break
 
-        return rn4020_xmodem_get_file(self, size, p)
+        return rn4020_xmodem_get_file(self, size, ip, port)
 
     def ble_cmd_ping(self) -> bool:
         # ensure a RN4020-based logger is there
