@@ -31,7 +31,10 @@ def _build_sensors(header, calibration, seconds):
 def _sensor_factory(sensor_spec, header, calibration, seconds):
     if sensor_spec.temp_dependant:
         return TempDependantSensor(sensor_spec, header, calibration, seconds)
-    return Sensor(sensor_spec, header, calibration, seconds)
+    elif sensor_spec.enabled_tag == 'PRS':
+        return PressureSensor(sensor_spec, header, calibration, seconds)
+    else:
+        return Sensor(sensor_spec, header, calibration, seconds)
 
 
 def _time_and_order(sensors):
@@ -83,6 +86,7 @@ class Sensor:
         self.sensor_spec = sensor_spec
         self.name = sensor_spec.name
         self.channels = sensor_spec.channels
+        self._header = header
         self.interval = header.tag(sensor_spec.interval_tag)
         self.burst_rate = header.tag(sensor_spec.burst_rate_tag) or 1
         self.burst_count = header.tag(sensor_spec.burst_count_tag) or 1
@@ -191,3 +195,19 @@ class TempDependantSensor(Sensor):
         if average:
             data, time = self._average_bursts(data, time)
         return data, time
+
+
+class PressureSensor(Sensor):
+    def convert(self, data_page, average, page_time):
+        if self.cache['page_time'] == page_time:
+            return self.cache['data']
+        raw_data, time = self._parse_page(data_page)
+        data = self.converter.convert(raw_data)
+        data = self._check_range(data)
+        if self.burst_count < self._header.tag('BMN'):
+            data[0, self.burst_count-1:np.size(data, 1):self.burst_count] = np.nan
+        if average:
+            data, time = self._average_bursts(data, time)
+        time += page_time
+        self.cache = {'page_time': page_time, 'data': (data, time)}
+        return self.cache['data']
