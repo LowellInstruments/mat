@@ -236,7 +236,16 @@ class BleCC26X2:
         await self._cmd('STS \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 8 and rv.startswith(b'STS')
-        return 0 if ok else 1
+        if ok:
+            _ = {
+                b'0200': 'running',
+                b'0201': 'stopped',
+                b'0203': 'delayed',
+                # depending on version 'delayed' has 2
+                b'0202': 'delayed',
+            }
+            state = _[rv.split(b' ')[1]]
+        return 0, state if ok else 1, 'error'
 
     async def cmd_run(self):
         await self._cmd('RUN \r')
