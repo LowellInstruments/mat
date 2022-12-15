@@ -33,6 +33,9 @@ class BleCC26X2:
         self.h = h
         ble_mat_bluetoothctl_disconnect()
 
+    async def is_connected(self):
+        return self.cli and self.cli.is_connected
+
     async def _cmd(self, c: str, empty=True):
         self.tag = c[:3]
         if empty:
@@ -325,8 +328,10 @@ class BleCC26X2:
         return rv, self.ans
 
     async def disconnect(self):
-        if self.cli and self.cli.is_connected:
+        try:
             await self.cli.disconnect()
+        except (Exception, ):
+            pass
 
     async def connect(self, mac):
         def c_rx(_: int, b: bytearray):
