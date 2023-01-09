@@ -43,19 +43,3 @@ jobs:
         coverageCommand: python -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
         coverageLocations: ${{github.workspace}}/cov.xml:coverage.py
         debug: true
-
-    - name: LOWELL -> UPLOAD COVERAGE report to COVECOD
-      uses: codecov/codecov-action@v2
-      with:
-      
-        # only private repositories need TOKEN
-        # token: ${{ secrets.CODECOV_TOKEN }}
-        
-        files: ./cov.xml
-        directory: ./coverage/reports/
-        env_vars: OS,PYTHON
-        path_to_write_report: ./coverage/codecov_report.txt
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true
-        verbose: true
