@@ -164,7 +164,6 @@ class BleCC26X2:
         ok = rv == b'WLI 00'
         return 0 if ok else 1
 
-    # todo > this is NOT working on FLET console APP, check
     async def cmd_gdo(self):
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
         await self._cmd(c)
