@@ -10,9 +10,9 @@ from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat
     ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
-    LOGGER_INFO_CMD
+    LOGGER_INFO_CMD, STOP_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD
+    FILE_EXISTS_CMD, WAT_CMD, FORMAT_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
@@ -30,9 +30,14 @@ class BleCC26X2Sim:
 
     async def _cmd(self, c: str):
         self.tag = c[:3]
-        return await self._ans_wait(c, timeout=.1)
+        return await self._ans_wait(timeout=.1)
 
-    async def _ans_wait(self, c, timeout=10.0):
+    async def _ans_wait(self, timeout=.1):
+
+        # ---------------------------------------
+        # this function simulates FIRMWARE
+        # ---------------------------------------
+
         a = bytes()
         t = self.tag
         await asyncio.sleep(timeout)
@@ -41,6 +46,10 @@ class BleCC26X2Sim:
             a = b'STS 0201'
         elif t == SET_TIME_CMD:
             a = b'STM 00'
+        elif t == STOP_CMD:
+            a = b'STP 00'
+        elif t == FORMAT_CMD:
+            a = b'FRM 00'
         else:
             assert 'wtf command'
         return a
@@ -62,14 +71,10 @@ class BleCC26X2Sim:
     async def cmd_dwg(self, s):
         return 0 if s in self.files.keys() else 1
 
-    # async def cmd_crc(self, s):
-    #     c, _ = build_cmd(CRC_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     ok = rv and len(rv) == 14 and rv.startswith(b'CRC')
-    #     if ok:
-    #         return 0, rv[-8:].decode().lower()
-    #     return 1, ''
+    async def cmd_crc(self, s):
+        if s not in self.files.keys():
+            return 1, ''
+        return 0, 'coffeeff'
 
     async def cmd_del(self, s):
         try:
@@ -78,13 +83,9 @@ class BleCC26X2Sim:
         except (Exception, ):
             return 1
 
-    # async def cmd_fex(self, s):
-    #     c, _ = build_cmd(FILE_EXISTS_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     # return 0 == OK if file exists
-    #     return 0 if rv == b'FEX 01' else 1
-    #
+    async def cmd_fex(self, s):
+        return 0 if s in self.files.keys() else 1
+
     # async def cmd_gtm(self):
     #     await self._cmd('GTM \r')
     #     rv = await self._ans_wait()
@@ -92,25 +93,26 @@ class BleCC26X2Sim:
     #     if not ok:
     #         return 1, ''
     #     return 0, rv[6:].decode()
-    #
-    # async def cmd_stp(self):
-    #     await self._cmd('STP \r')
-    #     rv = await self._ans_wait(timeout=30)
-    #     ok = rv in (b'STP 00', b'STP 0200')
-    #     return 0 if ok else 1
-    #
+
+    async def cmd_stp(self):
+        await self._cmd('STP \r')
+        rv = await self._ans_wait()
+        ok = rv in (b'STP 00', b'STP 0200')
+        return 0 if ok else 1
+
     # async def cmd_led(self):
     #     await self._cmd('LED \r')
     #     rv = await self._ans_wait()
     #     ok = rv == b'LED 00'
     #     return 0 if ok else 1
-    #
-    # async def cmd_frm(self):
-    #     await self._cmd('FRM \r')
-    #     rv = await self._ans_wait()
-    #     ok = rv == b'FRM 00'
-    #     return 0 if ok else 1
-    #
+
+    async def cmd_frm(self):
+        await self._cmd('FRM \r')
+        rv = await self._ans_wait()
+        self.files = {}
+        ok = rv == b'FRM 00'
+        return 0 if ok else 1
+
     # async def cmd_cfg(self, cfg_d):
     #     assert type(cfg_d) is dict
     #     s = json.dumps(cfg_d)

@@ -37,3 +37,14 @@ class TestCC26X2rSim:
     async def test_cmd_stm(self):
         rv = await lc.cmd_stm()
         assert rv == 0
+
+    @pytest.mark.asyncio
+    async def test_cmd_stp(self):
+        rv = await lc.cmd_stp()
+        assert rv == 0
+
+    @pytest.mark.asyncio
+    async def test_cmd_frm(self):
+        rv = await lc.cmd_frm()
+        assert rv == 0
+
