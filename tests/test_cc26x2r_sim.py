@@ -32,3 +32,8 @@ class TestCC26X2rSim:
         assert rv == 0
         rv = await lc.cmd_del('made_up_filename.lid')
         assert rv == 1
+
+    @pytest.mark.asyncio
+    async def test_cmd_stm(self):
+        rv = await lc.cmd_stm()
+        assert rv == 0

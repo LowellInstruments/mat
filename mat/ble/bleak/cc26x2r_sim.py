@@ -39,6 +39,8 @@ class BleCC26X2Sim:
 
         if t == STATUS_CMD:
             a = b'STS 0201'
+        elif t == SET_TIME_CMD:
+            a = b'STM 00'
         else:
             assert 'wtf command'
         return a
@@ -54,8 +56,7 @@ class BleCC26X2Sim:
         return 0 if is_in_states else 1
 
     async def cmd_stm(self):
-        # we assume went well :)
-        rv = self._cmd(SET_TIME_CMD)
+        rv = await self._cmd(SET_TIME_CMD)
         return 0 if rv == b'STM 00' else 1
 
     async def cmd_dwg(self, s):
