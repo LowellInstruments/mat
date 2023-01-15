@@ -10,10 +10,13 @@ from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat
     ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
-    LOGGER_INFO_CMD, STOP_CMD
+    LOGGER_INFO_CMD, STOP_CMD, DIR_CMD, TIME_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD, FORMAT_CMD
+    FILE_EXISTS_CMD, WAT_CMD, FORMAT_CMD, LED_CMD, MY_TOOL_SET_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
+
+
+GPS_FRM_STR = '{:+.6f}'
 
 
 class BleCC26X2Sim:
@@ -24,6 +27,14 @@ class BleCC26X2Sim:
             'MAT.cfg': 189,
         }
         self.connected = False
+
+    async def disconnect(self):
+        self.connected = False
+        return 0
+
+    async def connect(self, mac):
+        self.connected = mac.startswith('11:22:33')
+        return 0 if self.connected else 1
 
     async def is_connected(self):
         return self.connected
@@ -50,6 +61,28 @@ class BleCC26X2Sim:
             a = b'STP 00'
         elif t == FORMAT_CMD:
             a = b'FRM 00'
+        elif t == TIME_CMD:
+            dt = datetime.now()
+            s_dt = dt.strftime('%Y/%m/%d %H:%M:%S')
+            a = 'GTM 19{}'.format(s_dt).encode()
+        elif t == SWS_CMD:
+            a = b'SWS 00'
+        elif t == RWS_CMD:
+            a = b'RWS 00'
+        elif t == LED_CMD:
+            a = b'LED 00'
+        elif t == MY_TOOL_SET_CMD:
+            i = time.time()
+            s = 'file_{}.lid'.format(i)
+            self.files[s] = i
+            a = b'MTS 00'
+        elif t == CONFIG_CMD:
+            none_present = 'MAT.cfg' not in self.files.keys()
+            a = b'CFG 00' if none_present else None
+        elif t == DIR_CMD:
+            for k, v in self.files.items():
+                a += '\n\r{}\t\t\t{}\n\r'.format(k, v).encode()
+            a += b'\4\n\r'
         else:
             assert 'wtf command'
         return a
@@ -76,6 +109,33 @@ class BleCC26X2Sim:
             return 1, ''
         return 0, 'coffeeff'
 
+    async def cmd_sws(self, g):
+        # STOP with STRING
+        lat, lon, _, __ = g
+        lat = GPS_FRM_STR.format(float(lat))
+        lon = GPS_FRM_STR.format(float(lon))
+        s = '{} {}'.format(lat, lon)
+        c, _ = build_cmd(SWS_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        return 0 if rv in (b'SWS 00', b'SWS 0200') else 1
+
+    async def cmd_rws(self, g):
+        # RUN with STRING
+        lat, lon, _, __ = g
+        lat = GPS_FRM_STR.format(float(lat))
+        lon = GPS_FRM_STR.format(float(lon))
+        s = '{} {}'.format(lat, lon)
+        c, _ = build_cmd(RWS_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        return 0 if rv in (b'RWS 00', b'RWS 0200') else 1
+
+    async def cmd_mts(self):
+        await self._cmd('MTS \r')
+        rv = await self._ans_wait()
+        return 0 if rv == b'MTS 00' else 1
+
     async def cmd_del(self, s):
         try:
             del self.files[s]
@@ -86,13 +146,13 @@ class BleCC26X2Sim:
     async def cmd_fex(self, s):
         return 0 if s in self.files.keys() else 1
 
-    # async def cmd_gtm(self):
-    #     await self._cmd('GTM \r')
-    #     rv = await self._ans_wait()
-    #     ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
-    #     if not ok:
-    #         return 1, ''
-    #     return 0, rv[6:].decode()
+    async def cmd_gtm(self):
+        await self._cmd('GTM \r')
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
 
     async def cmd_stp(self):
         await self._cmd('STP \r')
@@ -100,11 +160,11 @@ class BleCC26X2Sim:
         ok = rv in (b'STP 00', b'STP 0200')
         return 0 if ok else 1
 
-    # async def cmd_led(self):
-    #     await self._cmd('LED \r')
-    #     rv = await self._ans_wait()
-    #     ok = rv == b'LED 00'
-    #     return 0 if ok else 1
+    async def cmd_led(self):
+        await self._cmd('LED \r')
+        rv = await self._ans_wait()
+        ok = rv == b'LED 00'
+        return 0 if ok else 1
 
     async def cmd_frm(self):
         await self._cmd('FRM \r')
@@ -113,22 +173,21 @@ class BleCC26X2Sim:
         ok = rv == b'FRM 00'
         return 0 if ok else 1
 
-    # async def cmd_cfg(self, cfg_d):
-    #     assert type(cfg_d) is dict
-    #     s = json.dumps(cfg_d)
-    #     c, _ = build_cmd(CONFIG_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     ok = rv == b'CFG 00'
-    #     return 0 if ok else 1
-    #
-    # async def cmd_wli(self, s):
-    #     c, _ = build_cmd(LOGGER_INFO_CMD_W, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     ok = rv == b'WLI 00'
-    #     return 0 if ok else 1
-    #
+    async def cmd_cfg(self, cfg_d):
+        assert type(cfg_d) is dict
+        s = json.dumps(cfg_d)
+        c, _ = build_cmd(CONFIG_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv == b'CFG 00'
+        return 0 if ok else 1
+
+    async def cmd_dir(self) -> tuple:
+        await self._cmd('DIR \r')
+        rv = await self._ans_wait()
+        ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
+        return 0, ls
+
     # async def cmd_gdo(self):
     #     c, _ = build_cmd(OXYGEN_SENSOR_CMD)
     #     await self._cmd(c)
@@ -163,23 +222,6 @@ class BleCC26X2Sim:
     #         return 0, b
     #     return 1, 0
     #
-    # async def cmd_wat(self):
-    #     c, _ = build_cmd(WAT_CMD)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait()
-    #     print(rv)
-    #     ok = rv and len(rv) == 10 and rv.startswith(b'WAT')
-    #     print(rv)
-    #     if not ok:
-    #         return
-    #     a = rv
-    #     if a and len(a.split()) == 2:
-    #         _ = a.split()[1].decode()
-    #         w = _[-2:] + _[-4:-2]
-    #         w = int(w, 16)
-    #         return 0, w
-    #     return 1, 0
-    #
     # async def cmd_wak(self, s):
     #     assert s in ('on', 'off')
     #     c, _ = build_cmd(WAKE_CMD)
@@ -191,65 +233,12 @@ class BleCC26X2Sim:
     #         return 0
     #     return 1
     #
-    # async def cmd_rli(self):
-    #     info = {}
-    #     for each in ['SN', 'BA', 'CA', 'MA']:
-    #         c, _ = build_cmd(LOGGER_INFO_CMD, each)
-    #         await self._cmd(c)
-    #         rv = await self._ans_wait()
-    #         if rv and len(rv.split()) == 2:
-    #             info[each] = rv.split()[1].decode()[2:]
-    #     return 0 if len(info) == 4 else 1
-    #
-    # async def cmd_sts(self):
-    #     await self._cmd('STS \r')
-    #     rv = await self._ans_wait()
-    #     ok = rv and len(rv) == 8 and rv.startswith(b'STS')
-    #     if ok:
-    #         _ = {
-    #             b'0200': 'running',
-    #             b'0201': 'stopped',
-    #             b'0203': 'delayed',
-    #             # depending on version 'delayed' has 2
-    #             b'0202': 'delayed',
-    #         }
-    #         state = _[rv.split(b' ')[1]]
-    #     return 0, state if ok else 1, 'error'
-    #
     # async def cmd_run(self):
     #     await self._cmd('RUN \r')
     #     rv = await self._ans_wait(timeout=30)
     #     ok = rv in (b'RUN 00', b'RUN 0200')
     #     return 0 if ok else 1
     #
-    # async def cmd_mts(self):
-    #     await self._cmd('MTS \r')
-    #     rv = await self._ans_wait(timeout=60)
-    #     return 0 if rv == b'MTS 00' else 1
-    #
-    # async def cmd_sws(self, g):
-    #     # STOP with STRING
-    #     lat, lon, _, __ = g
-    #     lat = GPS_FRM_STR.format(float(lat))
-    #     lon = GPS_FRM_STR.format(float(lon))
-    #     s = '{} {}'.format(lat, lon)
-    #     c, _ = build_cmd(SWS_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait(timeout=30)
-    #     ok = rv in (b'SWS 00', b'SWS 0200')
-    #     return 0 if ok else 1
-    #
-    # async def cmd_rws(self, g):
-    #     # RUN with STRING
-    #     lat, lon, _, __ = g
-    #     lat = GPS_FRM_STR.format(float(lat))
-    #     lon = GPS_FRM_STR.format(float(lon))
-    #     s = '{} {}'.format(lat, lon)
-    #     c, _ = build_cmd(RWS_CMD, s)
-    #     await self._cmd(c)
-    #     rv = await self._ans_wait(timeout=30)
-    #     ok = rv in (b'RWS 00', b'RWS 0200')
-    #     return 0 if ok else 1
     #
     # async def cmd_gfv(self):
     #     await self._cmd('GFV \r')
@@ -258,18 +247,6 @@ class BleCC26X2Sim:
     #     if not ok:
     #         return 1, ''
     #     return 0, rv[6:].decode()
-    #
-    # async def cmd_dir(self) -> tuple:
-    #     await self._cmd('DIR \r')
-    #     rv = await self._ans_wait(timeout=30)
-    #     if not rv:
-    #         return 1, 'not'
-    #     if rv == b'ERR':
-    #         return 2, 'error'
-    #     if rv and not rv.endswith(b'\x04\n\r'):
-    #         return 3, 'partial'
-    #     ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
-    #     return 0, ls
     #
     # async def cmd_dwl(self, z, ip=None, port=None) -> tuple:
     #
@@ -293,30 +270,7 @@ class BleCC26X2Sim:
     #     rv = 0 if z == len(self.ans) else 1
     #     return rv, self.ans
     #
-    # async def disconnect(self):
-    #     try:
-    #         await self.cli.disconnect()
-    #     except (Exception, ):
-    #         pass
-    #
-    # async def connect(self, mac):
-    #     def c_rx(_: int, b: bytearray):
-    #         self.ans += b
-    #
-    #     for i in range(3):
-    #         try:
-    #             # we pass hci here
-    #             h = self.h
-    #             self.cli = BleakClient(mac, adapter=h)
-    #             if await self.cli.connect():
-    #                 await self.cli.start_notify(UUID_T, c_rx)
-    #                 return 0
-    #         except (asyncio.TimeoutError, BleakError, OSError):
-    #             e = 'connect attempt {} of 3 failed, h {}'
-    #             print(e.format(i + 1, h))
-    #             time.sleep(1)
-    #     return 1
-    #
+
     # async def cmd_utm(self):
     #     await self._cmd('UTM \r')
     #     rv = await self._ans_wait()
