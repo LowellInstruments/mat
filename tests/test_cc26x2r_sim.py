@@ -109,6 +109,43 @@ class TestCC26X2rSim:
         assert rv and rv[1] == '3 days'
 
     @pytest.mark.asyncio
+    async def test_cmd_gdo(self):
+        rv = await self.lc.cmd_gdo()
+        assert rv and rv[0] != '0000'
+
+    @pytest.mark.asyncio
+    async def test_cmd_wat(self):
+        rv = await self.lc.cmd_wat()
+        assert rv[0] == 0 and 0 < rv[1] <= 3000
+
+    @pytest.mark.asyncio
+    async def test_cmd_wak(self):
+        rv = await self.lc.cmd_wak('on')
+        assert rv == 0
+
+    @pytest.mark.asyncio
+    async def test_cmd_sts(self):
+        rv = await self.lc.cmd_sts()
+        assert rv == 'stopped'
+
+    @pytest.mark.asyncio
+    async def test_cmd_rli(self):
+        rv = await self.lc.cmd_rli()
+        assert rv == 0
+
+    @pytest.mark.asyncio
+    async def test_cmd_dwl(self):
+        rv = await self.lc.cmd_dwl(20480)
+        assert rv == (0, b'my_binary_data')
+
+    @pytest.mark.asyncio
+    async def test_cmd_crc(self):
+        rv = await self.lc.cmd_crc('kljfada.lid')
+        assert rv and rv[0] == 1
+        rv = await self.lc.cmd_crc('MAT.cfg')
+        assert rv and rv[0] == 0
+
+    @pytest.mark.asyncio
     async def test_disconnect(self):
         await self.lc.disconnect()
         assert self.lc.mac == ''
