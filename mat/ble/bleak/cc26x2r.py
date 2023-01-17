@@ -234,6 +234,7 @@ class BleCC26X2:
             rv = await self._ans_wait()
             if rv and len(rv.split()) == 2:
                 info[each] = rv.split()[1].decode()[2:]
+        # todo > this is wrong, it is not returning anything info
         return 0 if len(info) == 4 else 1
 
     async def cmd_sts(self):
