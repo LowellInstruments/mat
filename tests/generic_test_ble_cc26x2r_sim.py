@@ -1,6 +1,12 @@
 import pytest
 
 
+# todo > we can do an interface with this methods,
+# todo > make this class implement that interface
+# todo > so the classes which inherit from this class
+# todo > are controlled
+
+
 class GenericTestBleCC26X2:
 
     # purposely set to none, see below
