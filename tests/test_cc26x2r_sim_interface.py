@@ -1,27 +1,13 @@
+import abc
 import pytest
-from mat.ble.bleak.cc26x2r_sim import BleCC26X2Sim
-from tests.test_cc26x2r_sim_interface import TestCC26X2rSimInterface
 
+class TestCC26X2rSimInterface(metaclass=abc.ABCMeta):
 
-class TestCC26X2rSim(TestCC26X2rSimInterface):
+    # todo > make cc26x2_rsim and cc26x2_real implement this interface
 
-    lc = BleCC26X2Sim()
-
-    @pytest.fixture(autouse=True)
-    def run_before_and_after_tests(self):
-        yield
-
-    @pytest.mark.asyncio
+    @abc.abstractmethod
     async def test_connect(self):
-        mac_sim = '11:22:33:44:55:66'
-        assert await self.lc.connect(mac_sim) == 0
-        mac_real = '60:77:71:22:c8:af'
-        assert await self.lc.connect(mac_real) == 1
-
-#     @pytest.mark.asyncio
-#     async def test_cmd_sts(self):
-#         rv = await self.lc.cmd_sts()
-#         assert rv == 0
+        pass
 
     # @pytest.mark.asyncio
     # async def test_cmd_dwg(self):
@@ -149,6 +135,3 @@ class TestCC26X2rSim(TestCC26X2rSimInterface):
     # async def test_disconnect(self):
     #     await self.lc.disconnect()
     #     assert self.lc.mac == ''
-    #
-
-del TestCC26X2rSimInterface
