@@ -10,6 +10,7 @@ class TestCC26X2rSimInterface(metaclass=abc.ABCMeta):
         # after
 
     # todo > make cc26x2_rsim and cc26x2_real implement this interface
+    # todo > real one should one be run in certain Joaquim computers
 
     @abc.abstractmethod
     async def test_connect(self):
