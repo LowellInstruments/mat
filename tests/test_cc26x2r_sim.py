@@ -5,14 +5,14 @@ from tests.test_cc26x2r_sim_interface import TestCC26X2rSimInterface
 
 class TestCC26X2rSim(TestCC26X2rSimInterface):
 
+    # -------------------------------
+    # BLE logger type we are testing
+    # -------------------------------
     lc = BleCC26X2Sim()
-
-    @pytest.fixture(autouse=True)
-    def run_before_and_after_tests(self):
-        yield
 
     @pytest.mark.asyncio
     async def test_connect(self):
+        print('connecty')
         mac_sim = '11:22:33:44:55:66'
         assert await self.lc.connect(mac_sim) == 0
         mac_real = '60:77:71:22:c8:af'

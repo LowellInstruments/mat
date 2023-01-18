@@ -3,6 +3,12 @@ import pytest
 
 class TestCC26X2rSimInterface(metaclass=abc.ABCMeta):
 
+    @pytest.fixture(autouse=True)
+    def run_before_and_after_tests(self):
+        # before
+        yield   # test takes place here
+        # after
+
     # todo > make cc26x2_rsim and cc26x2_real implement this interface
 
     @abc.abstractmethod
