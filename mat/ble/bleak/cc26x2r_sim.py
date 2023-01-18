@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
@@ -7,6 +8,7 @@ GPS_FRM_STR = '{:+.6f}'
 
 class BleCC26X2Sim:
     def __init__(self, h='hci0', dbg_ans=False):
+        self.h = h
         self.is_connected = False
         self.status = 'stopped'
         self.mac = ''
@@ -18,6 +20,9 @@ class BleCC26X2Sim:
             'CA': 'ZZZZ',
             'BA': 'BBBBBBB'
         }
+        self.name_dl_file = ''
+        self.version = '4.4.44'
+        self.time = time.time()
 
     async def connect(self, mac):
         self.mac = None
@@ -29,12 +34,15 @@ class BleCC26X2Sim:
     async def disconnect(self):
         self.mac = ''
 
-    @staticmethod
-    async def cmd_stm():
+    async def cmd_stm(self):
+        self.time = time.time()
         return 0
 
     async def cmd_dwg(self, s):
-        return 0 if s in self.files.keys() else 1
+        if s in self.files.keys():
+            self.name_dl_file = s
+            return 0
+        return 1
 
     async def cmd_crc(self, s):
         if s not in self.files.keys():
@@ -52,8 +60,7 @@ class BleCC26X2Sim:
         # todo > check if this exists on firmware
         return 0 if s in self.files.keys() else 1
 
-    @staticmethod
-    async def cmd_gtm():
+    async def cmd_gtm(self):
         dt = datetime.now(timezone.utc)
         s_dt = dt.strftime('%Y/%m/%d %H:%M:%S')
         return 0, s_dt
@@ -62,8 +69,7 @@ class BleCC26X2Sim:
         self.status = 'stopped'
         return 0
 
-    @staticmethod
-    async def cmd_led():
+    async def cmd_led(self):
         return 0
 
     async def cmd_frm(self):
@@ -108,25 +114,20 @@ class BleCC26X2Sim:
         if i not in ('SN', 'CA', 'BA', 'MA'):
             return 1
 
-    @staticmethod
-    async def cmd_gdo():
+    async def cmd_gdo(self):
         return '1111', '2222', '3333'
 
-    @staticmethod
-    async def cmd_bat():
+    async def cmd_bat(self):
         return 0, 2456
 
-    @staticmethod
-    async def cmd_wat():
+    async def cmd_wat(self):
         return 0, 3000
 
-    @staticmethod
-    async def cmd_wak(s):
+    async def cmd_wak(self, s):
         assert s in ('on', 'off')
         return 0
 
-    @staticmethod
-    async def cmd_rli():
+    async def cmd_rli(self):
         # info = {'SN': '1234567',
         #         'BA': '1111',
         #         'CA': '2222',
@@ -143,14 +144,15 @@ class BleCC26X2Sim:
         self.status = 'running'
         return 0
 
-    @staticmethod
-    async def cmd_gfv():
-        return 0, '4.4.44'
+    async def cmd_gfv(self):
+        return 0, self.version
 
-    @staticmethod
-    async def cmd_dwl(z, ip=None, port=None) -> tuple:
-        return 0, b'my_binary_data'
+    async def cmd_dwl(self, z, ip=None, port=None) -> tuple:
+        if not self.name_dl_file in self.files.keys():
+            return 1, bytes()
+        if self.name_dl_file == 'MAT.cfg':
+            return 0, 'my_mat_cfg_data'
+        return 0, 'my_lid_data'
 
-    @staticmethod
-    async def cmd_utm():
+    async def cmd_utm(self):
         return 0, '3 days'
