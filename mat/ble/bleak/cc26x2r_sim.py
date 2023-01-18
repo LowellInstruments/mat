@@ -73,6 +73,8 @@ class BleCC26X2Sim:
         return 0
 
     async def cmd_frm(self):
+        if self.status in ('running', 'delayed'):
+            return 1
         self.files = {}
         return 0
 
@@ -113,6 +115,7 @@ class BleCC26X2Sim:
         self.info[i] = v
         if i not in ('SN', 'CA', 'BA', 'MA'):
             return 1
+        return 0
 
     async def cmd_gdo(self):
         return '1111', '2222', '3333'
@@ -151,8 +154,8 @@ class BleCC26X2Sim:
         if not self.name_dl_file in self.files.keys():
             return 1, bytes()
         if self.name_dl_file == 'MAT.cfg':
-            return 0, 'my_mat_cfg_data'
-        return 0, 'my_lid_data'
+            return 0, b'my_mat_cfg_data'
+        return 0, b'my_data'
 
     async def cmd_utm(self):
         return 0, '3 days'
