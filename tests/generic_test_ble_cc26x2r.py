@@ -1,27 +1,24 @@
 import pytest
+from tests.generic_test_ble_cc26x2r_interface import GenericTestBleCC26X2Interface
 
 
-# todo > we can do an interface with this methods,
-# todo > make this class implement that interface
-# todo > so the classes which inherit from this class
-# todo > are controlled
-
-
-class GenericTestBleCC26X2:
+class GenericTestBleCC26X2(GenericTestBleCC26X2Interface):
 
     # purposely set to none, see below
     lc: None
 
     @pytest.mark.asyncio
     async def test_connect(self):
-        # check lc is set by inheriting classes
-        assert self.lc
-        mac_sim = '11:22:33:44:55:66'
-        assert await self.lc.connect(mac_sim) == 0
-        mac_real = '60:77:71:22:c8:af'
-        assert await self.lc.connect(mac_real) == 1
-        # helps with rest of tests
-        await self.lc.cmd_stp()
+        # particular to each inheriting class
+        pass
+        # # check lc is set by inheriting classes
+        # assert self.lc
+        # mac_sim = '11:22:33:44:55:66'
+        # assert await self.lc.connect(mac_sim) == 0
+        # mac_real = '60:77:71:22:c8:af'
+        # assert await self.lc.connect(mac_real) == 1
+        # # helps with rest of tests
+        # await self.lc.cmd_stp()
 
     @pytest.mark.asyncio
     async def test_cmd_sts(self):
