@@ -6,6 +6,10 @@ from mat.utils import lowell_cmd_dir_ans_to_dict
 GPS_FRM_STR = '{:+.6f}'
 
 
+def ble_logger_is_cc26x2r_simulated(mac):
+    return mac.startswith('11:22:33')
+
+
 class BleCC26X2Sim:
     def __init__(self, h='hci0', dbg_ans=False):
         self.h = h
@@ -23,6 +27,8 @@ class BleCC26X2Sim:
         self.name_dl_file = ''
         self.version = '4.4.44'
         self.time = time.time()
+        # used for downloading files
+        self.ans = bytes()
 
     async def connect(self, mac):
         self.mac = None
