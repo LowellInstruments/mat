@@ -1,5 +1,8 @@
+import asyncio
 import time
 from datetime import datetime, timezone
+
+from mat.ble.ble_mat_utils import ble_mat_progress_dl
 from mat.utils import lowell_cmd_dir_ans_to_dict
 
 
@@ -162,7 +165,13 @@ class BleCC26X2Sim:
         if not self.name_dl_file in self.files.keys():
             return 1, bytes()
         if self.name_dl_file == 'MAT.cfg':
+            ble_mat_progress_dl(100, 100, ip, port)
             return 0, b'my_mat_cfg_data'
+
+        steps = 10
+        for i in range(steps):
+            ble_mat_progress_dl(i * (z / steps), z, ip, port)
+            await asyncio.sleep(.2)
         return 0, b'my_data'
 
     async def cmd_utm(self):
