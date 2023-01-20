@@ -13,7 +13,6 @@ def ble_logger_is_cc26x2r_simulated(mac):
 class BleCC26X2Sim:
     def __init__(self, h='hci0', dbg_ans=False):
         self.h = h
-        self.is_connected = False
         self.status = 'stopped'
         self.mac = ''
         self.files = {'MAT.cfg': 189}
@@ -39,6 +38,9 @@ class BleCC26X2Sim:
 
     async def disconnect(self):
         self.mac = ''
+
+    async def is_connected(self):
+        return self.mac
 
     async def cmd_stm(self):
         self.time = time.time()
