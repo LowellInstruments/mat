@@ -1,18 +1,27 @@
 # GPLv3 License
 # Copyright (c) 2018 Lowell Instruments, LLC, some rights reserved
+
+
 from setuptools import setup, find_packages
-import subprocess as sp
+import os
 
-# -------------------
-# version management
-# -------------------
 
+# grab packages from requirements files
+with open('requirements.txt') as f:
+    rr = f.readlines()
+
+
+# obtain package version from local file
 v = {}
-with open("mat/version.py") as fp:
-    exec(fp.read(), v)
+with open("mat/version.py") as f:
+    exec(f.read(), v)
 
 
-# todo > should we put ALL reqs in lowell-mat-dependant apps and zero in here?
+# option 1) export MY_IGNORE_REQUIREMENTS_TXT=1 && pip install . -v
+# option 2) or, just 'pip install' will install requirements_311.txt contents
+if os.getenv('MY_IGNORE_REQUIREMENTS_TXT') == '1':
+    rr = []
+
 
 setup(name='lowell-mat',
       version=v['__version__'],
@@ -21,8 +30,7 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
-      install_requires=[
-      ],
+      install_requires=rr,
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",
