@@ -5,7 +5,7 @@ echo; echo; echo
 # -----------------------------------------------------------------------
 # this script automatically installs lowell-mat without its dependencies
 # call as:
-# curl https://raw.githubusercontent.com/LowellInstruments/lowell-mat/v4/settings/installer_lowell_mat.sh | bash
+# curl -L https://raw.githubusercontent.com/LowellInstruments/lowell-mat/v4/settings/installer_lowell_mat.sh | bash
 # -----------------------------------------------------------------------
 
 
