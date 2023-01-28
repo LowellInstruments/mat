@@ -1,2 +1,0 @@
-# used when not installing things via curl
-

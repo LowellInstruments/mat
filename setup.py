@@ -6,21 +6,10 @@ from setuptools import setup, find_packages
 import os
 
 
-# grab packages from requirements files
-with open('requirements.txt') as f:
-    rr = f.readlines()
-
-
 # obtain package version from local file
 v = {}
 with open("mat/version.py") as f:
     exec(f.read(), v)
-
-
-# option 1) export MY_IGNORE_REQUIREMENTS_TXT=1 && pip install . -v
-# option 2) or, just 'pip install' will install requirements_311.txt contents
-if os.getenv('MY_IGNORE_REQUIREMENTS_TXT') == '1':
-    rr = []
 
 
 setup(name='lowell-mat',
@@ -30,7 +19,14 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
-      install_requires=rr,
+      install_requires=[
+          'h5py',
+          'numpy',
+          'pyserial',
+          'bleak',
+          'humanize',
+          'boto3',
+      ],
       classifiers=[
           "Development Status :: 3 - Alpha",
           "Environment :: MacOS X",

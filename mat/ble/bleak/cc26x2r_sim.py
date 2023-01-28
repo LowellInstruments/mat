@@ -132,7 +132,7 @@ class BleCC26X2Sim:
         return '1111', '2222', '3333'
 
     async def cmd_bat(self):
-        return 0, 2456
+        return 0, 1699
 
     async def cmd_wat(self):
         return 0, 3000
