@@ -1,0 +1,12 @@
+# on Pycharm, use this file and not setup.py
+# the latter installs lowell-mat itself as a package
+pytest
+flake8
+
+# same as setup.py
+h5py
+numpy
+pyserial
+bleak
+humanize
+boto3
