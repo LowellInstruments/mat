@@ -14,7 +14,6 @@ iso8601==1.0.2
 jmespath==1.0.1
 kiwisolver==1.4.4
 liu @ git+https://github.com/lowellinstruments/liu.git@6091149df750bcef0904abe450c3f3e3c0bd8967
-lowell-mat @ file:///home/kaz/PycharmProjects/lowell-mat
 matplotlib==3.4.3
 numpy==1.24.1
 pandas==1.5.3
