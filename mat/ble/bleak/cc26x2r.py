@@ -225,6 +225,7 @@ class BleCC26X2:
         if s == 'on' and rv == b'WAK 0201':
             return 0
         # just toggle again :)
+        await asyncio.sleep(1)
         await self._cmd(c)
         rv = await self._ans_wait()
         if s == 'off' and rv == b'WAK 0200':
