@@ -7,8 +7,7 @@ colorama==0.4.4
 coverage==6.0.2
 flake8==4.0.1
 h5py==2.10.0
-# numpy==1.21.2
-numpy
+numpy==1.21.2
 iniconfig==1.1.1
 mccabe==0.6.1
 mock==4.0.3
