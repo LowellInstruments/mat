@@ -224,6 +224,13 @@ class BleCC26X2:
             return 0
         if s == 'on' and rv == b'WAK 0201':
             return 0
+        # just toggle again :)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if s == 'off' and rv == b'WAK 0200':
+            return 0
+        if s == 'on' and rv == b'WAK 0201':
+            return 0
         return 1
 
     async def cmd_rli(self):
