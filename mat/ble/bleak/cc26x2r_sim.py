@@ -68,7 +68,7 @@ class BleCC26X2Sim:
             return 1
 
     async def cmd_fex(self, s):
-        # todo > check if this exists on firmware
+        # yes, this exists on firmware
         return 0 if s in self.files.keys() else 1
 
     async def cmd_gtm(self):
