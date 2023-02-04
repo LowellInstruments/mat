@@ -158,15 +158,6 @@ def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
 
 
-def linux_app_write_pid(path):
-    if os.path.exists(path):
-        os.remove(path)
-    pid = str(os.getpid())
-    f = open(path, 'w')
-    f.write(pid)
-    f.close()
-
-
 def linux_set_datetime(s):
     # requires root or $ setcap CAP_SYS_TIME+ep /bin/date
     # w/ NTP enabled, time gets re-set very fast so,
@@ -251,22 +242,6 @@ def consecutive_numbers(data, number, count):
         if c == count:
             return i-count+1
     return len(data)
-
-
-def linux_ensure_run_only_1_instance(name):
-    """ ensures only 1 APP runs at a given time """
-
-    ooi = linux_ensure_run_only_1_instance
-    ooi._lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-
-    try:
-        # '\0' so does not take a filesystem entry
-        ooi._lock_socket.bind('\0' + name)
-
-    except socket.error:
-        s = '{} already running so NOT executing this one'
-        print(s.format(name))
-        sys.exit(1)
 
 
 def linux_ls_by_ext(fol, extension):
