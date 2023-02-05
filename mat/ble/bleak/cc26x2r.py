@@ -240,10 +240,9 @@ class BleCC26X2:
             c, _ = build_cmd(LOGGER_INFO_CMD, each)
             await self._cmd(c)
             rv = await self._ans_wait()
-            if rv and len(rv.split()) == 2:
-                info[each] = rv.split()[1].decode()[2:]
-        # todo > this is wrong, it is not returning anything info
-        return 0 if len(info) == 4 else 1
+            # todo > see why this returns 4 ERROR
+            print(rv)
+        return 0, info if len(info) == 4 else 1, {}
 
     async def cmd_sts(self):
         await self._cmd('STS \r')
