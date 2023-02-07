@@ -158,7 +158,7 @@ def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
 
 
-def linux_set_datetime(s):
+def linux_set_datetime(s) -> bool:
     # requires root or $ setcap CAP_SYS_TIME+ep /bin/date
     # w/ NTP enabled, time gets re-set very fast so,
     # when testing, just go offline

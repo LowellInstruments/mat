@@ -236,13 +236,16 @@ class BleCC26X2:
 
     async def cmd_rli(self):
         info = {}
+        all_ok = True
         for each in ['SN', 'BA', 'CA', 'MA']:
             c, _ = build_cmd(LOGGER_INFO_CMD, each)
             await self._cmd(c)
             rv = await self._ans_wait()
-            # todo > see why this returns 4 ERROR
-            print(rv)
-        return 0, info if len(info) == 4 else 1, {}
+            if not rv or rv == b'ERR':
+                all_ok = False
+            else:
+                info[each] = rv.decode()[6:]
+        return (0, info) if all_ok else (1, info)
 
     async def cmd_sts(self):
         await self._cmd('STS \r')
