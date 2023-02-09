@@ -346,23 +346,51 @@ class BleCC26X2:
         except (Exception, ):
             pass
 
+    # --------------------
+    # connection routine
+    # --------------------
+
     async def connect(self, mac):
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
-        for i in range(3):
+        n = 10
+        for i in range(n):
             try:
                 # we pass hci here
+                # todo > check if better Bluez >= 5.61
+                # todo > check if better fast ADV trick
+                # todo > check if better skipping start_notify
+                # todo > check if better if couple delays
                 h = self.h
                 self.cli = BleakClient(mac, adapter=h)
-                if await self.cli.connect():
+                if await self.cli.connect(timeout=3):
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
+
             except (asyncio.TimeoutError, BleakError, OSError):
-                e = 'connect attempt {} of 3 failed, h {}'
-                print(e.format(i + 1, h))
-                time.sleep(1)
+                e = 'connect attempt {} of {} failed, h {}'
+                print(e.format(i + 1, n, self.h))
+                time.sleep(.1)
         return 1
+
+    # async def connect(self, mac):
+    #     def c_rx(_: int, b: bytearray):
+    #         self.ans += b
+    #
+    #     for i in range(3):
+    #         try:
+    #             # we pass hci here
+    #             h = self.h
+    #             self.cli = BleakClient(mac, adapter=h)
+    #             if await self.cli.connect():
+    #                 await self.cli.start_notify(UUID_T, c_rx)
+    #                 return 0
+    #         except (asyncio.TimeoutError, BleakError, OSError):
+    #             e = 'connect attempt {} of 3 failed, h {}'
+    #             print(e.format(i + 1, h))
+    #             time.sleep(1)
+    #     return 1
 
     async def cmd_utm(self):
         await self._cmd('UTM \r')
