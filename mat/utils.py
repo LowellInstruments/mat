@@ -1,5 +1,10 @@
+import glob
 import pathlib
+import platform
 import re
+import shlex
+import socket
+import sys
 from platform import machine
 from numpy import array, mod
 from datetime import datetime
@@ -120,28 +125,6 @@ class PrintColors:
         print(s)
 
 
-def linux_check_ngrok_can_be_run():
-    rv = sp.run('ngrok -h', shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        print('ngrok found')
-        return True
-    print('error: ngrok not in /usr/bin or bad binary format')
-
-
-def linux_is_process_running_by_name(name):
-    return linux_get_pid_of_a_process(name)
-
-
-def linux_get_pid_of_a_process(name):
-    # awk and so they do not work here because they use {}
-    s = 'ps -aux | grep {} | grep -v grep'.format(name)
-    rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    if rv.returncode == 0:
-        pid = rv.stdout.decode().split()[1]
-        return int(pid)
-    return -1
-
-
 def linux_is_docker():
     return pathlib.Path('/.dockerenv').is_file()
 
@@ -175,6 +158,17 @@ def linux_is_docker_on_rpi():
     return linux_is_docker() and linux_is_rpi()
 
 
+def linux_set_datetime(s) -> bool:
+    # requires root or $ setcap CAP_SYS_TIME+ep /bin/date
+    # w/ NTP enabled, time gets re-set very fast so,
+    # when testing, just go offline
+
+    s = 'date -s "{}"'.format(s)
+    o = sp.DEVNULL
+    rv = sp.run(shlex.split(s), stdout=o, stderr=o)
+    return rv.returncode == 0
+
+
 def is_valid_mac_address(mac):
 
     if mac is None:
@@ -189,7 +183,7 @@ def is_valid_mac_address(mac):
     return re.search(re.compile(regex), mac)
 
 
-def lowell_file_list_as_dict(ls, ext, match=True):
+def lowell_cmd_dir_ans_to_dict(ls, ext, match=True):
     if ls is None:
         return {}
 
@@ -248,3 +242,13 @@ def consecutive_numbers(data, number, count):
         if c == count:
             return i-count+1
     return len(data)
+
+
+def linux_ls_by_ext(fol, extension):
+    """ recursively collect all logger files w/ indicated extension """
+
+    if not fol:
+        return []
+    if os.path.isdir(fol):
+        wildcard = fol + '/**/*.' + extension
+        return glob.glob(wildcard, recursive=True)

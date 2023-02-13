@@ -1,5 +1,6 @@
-# additional commands for new BLE loggers
+# additional commands for BLE loggers
 
+FILE_EXISTS_CMD = 'FEX'
 SIZ_CMD = 'SIZ'
 OXYGEN_SENSOR_CMD = 'GDO'
 BAT_CMD = 'BAT'
@@ -16,7 +17,6 @@ WAKE_CMD = 'WAK'
 SLOW_CMD = 'SLW'
 ERROR_WHEN_BOOT_OR_RUN_CMD = 'EBR'
 CRC_CMD = 'CRC'
-_DEBUG_THIS_MODULE = 0
 ERR_MAT_ANS = 'ERR'
 GET_FILE_CMD = 'GET'
 DWG_FILE_CMD = 'DWG'

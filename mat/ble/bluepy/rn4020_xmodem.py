@@ -1,6 +1,10 @@
-import math
+import socket
 import time
-from mat.ble_utils_shared import xmd_frame_check_crc
+
+
+# must match receptor
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 
 
 SOH = b'\x01'
@@ -11,12 +15,34 @@ CAN = b'\x18'
 NAK = b'\x15'
 
 
+def _crc16(data):
+    crc = 0x0000
+    length = len(data)
+    for i in range(0, length):
+        crc ^= data[i] << 8
+        for j in range(0,8):
+            if (crc & 0x8000) > 0:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc = crc << 1
+    v = crc & 0xFFFF
+    return v.to_bytes(2, 'big')
+
+
+def _xmd_frame_check_crc(b):
+    rx_crc = b[-2:]
+    data = b[3:-2]
+    calc_crc = _crc16(data)
+    # print(rx_crc, calc_crc)
+    return calc_crc == rx_crc
+
+
 def _debug(s, verbose):
     if verbose:
         print(s)
 
 
-def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
+def rn4020_xmodem_get_file(lc, file_size, ip, port):
     file_built = bytes()
     _rt = 0
     _len = 0
@@ -24,9 +50,16 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
     # enable debug
     verbose = False
 
+    # percentage progress update
+    _skg = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
     # send C character
     _debug('<- C', verbose)
     lc.ble_write(b'C')
+
+    # GUI progress update
+    _ = '{}/0'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
+    _skg.sendto(str(_).encode(), (ip, port))
 
     while 1:
         # start anew at every frame
@@ -72,19 +105,6 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
             continue
 
         # rx rest of frame
-        # _now = time.perf_counter()
-        # _rem = 1 - (_now - _bef)
-        # _till = _now + _rem
-        # timeout = False
-        # while 1:
-        #     lc.per.waitForNotifications(0.1)
-        #     if time.perf_counter() > _till:
-        #         timeout = True
-        #         break
-        #     if len(lc.dlg.buf) == _len:
-        #         break
-
-        # rx rest of frame
         _till = time.perf_counter() + 1
         timeout = False
         while 1:
@@ -103,23 +123,24 @@ def rn4020_xmodem_get_file(lc, file_size, p=None, verbose=False):
             continue
 
         # PARSE DATA ok
-        if xmd_frame_check_crc(lc.dlg.buf):
+        if _xmd_frame_check_crc(lc.dlg.buf):
             file_built += lc.dlg.buf[3:_len - 2]
             lc.dlg.buf = lc.dlg.buf[_len:]
             _ack(lc)
             _rt = 0
-            # notify GUI, if any
-            if p:
-                f = open(p, 'w+')
-                _ = len(file_built) / file_size * 100
-                _ = _ if _ < 100 else 100
-                f.write(str(math.ceil(_)))
-                f.close()
+
+            # notify GUI progress update
+            _ = len(file_built) / file_size * 100
+            _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
+            _skg.sendto(str(_).encode(), (ip, port))
         else:
             # PARSE DATA not OK, yes retries left
             _debug('<- crc NAK', verbose)
             _rt += 1
             _nak(lc)
+
+    _ = '{}/100'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS)
+    _skg.sendto(str(_).encode(), (ip, port))
 
 
 def _ack(lc):

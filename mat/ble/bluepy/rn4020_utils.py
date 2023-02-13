@@ -10,7 +10,7 @@ def connect_rn4020(lc):
     uuid_c = '00035b03-58e6-07dd-021a-08123a000301'
 
     try:
-        lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.h, timeout=10)
+        lc.per = bluepy.btle.Peripheral(lc.mac, iface=lc.url_hh, timeout=10)
         lc.per.setDelegate(lc.dlg)
         lc.svc = lc.per.getServiceByUUID(uuid_s)
         lc.cha = lc.svc.getCharacteristics(uuid_c)[0]
@@ -24,7 +24,7 @@ def connect_rn4020(lc):
         return False
 
 
-def utils_logger_is_rn4020(mac, info):
+def utils_logger_is_rn4020(mac, info: str):
     if mac.startswith('00:1e:c0'):
         return True
 

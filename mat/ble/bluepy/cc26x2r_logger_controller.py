@@ -3,13 +3,21 @@ import time
 from datetime import datetime, timezone
 import json
 import math
-from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, connect_cc26x2r, MTU_SIZE, \
+from mat.ble.bluepy.cc26x2r_utils import LCBLELowellDelegate, \
+    connect_cc26x2r, MTU_SIZE, \
     calculate_answer_timeout, build_command
-from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
-    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
-    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
+from mat.logger_controller import LoggerController, STATUS_CMD, TIME_CMD, \
+    FIRMWARE_VERSION_CMD, SD_FREE_SPACE_CMD, \
+    DO_SENSOR_READINGS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD, \
+    DEL_FILE_CMD, LOGGER_INFO_CMD_W, LOGGER_HSA_CMD_W, \
+    CALIBRATION_CMD, RESET_CMD, RUN_CMD, RWS_CMD, STOP_CMD, \
+    SWS_CMD, REQ_FILE_NAME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import *
-from mat.utils import is_valid_mac_address, lowell_file_list_as_dict, linux_is_rpi3, linux_is_rpi4
+from mat.utils import is_valid_mac_address, lowell_cmd_dir_ans_to_dict
+
+
+_DGP = DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
 
 
 class LoggerControllerCC26X2R(LoggerController):
@@ -30,9 +38,8 @@ class LoggerControllerCC26X2R(LoggerController):
         for i in range(3):
             rv = connect_cc26x2r(self)
             if rv:
-                time.sleep(.1)
                 return True
-            time.sleep(3)
+            time.sleep(1)
         return False
 
     def close(self) -> bool:
@@ -150,6 +157,10 @@ class LoggerControllerCC26X2R(LoggerController):
             return int(b, 16)
         return 0
 
+    def ble_cmd_mbl(self) -> int:
+        a = self._ble_cmd('MBL')
+        print(a)
+
     def ble_cmd_cfs(self) -> float:
         a = self._ble_cmd(SD_FREE_SPACE_CMD)
         if a and len(a.split()) == 2:
@@ -241,11 +252,11 @@ class LoggerControllerCC26X2R(LoggerController):
         return a == b'FRM 00'
 
     def ble_cmd_dir_ext(self, ext) -> dict:  # pragma: no cover
-        # todo > check why sometimes no \x04
         f_l = self._ble_cmd(DIR_CMD)
+        print(f_l)
         # removes DIR bad trailing sometimes
         self.per.waitForNotifications(.1)
-        return lowell_file_list_as_dict(f_l, ext, match=True)
+        return lowell_cmd_dir_ans_to_dict(f_l, ext, match=True)
 
     def ble_cmd_dir(self) -> dict:  # pragma: no cover
         rv = self.ble_cmd_dir_ext('*')
@@ -266,6 +277,7 @@ class LoggerControllerCC26X2R(LoggerController):
         valid = ['SN', 'BA', 'CA', 'MA']
         assert info[:2] in valid
         a = self._ble_cmd(LOGGER_INFO_CMD_W, info)
+        print(a)
         return a == b'WLI 00'
 
     def ble_cmd_rli(self) -> dict:
@@ -361,56 +373,37 @@ class LoggerControllerCC26X2R(LoggerController):
     # download functions section
     # ---------------------------
     @staticmethod
-    def _progress_dl(p, v, size):
+    def _progress_dl(v, size, ip, port):
 
         _ = int(v) / int(size) * 100
         _ = _ if _ < 100 else 100
-
-        # ----------------------
-        # old, file-system based
-        # ----------------------
-
-        if p:
-            f = open(p, 'w+')
-            f.write(str(_))
-            f.close()
-            return
-
-        # ----------------------
-        # new, UDP socket based
-        # ----------------------
-
         _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        _sk.sendto(str(_).encode(), ('127.0.0.1', 12349))
+        print('{} %'.format(int(_)))
+        _ = '{}/{}'.format(STATE_DDS_BLE_DOWNLOAD_PROGRESS, _)
+        _sk.sendto(str(_).encode(), (ip, port))
 
-    def _ble_cmd_dwl_rpi3(self, z, p, w=.4) -> bytes:
+    def ble_cmd_dwl(self, z, ip='127.0.0.1', port=_DGP) -> bytes:
         # z: file size
         self.dlg.buf = bytes()
         n = math.ceil(z / 2048)
-        self._progress_dl(p, 0, z)
+        self._progress_dl(0, z, ip, port)
 
         for i in range(n):
             cmd = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             self._ble_write(cmd.encode())
-            while self.per.waitForNotifications(w):
-                pass
-            self._progress_dl(p, len(self.dlg.buf), z)
+
+            # for j in range(20):
+            #     self.per.waitForNotifications(.05)
+            #     if len(self.dlg.buf) == 2048 * (i + 1):
+            #         break
+
+            for j in range(20):
+                self.per.waitForNotifications(.05)
+                if len(self.dlg.buf) == 2048 * (i + 1):
+                    break
+            self._progress_dl(len(self.dlg.buf), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.dlg.buf)))
         return self.dlg.buf
-
-    def _ble_cmd_dwl_rpi4(self, z, p) -> bytes:
-        # same for now
-        return self._ble_cmd_dwl_rpi3(z, p, w=.3)
-
-    def _ble_cmd_dwl(self, z, p) -> bytes:
-        return self._ble_cmd_dwl_rpi3(z, p, w=.2)
-
-    def ble_cmd_dwl(self, z, p=None) -> bytes:
-        if linux_is_rpi3():
-            return self._ble_cmd_dwl_rpi3(z, p)
-        if linux_is_rpi4():
-            return self._ble_cmd_dwl_rpi4(z, p)
-        return self._ble_cmd_dwl(z, p)
 
     def ble_cmd_dwg(self, name) -> bool:  # pragma: no cover
         """ see if a file can be DWG-ed """

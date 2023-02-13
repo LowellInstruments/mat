@@ -6,6 +6,11 @@ from setuptools import setup, find_packages
 import os
 
 
+# =============================================
+# this file is used by DDH automated installer
+# =============================================
+
+
 # obtain package version from local file
 v = {}
 with open("mat/version.py") as f:
@@ -19,13 +24,11 @@ setup(name='lowell-mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),
+
+      # -------------------------------------------------
+      # allows MAT library to be installed empty of reqs
+      # -------------------------------------------------
       install_requires=[
-          'h5py',
-          'numpy',
-          'pyserial',
-          'bleak',
-          'humanize',
-          'boto3',
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",
