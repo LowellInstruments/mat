@@ -354,14 +354,13 @@ class BleCC26X2:
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
-        n = 10
+        n = 3
         for i in range(n):
             try:
                 # we pass hci here
-                # todo > check if better fast ADV trick
                 h = self.h
                 self.cli = BleakClient(mac, adapter=h)
-                if await self.cli.connect(timeout=2):
+                if await self.cli.connect(timeout=5):
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
 
