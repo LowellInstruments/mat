@@ -88,6 +88,16 @@ class BleRN4020Base:
         rv = await self._ans_wait()
         return 0 if rv == b'\n\rRUN 00\r\n' else 1
 
+    async def cmd_rfn(self):
+        await self._cmd('RFN \r')
+        rv = await self._ans_wait()
+        if not rv:
+            return 1, ''
+        rv = rv.replace(b'\r', b'')
+        rv = rv.replace(b'\n', b'')
+        # only .lid name file remains
+        return 0, rv.decode()
+
     async def cmd_sws(self, g):
         # STOP with STRING
         lat, lon, _, __ = g
