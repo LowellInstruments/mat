@@ -306,6 +306,7 @@ class BleCC26X2:
         await self._cmd('GFV \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 12 and rv.startswith(b'GFV')
+        print('gfv error', rv)
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()
