@@ -365,7 +365,7 @@ class BleCC26X2:
                 # we pass hci here
                 h = self.h
                 self.cli = BleakClient(mac, adapter=h)
-                if await self.cli.connect(timeout=5):
+                if await self.cli.connect(timeout=10):
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
 
