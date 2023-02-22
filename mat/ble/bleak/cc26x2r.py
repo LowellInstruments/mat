@@ -261,7 +261,9 @@ class BleCC26X2:
                 b'0202': 'delayed',
             }
             state = _[rv.split(b' ')[1]]
-        return 0, state if ok else 1, 'error'
+        if ok:
+            return 0, state
+        return 1, 'error'
 
     async def cmd_run(self):
         await self._cmd('RUN \r')
