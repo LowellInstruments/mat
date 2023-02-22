@@ -246,7 +246,9 @@ class BleCC26X2:
             else:
                 info[each] = rv.decode()[6:]
             await asyncio.sleep(.1)
-        return (0, info) if all_ok else (1, info)
+        if all_ok:
+            return 0, info
+        return 1, info
 
     async def cmd_sts(self):
         await self._cmd('STS \r')
