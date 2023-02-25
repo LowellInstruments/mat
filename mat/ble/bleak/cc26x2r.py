@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 import math
 import time
 import humanize
-from bleak import BleakError, BleakClient
+from bleak import BleakError, BleakClient, BleakScanner
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat_progress_dl, ble_mat_bluetoothctl_disconnect, \
     ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
@@ -369,11 +369,35 @@ class BleCC26X2:
                     await self.cli.start_notify(UUID_T, c_rx)
                     return 0
 
-            except (asyncio.TimeoutError, BleakError, OSError):
+            except (asyncio.TimeoutError, BleakError, OSError) as ex:
                 e = 'connect attempt {} of {} failed, h {}'
                 print(e.format(i + 1, n, self.h))
-                time.sleep(.1)
+                print(ex)
+                await asyncio.sleep(1)
+                # time.sleep(.1)
         return 1
+
+    # todo >>> test this
+    async def connect_rpi(self, mac):
+        def c_rx(_: int, b: bytearray):
+            self.ans += b
+
+        # src: https://github.com/hbldh/bleak/issues/971
+        # a guy says better connections if within scan
+        h = self.h
+        self.cli = BleakClient(mac, adapter=h)
+        scanner = BleakScanner(adapter=h)
+        await scanner.start()
+        await asyncio.sleep(5)
+        rv = 0
+        try:
+            if await self.cli.connect():
+                await self.cli.start_notify(UUID_T, c_rx)
+                rv = 1
+        except (asyncio.TimeoutError, BleakError, OSError) as ex:
+            print('connect_rpi exception {}'.format(ex))
+        await scanner.stop()
+        return rv
 
     async def cmd_utm(self):
         await self._cmd('UTM \r')
