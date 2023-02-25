@@ -399,6 +399,23 @@ class BleCC26X2:
         await scanner.stop()
         return rv
 
+    async def connect_rpi2(self, mac):
+        def c_rx(_: int, b: bytearray):
+            self.ans += b
+
+        # also suggested here https://github.com/hbldh/bleak/issues/971
+        h = self.h
+        d = await BleakScanner.find_device_by_address(mac)
+        if not d:
+            return 0
+        self.cli = BleakClient(d, adapter=h)
+        try:
+            if await self.cli.connect():
+                await self.cli.start_notify(UUID_T, c_rx)
+                return 1
+        except (asyncio.TimeoutError, BleakError, OSError) as ex:
+            print('connect_rpi2 exception {}'.format(ex))
+
     async def cmd_utm(self):
         await self._cmd('UTM \r')
         rv = await self._ans_wait()
