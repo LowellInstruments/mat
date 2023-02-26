@@ -373,7 +373,7 @@ class BleCC26X2:
                     return 0
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
-                _ = int(till - now)
+                _ = int(till - time.perf_counter())
                 print('_connect_rpi failed, {} seconds left'.format(_))
                 print(ex)
                 await asyncio.sleep(.5)
