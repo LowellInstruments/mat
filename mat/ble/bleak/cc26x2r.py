@@ -360,29 +360,23 @@ class BleCC26X2:
         till = time.perf_counter() + 30
         h = self.h
         self.cli = BleakClient(mac, adapter=h)
-        scanner = BleakScanner(adapter=self.h)
-        await scanner.start()
-        rv = 1
 
         while True:
             now = time.perf_counter()
             if now > till:
                 print('_connect_rpi totally failed')
-                break
+                return 1
 
             try:
                 if await self.cli.connect():
                     await self.cli.start_notify(UUID_T, c_rx)
-                    break
+                    return 0
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
                 _ = int(till - now)
                 print('_connect_rpi failed, {} seconds left'.format(_))
                 print(ex)
                 await asyncio.sleep(.5)
-
-        await scanner.stop()
-        return rv
 
     async def _connect(self, mac):
         def c_rx(_: int, b: bytearray):
