@@ -373,8 +373,13 @@ class BleCC26X2:
                     return 0
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
-                print('_connect_rpi failed, {} seconds left'.format(till - now))
+                _ = int(till - now)
+                print('_connect_rpi failed, {} seconds left'.format(_))
                 print(ex)
+                scanner = BleakScanner(adapter=self.h)
+                await scanner.start()
+                await asyncio.sleep(1)
+                await scanner.stop()
                 await asyncio.sleep(.5)
 
     async def _connect(self, mac):
