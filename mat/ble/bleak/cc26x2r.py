@@ -362,7 +362,9 @@ class BleCC26X2:
         self.cli = BleakClient(mac, adapter=h)
 
         while True:
-            if time.perf_counter() > till:
+            now = time.perf_counter()
+            if now > till:
+                print('_connect_rpi totally failed')
                 return 1
 
             try:
@@ -371,9 +373,9 @@ class BleCC26X2:
                     return 0
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
-                print('_connect_rpi failed')
+                print('_connect_rpi failed, {} seconds left'.format(till - now))
                 print(ex)
-                await asyncio.sleep(.1)
+                await asyncio.sleep(.5)
 
     async def _connect(self, mac):
         def c_rx(_: int, b: bytearray):
