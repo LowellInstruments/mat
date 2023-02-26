@@ -13,8 +13,7 @@ from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, 
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
     FILE_EXISTS_CMD, WAT_CMD
-from mat.utils import lowell_cmd_dir_ans_to_dict
-
+from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
@@ -306,7 +305,6 @@ class BleCC26X2:
         await self._cmd('GFV \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 12 and rv.startswith(b'GFV')
-        print('gfv error', rv)
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()
@@ -355,7 +353,29 @@ class BleCC26X2:
     # connection routine
     # --------------------
 
-    async def connect(self, mac):
+    async def _connect_rpi(self, mac):
+        def c_rx(_: int, b: bytearray):
+            self.ans += b
+
+        till = time.perf_counter() + 30
+        h = self.h
+        self.cli = BleakClient(mac, adapter=h)
+
+        while True:
+            if time.perf_counter() > till:
+                return 1
+
+            try:
+                if await self.cli.connect():
+                    await self.cli.start_notify(UUID_T, c_rx)
+                    return 0
+
+            except (asyncio.TimeoutError, BleakError, OSError) as ex:
+                print('_connect_rpi failed')
+                print(ex)
+                await asyncio.sleep(.1)
+
+    async def _connect(self, mac):
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
@@ -377,26 +397,10 @@ class BleCC26X2:
                 # time.sleep(.1)
         return 1
 
-    async def connect_rpi(self, mac):
-        def c_rx(_: int, b: bytearray):
-            self.ans += b
-
-        h = self.h
-        self.cli = BleakClient(mac, adapter=h)
-        n = 10
-
-        for i in range(n):
-            try:
-                if await self.cli.connect(timeout=3):
-                    await self.cli.start_notify(UUID_T, c_rx)
-                    return 0
-
-            except (asyncio.TimeoutError, BleakError, OSError) as ex:
-                e = 'connect attempt {} of {} failed, h {}'
-                print(e.format(i + 1, n, self.h))
-                print(ex)
-                await asyncio.sleep(.1)
-        return 1
+    async def connect(self, mac):
+        if linux_is_rpi():
+            return await self._connect_rpi(mac)
+        return await self._connect(mac)
 
     async def cmd_utm(self):
         await self._cmd('UTM \r')
