@@ -377,44 +377,26 @@ class BleCC26X2:
                 # time.sleep(.1)
         return 1
 
-    # todo >>> test this
     async def connect_rpi(self, mac):
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
-        # src: https://github.com/hbldh/bleak/issues/971
-        # a guy says better connections if within scan
         h = self.h
         self.cli = BleakClient(mac, adapter=h)
-        scanner = BleakScanner(adapter=h)
-        await scanner.start()
-        await asyncio.sleep(5)
-        rv = 0
-        try:
-            if await self.cli.connect():
-                await self.cli.start_notify(UUID_T, c_rx)
-                rv = 1
-        except (asyncio.TimeoutError, BleakError, OSError) as ex:
-            print('connect_rpi exception {}'.format(ex))
-        await scanner.stop()
-        return rv
+        n = 10
 
-    async def connect_rpi2(self, mac):
-        def c_rx(_: int, b: bytearray):
-            self.ans += b
+        for i in range(n):
+            try:
+                if await self.cli.connect(timeout=3):
+                    await self.cli.start_notify(UUID_T, c_rx)
+                    return 0
 
-        # also suggested here https://github.com/hbldh/bleak/issues/971
-        h = self.h
-        d = await BleakScanner.find_device_by_address(mac)
-        if not d:
-            return 0
-        self.cli = BleakClient(d, adapter=h)
-        try:
-            if await self.cli.connect():
-                await self.cli.start_notify(UUID_T, c_rx)
-                return 1
-        except (asyncio.TimeoutError, BleakError, OSError) as ex:
-            print('connect_rpi2 exception {}'.format(ex))
+            except (asyncio.TimeoutError, BleakError, OSError) as ex:
+                e = 'connect attempt {} of {} failed, h {}'
+                print(e.format(i + 1, n, self.h))
+                print(ex)
+                await asyncio.sleep(.1)
+        return 1
 
     async def cmd_utm(self):
         await self._cmd('UTM \r')
