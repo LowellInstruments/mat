@@ -42,6 +42,8 @@ def is_cmd_done(tag, ans):
         STATUS_CMD,
         WAKE_CMD,
         ERROR_WHEN_BOOT_OR_RUN_CMD,
+        LOG_EN_CMD,
+        PRF_TIME_CMD
     ):
         return _ck(t, a, 8)
 

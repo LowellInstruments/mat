@@ -12,7 +12,7 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD
+    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
@@ -55,6 +55,9 @@ class BleCC26X2:
         while self.cli and self.cli.is_connected and timeout > 0:
             await asyncio.sleep(0.1)
             timeout -= 0.1
+            # ---------------------------------
+            # considers the command answered
+            # ---------------------------------
             if is_cmd_done(self.tag, self.ans):
                 if self.dbg_ans:
                     # debug good answers
@@ -124,6 +127,7 @@ class BleCC26X2:
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
+        print('-----', rv)
         ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
         if not ok:
             return 1, ''
@@ -232,6 +236,29 @@ class BleCC26X2:
         if s == 'on' and rv == b'WAK 0201':
             return 0
         return 1
+
+    async def cmd_log(self):
+        c, _ = build_cmd(LOG_EN_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'LOG 0201':
+            return 0, 1
+        if rv == b'LOG 0200':
+            return 0, 0
+        return 1, 0
+
+    async def cmd_pft(self):
+        c, _ = build_cmd(PRF_TIME_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        print(rv)
+        if rv == b'PFT 0200':
+            return 0, 0
+        if rv == b'PFT 0201':
+            return 0, 1
+        if rv == b'PFT 0202':
+            return 0, 2
+        return 1, 0
 
     async def cmd_rli(self):
         info = {}
