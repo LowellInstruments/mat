@@ -134,5 +134,5 @@ async def ble_rfkill_wlan(s):
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     await asyncio.sleep(.1)
     if rv.returncode:
-        print('RFKill returned {} -> {}'.format(rv.returncode, rv.stderr))
+        print('** RFKill returned {} -> {}'.format(rv.returncode, rv.stderr))
     return rv
