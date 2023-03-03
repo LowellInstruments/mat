@@ -128,7 +128,6 @@ class BleCC26X2:
     async def cmd_gtm(self):
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
-        print('-----', rv)
         ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
         if not ok:
             return 1, ''
