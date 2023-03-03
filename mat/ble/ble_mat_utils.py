@@ -2,6 +2,8 @@ import asyncio
 import glob
 import socket
 import subprocess as sp
+import time
+
 from mat.crc import calculate_local_file_crc
 from mat.utils import linux_is_rpi
 
@@ -122,3 +124,13 @@ def ble_mat_bluetoothctl_disconnect():
 def ble_mat_hci_exists(h):
     assert h.startswith('hci')
     assert _hci_is_up(int(h[3]))
+
+
+async def ble_rfkill_wlan(s):
+    if not linux_is_rpi():
+        return
+    assert s in ('block', 'unblock')
+    cmd = 'rfkill {} wlan'.format(s)
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    await asyncio.sleep(.1)
+    return rv.returncode

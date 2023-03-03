@@ -6,8 +6,9 @@ import math
 import time
 import humanize
 from bleak import BleakError, BleakClient, BleakScanner
-from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat_progress_dl, ble_mat_bluetoothctl_disconnect, \
-    ble_mat_hci_exists
+from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, ble_mat_progress_dl, \
+    ble_mat_bluetoothctl_disconnect, \
+    ble_mat_hci_exists, ble_rfkill_wlan
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
@@ -393,30 +394,35 @@ class BleCC26X2:
     # connection routine
     # --------------------
 
-    async def _connect_rpi(self, mac):
+    async def _connect_rpi(self, mac, rfk=False):
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
         till = time.perf_counter() + 30
         h = self.h
         self.cli = BleakClient(mac, adapter=h)
+        rv: int
 
         while True:
             now = time.perf_counter()
             if now > till:
                 print('_connect_rpi totally failed')
-                return 1
+                rv = 1
+                break
 
             try:
                 if await self.cli.connect():
                     await self.cli.start_notify(UUID_T, c_rx)
-                    return 0
+                    rv = 0
+                    break
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
                 _ = int(till - time.perf_counter())
                 print('_connect_rpi failed, {} seconds left'.format(_))
                 print(ex)
                 await asyncio.sleep(.5)
+
+        return rv
 
     async def _connect(self, mac):
         def c_rx(_: int, b: bytearray):
@@ -440,9 +446,16 @@ class BleCC26X2:
                 # time.sleep(.1)
         return 1
 
-    async def connect(self, mac):
+    async def connect(self, mac, rfk=False):
         if linux_is_rpi():
-            return await self._connect_rpi(mac)
+            if rfk:
+                await ble_rfkill_wlan('block')
+            rv = await self._connect_rpi(mac, rfk)
+            if rfk:
+                await ble_rfkill_wlan('unblock')
+            return rv
+
+        # when not Raspberry
         return await self._connect(mac)
 
     async def cmd_utm(self):
