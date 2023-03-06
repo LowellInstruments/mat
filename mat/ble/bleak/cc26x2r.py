@@ -13,7 +13,7 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET
+    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
@@ -56,9 +56,11 @@ class BleCC26X2:
         while self.cli and self.cli.is_connected and timeout > 0:
             await asyncio.sleep(0.1)
             timeout -= 0.1
+
             # ---------------------------------
             # considers the command answered
             # ---------------------------------
+
             if is_cmd_done(self.tag, self.ans):
                 if self.dbg_ans:
                     # debug good answers
@@ -247,17 +249,28 @@ class BleCC26X2:
             return 0, 0
         return 1, 0
 
+    async def cmd_pfe(self):
+        c, _ = build_cmd(PRF_TIME_EN)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'PFE 0201':
+            return 0, 1
+        if rv == b'PFE 0200':
+            return 0, 0
+        return 1, 0
+
     async def cmd_pft(self):
         c, _ = build_cmd(PRF_TIME_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
-        print(rv)
         if rv == b'PFT 0200':
             return 0, 0
         if rv == b'PFT 0201':
             return 0, 1
         if rv == b'PFT 0202':
             return 0, 2
+        if rv == b'PFT 0203':
+            return 0, 3
         return 1, 0
 
     async def cmd_pfg(self):
@@ -271,6 +284,8 @@ class BleCC26X2:
             return 0, 1
         if rv == b'PFG 0202':
             return 0, 2
+        if rv == b'PFG 0203':
+            return 0, 3
         return 1, 0
 
     async def cmd_rli(self):

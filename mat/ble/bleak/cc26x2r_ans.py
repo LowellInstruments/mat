@@ -44,7 +44,8 @@ def is_cmd_done(tag, ans):
         ERROR_WHEN_BOOT_OR_RUN_CMD,
         LOG_EN_CMD,
         PRF_TIME_CMD,
-        PRF_TIME_CMD_GET
+        PRF_TIME_CMD_GET,
+        PRF_TIME_EN
     ):
         return _ck(t, a, 8)
 
