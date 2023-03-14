@@ -45,7 +45,8 @@ def is_cmd_done(tag, ans):
         LOG_EN_CMD,
         PRF_TIME_CMD,
         PRF_TIME_CMD_GET,
-        PRF_TIME_EN
+        PRF_TIME_EN,
+        'BLA'
     ):
         return _ck(t, a, 8)
 
