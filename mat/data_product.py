@@ -23,27 +23,21 @@ def data_product_factory(file_path, sensors, parameters):
     data_products = []
     output_stream = output_stream_factory(file_path, parameters)
 
-    # special cases and accelmag are mutually exclusive, hence the if elif
+    # special cases and accelmag are mutually exclusive, hence the if else
     if parameters['output_type'] in special_cases.keys():
         klass = special_cases[parameters['output_type']]
         data_products.append(klass(sensors, parameters, output_stream))
 
-    # Check if any sensors need bundling
-    elif set(AccelMag.REQUIRED_SENSORS).issubset([s.name for s in sensors]):
-        data_products.append(AccelMag(sensors, parameters, output_stream))
-
-    elif set(DissolvedOxygen.REQUIRED_SENSORS).issubset(
-            [s.name for s in sensors]):
-        data_products.append(DissolvedOxygen(sensors,
-                                             parameters,
-                                             output_stream))
+    # Check if any multi-sensors need bundling
+    else:
+        for product in [AccelMag, DissolvedOxygen, DissolvedOxygenWaterDetect]:
+            if set(product.REQUIRED_SENSORS).issubset([s.name for s in sensors]):
+                data_products.append(product(sensors, parameters, output_stream))
 
     # Convert remaining sensors as discrete channels
     remaining_sensors = _remaining_sensors(sensors, data_products)
     for sensor in remaining_sensors:
-        data_products.append(DiscreteChannel(sensor,
-                                             parameters,
-                                             output_stream))
+        data_products.append(DiscreteChannel(sensor, parameters, output_stream))
     return data_products
 
 
@@ -312,6 +306,17 @@ class DissolvedOxygen(CompoundProduct):
 
     def stream_name(self):
         return 'DissolvedOxygen'
+
+
+class DissolvedOxygenWaterDetect(CompoundProduct):
+    OUTPUT_TYPE = 'dissolved_oxygen'
+    REQUIRED_SENSORS = ['DissolvedOxygen',
+                        'DissolvedOxygenPercentage',
+                        'DissolvedOxygenTemperature',
+                        'WaterDetect']
+
+    def stream_name(self):
+        return 'DO_WD'
 
 
 class AccelMag(CompoundProduct):
