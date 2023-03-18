@@ -2,6 +2,7 @@
 # the latter installs lowell-mat itself as a package
 pytest
 flake8
+pytest-dev
 
 # same as setup.py
 h5py
