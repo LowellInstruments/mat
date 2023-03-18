@@ -1,3 +1,5 @@
+import os
+
 import asyncio
 import glob
 import socket
@@ -122,6 +124,8 @@ def ble_mat_bluetoothctl_disconnect():
 
 
 def ble_mat_hci_exists(h):
+    if os.getenv("GITHUB_ACTIONS"):
+        return
     assert h.startswith('hci')
     assert _hci_is_up(int(h[3]))
 
