@@ -1,5 +1,3 @@
-https://img.shields.io/github/actions/workflow/status/lowellinstruments/lowell-mat/main.yml
-
 # MAT library v3.0
 
 Python3 library for Lowell Instruments' loggers.
