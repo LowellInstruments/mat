@@ -1,5 +1,5 @@
 
-![mainyml](https://img.shields.io/github/actions/workflow/status/lowellinstruments/lowell-mat/main.yml/badge.svg)
+![mainyml](https://img.shields.io/github/actions/workflow/status/lowellinstruments/lowell-mat/main.yml?branch=v4)
 
 
 
