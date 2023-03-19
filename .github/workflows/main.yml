@@ -32,6 +32,7 @@ jobs:
         python3 -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
 
     - name: LOWELL -> UPLOAD COVERAGE report to CODE CLIMATE
+      # this works together with root file .codeclimate.yml
       uses: paambaati/codeclimate-action@v3.0.0
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
