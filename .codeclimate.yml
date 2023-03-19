@@ -3,6 +3,8 @@ exclude_paths:
 - "tests/"
 - "mat/ble/"
 - "mat/__init__.py"
+- "mat/aws/__init__.py"
+
 checks:
   argument-count:
     config:
