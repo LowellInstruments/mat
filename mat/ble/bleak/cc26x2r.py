@@ -24,7 +24,7 @@ UUID_R = 'f0001131-0451-4000-b000-000000000000'
 GPS_FRM_STR = '{:+.6f}'
 
 
-class BleCC26X2:
+class BleCC26X2:    # pragma: no cover
     def __init__(self, h='hci0', dbg_ans=False):
         self.cli = None
         self.ans = bytes()

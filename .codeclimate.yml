@@ -1,14 +1,6 @@
 version: "2"         # required to adjust maintainability checks
-plugins:
-  pytest:
-    enabled: true
-    exclude_patterns:
-    - "mat/ble/"
 exclude_patterns:
 - "tests/"
-- "mat/sensor_specification.py"
-- "mat/xmodem_*.py"
-- "mat/ble/"
 checks:
   argument-count:
     config:
