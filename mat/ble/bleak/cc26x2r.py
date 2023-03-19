@@ -1,6 +1,8 @@
+import os
 import asyncio
 import json
 import platform
+import pytest
 from datetime import datetime, timezone, timedelta
 import math
 import time
@@ -16,11 +18,16 @@ from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CM
     FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
+
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
 GPS_FRM_STR = '{:+.6f}'
 
 
+@pytest.mark.skipif(
+    os.getenv('GITHUB_ACTIONS'),
+    reason='only test BLE hardware on development laptop'
+)
 class BleCC26X2:
     def __init__(self, h='hci0', dbg_ans=False):
         self.cli = None
