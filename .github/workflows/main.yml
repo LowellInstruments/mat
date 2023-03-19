@@ -29,12 +29,8 @@ jobs:
 
     - name: LOWELL -> RUNNING TESTS and COVERAGE ANALYSIS
       run: |
-        # pytest VS python -m pytest -> latter adds current directory to sys.path
-        # XML output is a file, HTML are folders
         python3 -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
-        # other options
-        # python3 -m pytest --cov=./ tests/ --cov-report html:cov_html
-        
+
     - name: LOWELL -> UPLOAD COVERAGE report to CODE CLIMATE
       uses: paambaati/codeclimate-action@v3.0.0
       env:
