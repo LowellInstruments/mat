@@ -125,18 +125,6 @@ class PrintColors:
         print(s)
 
 
-def linux_is_docker():
-    return pathlib.Path('/.dockerenv').is_file()
-
-
-def linux_is_x64():
-    return machine() == 'x86_64'
-
-
-def linux_is_docker_on_x64():
-    return linux_is_docker() and linux_is_x64()
-
-
 def linux_is_rpi():
     # better than checking architecture
     return os.uname().nodename in ('raspberrypi', 'rpi')
@@ -152,10 +140,6 @@ def linux_is_rpi4():
     c = 'cat /proc/cpuinfo'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     return b'Raspberry Pi 4' in rv.stdout
-
-
-def linux_is_docker_on_rpi():
-    return linux_is_docker() and linux_is_rpi()
 
 
 def linux_set_datetime(s) -> bool:
