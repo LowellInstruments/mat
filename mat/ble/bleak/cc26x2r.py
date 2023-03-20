@@ -1,8 +1,6 @@
-import os
 import asyncio
 import json
 import platform
-import pytest
 from datetime import datetime, timezone, timedelta
 import math
 import time

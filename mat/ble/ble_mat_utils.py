@@ -64,8 +64,11 @@ def _hci_rpi_is_external(i: int) -> bool:
     # raspberry pi3 and pi4 has internal BLE == Manufacturer Cypress
     s = 'hciconfig -a hci{} | grep Cypress'.format(i)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 0:
+        # Cypress detected, so False
+        return False
     # positive value == NOT Cypress == NOT internal == external
-    return bool(rv.returncode)
+    return True
 
 
 def ble_mat_get_antenna_type():
