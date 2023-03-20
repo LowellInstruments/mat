@@ -5,7 +5,7 @@
 
 [![Test Coverage](https://api.codeclimate.com/v1/badges/9682c96337fbc3e1a730/test_coverage)](https://codeclimate.com/github/LowellInstruments/lowell-mat/test_coverage)
 
-![license](https://img.shields.io/github/license/lowellinstruments/lowell-mat?color=skyblue?branch=v4)
+![license](https://img.shields.io/github/license/lowellinstruments/lowell-mat?color=blue?branch=v4)
 
 # MAT library v3.0
 
