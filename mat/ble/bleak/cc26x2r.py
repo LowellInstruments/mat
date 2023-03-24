@@ -109,7 +109,7 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_crc(self, s):
         c, _ = build_cmd(CRC_CMD, s)
         await self._cmd(c)
-        rv = await self._ans_wait()
+        rv = await self._ans_wait(timeout=60)
         ok = rv and len(rv) == 14 and rv.startswith(b'CRC')
         if ok:
             return 0, rv[-8:].decode().lower()

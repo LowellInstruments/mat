@@ -1,10 +1,9 @@
-# on Pycharm, use this file and not setup.py
-# the latter installs lowell-mat itself as a package
+# the only case you use this file is when developing lowell-mat on Pycharm
+# APP installations (DDH, fleak) use setup.py and empty it before installing
+
 pytest
 flake8
 pytest-mock
-
-# same as setup.py
 h5py
 numpy
 pyserial
