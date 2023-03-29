@@ -419,7 +419,7 @@ class BleCC26X2:    # pragma: no cover
     # connection routine
     # --------------------
 
-    async def _connect_rpi(self, mac, rfk=False):
+    async def _connect_rpi(self, mac):
         def c_rx(_: int, b: bytearray):
             self.ans += b
 
@@ -471,13 +471,13 @@ class BleCC26X2:    # pragma: no cover
                 # time.sleep(.1)
         return 1
 
-    async def connect(self, mac, rfk=False):
+    async def connect(self, mac):
         if linux_is_rpi():
-            if rfk:
-                await ble_rfkill_wlan('block')
-            rv = await self._connect_rpi(mac, rfk)
-            if rfk:
-                await ble_rfkill_wlan('unblock')
+            # if rfk:
+            #     await ble_rfkill_wlan('block')
+            rv = await self._connect_rpi(mac)
+            # if rfk:
+            #     await ble_rfkill_wlan('unblock')
             return rv
 
         # when not Raspberry
