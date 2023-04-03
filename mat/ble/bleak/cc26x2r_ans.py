@@ -27,6 +27,7 @@ def is_cmd_done(tag, ans):
         RWS_CMD,
         SWS_CMD,
         SET_TIME_CMD,
+        'FDS',
         LOGGER_INFO_CMD_W,
         LED_CMD,
         FORMAT_CMD,
@@ -71,7 +72,7 @@ def is_cmd_done(tag, ans):
         n = len(a) if a else 0
         return a and a.startswith(t.encode()) and n in (10, 13)
 
-    if t == TIME_CMD:
+    if t in(TIME_CMD, 'FDG'):
         return _ck(t, a, 25)
 
     if t == DIR_CMD:

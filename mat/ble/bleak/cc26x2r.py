@@ -100,6 +100,14 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait()
         return 0 if rv == b'STM 00' else 1
 
+    async def cmd_fds(self):
+        # time() -> seconds since epoch, in UTC
+        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
+        c, _ = build_cmd('FDS', dt.strftime('%Y/%m/%d %H:%M:%S'))
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        return 0 if rv == b'FDS 00' else 1
+
     async def cmd_dwg(self, s):
         c, _ = build_cmd(DWG_FILE_CMD, s)
         await self._cmd(c)
@@ -132,6 +140,14 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_fdg(self):
+        await self._cmd('FDG \r')
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 25 and rv.startswith(b'FDG')
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()
