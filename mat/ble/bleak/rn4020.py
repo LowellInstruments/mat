@@ -71,8 +71,9 @@ class BleRN4020(BleRN4020Base):
         self._p('<- C')
         await self.cli.write_gatt_char(UUID_T, b'C')
 
+        # -------------------------------------------------
         # curious, internal sleep 1 is enough, external 2
-        # todo > test this weird external antenna behavior
+        # -------------------------------------------------
         await asyncio.sleep(1)
 
         while 1:

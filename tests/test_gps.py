@@ -1,4 +1,4 @@
-from mat.gps import *
+from mat.gps import PORT_DATA, PORT_CTRL
 
 
 class TestGPS:
