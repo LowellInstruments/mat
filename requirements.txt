@@ -1,3 +1,9 @@
+# for local and CD/CI online testing
+# ----------------------------------
+
+pytest
+mock
+pytest-mock
 
 # these should match setup.py
 # ----------------------------
@@ -11,11 +17,3 @@ bleak~=0.17.0
 awscli~=1.27.4
 boto3~=1.26.4
 tzlocal~=2.1
-
-
-# for local and CD/CI online testing
-# ----------------------------------
-
-pytest
-mock
-pytest-mock
