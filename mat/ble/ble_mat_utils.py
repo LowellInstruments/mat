@@ -1,7 +1,11 @@
+import os
+
 import asyncio
 import glob
 import socket
 import subprocess as sp
+import time
+
 from mat.crc import calculate_local_file_crc
 from mat.utils import linux_is_rpi
 
@@ -60,8 +64,15 @@ def _hci_rpi_is_external(i: int) -> bool:
     # raspberry pi3 and pi4 has internal BLE == Manufacturer Cypress
     s = 'hciconfig -a hci{} | grep Cypress'.format(i)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+    if i == 0 and rv.returncode:
+        print('[ MAT ] hci0 but external, be careful for inconsistencies')
+
+    if rv.returncode == 0:
+        # Cypress detected, so False
+        return False
     # positive value == NOT Cypress == NOT internal == external
-    return bool(rv.returncode)
+    return True
 
 
 def ble_mat_get_antenna_type():
@@ -120,5 +131,19 @@ def ble_mat_bluetoothctl_disconnect():
 
 
 def ble_mat_hci_exists(h):
+    if os.getenv("GITHUB_ACTIONS"):
+        return
     assert h.startswith('hci')
     assert _hci_is_up(int(h[3]))
+
+
+async def ble_rfkill_wlan(s):
+    if not linux_is_rpi():
+        return
+    assert s in ('block', 'unblock')
+    cmd = 'rfkill {} wlan'.format(s)
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    await asyncio.sleep(.1)
+    if rv.returncode:
+        print('** RFKill returned {} -> {}'.format(rv.returncode, rv.stderr))
+    return rv

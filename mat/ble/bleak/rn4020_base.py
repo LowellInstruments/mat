@@ -33,7 +33,7 @@ class BleRN4020Base:
         self.tag = c[:3]
         if empty:
             self.ans = bytes()
-        print('<', c)
+        print('<-', c)
         for i in c:
             await self.cli.write_gatt_char(UUID_R, i.encode())
             await asyncio.sleep(.01)
@@ -51,7 +51,7 @@ class BleRN4020Base:
 
             # see if no more to receive
             if is_cmd_done(self.tag, self.ans):
-                print('>', self.ans)
+                print('->', self.ans)
                 return self.ans
 
         print('[ BLE ] timeout -> cmd {}'.format(self.tag))
@@ -75,7 +75,17 @@ class BleRN4020Base:
         await self._cmd('GTM \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 29 and rv.startswith(b'\n\rGTM')
-        return 0 if ok else 1
+        if ok:
+            return 0, rv
+        return 1, rv
+
+    async def cmd_btc(self):
+        c = 'BTC 00T,0006,0000,0064\r'
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv:
+            return 0
+        return 1
 
     async def cmd_stp(self):
         await self._cmd('STP \r')
@@ -87,6 +97,16 @@ class BleRN4020Base:
         await self._cmd('RUN \r')
         rv = await self._ans_wait()
         return 0 if rv == b'\n\rRUN 00\r\n' else 1
+
+    async def cmd_rfn(self):
+        await self._cmd('RFN \r')
+        rv = await self._ans_wait()
+        if not rv:
+            return 1, ''
+        rv = rv.replace(b'\r', b'')
+        rv = rv.replace(b'\n', b'')
+        # only .lid name file remains
+        return 0, rv.decode()
 
     async def cmd_sws(self, g):
         # STOP with STRING
@@ -107,8 +127,9 @@ class BleRN4020Base:
     async def cmd_gfv(self):
         await self._cmd('GFV \r')
         rv = await self._ans_wait()
-        ok = rv and len(rv) == 16 and rv.startswith(b'\n\rGFV')
-        return 0 if ok else 1
+        if rv:
+            return 0, rv
+        return 1, rv
 
     async def cmd_get(self, s):
         c, _ = build_cmd(GET_FILE_CMD, s)

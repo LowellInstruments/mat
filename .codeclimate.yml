@@ -1,9 +1,10 @@
 version: "2"         # required to adjust maintainability checks
-exclude_patterns:
+exclude_paths:
 - "tests/"
-- "mat/sensor_specification.py"
-- "mat/xmodem_*.py"
-- "mat/n2l*.py"
+- "mat/ble/"
+- "mat/__init__.py"
+- "mat/aws/__init__.py"
+- "setup.py"
 checks:
   argument-count:
     config:
@@ -35,3 +36,5 @@ checks:
   identical-code:
     config:
       threshold: # language-specific defaults. an override will affect all languages.
+
+

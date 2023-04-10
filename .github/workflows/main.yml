@@ -1,4 +1,4 @@
-name: Workflow CODECOV + CODECLIMATE for library lowell-mat
+name: Workflow TESTS + CODECLIMATE COVERAGE
 on: [push, workflow_dispatch]
 jobs:
   run:
@@ -9,53 +9,34 @@ jobs:
         os: [ubuntu-latest]
     env:
       OS: ${{ matrix.os }}
-      PYTHON: '3.7'
+      PYTHON: '3.9'
     steps:
     - uses: actions/checkout@master
 
     - name: Setup Python
       uses: actions/setup-python@master
       with:
-        python-version: 3.7
+        python-version: 3.9
 
     - name: LOWELL -> INSTALL PYTHON VIRTUAL ENVIRONMENT
       run: |
         pip install wheel 
         pip install pytest
         pip install pytest-cov
-        pip install git+https://github.com/LowellInstruments/bluepy.git
-        wget https://raw.githubusercontent.com/LowellInstruments/lowell-mat/master/requirements.txt
+        pip install pytest-asyncio
+        wget https://github.com/LowellInstruments/lowell-mat/blob/v4/requirements.txt
         pip install -r requirements.txt
 
     - name: LOWELL -> RUNNING TESTS and COVERAGE ANALYSIS
       run: |
-        # pytest VS python -m pytest -> latter adds current directory to sys.path
-        # XML output is a file, HTML are folders
-        python -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
-        # other options
-        # python -m pytest --cov=./ tests/ --cov-report html:cov_html
-        
+        python3 -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
+
     - name: LOWELL -> UPLOAD COVERAGE report to CODE CLIMATE
-      uses: paambaati/codeclimate-action@v3.0.0
+      # this works together with root file .codeclimate.yml
+      uses: paambaati/codeclimate-action@v3.2.0
       env:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
       with:
-        coverageCommand: python -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
+        coverageCommand: python3 -m pytest --cov=./ tests/ --cov-report xml:cov.xml --cov-report term
         coverageLocations: ${{github.workspace}}/cov.xml:coverage.py
         debug: true
-
-    - name: LOWELL -> UPLOAD COVERAGE report to COVECOD
-      uses: codecov/codecov-action@v2
-      with:
-      
-        # only private repositories need TOKEN
-        # token: ${{ secrets.CODECOV_TOKEN }}
-        
-        files: ./cov.xml
-        directory: ./coverage/reports/
-        env_vars: OS,PYTHON
-        path_to_write_report: ./coverage/codecov_report.txt
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: true
-        verbose: true
