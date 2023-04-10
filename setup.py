@@ -12,10 +12,10 @@ with open("mat/version.py") as f:
     exec(f.read(), v)
 
 
-setup(name='lowell-mat',
+setup(name='mat',
       version=v['__version__'],
       description='Shared package for Lowell Instruments software',
-      url='https://github.com/LowellInstruments/lowell-mat',
+      url='https://github.com/LowellInstruments/mat',
       author='Lowell Instruments',
       author_email='software@lowellinstruments.com',
       packages=find_packages(),

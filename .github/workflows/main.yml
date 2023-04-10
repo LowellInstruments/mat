@@ -24,7 +24,7 @@ jobs:
         pip install pytest
         pip install pytest-cov
         pip install pytest-asyncio
-        wget https://github.com/LowellInstruments/lowell-mat/blob/v4/requirements.txt
+        wget https://github.com/LowellInstruments/mat/blob/master/requirements.txt
         pip install -r requirements.txt
 
     - name: LOWELL -> RUNNING TESTS and COVERAGE ANALYSIS
