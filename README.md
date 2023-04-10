@@ -1,5 +1,5 @@
 
-![mainyml](https://img.shields.io/github/actions/workflow/status/lowellinstruments/mat/main.yml
+![mainyml](https://img.shields.io/github/actions/workflow/status/lowellinstruments/mat/.github/workflows/main.yml)
 
 [![Maintainability](https://api.codeclimate.com/v1/badges/9682c96337fbc3e1a730/maintainability)](https://codeclimate.com/github/LowellInstruments/mat/maintainability)
 
