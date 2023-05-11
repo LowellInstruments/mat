@@ -102,6 +102,10 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'STM 00' else 1
 
     async def cmd_fds(self):
+        """
+        stands for firs Deployment Set
+        :return: 0 if went OK
+        """
         # time() -> seconds since epoch, in UTC
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
         c, _ = build_cmd(FIRST_DEPLOYMENT_SET_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
@@ -159,6 +163,35 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('FDG \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 25 and rv.startswith(b'FDG')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_spn(self, v):
+        assert 0 < v < 9
+        await self._cmd('SPN 01{}\r'.format(v))
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 7 and rv.startswith(b'SPN')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_srs(self, v):
+        assert 5 <= v <= 86400
+        c, _ = build_cmd('SRS', v)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'SRS')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_srf(self, v):
+        assert 1 <= v <= 10
+        c, _ = build_cmd('SRF', v)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'SRF')
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()

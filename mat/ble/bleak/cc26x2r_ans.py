@@ -2,7 +2,8 @@ from mat.logger_controller import STATUS_CMD, RUN_CMD, STOP_CMD, RWS_CMD, SWS_CM
     DEL_FILE_CMD, FIRMWARE_VERSION_CMD, DO_SENSOR_READINGS_CMD, LOGGER_INFO_CMD, TIME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import LED_CMD, FORMAT_CMD, CONFIG_CMD, MY_TOOL_SET_CMD, DWG_FILE_CMD, FILE_EXISTS_CMD, \
     WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, BAT_CMD, WAT_CMD, \
-    UP_TIME_CMD, CRC_CMD, SET_CALIBRATION_CMD, GET_CALIBRATION_CMD, DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD
+    UP_TIME_CMD, CRC_CMD, SET_CALIBRATION_CMD, GET_CALIBRATION_CMD, DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, \
+    SET_PRESSURE_NUMBER_CMD, SET_PROFILE_RATE_SLOW_CMD, SET_PROFILE_RATE_FAST_CMD
 
 
 def _check(tag, ans, n):
@@ -93,4 +94,13 @@ def is_cmd_done(tag, ans):
     if t == DEPLOYMENT_NAME_GET_CMD:
         return a and len(a) == 9
 
-    print('[ BLE ] is_cmd_done cannot manage', t)
+    if t == SET_PRESSURE_NUMBER_CMD:
+        return a and len(a) == 7
+
+    if t == SET_PROFILE_RATE_SLOW_CMD:
+        return a and a.startswith(b'SRS')
+
+    if t == SET_PROFILE_RATE_FAST_CMD:
+        return a and a.startswith(b'SRF')
+
+    print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)
