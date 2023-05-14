@@ -32,8 +32,6 @@ class BleCC26X2:    # pragma: no cover
             assert h.startswith('hci')
             ble_mat_hci_exists(h)
         self.h = h
-        # nice trick to start with fresh page
-        ble_mat_bluetoothctl_disconnect()
 
     async def is_connected(self):
         return self.cli and self.cli.is_connected

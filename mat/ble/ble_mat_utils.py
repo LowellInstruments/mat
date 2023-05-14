@@ -124,17 +124,23 @@ def ble_mat_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     # _sk.sendto(str(_).encode(), (ip, port))
 
 
-def ble_mat_bluetoothctl_disconnect():
-    # if connected, will work, else just complains about missing argument
-    c = 'bluetoothctl -- disconnect'
-    sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-
-
 def ble_mat_hci_exists(h):
     if os.getenv("GITHUB_ACTIONS"):
         return
     assert h.startswith('hci')
     assert _hci_is_up(int(h[3]))
+
+
+def ble_mat_bluetoothctl_power_cycle():
+    c = 'bluetoothctl power off'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode:
+        print('error powercycle bluetooth off')
+    time.sleep(1)
+    c = 'bluetoothctl power on'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode:
+        print('error powercycle bluetooth on')
 
 
 async def ble_rfkill_wlan(s):
