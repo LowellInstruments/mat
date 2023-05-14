@@ -13,7 +13,8 @@ from mat.ble.bleak.cc26x2r_ans import is_cmd_done
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN
+    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, SET_CALIBRATION_CMD, \
+    DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 
@@ -99,9 +100,13 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'STM 00' else 1
 
     async def cmd_fds(self):
+        """
+        stands for firs Deployment Set
+        :return: 0 if went OK
+        """
         # time() -> seconds since epoch, in UTC
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
-        c, _ = build_cmd('FDS', dt.strftime('%Y/%m/%d %H:%M:%S'))
+        c, _ = build_cmd(FIRST_DEPLOYMENT_SET_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
         await self._cmd(c)
         rv = await self._ans_wait()
         return 0 if rv == b'FDS 00' else 1
@@ -127,6 +132,16 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait(timeout=30)
         return 0 if rv == b'DEL 00' else 1
 
+    async def cmd_scc(self, tag, v):
+        assert len(tag) == 3
+        assert len(v) == 5
+        s = '{}{}'.format(tag, v)
+        c, _ = build_cmd(SET_CALIBRATION_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=30)
+        print(rv)
+        return 0 if rv == b'SCC 00' else 1
+
     async def cmd_fex(self, s):
         c, _ = build_cmd(FILE_EXISTS_CMD, s)
         await self._cmd(c)
@@ -146,6 +161,35 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('FDG \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 25 and rv.startswith(b'FDG')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_spn(self, v):
+        assert 0 < v < 9
+        await self._cmd('SPN 01{}\r'.format(v))
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 7 and rv.startswith(b'SPN')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_srs(self, v):
+        assert 5 <= v <= 86400
+        c, _ = build_cmd('SRS', v)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'SRS')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
+    async def cmd_srf(self, v):
+        assert 1 <= v <= 10
+        c, _ = build_cmd('SRF', v)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'SRF')
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()
@@ -183,6 +227,24 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait()
         ok = rv == b'WLI 00'
         return 0 if ok else 1
+
+    async def cmd_dns(self, s):
+        # stands for Deployment Name Set
+        c, _ = build_cmd(DEPLOYMENT_NAME_SET_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv == b'DNS 00'
+        return 0 if ok else 1
+
+    async def cmd_dng(self):
+        # stands for Deployment Name Get
+        c, _ = build_cmd(DEPLOYMENT_NAME_GET_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 9 and rv.startswith(b'DNG')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
 
     async def cmd_gdo(self):
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
@@ -345,6 +407,14 @@ class BleCC26X2:    # pragma: no cover
         if ok:
             return 0, state
         return 1, 'error'
+
+    async def cmd_gcc(self):
+        await self._cmd('GCC \r')
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == (38 * 5) + 6 and rv.startswith(b'GCC')
+        if ok:
+            return 0, rv.decode()
+        return 1, ""
 
     async def cmd_run(self):
         await self._cmd('RUN \r')

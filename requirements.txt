@@ -1,14 +1,10 @@
 # for local and CD/CI online testing
-# ----------------------------------
-
 pytest
 mock
 flake8
 pytest-mock
 
-# these should match setup.py
-# ----------------------------
-
+# should approx match setup.py
 h5py~=3.7.0
 numpy~=1.21.4
 pyserial~=3.5

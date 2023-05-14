@@ -26,6 +26,9 @@ setup(name='mat',
           'bleak',
           'humanize',
           'boto3',
+          'awscli',
+          'tzlocal',
+          'pandas'
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",
