@@ -132,6 +132,9 @@ def ble_mat_hci_exists(h):
 
 
 def ble_mat_bluetoothctl_power_cycle():
+    if not linux_is_rpi():
+        print('do not power cycle Bluetooth on non-rpi')
+        return
     c = 'bluetoothctl power off'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode:
