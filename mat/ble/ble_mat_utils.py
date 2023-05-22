@@ -156,3 +156,25 @@ async def ble_rfkill_wlan(s):
     if rv.returncode:
         print('** RFKill returned {} -> {}'.format(rv.returncode, rv.stderr))
     return rv
+
+
+def ble_mat_disconnect_all_devices_ll():
+    # ll: means low-level
+    c = 'bluetoothctl devices Connected'
+    # the "Connected" flag only works for bluetoothctl > v5.65
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if not rv.stdout:
+        return
+
+    # b'Device D0:2E:AB:D8:BD:DE DO-2\nDevice 60:77:71:22:C8:6F DO-1\n'
+    print(rv.stdout)
+    for _ in rv.stdout.split(b'\n'):
+        if _ == b'':
+            continue
+        lg_type = _.split(b' ')[2]
+        if lg_type not in (b'DO-1', b'DO-2', b'TAP'):
+            continue
+        mac = _.split(b' ')[1]
+        print('auto-disconnecting mac {}'.format(mac))
+        c = 'bluetoothctl disconnect {}'.format(mac.decode())
+        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
