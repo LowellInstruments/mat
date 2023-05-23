@@ -175,7 +175,7 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_srs(self, v):
-        assert 5 <= v <= 86400
+        assert v in (5, 10)
         c, _ = build_cmd('SRS', v)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -185,7 +185,7 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_srf(self, v):
-        assert 1 <= v <= 10
+        assert v == 1
         c, _ = build_cmd('SRF', v)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -284,9 +284,7 @@ class BleCC26X2:    # pragma: no cover
         c, _ = build_cmd(WAT_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
-        print(rv)
         ok = rv and len(rv) == 10 and rv.startswith(b'WAT')
-        print(rv)
         if not ok:
             return
         a = rv
@@ -379,6 +377,7 @@ class BleCC26X2:    # pragma: no cover
         info = {}
         all_ok = True
         for each in ['SN', 'BA', 'CA', 'MA']:
+            print('RLI doing', each)
             c, _ = build_cmd(LOGGER_INFO_CMD, each)
             await self._cmd(c)
             rv = await self._ans_wait()
