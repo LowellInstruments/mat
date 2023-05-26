@@ -175,8 +175,9 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_srs(self, v):
-        assert v in (5, 10)
-        c, _ = build_cmd('SRS', v)
+        if v < 10 or v > 86400:
+            return 1, ''
+        c, _ = build_cmd('SRS', str(v).zfill(5))
         await self._cmd(c)
         rv = await self._ans_wait()
         ok = rv and rv.startswith(b'SRS')
@@ -185,8 +186,8 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_srf(self, v):
-        assert v == 1
-        c, _ = build_cmd('SRF', v)
+        assert 1 <= v < 10
+        c, _ = build_cmd('SRF', str(v).zfill(2))
         await self._cmd(c)
         rv = await self._ans_wait()
         ok = rv and rv.startswith(b'SRF')
