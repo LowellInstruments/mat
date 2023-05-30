@@ -178,3 +178,13 @@ def ble_mat_disconnect_all_devices_ll():
         print('auto-disconnecting mac {}'.format(mac))
         c = 'bluetoothctl disconnect {}'.format(mac.decode())
         sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+
+def ble_mat_get_bluez_version() -> str:
+    c = 'bluetoothctl -v'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    v = rv.stdout.decode()
+    # v: b'bluetoothctl: 5.55\n'
+    v = v.replace('\n', '').split(': ')[1]
+    print('bluez version is', v)
+    return str(v)
