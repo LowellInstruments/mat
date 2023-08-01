@@ -459,6 +459,11 @@ class BleCC26X2:    # pragma: no cover
             return 1, ''
         return 0, rv[6:].decode()
 
+    async def cmd_rst(self):
+        await self._cmd('RST \r')
+        await asyncio.sleep(3)
+        return 0
+
     async def cmd_dir(self) -> tuple:
         await self._cmd('DIR \r')
         rv = await self._ans_wait(timeout=30)
