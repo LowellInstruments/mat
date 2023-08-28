@@ -275,11 +275,12 @@ class BleCC26X2:    # pragma: no cover
             return
         a = rv
         if a and len(a.split()) == 2:
-            # a: b'GSP 04ABCD'
+            # a: b'GSP 043412'
             _ = a.split()[1].decode()
-            ph = _[2:6]
-            p = int(ph, 16)
-            # print('p, ph', p, ph)
+            p = _[2:6]
+            # p: '3412' --> '1234'
+            p = p[-2:] + p[:2]
+            p = int(p, 16)
             return 0, p
         return 1, 0
 
