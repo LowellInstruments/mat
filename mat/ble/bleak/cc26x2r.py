@@ -277,8 +277,9 @@ class BleCC26X2:    # pragma: no cover
         if a and len(a.split()) == 2:
             # a: b'GSP 04ABCD'
             _ = a.split()[1].decode()
-            p = _[2:6]
-            p = int(p, 16)
+            ph = _[2:6]
+            p = int(ph, 16)
+            # print('p, ph', p, ph)
             return 0, p
         return 1, 0
 
