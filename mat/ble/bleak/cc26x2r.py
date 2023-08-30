@@ -14,7 +14,8 @@ from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, 
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
     FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, SET_CALIBRATION_CMD, \
-    DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD, PRESSURE_SENSOR_CMD
+    DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD, PRESSURE_SENSOR_CMD, \
+    TEMPERATURE_SENSOR_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 
@@ -282,6 +283,25 @@ class BleCC26X2:    # pragma: no cover
             p = p[-2:] + p[:2]
             p = int(p, 16)
             return 0, p
+        return 1, 0
+
+    async def cmd_gst(self):
+        c, _ = build_cmd(TEMPERATURE_SENSOR_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # rv: GST 04ABCD
+        ok = rv and len(rv) == 10 and rv.startswith(b'GST')
+        if not ok:
+            return
+        a = rv
+        if a and len(a.split()) == 2:
+            # a: b'GST 043412'
+            _ = a.split()[1].decode()
+            t = _[2:6]
+            # t: '3412' --> '1234'
+            t = t[-2:] + t[:2]
+            t = int(t, 16)
+            return 0, t
         return 1, 0
 
     async def cmd_bat(self):
