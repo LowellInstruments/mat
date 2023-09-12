@@ -15,7 +15,7 @@ from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, 
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
     FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, SET_CALIBRATION_CMD, \
     DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD, PRESSURE_SENSOR_CMD, \
-    TEMPERATURE_SENSOR_CMD
+    TEMPERATURE_SENSOR_CMD, GET_PRESSURE_CALIBRATION_CMD, SET_PRESSURE_CALIBRATION_CMD, PRESSURE_CALIBRATION_VALUE_LEN
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 
@@ -41,11 +41,10 @@ class BleCC26X2:    # pragma: no cover
     async def _cmd(self, c: str, empty=True):
         self.tag = c[:3]
         if empty:
+            # clean the answer buffer, or not
             self.ans = bytes()
-
         if self.dbg_ans:
             print('<', c)
-
         await self.cli.write_gatt_char(UUID_R, c.encode())
 
     async def _ans_wait(self, timeout=10.0):
@@ -63,6 +62,7 @@ class BleCC26X2:    # pragma: no cover
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
+                print(self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -285,7 +285,33 @@ class BleCC26X2:    # pragma: no cover
             return 0, p
         return 1, 0
 
+    async def cmd_gpc(self):
+        # stands for 'Get Pressure Calibration'
+        c, _ = build_cmd(GET_PRESSURE_CALIBRATION_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # rv: GPC XXYYYYYYYYYY...
+        ok = rv and len(rv) == PRESSURE_CALIBRATION_VALUE_LEN + 6 and \
+             rv.startswith(GET_PRESSURE_CALIBRATION_CMD.encode())
+        if not ok:
+            return 1, 0
+        return 0, rv.decode()[6:]
+
+    async def cmd_spc(self, s):
+        # stands for 'Set Pressure Calibration'
+        vl = PRESSURE_CALIBRATION_VALUE_LEN
+        if len(s) != vl:
+            # todo: do more checks
+            print(f'warning SPC parameter length should be {vl}')
+            return 1
+        c, _ = build_cmd(SET_PRESSURE_CALIBRATION_CMD, s)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=10)
+        ok = rv == b'SPC 00'
+        return 0 if ok else 1
+
     async def cmd_gst(self):
+        # gst: Get Sensor Temperature
         c, _ = build_cmd(TEMPERATURE_SENSOR_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -402,7 +428,6 @@ class BleCC26X2:    # pragma: no cover
         c, _ = build_cmd(PRF_TIME_CMD_GET)
         await self._cmd(c)
         rv = await self._ans_wait()
-        print(rv)
         if rv == b'PFG 0200':
             return 0, 0
         if rv == b'PFG 0201':
