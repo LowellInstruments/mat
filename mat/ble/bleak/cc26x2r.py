@@ -5,17 +5,18 @@ from datetime import datetime, timezone, timedelta
 import math
 import time
 import humanize
-from bleak import BleakError, BleakClient, BleakScanner
+from bleak import BleakError, BleakClient
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, \
     ble_mat_progress_dl, \
     ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
-from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, STATUS_CMD, LOGGER_INFO_CMD_W, \
+from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
     FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, SET_CALIBRATION_CMD, \
     DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD, PRESSURE_SENSOR_CMD, \
-    TEMPERATURE_SENSOR_CMD, GET_PRESSURE_CALIBRATION_CMD, SET_PRESSURE_CALIBRATION_CMD, PRESSURE_CALIBRATION_VALUE_LEN
+    TEMPERATURE_SENSOR_CMD, GET_PRESSURE_CALIBRATION_CMD, SET_PRESSURE_CALIBRATION_CMD, PRESSURE_CALIBRATION_VALUE_LEN, \
+    SET_PROFILE_MODE_CMD, GET_PROFILE_MODE_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
 
 
@@ -56,6 +57,9 @@ class BleCC26X2:    # pragma: no cover
         while self.cli and self.cli.is_connected and timeout > 0:
             await asyncio.sleep(0.1)
             timeout -= 0.1
+
+            # debug: uncomment
+            # print(self.ans)
 
             # ---------------------------------
             # considers the command answered
@@ -390,6 +394,26 @@ class BleCC26X2:    # pragma: no cover
             return 0, 0
         return 1, 0
 
+    async def cmd_spm(self):
+        c, _ = build_cmd(SET_PROFILE_MODE_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'SPM 0201':
+            return 0, 1
+        if rv == b'SPM 0200':
+            return 0, 0
+        return 1, 0
+
+    async def cmd_gpm(self):
+        c, _ = build_cmd(GET_PROFILE_MODE_CMD)
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'GPM 0201':
+            return 0, 1
+        if rv == b'GPM 0200':
+            return 0, 0
+        return 1, 0
+
     async def cmd_bla(self):
         c, _ = build_cmd('BLA')
         await self._cmd(c)
@@ -562,6 +586,18 @@ class BleCC26X2:    # pragma: no cover
         rv = 0 if z == len(self.ans) else 1
         return rv, self.ans
 
+    async def cmd_utm(self):
+        await self._cmd('UTM \r')
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
+        if ok:
+            _ = self.ans.split()[1].decode()
+            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
+            t = int(b, 16)
+            s = humanize.naturaldelta(timedelta(seconds=t))
+            return 0, s
+        return 1, ''
+
     async def disconnect(self):
         try:
             await self.cli.disconnect()
@@ -635,15 +671,3 @@ class BleCC26X2:    # pragma: no cover
 
         # when not Raspberry
         return await self._connect(mac)
-
-    async def cmd_utm(self):
-        await self._cmd('UTM \r')
-        rv = await self._ans_wait()
-        ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
-        if ok:
-            _ = self.ans.split()[1].decode()
-            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
-            t = int(b, 16)
-            s = humanize.naturaldelta(timedelta(seconds=t))
-            return 0, s
-        return 1, ''
