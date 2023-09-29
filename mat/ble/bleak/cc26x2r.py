@@ -476,6 +476,14 @@ class BleCC26X2:    # pragma: no cover
             return 0, rv.decode()
         return 1, ""
 
+    async def cmd_gwc(self):
+        await self._cmd('GWC \r')
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'GWC')
+        if ok:
+            return 0, rv.decode()
+        return 1, ""
+
     async def cmd_run(self):
         await self._cmd('RUN \r')
         rv = await self._ans_wait(timeout=30)

@@ -103,4 +103,7 @@ def is_cmd_done(tag, ans):
     if t == DEPLOYMENT_NAME_GET_CMD:
         return a and len(a) == 9
 
+    if t == 'GWC':
+        return a and len(a) in (9, 10, 12, 16)
+
     print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)
