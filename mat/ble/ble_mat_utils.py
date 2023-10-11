@@ -65,13 +65,11 @@ def _hci_rpi_is_external(i: int) -> bool:
     s = 'hciconfig -a hci{} | grep Cypress'.format(i)
     rv = sp.run(s, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    if i == 0 and rv.returncode:
-        print('[ MAT ] hci0 but external, be careful for inconsistencies')
-
     if rv.returncode == 0:
-        # Cypress detected, so False
+        # zero == Cypress detected == internal == False
         return False
-    # positive value == NOT Cypress == NOT internal == external
+
+    # positive == NOT Cypress == NOT internal == external
     return True
 
 
