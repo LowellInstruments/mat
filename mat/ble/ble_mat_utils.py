@@ -144,18 +144,6 @@ def ble_mat_bluetoothctl_power_cycle():
         print('error powercycle bluetooth on')
 
 
-async def ble_rfkill_wlan(s):
-    if not linux_is_rpi():
-        return
-    assert s in ('block', 'unblock')
-    cmd = 'rfkill {} wlan'.format(s)
-    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    await asyncio.sleep(.1)
-    if rv.returncode:
-        print('** RFKill returned {} -> {}'.format(rv.returncode, rv.stderr))
-    return rv
-
-
 def ble_mat_disconnect_all_devices_ll():
 
     # the "Connected" flag only works for bluetoothctl > v5.65

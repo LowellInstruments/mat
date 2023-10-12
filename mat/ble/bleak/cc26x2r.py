@@ -644,11 +644,7 @@ class BleCC26X2:    # pragma: no cover
 
     async def connect(self, mac):
         if linux_is_rpi():
-            # if rfk:
-            #     await ble_rfkill_wlan('block')
             rv = await self._connect_rpi(mac)
-            # if rfk:
-            #     await ble_rfkill_wlan('unblock')
             return rv
 
         # when not Raspberry
