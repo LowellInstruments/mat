@@ -143,7 +143,6 @@ class BleCC26X2:    # pragma: no cover
         c, _ = build_cmd(SET_CALIBRATION_CMD, s)
         await self._cmd(c)
         rv = await self._ans_wait(timeout=30)
-        print(rv)
         return 0 if rv == b'SCC 00' else 1
 
     async def cmd_scf(self, tag, v):
@@ -463,9 +462,12 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_gcc(self):
         await self._cmd('GCC \r')
         rv = await self._ans_wait()
-        ok = rv and len(rv) == (38 * 5) + 6 and rv.startswith(b'GCC')
+        n = 40 * 5
+        ok = rv and len(rv) == n + 6 and rv.startswith(b'GCC')
         if ok:
             return 0, rv.decode()
+        e = 'error: bad GCC length {} - 6 != {} - 6'.format(len(rv), n)
+        print(e)
         return 1, ""
 
     async def cmd_gcf(self):

@@ -95,7 +95,7 @@ def is_cmd_done(tag, ans):
         return a and len(a) in (38, 46)
 
     if t == GET_CALIBRATION_CMD:
-        return a and len(a) == (38 * 5) + 6
+        return a and len(a) == (40 * 5) + 6
 
     if t == GET_PRF_CONFIGURATION_CMD:
         return a and len(a) == (10 * 5) + 6
