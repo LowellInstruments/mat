@@ -473,7 +473,7 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_gcf(self):
         await self._cmd('GCF \r')
         rv = await self._ans_wait()
-        ok = rv and len(rv) == (10 * 5) + 6 and rv.startswith(b'GCF')
+        ok = rv and len(rv) == (11 * 5) + 6 and rv.startswith(b'GCF')
         if ok:
             return 0, rv.decode()
         return 1, ""

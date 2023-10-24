@@ -98,7 +98,7 @@ def is_cmd_done(tag, ans):
         return a and len(a) == (40 * 5) + 6
 
     if t == GET_PRF_CONFIGURATION_CMD:
-        return a and len(a) == (10 * 5) + 6
+        return a and len(a) == (11 * 5) + 6
 
     if t == DEPLOYMENT_NAME_GET_CMD:
         return a and len(a) == 9
