@@ -1,7 +1,7 @@
 import datetime
 import os
 from functools import lru_cache
-from math import ceil
+from math import ceil, floor
 
 from dateutil.tz import tzlocal, tzutc
 
@@ -361,8 +361,18 @@ def _data_to_csv_n_profile(d, csv_path: str, ma_h) -> dict:
     prev_t = ''
     ct = 0
 
+    # separator
+    print('\n\n\n')
+
     for _, i in enumerate(range(0, len(data), len_sample)):
         print(f'\tmeasure number \t|  #{_}')
+        i_ch = floor((_ * 12) / 248) + 1
+        # + 1 for macro_header
+        print(f'\tchunk  in file \t|  #{i_ch}')
+        # print(f'\tchunk  contains\t|  {i_ch * 256} to {(i_ch + 1) * 256}')
+        o_ch = floor((_ * 12) % 248) + 8
+        print(f'\toffset in chunk\t|  {o_ch}')
+
         if _fresh:
             print(f'\tstart is fresh \t|  {_fresh}')
 
