@@ -28,7 +28,8 @@ setup(name='mat',
           'boto3',
           'awscli',
           'tzlocal',
-          'pandas'
+          'pandas',
+          'python-dateutil'
       ],
       classifiers=[
           "Development Status :: 3 - Alpha",

@@ -14,3 +14,4 @@ bleak~=0.20.1
 awscli~=1.27.4
 boto3~=1.26.4
 tzlocal~=2.1
+python-dateutil
