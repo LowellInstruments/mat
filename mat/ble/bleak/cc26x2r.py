@@ -169,6 +169,14 @@ class BleCC26X2:    # pragma: no cover
             return 1, ''
         return 0, rv[6:].decode()
 
+    async def cmd_rfn(self):
+        await self._cmd('RFN \r')
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'RFN')
+        if not ok:
+            return 1, ''
+        return 0, rv[6:].decode()
+
     async def cmd_fdg(self):
         await self._cmd('FDG \r')
         rv = await self._ans_wait()
@@ -496,6 +504,13 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('MTS \r')
         rv = await self._ans_wait(timeout=60)
         return 0 if rv == b'MTS 00' else 1
+
+    async def cmd_per(self):
+        await self._cmd('PER \r')
+        rv = await self._ans_wait(timeout=10)
+        if rv and len(rv) == 8:
+            return 0, rv.decode()[6:]
+        return 1, None
 
     async def cmd_sws(self, g):
         # STOP with STRING

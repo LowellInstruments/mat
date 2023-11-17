@@ -57,6 +57,7 @@ def is_cmd_done(tag, ans):
         PRF_TIME_CMD_GET,
         PRF_TIME_EN,
         'BLA',
+        'PER'
     ):
         return _ck(t, a, 8)
 
@@ -83,6 +84,9 @@ def is_cmd_done(tag, ans):
     if t == LOGGER_INFO_CMD:
         n = len(a) if a else 0
         return a and a.startswith(t.encode()) and n in (10, 13)
+
+    if t == 'RFN':
+        return a and a.startswith('RFN'.encode())
 
     if t in(TIME_CMD, 'FDG'):
         return _ck(t, a, 25)

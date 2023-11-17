@@ -1,13 +1,23 @@
 import datetime
 import os
+import sys
 from functools import lru_cache
 from math import ceil, floor
+from pprint import pprint
 
 from dateutil.tz import tzlocal, tzutc
 
 from mat.ascii85 import ascii85_to_num
 from mat.pressure import Pressure
 from mat.temperature import Temperature
+
+
+def _show_bytes(bb: bytes, length: int):
+    for i, b in enumerate(bb):
+        if i % length == 0:
+            print('')
+        print('{:02x} '.format(b), end='')
+    print('')
 
 
 class TAPConverterT:
@@ -194,7 +204,6 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         # ----------------------------------
         da = {}
         print("\tMACRO header \t|  detected")
-        print(f"\tchunk number \t|  #{ic}")
         i += 3
         file_version = b[i]
         print(f"\tfile version \t|  {file_version}")
@@ -265,6 +274,9 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         print(f'{pad}dco = {dco}')
         print(f'{pad}dhu = {dhu}')
 
+        # offset
+        print(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
+
         # fill the dict
         da['header_type'] = 'macro'
         da['file_version'] = file_version
@@ -297,13 +309,12 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
     di = {}
     print('\n')
     print("\tmicro header \t|  detected")
-    print(f"\tchunk number \t|  #{ic}")
     v = b[i: i + 2]
     bat = int.from_bytes(v, "big")
     print("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
     i += 2
     hdr_idx = b[i]
-    print(f"\theader index \t|  {hdr_idx}")
+    print("\theader index \t|  0x{:02x} = {}".format(hdr_idx, hdr_idx))
     i += 1
     # this checks the ECL byte
     n_pad = b[i]
@@ -311,11 +322,14 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
     eff_len = PRF_FILE_CHUNK_SIZE - LEN_MICRO_HEADER - n_pad
     print(f"\tdata length \t|  {eff_len}")
     i += 1
+    print(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
 
     # ---------------------------------------------
     # data bytes are from LEN_MICRO_HEADER onwards
     # ---------------------------------------------
     data_bytes = b[LEN_MICRO_HEADER: LEN_MICRO_HEADER + eff_len]
+
+    _show_bytes(data_bytes, 12)
 
     # fill the dict
     di['header_type'] = 'micro'
@@ -325,8 +339,49 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
     return di
 
 
-def _data_to_csv_n_profile(d, csv_path: str, ma_h) -> dict:
+def _parse_file_lix(filepath):
+    if not filepath.endswith('.lix'):
+        print('error: this is not a lix file')
+        assert False
+
+    # load file input as bytes
+    print("converting file", filepath)
+    with open(filepath, "rb") as fi:
+        # all of them
+        bytes_file = fi.read()
+
+    # calculate variables
+    global _fresh
+    _fresh = True
+    sc = PRF_FILE_CHUNK_SIZE
+    number_of_chunks = ceil(len(bytes_file) / sc)
+    print("file length =", len(bytes_file))
+    print("file chunks =", number_of_chunks)
+    d = dict()
+    d['all_sensor_data'] = bytes()
+
+    # -----------------------
+    # loop chunks in a file
+    # -----------------------
+    for ic in range(number_of_chunks):
+        bytes_chunk = bytes_file[ic * sc: (ic * sc) + sc]
+        # -----------------------
+        # parse chunk header
+        # -----------------------
+        hd = _parse_chunk_type(bytes_chunk, ic)
+        if hd['header_type'] == 'macro':
+            d['macro_header'] = hd
+            _show_bytes(bytes_chunk, 8)
+        if hd['header_type'] == 'micro':
+            d['all_sensor_data'] += hd['data_bytes']
+
+    return d
+
+
+def _create_file_csv(d, lix_path):
+
     # ma_h: macro_header
+    ma_h = d['macro_header']
     data = d['all_sensor_data']
     start_time = ma_h['start_time']
     epoch = _parse_macro_header_start_time_to_seconds(start_time)
@@ -351,8 +406,9 @@ def _data_to_csv_n_profile(d, csv_path: str, ma_h) -> dict:
     tcp = TAPConverterP(gcc_pra, gcc_prb)
 
     # create header of csv_path
+    csv_path = lix_path[:-4] + '_TAP.csv'
     f_csv = open(csv_path, 'w')
-    cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),'\
+    cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
            'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
     f_csv.write(cols)
 
@@ -361,17 +417,14 @@ def _data_to_csv_n_profile(d, csv_path: str, ma_h) -> dict:
     prev_t = ''
     ct = 0
 
-    # separator
-    print('\n\n\n')
-
     for _, i in enumerate(range(0, len(data), len_sample)):
         print(f'\tmeasure number \t|  #{_}')
-        i_ch = floor((_ * 12) / 248) + 1
-        # + 1 for macro_header
-        print(f'\tchunk  in file \t|  #{i_ch}')
-        # print(f'\tchunk  contains\t|  {i_ch * 256} to {(i_ch + 1) * 256}')
-        o_ch = floor((_ * 12) % 248) + 8
-        print(f'\toffset in chunk\t|  {o_ch}')
+        # i_ch = floor((_ * 12) / 248) + 1
+        # # + 1 for macro_header
+        # print(f'\tchunk  in file \t|  #{i_ch}')
+        # # print(f'\tchunk  contains\t|  {i_ch * 256} to {(i_ch + 1) * 256}')
+        # o_ch = floor((_ * 12) % 248) + 8
+        # print(f'\toffset in chunk\t|  {o_ch}')
 
         if _fresh:
             print(f'\tstart is fresh \t|  {_fresh}')
@@ -438,67 +491,22 @@ def _data_to_csv_n_profile(d, csv_path: str, ma_h) -> dict:
     return ds
 
 
-def _convert_lix_file(filepath):
-    if not filepath.endswith('.lix'):
-        print('error: this is not a lix file')
-        assert False
-
-    # load file input as bytes
-    print("converting file", filepath)
-    with open(filepath, "rb") as fi:
-        # all of them
-        bytes_file = fi.read()
-
-    # calculate variables
-    global _fresh
-    _fresh = True
-    sc = PRF_FILE_CHUNK_SIZE
-    number_of_chunks = ceil(len(bytes_file) / sc)
-    print("file length =", len(bytes_file))
-    print("file chunks =", number_of_chunks)
-    d = dict()
-    d['all_sensor_data'] = bytes()
-
-    # -----------------------
-    # loop chunks in a file
-    # -----------------------
-    ma_h = dict()
-    for ic in range(number_of_chunks):
-        bytes_chunk = bytes_file[ic * sc: (ic * sc) + sc]
-        hd = _parse_chunk_type(bytes_chunk, ic)
-        if hd['header_type'] == 'macro':
-            # store macro_header, will use later
-            ma_h = hd
-        if hd['header_type'] == 'micro':
-            d['all_sensor_data'] += hd['data_bytes']
-
-    # build csv file path
-    csv_path = filepath[:-4] + '_TAP.csv'
-
-    # create CSV file and description dictionary
-    dpb = dict()
-    dpb['sensor_data'] = _data_to_csv_n_profile(d, csv_path, ma_h)
-    dpb['gcc_tma'] = gcc_tma
-    dpb['gcc_tmb'] = gcc_tmb
-    dpb['gcc_tmc'] = gcc_tmc
-    dpb['gcc_tmd'] = gcc_tmd
-    dpb['gcc_tmr'] = gcc_tmr
-    dpb['gcc_pra'] = gcc_pra
-    dpb['gcc_prb'] = gcc_prb
-
-    # build profile description file using the dictionary
-    lp = dpb['sensor_data']['sen_p']
-    lt = dpb['sensor_data']['time']
+def _create_file_des(d, csv_path):
+    lp = d['sen_p']
+    lt = d['time']
     desc = prf_describe(lp, lt)
-    desc_path = filepath[:-4] + '.txt'
+    desc_path = csv_path[:-4] + '.txt'
     with open(desc_path, 'w') as ft:
         ft.write(desc)
-    print(desc)
 
 
 def convert_tap_file(path):
     try:
-        _convert_lix_file(path)
+        # d_lix: macro_header + all_data
+        d_lix = _parse_file_lix(path)
+        # d_csv: data by time
+        d_csv = _create_file_csv(d_lix, path)
+        _create_file_des(d_csv, path)
         return 0, ''
     except (Exception, ) as ex:
         print('exception convert_lix_file {}'.format(ex))
