@@ -375,6 +375,16 @@ class BleCC26X2:    # pragma: no cover
             return 0
         return 1
 
+    async def cmd_gwf(self):
+        c, _ = build_cmd('GWF')
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'GWF 0201':
+            return 0, 1
+        if rv == b'GWF 0200':
+            return 0, 0
+        return 1, 0
+
     async def cmd_log(self):
         c, _ = build_cmd(LOG_EN_CMD)
         await self._cmd(c)
