@@ -52,7 +52,7 @@ class TAPConverterP:
 PRF_FILE_CHUNK_SIZE = 256
 LEN_CC_AREA = 5 * 40
 LEN_MICRO_HEADER = 8
-LEN_CONTEXT = 32
+LEN_CONTEXT = 36
 gcc_pra = 0
 gcc_prb = 0
 gcc_tma = 0
@@ -253,16 +253,31 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         n = PRF_FILE_CHUNK_SIZE - LEN_CONTEXT
         c = b[n: n + LEN_CONTEXT]
         print("\tcontext \t\t|  detected")
-        rvn = c[0]
-        pfm = c[1]
-        spn = c[2]
-        pma = c[3]
-        spt = c[4:8].decode()
-        dro = c[8:12].decode()
-        dru = c[12:15].decode()
-        drf = c[15:17].decode()
-        dco = c[17:21].decode()
-        dhu = c[21:24].decode()
+        # these lengths must match the firmware limits for variables
+        i = 0
+        gfv = c[i:i+4]
+        i += 4
+        rvn = c[i]
+        i += 1
+        pfm = c[i]
+        i += 1
+        spn = c[i]
+        i += 1
+        pma = c[i]
+        i += 1
+        spt = c[i:i+4].decode()
+        i += 4
+        dro = c[i:i+4].decode()
+        i += 4
+        dru = c[i:i+3].decode()
+        i += 3
+        drf = c[i:i+2].decode()
+        i += 2
+        dco = c[i:i+4].decode()
+        i += 4
+        dhu = c[i:i+3].decode()
+        i += 3
+        print(f'{pad}gfv = {gfv}')
         print(f'{pad}rvn = {rvn}')
         print(f'{pad}pfm = {pfm}')
         print(f'{pad}spn = {spn}')
@@ -433,6 +448,12 @@ def _create_file_csv(d, lix_path):
         m = data[i: i + 2]
         sm, inc_s = _parse_data_mask(m, ma_h)
         print('{}mk = 0x{:02x}{:02x}'.format(pad, m[0], m[1]))
+
+        # todo ---> remove this in the future
+        if m[0] == 0x92 and m[1] != 0x00:
+            print('error conversion mask')
+            sys.exit(1)
+
         print(f'{pad}{sm}')
 
         # sensor is measurement data

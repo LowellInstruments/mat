@@ -154,6 +154,13 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait(timeout=30)
         return 0 if rv == b'SCF 00' else 1
 
+    async def cmd_ssp(self, v):
+        v = str(v).zfill(5)
+        c, _ = build_cmd('SSP', v)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=5)
+        return 0 if rv == b'SSP 00' else 1
+
     async def cmd_fex(self, s):
         c, _ = build_cmd(FILE_EXISTS_CMD, s)
         await self._cmd(c)

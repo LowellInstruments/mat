@@ -45,6 +45,7 @@ def is_cmd_done(tag, ans):
             SET_CALIBRATION_CMD,
             SET_PRF_CONFIGURATION_CMD,
             DEPLOYMENT_NAME_SET_CMD,
+            'SSP'
     ):
         return _ck(t, a, 6)
 
