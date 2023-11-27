@@ -3,21 +3,27 @@ import os
 import sys
 from functools import lru_cache
 from math import ceil, floor
-from pprint import pprint
-
 from dateutil.tz import tzlocal, tzutc
-
 from mat.ascii85 import ascii85_to_num
 from mat.pressure import Pressure
 from mat.temperature import Temperature
 
 
+g_header_index = 1
+g_verbose = True
+
+
+def _p(s, **kwargs):
+    if g_verbose:
+        print(s, **kwargs)
+
+
 def _show_bytes(bb: bytes, length: int):
     for i, b in enumerate(bb):
         if i % length == 0:
-            print('')
-        print('{:02x} '.format(b), end='')
-    print('')
+            _p('')
+        _p('{:02x} '.format(b), end='')
+    _p('')
 
 
 class TAPConverterT:
@@ -203,27 +209,28 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         # da: dictionary macro-header
         # ----------------------------------
         da = {}
-        print("\tMACRO header \t|  detected")
+        _p("\tMACRO header \t|  detected")
         i += 3
         file_version = b[i]
-        print(f"\tfile version \t|  {file_version}")
+        _p(f"\tfile version \t|  {file_version}")
         i += 1
         # 6 bytes of date YYMMDDHHMMSS
         v = b[i: i + 6]
         start_time = _custom_time(v)
-        print("\tdatetime is   \t|  {}".format(start_time))
+        _p("\tdatetime is   \t|  {}".format(start_time))
         i += 6
         # battery
         v = b[i: i + 2]
         bat = int.from_bytes(v, "big")
-        print("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
+        _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
         i += 2
         hdr_idx = b[i]
-        print(f"\theader index \t|  {hdr_idx}")
+        _p(f"\theader index \t|  {hdr_idx}")
         i += 1
         cc_area = b[i: (i + LEN_CC_AREA)]
-        assert b"00003" == cc_area[:5]
-        print("\tcc_area \t\t|  detected")
+        if b"00003" != cc_area[:5]:
+            return {}
+        _p("\tcc_area \t\t|  detected")
         # nothing to return for macro-header
         n = len(cc_area)
         global gcc_tma
@@ -241,18 +248,18 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         gcc_pra = ascii85_to_num(cc_area[n - 10:n - 10 + 5].decode())
         gcc_prb = ascii85_to_num(cc_area[n - 5:n - 5 + 5].decode())
         pad = '\t\t\t\t\t   '
-        print(f'{pad}tmr = {gcc_tmr}')
-        print(f'{pad}tma = {gcc_tma}')
-        print(f'{pad}tmb = {gcc_tmb}')
-        print(f'{pad}tmc = {gcc_tmc}')
-        print(f'{pad}tmd = {gcc_tmd}')
-        print(f'{pad}pra = {gcc_pra}')
-        print(f'{pad}prb = {gcc_prb}')
+        _p(f'{pad}tmr = {gcc_tmr}')
+        _p(f'{pad}tma = {gcc_tma}')
+        _p(f'{pad}tmb = {gcc_tmb}')
+        _p(f'{pad}tmc = {gcc_tmc}')
+        _p(f'{pad}tmd = {gcc_tmd}')
+        _p(f'{pad}pra = {gcc_pra}')
+        _p(f'{pad}prb = {gcc_prb}')
 
         # the last section of first header is the context
         n = PRF_FILE_CHUNK_SIZE - LEN_CONTEXT
         c = b[n: n + LEN_CONTEXT]
-        print("\tcontext \t\t|  detected")
+        _p("\tcontext \t\t|  detected")
         # these lengths must match the firmware limits for variables
         i = 0
         gfv = c[i:i+4]
@@ -277,20 +284,20 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         i += 4
         dhu = c[i:i+3].decode()
         i += 3
-        print(f'{pad}gfv = {gfv}')
-        print(f'{pad}rvn = {rvn}')
-        print(f'{pad}pfm = {pfm}')
-        print(f'{pad}spn = {spn}')
-        print(f'{pad}pma = {pma}')
-        print(f'{pad}spt = {spt}')
-        print(f'{pad}dro = {dro}')
-        print(f'{pad}dru = {dru}')
-        print(f'{pad}drf = {drf}')
-        print(f'{pad}dco = {dco}')
-        print(f'{pad}dhu = {dhu}')
+        _p(f'{pad}gfv = {gfv}')
+        _p(f'{pad}rvn = {rvn}')
+        _p(f'{pad}pfm = {pfm}')
+        _p(f'{pad}spn = {spn}')
+        _p(f'{pad}pma = {pma}')
+        _p(f'{pad}spt = {spt}')
+        _p(f'{pad}dro = {dro}')
+        _p(f'{pad}dru = {dru}')
+        _p(f'{pad}drf = {drf}')
+        _p(f'{pad}dco = {dco}')
+        _p(f'{pad}dhu = {dhu}')
 
         # offset
-        print(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
+        _p(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
 
         # fill the dict
         da['header_type'] = 'macro'
@@ -322,22 +329,30 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
     # di: dictionary micro-header
     # ----------------------------------
     di = {}
-    print('\n')
-    print("\tmicro header \t|  detected")
+    _p('\n')
+    _p("\tmicro header \t|  detected")
     v = b[i: i + 2]
     bat = int.from_bytes(v, "big")
-    print("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
+    _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
     i += 2
+
+    # check header index
     hdr_idx = b[i]
-    print("\theader index \t|  0x{:02x} = {}".format(hdr_idx, hdr_idx))
+    global g_header_index
+    if g_header_index % 256 != hdr_idx:
+        e = f'warning: g_header_index {g_header_index} does not match hdr_idx {hdr_idx}'
+        _p(e)
+    g_header_index += 1
+    _p("\theader index \t|  0x{:02x} = {}".format(hdr_idx, hdr_idx))
     i += 1
-    # this checks the ECL byte
+
+    # check ECL byte
     n_pad = b[i]
-    print("\tpadding count \t|  0x{:02x} = {}".format(n_pad, n_pad))
+    _p("\tpadding count \t|  0x{:02x} = {}".format(n_pad, n_pad))
     eff_len = PRF_FILE_CHUNK_SIZE - LEN_MICRO_HEADER - n_pad
-    print(f"\tdata length \t|  {eff_len}")
+    _p(f"\tdata length \t|  {eff_len}")
     i += 1
-    print(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
+    _p(f"\toffset \t\t\t|  [{ic * 256} : {(ic * 256) + 256}]")
 
     # ---------------------------------------------
     # data bytes are from LEN_MICRO_HEADER onwards
@@ -355,12 +370,9 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
 
 
 def _parse_file_lix(filepath):
-    if not filepath.endswith('.lix'):
-        print('error: this is not a lix file')
-        assert False
 
     # load file input as bytes
-    print("converting file", filepath)
+    _p(f"converting file {filepath}")
     with open(filepath, "rb") as fi:
         # all of them
         bytes_file = fi.read()
@@ -370,8 +382,8 @@ def _parse_file_lix(filepath):
     _fresh = True
     sc = PRF_FILE_CHUNK_SIZE
     number_of_chunks = ceil(len(bytes_file) / sc)
-    print("file length =", len(bytes_file))
-    print("file chunks =", number_of_chunks)
+    _p(f"file length = {len(bytes_file)}")
+    _p(f"file chunks = {number_of_chunks}")
     d = dict()
     d['all_sensor_data'] = bytes()
 
@@ -384,6 +396,8 @@ def _parse_file_lix(filepath):
         # parse chunk header
         # -----------------------
         hd = _parse_chunk_type(bytes_chunk, ic)
+        if hd == {}:
+            return {}
         if hd['header_type'] == 'macro':
             d['macro_header'] = hd
             _show_bytes(bytes_chunk, 8)
@@ -433,28 +447,28 @@ def _create_file_csv(d, lix_path):
     ct = 0
 
     for _, i in enumerate(range(0, len(data), len_sample)):
-        print(f'\tmeasure number \t|  #{_}')
+        _p(f'\tmeasure number \t|  #{_}')
         # i_ch = floor((_ * 12) / 248) + 1
         # # + 1 for macro_header
-        # print(f'\tchunk  in file \t|  #{i_ch}')
-        # # print(f'\tchunk  contains\t|  {i_ch * 256} to {(i_ch + 1) * 256}')
+        # _p(f'\tchunk  in file \t|  #{i_ch}')
+        # # _p(f'\tchunk  contains\t|  {i_ch * 256} to {(i_ch + 1) * 256}')
         # o_ch = floor((_ * 12) % 248) + 8
-        # print(f'\toffset in chunk\t|  {o_ch}')
+        # _p(f'\toffset in chunk\t|  {o_ch}')
 
         if _fresh:
-            print(f'\tstart is fresh \t|  {_fresh}')
+            _p(f'\tstart is fresh \t|  {_fresh}')
 
         # mask is meta-data
         m = data[i: i + 2]
         sm, inc_s = _parse_data_mask(m, ma_h)
-        print('{}mk = 0x{:02x}{:02x}'.format(pad, m[0], m[1]))
+        _p('{}mk = 0x{:02x}{:02x}'.format(pad, m[0], m[1]))
 
         # todo ---> remove this in the future
         if m[0] == 0x92 and m[1] != 0x00:
-            print('error conversion mask')
+            _p('error conversion mask')
             sys.exit(1)
 
-        print(f'{pad}{sm}')
+        _p(f'{pad}{sm}')
 
         # sensor is measurement data
         sen_t = data[i + 2: i + 4]
@@ -472,13 +486,13 @@ def _create_file_csv(d, lix_path):
         ds['sen_ax'].append(vax)
         ds['sen_ay'].append(vay)
         ds['sen_az'].append(vaz)
-        # print('{}T  = {}'.format(pad, vt))
-        # print('{}P  = {}'.format(pad, vp))
-        # print('{}Ax = {}'.format(pad, vax))
-        # print('{}Ay = {}'.format(pad, vay))
-        # print('{}Az = {}'.format(pad, vaz))
-        # print('{}Tc = {}'.format(pad, tct.convert(vt)))
-        # print('{}Pc = {}'.format(pad, tcp.convert(vp)))
+        # _p('{}T  = {}'.format(pad, vt))
+        # _p('{}P  = {}'.format(pad, vp))
+        # _p('{}Ax = {}'.format(pad, vax))
+        # _p('{}Ay = {}'.format(pad, vay))
+        # _p('{}Az = {}'.format(pad, vaz))
+        # _p('{}Tc = {}'.format(pad, tct.convert(vt)))
+        # _p('{}Pc = {}'.format(pad, tcp.convert(vp)))
 
         # convert to nicer values
         vt = '{:.02f}'.format(tct.convert(vt))
@@ -521,16 +535,25 @@ def _create_file_des(d, csv_path):
         ft.write(desc)
 
 
-def convert_tap_file(path):
+def convert_tap_file(path, verbose=True):
+    global g_header_index
+    g_header_index = 1
+    global g_verbose
+    g_verbose = verbose
+
     try:
         # d_lix: macro_header + all_data
         d_lix = _parse_file_lix(path)
+        if not d_lix:
+            return 1, f'error: converting file {path}'
+
         # d_csv: data by time
         d_csv = _create_file_csv(d_lix, path)
         _create_file_des(d_csv, path)
         return 0, ''
+
     except (Exception, ) as ex:
-        print('exception convert_lix_file {}'.format(ex))
+        _p('exception convert_lix_file {}'.format(ex))
         return 1, str(ex)
 
 
@@ -552,7 +575,7 @@ if __name__ == "__main__":
     if os.path.exists('/tmp/bil_last_file_dl.txt'):
         with open('/tmp/bil_last_file_dl.txt', 'r') as f:
             path_lix_file = f.readline()
-        print('replacing file being read with', path_lix_file)
+        _p(f'replacing file being read with {path_lix_file}')
 
     # just hardcoded
     # dl_fol = "/home/kaz/Downloads/dl_bil/11-22-33-44-55-66/"
