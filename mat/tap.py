@@ -415,7 +415,7 @@ def _create_file_csv(d, lix_path):
     start_time = ma_h['start_time']
     epoch = _parse_macro_header_start_time_to_seconds(start_time)
 
-    # todo ---> mask data length, calculate
+    # todo ---> mask data length, calculate depending on sensor length
     len_mask = 2
     len_data_sensor = 10
     len_sample = len_mask + len_data_sensor
@@ -463,10 +463,8 @@ def _create_file_csv(d, lix_path):
         sm, inc_s = _parse_data_mask(m, ma_h)
         _p('{}mk = 0x{:02x}{:02x}'.format(pad, m[0], m[1]))
 
-        # todo ---> remove this in the future
         if m[0] == 0x92 and m[1] != 0x00:
-            _p('error conversion mask')
-            sys.exit(1)
+            _p('error mask: moving logger cannot have skips')
 
         _p(f'{pad}{sm}')
 
