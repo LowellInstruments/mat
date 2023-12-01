@@ -487,7 +487,7 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_gcc(self):
         await self._cmd('GCC \r')
         rv = await self._ans_wait()
-        n = 40 * 5
+        n = 29 * 5
         ok = rv and len(rv) == n + 6 and rv.startswith(b'GCC')
         if ok:
             return 0, rv.decode()
