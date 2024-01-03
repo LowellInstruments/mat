@@ -1,9 +1,12 @@
 import datetime
 import os
 import sys
+import humanize
 from functools import lru_cache
 from math import ceil, floor
 from dateutil.tz import tzlocal, tzutc
+from humanize import naturaldelta
+
 from mat.ascii85 import ascii85_to_num
 from mat.pressure import Pressure
 from mat.temperature import Temperature
@@ -566,26 +569,83 @@ def convert_tap_file(path, verbose=True):
 # -------
 # tests
 # -------
+# if __name__ == "__main__":
+#     # bread
+#     dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/"
+#     filename = ''
+#     path_lix_file = dl_fol + filename
+#     path_csv_file = path_lix_file[:-4] + '.csv'
+#
+#     # tap 33
+#     # dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-32-6D/"
+#     # filename = "1111133_BIL_20231026_184118.lix"
+#
+#     # set common name
+#     if os.path.exists('/tmp/bil_last_file_dl.txt'):
+#         with open('/tmp/bil_last_file_dl.txt', 'r') as f:
+#             path_lix_file = f.readline()
+#         _p(f'replacing file being read with {path_lix_file}')
+#
+#     # just hardcoded
+#     # dl_fol = "/home/kaz/Downloads/dl_bil/11-22-33-44-55-66/"
+#     # filename = '2305733_BIL_20231102_134623.lix'
+#     # path_lix_file = dl_fol + filename
+#
+#     convert_tap_file(path_lix_file)
+
+
+def prf_detection_steal(lp, lt) -> str:
+
+    # lp: list of pressures
+    # lt: list of times
+    txt = ''
+    txt += '\nprofile hauling detection'
+    txt += '\n---------------------------'
+    vt = lt[0]
+    txt += f'\n{lt[0]} -> start as depth {lp[0]}'
+
+    # out, sub
+    state = None
+    threshold = 10
+    time_out = None
+
+    j = 0
+
+    for i, vp in enumerate(lp):
+
+        # grab values of time
+        vt = lt[i]
+
+        # state FSM
+        prev_state = state
+        state = 'out' if int(float(vp)) < threshold else 'sub'
+        if state == 'out' and prev_state == 'sub':
+            time_out = vt
+        if state == 'sub' and prev_state == 'out':
+            time_sub = vt
+            el = _seconds_between_two_time_str(time_out, time_sub)
+            txt += f'\nhaul detected, duration: {naturaldelta(el)}'
+            txt += f'\n\t- time start: {time_out}'
+            txt += f'\n\t- time end:   {time_sub}'
+            time_out = None
+            j += 1
+
+    # return the whole description
+    txt += '\n'
+    return txt
+
+
 if __name__ == "__main__":
-    # bread
-    dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/"
-    filename = ''
-    path_lix_file = dl_fol + filename
-    path_csv_file = path_lix_file[:-4] + '.csv'
+    dl_fol = "/home/kaz/Downloads/60-77-71-22-ca-21/"
+    filename = dl_fol + "2311733_BIL_20231201_191733_TAP.csv"
 
-    # tap 33
-    # dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-32-6D/"
-    # filename = "1111133_BIL_20231026_184118.lix"
+    lp, lt = [], []
+    with open(filename) as f:
+        ll = f.readlines()
+        ll = ll[1:]
+        for i in ll:
+            lt.append(i.split(',')[0])
+            lp.append(i.split(',')[4])
 
-    # set common name
-    if os.path.exists('/tmp/bil_last_file_dl.txt'):
-        with open('/tmp/bil_last_file_dl.txt', 'r') as f:
-            path_lix_file = f.readline()
-        _p(f'replacing file being read with {path_lix_file}')
-
-    # just hardcoded
-    # dl_fol = "/home/kaz/Downloads/dl_bil/11-22-33-44-55-66/"
-    # filename = '2305733_BIL_20231102_134623.lix'
-    # path_lix_file = dl_fol + filename
-
-    convert_tap_file(path_lix_file)
+    desc = prf_detection_steal(lp, lt)
+    print(desc)
