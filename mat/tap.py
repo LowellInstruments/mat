@@ -16,6 +16,36 @@ g_header_index = 1
 g_verbose = True
 
 
+# ---------------------------------------------------------------
+# the LIX file format, chunks are 256 bytes long
+# chunk #0 is just a macro-header
+#     [    0 .. 2] = file descriptor = "PRF"
+#     [         3] = file version = 1
+#     [    4 .. 9] = epoch = '2023/11/03 18:42:00' = 231103184200
+#     [  10 .. 11] = battery measurement
+#     [        12] = header index = 0 on macro-header
+#                x = CC_AREA_LEN
+#     [13 .. 13+x] = host storage area, length = x, calibration P, T...
+#               y = CONTEXT_LEN
+#     [256-y..223] = fw version "a.b.cd", save as "abcd"
+#     [       224] = rvn
+#     [       225] = pfm
+#     [       226] = spn
+#     [       227] = pma
+#     [228 .. 231] = SPT_us
+#     [232 .. 235] = DRO_us
+#     [236 .. 238] = DRU_us
+#     [239 .. 240] = DRF_us
+#     [241 .. 244] = DCO
+#     [245 .. 247] = DHU
+# other chunks are a micro-header + data
+#         [0 .. 2] = battery measurement
+#         [     3] = header index
+#         [     4] = effective chunk length
+#         [5 .. 7] = seconds since we started
+# ---------------------------------------------------------------
+
+
 def _p(s, **kwargs):
     if g_verbose:
         print(s, **kwargs)
@@ -208,13 +238,17 @@ def _custom_time(b: bytes) -> str:
 def _parse_chunk_type(b: bytes, ic) -> dict:
 
     i = 0
-    if b[:3] == b"PRF":
+
+    # ----------------------------------------
+    # detect TAP logger LIX file macro-header
+    # ----------------------------------------
+    if ic == 0 and b[:3] == b"PRF":
         # ----------------------------------
         # macro header detected
         # da: dictionary macro-header
         # ----------------------------------
         da = {}
-        _p("\tMACRO header \t|  detected")
+        _p("\tMACRO header \t|  logger type TAP")
         i += 3
         file_version = b[i]
         _p(f"\tfile version \t|  {file_version}")
@@ -312,6 +346,7 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
 
         # fill the dict
         da['header_type'] = 'macro'
+        da['logger_type'] = b[:3].decode().lower()
         da['file_version'] = file_version
         da['start_time'] = start_time
         da['battery_level'] = bat
@@ -335,13 +370,21 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         da['dhu'] = dhu
         return da
 
+    # ----------------------------------------
+    # detect TAP logger DO2 file macro-header
+    # ----------------------------------------
+    elif ic == 0 and b[:3] == b"DO2":
+        # todo: do this for DO2 loggers
+        da = {}
+        return da
+
     # ----------------------------------
-    # micro header possible candidate
+    # MICRO header possible candidate
     # di: dictionary micro-header
     # ----------------------------------
     di = {}
     _p('\n')
-    _p("\tmicro header \t|  detected")
+    _p(f"\tmicro header \t|  detected, length {LEN_MICRO_HEADER}")
     v = b[i: i + 2]
     bat = int.from_bytes(v, "big")
     _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
@@ -403,18 +446,19 @@ def _parse_file_lix(filepath):
     # -----------------------
     for ic in range(number_of_chunks):
         bytes_chunk = bytes_file[ic * sc: (ic * sc) + sc]
-        # -----------------------
-        # parse chunk header
-        # -----------------------
-        hd = _parse_chunk_type(bytes_chunk, ic)
-        if hd == {}:
+        # ---------------------------------
+        # parse chunk type: macro or micro
+        # ---------------------------------
+        _ct = _parse_chunk_type(bytes_chunk, ic)
+        if _ct == {}:
             return {}
-        if hd['header_type'] == 'macro':
-            d['macro_header'] = hd
+        if _ct['header_type'] == 'macro':
+            d['macro_header'] = _ct
             _show_bytes(bytes_chunk, 8)
-        if hd['header_type'] == 'micro':
-            d['all_sensor_data'] += hd['data_bytes']
+        if _ct['header_type'] == 'micro':
+            d['all_sensor_data'] += _ct['data_bytes']
 
+    # dictionary with bot header info and all BINARY data
     return d
 
 
@@ -544,21 +588,55 @@ def _create_file_des(d, csv_path):
         ft.write(desc)
 
 
+def _get_logger_type_from_lix_file(d_lix):
+    """
+    converts LIX file label to logger type
+    :param d_lix: dictionary containing LIX header and data
+    :return:
+    """
+    t = d_lix['macro_header']['logger_type']
+    if t == "prf":
+        return "TAP"
+    if t == "do2":
+        return "DO2"
+
+
 def convert_tap_file(path, verbose=True):
+    """
+    function called when wanting to convert a LIX file
+    for example, DDH project calls this function
+    in turns, this function calls:
+        - _parse_file_lix() -> builds dict using file chunks
+        - _create_file_csv() -> uses dict to create CSV file
+    :param path: where is the LIX file
+    :param verbose: show more info about the process
+    :return:
+    """
     global g_header_index
     g_header_index = 1
     global g_verbose
     g_verbose = verbose
 
     try:
-        # d_lix: macro_header + all_data
+        # d_lix: {'macro_header': bytes_macro_header,
+        #         'all_file_data': bytes_file_data}
         d_lix = _parse_file_lix(path)
         if not d_lix:
             return 1, f'error: converting file {path}'
 
-        # d_csv: data by time
-        d_csv = _create_file_csv(d_lix, path)
-        _create_file_des(d_csv, path)
+        lt = _get_logger_type_from_lix_file(d_lix)
+        if not lt:
+            return 1, f'error: converting file {path}, no logger type'
+
+        # parse file according its logger type
+        if lt == "TAP":
+            # d_csv: {time1: data, time2: data, ....}
+            d_csv = _create_file_csv(d_lix, path)
+            _create_file_des(d_csv, path)
+        elif lt == "DO2":
+            pass
+
+        # went well
         return 0, ''
 
     except (Exception, ) as ex:
@@ -569,29 +647,20 @@ def convert_tap_file(path, verbose=True):
 # -------
 # tests
 # -------
-# if __name__ == "__main__":
-#     # bread
-#     dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/"
-#     filename = ''
-#     path_lix_file = dl_fol + filename
-#     path_csv_file = path_lix_file[:-4] + '.csv'
-#
-#     # tap 33
-#     # dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-32-6D/"
-#     # filename = "1111133_BIL_20231026_184118.lix"
-#
-#     # set common name
-#     if os.path.exists('/tmp/bil_last_file_dl.txt'):
-#         with open('/tmp/bil_last_file_dl.txt', 'r') as f:
-#             path_lix_file = f.readline()
-#         _p(f'replacing file being read with {path_lix_file}')
-#
-#     # just hardcoded
-#     # dl_fol = "/home/kaz/Downloads/dl_bil/11-22-33-44-55-66/"
-#     # filename = '2305733_BIL_20231102_134623.lix'
-#     # path_lix_file = dl_fol + filename
-#
-#     convert_tap_file(path_lix_file)
+if __name__ == "__main__":
+    # bread
+    dl_fol = "/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-32-6D/"
+    filename = '2311732_BIL_20231201_161342.lix'
+    path_lix_file = dl_fol + filename
+    path_csv_file = path_lix_file[:-4] + '.csv'
+
+    # set common name
+    # if os.path.exists('/tmp/bil_last_file_dl.txt'):
+    #     with open('/tmp/bil_last_file_dl.txt', 'r') as f:
+    #         path_lix_file = f.readline()
+    #     _p(f'replacing file being read with {path_lix_file}')
+
+    convert_tap_file(path_lix_file)
 
 
 def prf_detection_steal(lp, lt) -> str:
@@ -635,17 +704,17 @@ def prf_detection_steal(lp, lt) -> str:
     return txt
 
 
-if __name__ == "__main__":
-    dl_fol = "/home/kaz/Downloads/60-77-71-22-ca-21/"
-    filename = dl_fol + "2311733_BIL_20231201_191733_TAP.csv"
-
-    lp, lt = [], []
-    with open(filename) as f:
-        ll = f.readlines()
-        ll = ll[1:]
-        for i in ll:
-            lt.append(i.split(',')[0])
-            lp.append(i.split(',')[4])
-
-    desc = prf_detection_steal(lp, lt)
-    print(desc)
+# if __name__ == "__main__":
+#     dl_fol = "/home/kaz/Downloads/60-77-71-22-ca-21/"
+#     filename = dl_fol + "2311733_BIL_20231201_191733_TAP.csv"
+#
+#     _lp, _lt = [], []
+#     with open(filename) as f:
+#         ll = f.readlines()
+#         ll = ll[1:]
+#         for i in ll:
+#             _lt.append(i.split(',')[0])
+#             _lp.append(i.split(',')[4])
+#
+#     desc = prf_detection_steal(_lp, _lt)
+#     print(desc)
