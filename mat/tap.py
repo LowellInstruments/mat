@@ -270,7 +270,11 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         if b"00003" != cc_area[:5]:
             return {}
         _p("\tcc_area \t\t|  detected")
-        # nothing to return for macro-header
+
+        # -------------------------------
+        # HSA embedded in macro-header
+        # must match firmware hsa.h
+        # -------------------------------
         n = len(cc_area)
         global gcc_tma
         global gcc_tmb
@@ -286,10 +290,10 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         gcc_tmb = ascii85_to_num(cc_area[20:25].decode())
         gcc_tmc = ascii85_to_num(cc_area[25:30].decode())
         gcc_tmd = ascii85_to_num(cc_area[30:35].decode())
-        gcc_pra = ascii85_to_num(cc_area[n - 20:n - 20 + 5].decode())
-        gcc_prb = ascii85_to_num(cc_area[n - 15:n - 15 + 5].decode())
-        gcc_prc = ascii85_to_num(cc_area[n - 10:n - 10 + 5].decode())
-        gcc_prd = ascii85_to_num(cc_area[n - 5:n - 5 + 5].decode())
+        gcc_pra = ascii85_to_num(cc_area[n - 20:n - 15].decode())
+        gcc_prb = ascii85_to_num(cc_area[n - 15:n - 10].decode())
+        # gcc_prc = ascii85_to_num(cc_area[n - 10:n - 5].decode())
+        # gcc_prd = ascii85_to_num(cc_area[n - 5:].decode())
         pad = '\t\t\t\t\t   '
         _p(f'{pad}tmr = {gcc_tmr}')
         _p(f'{pad}tma = {gcc_tma}')
@@ -298,8 +302,8 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         _p(f'{pad}tmd = {gcc_tmd}')
         _p(f'{pad}pra = {gcc_pra}')
         _p(f'{pad}prb = {gcc_prb}')
-        _p(f'{pad}prc = {gcc_prc}')
-        _p(f'{pad}prd = {gcc_prd}')
+        # _p(f'{pad}prc = {gcc_prc}')
+        # _p(f'{pad}prd = {gcc_prd}')
 
         # the last section of first header is the context
         n = PRF_FILE_CHUNK_SIZE - LEN_CONTEXT
@@ -358,6 +362,8 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
         da['gcc_tmd'] = gcc_tmd
         da['gcc_pra'] = gcc_pra
         da['gcc_prb'] = gcc_prb
+        # da['gcc_prc'] = gcc_prc
+        # da['gcc_prd'] = gcc_prd
         da['rvn'] = rvn
         da['pfm'] = pfm
         da['spn'] = spn
@@ -547,7 +553,9 @@ def _create_file_csv(d, lix_path):
         # _p('{}Tc = {}'.format(pad, tct.convert(vt)))
         # _p('{}Pc = {}'.format(pad, tcp.convert(vp)))
 
-        # convert to nicer values
+        # -------------------------------------------------
+        # use MAT library to get friendlier values for CSV
+        # -------------------------------------------------
         vt = '{:.02f}'.format(tct.convert(vt))
         vp = '{:.02f}'.format(tcp.convert(vp)[0])
 
