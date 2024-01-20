@@ -38,6 +38,7 @@ class ParserLixFile:
         yb = self.bb[self.i + UHS: self.i + UHS + self.ny]
         # use current sensor mask to parse carry bytes
         print(yb)
+        # no index update here but at _parse_one_chunk()
 
     def _parse_one_chunk(self):
         # todo ---> parse micro_header
@@ -51,6 +52,9 @@ class ParserLixFile:
         self.nm += 1
         # todo --> set number of carry bytes
         self.ny = 0
+
+        # update index
+        self.i += CS
 
     def _parse_macro_header(self):
         ab = self.bb[:CS]
