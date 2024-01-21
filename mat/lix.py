@@ -1,25 +1,36 @@
+from collections import namedtuple
 from math import ceil
 
 # chunk size
 CS = 256
 # micro-header size
 UHS = 8
+# flag debug
+debug = 1
 
 
 class ParserLixFile:
     def __init__(self):
         self.path = None
+        # all file bytes
         self.bb = bytes()
         # sm: sensor mask
         self.sm = None
-        # lm: length of measurement
-        self.lm = 0
-        # nm: number of measurement
-        self.nm = 0
-        # i: index to iterate bytes
+        # i: index bytes
         self.i = 0
-        # ny: number of carry bytes
-        self.ny = 0
+        # named tuple macro-header
+        self.mah = namedtuple("MacroHeader",
+                              "logger_type "
+                              "sm")
+        # dictionary measurements
+        self.d_measurements = None
+        # dictionary micro-headers
+        self.d_mih = None
+
+    def _parse_macro_header(self):
+        mah = self.bb[:CS]
+        # update index
+        self.i += CS
 
     def parse_lix_file(self, p):
         self.path = p
@@ -27,43 +38,41 @@ class ParserLixFile:
             self.bb = f.read()
         self._parse_macro_header()
         assert self.sm
-        self._parse_all_chunks()
+        self._parse_data()
 
-    def _parse_all_chunks(self):
-        for i in range(ceil(len(self.bb) / CS)):
-            self._parse_carry()
-            self._parse_one_chunk()
+    def _parse_data(self):
+        if debug:
+            db = b'0' * CS
+            db += b'1' * UHS
+            db += b'2' * (CS - UHS)
+            db += b'3' * UHS
+            db += b'4' * (CS - UHS)
+            self.bb = db
 
-    def _parse_carry(self):
-        yb = self.bb[self.i + UHS: self.i + UHS + self.ny]
-        # use current sensor mask to parse carry bytes
-        print(yb)
-        # no index update here but at _parse_one_chunk()
+        # skip macro-header
+        data = self.bb[CS:]
+        measurements = bytes()
+        micro_headers = bytes()
+        n = ceil(len(data) / CS)
+        for i in range(0, CS * n, CS):
+            measurements += data[i+UHS:i+CS]
+            micro_headers += data[i:i+UHS]
 
-    def _parse_one_chunk(self):
-        # todo ---> parse micro_header
-        ub = self.bb[self.i: self.i + UHS]
+        print(len(measurements), measurements)
+        print(len(micro_headers), micro_headers)
 
-        # db: data bytes, parse according sensor mask
-        # todo --> parse data bytes
-        db = self.bb[self.i + UHS + self.ny: self.i + CS]
+        # build dictionary measurements
+        self.d_measurements = dict()
+        while 1:
+            # measurements are of variable length
+            break
 
-        # increase the global number of measurements
-        self.nm += 1
-        # todo --> set number of carry bytes
-        self.ny = 0
+        # build dictionary micro_headers
+        self.d_mih = dict()
+        for i in range(0, UHS, len(micro_headers)):
+            pass
 
-        # update index
-        self.i += CS
 
-    def _parse_macro_header(self):
-        ab = self.bb[:CS]
-        # get length of first measurement from macro-header
-        self.lm = 6969
-        # update index
-        self.i += CS
-
-    def _calc_measurement_length(self):
-        # todo: do this based on sensor mask lm
-        return 10
-
+if __name__ == '__main__':
+    p = ParserLixFile()
+    p._parse_data()
