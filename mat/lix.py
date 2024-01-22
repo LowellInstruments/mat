@@ -1,40 +1,183 @@
 from collections import namedtuple
 from math import ceil
+from mat.ascii85 import ascii85_to_num
+
+# debug
+g_verbose = True
 
 # chunk size
 CS = 256
 # micro-header size
 UHS = 8
 # flag debug
-debug = 1
+debug = 0
+# lengths
+LEN_CC_AREA = 29 * 5
+LEN_CF_AREA = 13 * 5
+LEN_CONTEXT = 64
+
+
+def _p(s, **kwargs):
+    if g_verbose:
+        print(s, **kwargs)
+
+
+def _show_bytes(bb: bytes, length: int):
+    for i, b in enumerate(bb):
+        if i % length == 0:
+            _p('')
+        _p('{:02x} '.format(b), end='')
+    _p('')
+
+
+def _custom_time(b: bytes) -> str:
+    s = ''
+    for v in b:
+        high = (v & 0xf0) >> 4
+        low = (v & 0x0f) >> 0
+        s += f'{high}{low}'
+    return s
+
+
+# ---------------------------------------------------------------
+# the LIX file format, chunks are 256 bytes long
+# chunk #0 is just a macro-header
+#     [    0 .. 2] = file descriptor = "PRF"
+#     [         3] = file version = 1
+#     [    4 .. 9] = epoch = '2023/11/03 18:42:00' = 231103184200
+#     [  10 .. 11] = battery measurement
+#     [        12] = header index = 0 on macro-header
+#                x = CC_AREA_LEN
+#     [13 .. 13+x] = host storage area, length = x, calibration P, T...
+#               y = CONTEXT_LEN
+#     [256-y..223] = fw version "a.b.cd", save as "abcd"
+#     [       224] = rvn
+#     [       225] = pfm
+#     [       226] = spn
+#     [       227] = pma
+#     [228 .. 231] = SPT_us
+#     [232 .. 235] = DRO_us
+#     [236 .. 238] = DRU_us
+#     [239 .. 240] = DRF_us
+#     [241 .. 244] = DCO
+#     [245 .. 247] = DHU
+# other chunks are a micro-header + data
+#         [0 .. 2] = battery measurement
+#         [     3] = header index
+#         [     4] = effective chunk length
+#         [5 .. 7] = seconds since we started
+# ---------------------------------------------------------------
 
 
 class ParserLixFile:
-    def __init__(self):
-        self.path = None
+    def __init__(self, filepath):
+        self.debug = debug
+        self.path = filepath
         # all file bytes
         self.bb = bytes()
         # sm: sensor mask
         self.sm = None
         # named tuple macro-header
         self.mah = namedtuple("MacroHeader",
+                              "bytes "
                               "logger_type "
-                              "sm")
+                              "file_version "
+                              "timestamp "
+                              "battery "
+                              "hdr_idx "
+                              "cc_area "
+                              "context"
+                              )
         # dictionary measurements
         self.d_measurements = dict()
         # dictionary micro-headers
         self.d_mih = dict()
 
     def _parse_macro_header(self):
-        mah = self.bb[:CS]
+        self.mah.bytes = self.bb[:CS]
+        bb = self.mah.bytes
+        # todo ---> unhardcode this
+        self.mah.logger_type = bb[:3]
+        self.mah.file_version = bb[3]
+        self.mah.timestamp = bb[4:10]
+        self.mah.battery = bb[10:12]
+        self.mah.hdr_idx = bb[12]
+        # HSA macro-header must match firmware hsa.h
+        i_mah = 13
+        self.mah.cc_area = bb[i_mah: i_mah + LEN_CC_AREA]
+        # context
+        i = CS - LEN_CONTEXT
+        self.mah.context = bb[i:]
+        gfv = bb[i:i+4]
+        i += 4
+        rvn = bb[i]
+        i += 1
+        pfm = bb[i]
+        i += 1
+        spn = bb[i]
+        i += 1
+        pma = bb[i]
+        i += 1
+        spt = bb[i:i + 5].decode()
+        i += 5
+        dro = bb[i:i + 5].decode()
+        i += 5
+        dru = bb[i:i + 5].decode()
+        i += 5
+        drf = bb[i:i + 2].decode()
+        i += 2
+        dco = bb[i:i + 5].decode()
+        i += 5
+        dhu = bb[i:i + 3].decode()
+        i += 3
+        psm = bb[i:i + 5].decode()
 
-    def parse_lix_file(self, p):
-        self.path = p
-        with open(self.path, 'rb') as f:
-            self.bb = f.read()
-        self._parse_macro_header()
-        assert self.sm
-        self._parse_data()
+        # display all this info
+        _p(f"\tMACRO header \t|  logger type {self.mah.logger_type.decode()}")
+        _p(f"\tfile version \t|  {self.mah.file_version}")
+        start_time = _custom_time(self.mah.timestamp)
+        _p("\tdatetime is   \t|  {}".format(start_time))
+        bat = int.from_bytes(self.mah.battery, "big")
+        _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
+        _p(f"\theader index \t|  {self.mah.hdr_idx}")
+        n = LEN_CC_AREA
+        if b"00003" != self.mah.cc_area[:5]:
+            return {}
+        _p("\tcc_area \t\t|  detected")
+        pad = '\t\t\t\t\t   '
+        _p(f'{pad}tmr = {ascii85_to_num(self.mah.cc_area[10:15].decode())}')
+        _p(f'{pad}tma = {ascii85_to_num(self.mah.cc_area[15:20].decode())}')
+        _p(f'{pad}tmb = {ascii85_to_num(self.mah.cc_area[20:25].decode())}')
+        _p(f'{pad}tmc = {ascii85_to_num(self.mah.cc_area[25:30].decode())}')
+        _p(f'{pad}tmd = {ascii85_to_num(self.mah.cc_area[30:35].decode())}')
+        _p(f'{pad}pra = {ascii85_to_num(self.mah.cc_area[n-20:n-15].decode())}')
+        _p(f'{pad}prb = {ascii85_to_num(self.mah.cc_area[n-15:n-10].decode())}')
+        _p(f'{pad}prc = {ascii85_to_num(self.mah.cc_area[n-10:n-5].decode())}')
+        _p(f'{pad}prd = {ascii85_to_num(self.mah.cc_area[n-5:].decode())}')
+        _p("\tcontext \t\t|  detected")
+        _p(f'{pad}gfv = {gfv}')
+        _p(f'{pad}rvn = {rvn}')
+        _p(f'{pad}pfm = {pfm}')
+        _p(f'{pad}spn = {spn}')
+        _p(f'{pad}pma = {pma}')
+        _p(f'{pad}spt = {spt}')
+        _p(f'{pad}dro = {dro}')
+        _p(f'{pad}dru = {dru}')
+        _p(f'{pad}drf = {drf}')
+        _p(f'{pad}dco = {dco}')
+        _p(f'{pad}dhu = {dhu}')
+        _p(f'{pad}psm = {psm}')
+
+    def convert_lix_file(self):
+        try:
+            assert self.path
+            with open(self.path, 'rb') as f:
+                self.bb = f.read()
+            self._parse_macro_header()
+            self._parse_data()
+        except (Exception, ) as ex:
+            print(f'error: parse_lix_file ex -> {ex}')
+            return 1
 
     def _parse_data_mih(self, mi, i):
         # 2B battery, 1B header index % 255,
@@ -46,36 +189,44 @@ class ParserLixFile:
         self.d_mih[t] = 'bat, idx, ECL'
 
     def _parse_data_measurement(self, mm, i):
+        print('i', i)
         mk = (mm[i] & 0xc0) >> 6
+        self.sm = None
         if mk == 0:
             # no sensor mask, time simple
             t = mm[i] & 0x3F
             i += 1
+            print('ts 0x{:02x}'.format(t))
         elif mk == 1:
             # no sensor mask, time extended
             t = (mm[i] & 0x3F) << 8
             t += mm[i+1]
             i += 2
+            print('te 0x{:04x}'.format(t))
         elif mk == 2:
             # yes sensor mask, time simple
             self.sm = mm[i] & 0x3F
             t = mm[i+1]
             i += 2
+            print('sm 0x{:02x} ts 0x{:02x}'.format(self.sm, t))
         else:
             # yes sensor mask, time extended
             self.sm = mm[i] & 0x3F
             t = (mm[i] & 0x3F) << 8
             t += mm[i+1]
             i += 3
+            print('sm 0x{:02x} te 0x{:04x}'.format(self.sm, t))
 
         # get measurement length from sensor mask
-        n = 6
-        self.d_measurements[t] = 'sensor1, sensor2, sensor3'
-        i += n
-        return i
+        if self.mah.logger_type.decode() == "PRF":
+            n = 10
+        else:
+            assert False
+        self.d_measurements[t] = mm[i:i+n]
+        return i + n
 
     def _parse_data(self):
-        if debug:
+        if self.debug:
             db = b'0' * CS
             db += b'1' * UHS
             db += b'2' * (CS - UHS)
@@ -97,17 +248,19 @@ class ParserLixFile:
         while 1:
             try:
                 # measurements have variable length
-                i += self._parse_data_measurement(measurements, i)
+                i = self._parse_data_measurement(measurements, i)
+                # todo ---> detect end of
             except IndexError:
                 break
 
         # build dictionary micro_headers
-        for i in range(0, UHS, len(micro_headers)):
-            self._parse_data_mih(micro_headers, i)
+        # for i in range(0, UHS, len(micro_headers)):
+        #     self._parse_data_mih(micro_headers, i)
 
         # maybe fusion both dictionaries here
 
 
 if __name__ == '__main__':
-    plf = ParserLixFile()
-    plf._parse_data()
+    p = '/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/9999999_BIL_20240122_193222.lix'
+    plf = ParserLixFile(p)
+    plf.convert_lix_file()
