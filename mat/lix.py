@@ -62,10 +62,10 @@ def _custom_time(b: bytes) -> str:
 #     [241 .. 244] = DCO
 #     [245 .. 247] = DHU
 # other chunks are a micro-header + data
-#         [0 .. 2] = battery measurement
-#         [     3] = header index
-#         [     4] = effective chunk length
-#         [5 .. 7] = seconds since we started
+#         [0 .. 1] = battery measurement
+#         [     2] = header index
+#         [     3] = effective chunk length
+#         [4 .. 7] = seconds since we started
 # ---------------------------------------------------------------
 
 
@@ -234,6 +234,9 @@ class ParserLixFile:
             db += b'4' * (CS - UHS)
             self.bb = db
 
+        # file size is at least one macro-header
+        file_size = CS
+
         # skip macro-header
         data = self.bb[CS:]
         measurements = bytes()
@@ -242,16 +245,21 @@ class ParserLixFile:
         for i in range(0, CS * n, CS):
             measurements += data[i+UHS:i+CS]
             micro_headers += data[i:i+UHS]
+            file_size += data[i+3]
+            print(data[i:i+UHS])
+
+        # display file_size
+        print('file_size', file_size)
 
         # build dictionary measurements
-        i = 0
-        while 1:
-            try:
-                # measurements have variable length
-                i = self._parse_data_measurement(measurements, i)
-                # todo ---> detect end of
-            except IndexError:
-                break
+        # i = 0
+        # while 1:
+        #     try:
+        #         # measurements have variable length
+        #         i = self._parse_data_measurement(measurements, i)
+        #         # todo ---> detect end of
+        #     except IndexError:
+        #         break
 
         # build dictionary micro_headers
         # for i in range(0, UHS, len(micro_headers)):
@@ -261,6 +269,6 @@ class ParserLixFile:
 
 
 if __name__ == '__main__':
-    p = '/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/9999999_BIL_20240122_193222.lix'
+    p = '/home/kaz/Downloads/dl_bil/9999999_BIL_20240122_195627.lix'
     plf = ParserLixFile(p)
     plf.convert_lix_file()
