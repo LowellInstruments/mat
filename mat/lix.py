@@ -286,11 +286,11 @@ class ParserLixFile:
         if self.mah.file_type.decode() in ("PRF", "TDO"):
             # todo -> get measurement length from sensor mask
             n = 10
-            sen_t = mm[i + 2: i + 4]
-            sen_p = mm[i + 4: i + 6]
-            sen_ax = mm[i + 6: i + 8]
-            sen_ay = mm[i + 8: i + 10]
-            sen_az = mm[i + 10: i + 12]
+            sen_t = mm[i + 0: i + 2]
+            sen_p = mm[i + 2: i + 4]
+            sen_ax = mm[i + 4: i + 6]
+            sen_ay = mm[i + 6: i + 8]
+            sen_az = mm[i + 8: i + n]
             vt = _decode_sensor_measurement('T', sen_t)
             vp = _decode_sensor_measurement('P', sen_p)
             vax = _decode_sensor_measurement('Ax', sen_ax)
