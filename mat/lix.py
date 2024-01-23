@@ -1,3 +1,4 @@
+import time
 from collections import namedtuple
 from math import ceil
 from mat.ascii85 import ascii85_to_num
@@ -39,10 +40,28 @@ def _custom_time(b: bytes) -> str:
     return s
 
 
+def _decode_sensor_measurement(s, x):
+    # x: b'\xff\xeb'
+    # s: 'T', 'P', 'Ax'...
+    def _c2_to_decimal(n):
+        if not (n & 0x8000):
+            # detect positive numbers
+            return n
+        c2 = (-1) * (65535 + 1 - n)
+        return c2
+
+    # big endian to int
+    v = int.from_bytes(x, "big")
+    if 'A' in s:
+        # v: 65515
+        v = _c2_to_decimal(v)
+    return v
+
+
 # ---------------------------------------------------------------
 # the LIX file format, chunks are 256 bytes long
 # chunk #0 is just a macro-header
-#     [    0 .. 2] = file descriptor = "PRF"
+#     [    0 .. 2] = file descriptor = "TDO"
 #     [         3] = file version = 1
 #     [    4 .. 9] = epoch = '2023/11/03 18:42:00' = 231103184200
 #     [  10 .. 11] = battery measurement
@@ -70,17 +89,22 @@ def _custom_time(b: bytes) -> str:
 
 
 class ParserLixFile:
-    def __init__(self, filepath):
+    def __init__(self, file_path):
         self.debug = debug
-        self.path = filepath
+        self.file_path = file_path
         # all file bytes
         self.bb = bytes()
+        # meta-data calculated at beginning
+        self.file_size = 0
+        self.measurements_length = 0
+        self.micro_headers_length = 0
+        self.measurement_number = 0
         # sm: sensor mask
         self.sm = None
         # named tuple macro-header
         self.mah = namedtuple("MacroHeader",
                               "bytes "
-                              "logger_type "
+                              "file_type "
                               "file_version "
                               "timestamp "
                               "battery "
@@ -97,7 +121,7 @@ class ParserLixFile:
         self.mah.bytes = self.bb[:CS]
         bb = self.mah.bytes
         # todo ---> unhardcode this
-        self.mah.logger_type = bb[:3]
+        self.mah.file_type = bb[:3]
         self.mah.file_version = bb[3]
         self.mah.timestamp = bb[4:10]
         self.mah.battery = bb[10:12]
@@ -133,7 +157,7 @@ class ParserLixFile:
         psm = bb[i:i + 5].decode()
 
         # display all this info
-        _p(f"\tMACRO header \t|  logger type {self.mah.logger_type.decode()}")
+        _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
         _p(f"\tfile version \t|  {self.mah.file_version}")
         start_time = _custom_time(self.mah.timestamp)
         _p("\tdatetime is   \t|  {}".format(start_time))
@@ -168,11 +192,39 @@ class ParserLixFile:
         _p(f'{pad}dhu = {dhu}')
         _p(f'{pad}psm = {psm}')
 
+    def _parse_file_info(self):
+        # calculate number of file chunks
+        n = ceil(len(self.bb) / CS)
+
+        # file_size: remove last chunk contribution
+        file_size = (n - 1) * CS
+        # file_size: calculate last chunk contribution
+        last_ecl = CS - self.bb[-CS:][3]
+        self.file_size = file_size + last_ecl
+
+        # measurements length: remove first and last chunk contribution
+        self.measurements_length = (n - 2) * (CS - UHS)
+        self.measurements_length += (last_ecl - UHS)
+
+        # micro_headers length calculation
+        self.micro_headers_length = (n - 1) * UHS
+
+        # display file info
+        print(f'\nconverting LIX file...')
+        print(f'- file_name {self.file_path}')
+        print(f'- file_size  {self.file_size}')
+        print(f'- macro_header_length {CS}')
+        print(f'- measurements_length {self.measurements_length}')
+        print(f'- micro_headers_length {self.micro_headers_length}')
+        calc_fs = CS + self.measurements_length + self.micro_headers_length
+        assert self.file_size == calc_fs
+
     def convert_lix_file(self):
         try:
-            assert self.path
-            with open(self.path, 'rb') as f:
+            assert self.file_path
+            with open(self.file_path, 'rb') as f:
                 self.bb = f.read()
+            self._parse_file_info()
             self._parse_macro_header()
             self._parse_data()
         except (Exception, ) as ex:
@@ -182,47 +234,81 @@ class ParserLixFile:
     def _parse_data_mih(self, mi, i):
         # 2B battery, 1B header index % 255,
         # 1B ECL, 4B epoch
-        bat = mi[:i+2]
+        bat = int.from_bytes(mi[:i+2], "big")
         idx = mi[i+2]
         ecl = mi[i+3]
-        t = mi[i+4:i+8]
-        self.d_mih[t] = 'bat, idx, ECL'
+        rt = int.from_bytes(mi[i+4:i+8], "big")
+        _p(f"\n\tMICRO header \t|  detected")
+        _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
+        _p("\theader index  \t|  0x{:02x} = {}".format(idx, idx))
+        _p("\tpadding count \t|  0x{:02x} = {}".format(ecl, ecl))
+        _p("\trelative time \t|  0x{:08x} = {}".format(rt, rt))
+        self.d_mih[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     def _parse_data_measurement(self, mm, i):
-        print('i', i)
+        _p(f"\n\t measurement\t|  detected")
         mk = (mm[i] & 0xc0) >> 6
         self.sm = None
         if mk == 0:
             # no sensor mask, time simple
             t = mm[i] & 0x3F
             i += 1
-            print('ts 0x{:02x}'.format(t))
+            s = 'ts 0x{:02x}'.format(t)
         elif mk == 1:
             # no sensor mask, time extended
             t = (mm[i] & 0x3F) << 8
             t += mm[i+1]
             i += 2
-            print('te 0x{:04x}'.format(t))
+            s = 'te 0x{:04x}'.format(t)
         elif mk == 2:
             # yes sensor mask, time simple
             self.sm = mm[i] & 0x3F
             t = mm[i+1]
             i += 2
-            print('sm 0x{:02x} ts 0x{:02x}'.format(self.sm, t))
+            s = 'sm 0x{:02x} ts 0x{:02x}'.format(self.sm, t)
         else:
             # yes sensor mask, time extended
             self.sm = mm[i] & 0x3F
             t = (mm[i] & 0x3F) << 8
             t += mm[i+1]
             i += 3
-            print('sm 0x{:02x} te 0x{:04x}'.format(self.sm, t))
+            s = 'sm 0x{:02x} te 0x{:04x}'.format(self.sm, t)
 
-        # get measurement length from sensor mask
-        if self.mah.logger_type.decode() == "PRF":
+        # display mask
+        _p(f'\t      number\t|  {self.measurement_number}')
+        _p(f'\tmask sm_time\t|  {s}')
+
+        # in case of extended time
+        # todo ---> test this
+        if type(t) is bytes:
+            t = int.from_bytes(t, "big")
+
+        if self.mah.file_type.decode() in ("PRF", "TDO"):
+            # todo -> get measurement length from sensor mask
             n = 10
+            sen_t = mm[i + 2: i + 4]
+            sen_p = mm[i + 4: i + 6]
+            sen_ax = mm[i + 6: i + 8]
+            sen_ay = mm[i + 8: i + 10]
+            sen_az = mm[i + 10: i + 12]
+            vt = _decode_sensor_measurement('T', sen_t)
+            vp = _decode_sensor_measurement('P', sen_p)
+            vax = _decode_sensor_measurement('Ax', sen_ax)
+            vay = _decode_sensor_measurement('Ay', sen_ay)
+            vaz = _decode_sensor_measurement('Az', sen_az)
+
+            # build dictionary
+            s = f'{vt},{vp},{vax},{vay},{vaz}'
+            self.d_measurements[t] = s
+            _p(f'\tdecoded data\t|  {s}')
+
         else:
             assert False
-        self.d_measurements[t] = mm[i:i+n]
+
+        # keep track of how many we decoded
+        self.measurement_number += 1
+
+        # return current index of measurements array
         return i + n
 
     def _parse_data(self):
@@ -234,36 +320,28 @@ class ParserLixFile:
             db += b'4' * (CS - UHS)
             self.bb = db
 
-        # file size is at least one macro-header
-        file_size = CS
-
         # skip macro-header
         data = self.bb[CS:]
         measurements = bytes()
         micro_headers = bytes()
+
+        # n: number of chunks, iterate them to build byte arrays
         n = ceil(len(data) / CS)
         for i in range(0, CS * n, CS):
             measurements += data[i+UHS:i+CS]
             micro_headers += data[i:i+UHS]
-            file_size += data[i+3]
-            print(data[i:i+UHS])
-
-        # display file_size
-        print('file_size', file_size)
-
-        # build dictionary measurements
-        # i = 0
-        # while 1:
-        #     try:
-        #         # measurements have variable length
-        #         i = self._parse_data_measurement(measurements, i)
-        #         # todo ---> detect end of
-        #     except IndexError:
-        #         break
 
         # build dictionary micro_headers
-        # for i in range(0, UHS, len(micro_headers)):
-        #     self._parse_data_mih(micro_headers, i)
+        for i in range(0, UHS, len(micro_headers)):
+            self._parse_data_mih(micro_headers, i)
+
+        # build dictionary of variable-length measurements
+        i = 0
+        while i < self.measurements_length:
+            i = self._parse_data_measurement(measurements, i)
+
+        # debug
+        # print(self.d_measurements)
 
         # maybe fusion both dictionaries here
 
