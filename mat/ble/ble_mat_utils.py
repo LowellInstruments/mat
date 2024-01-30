@@ -164,7 +164,7 @@ def ble_mat_disconnect_all_devices_ll():
         if _ == b'':
             continue
         lg_type = _.split(b' ')[2]
-        if lg_type not in (b'DO-1', b'DO-2', b'TAP1'):
+        if lg_type not in (b'DO-1', b'DO-2', b'TAP1', b'TDO'):
             continue
         mac = _.split(b' ')[1]
         print('auto-disconnecting mac {}'.format(mac))
