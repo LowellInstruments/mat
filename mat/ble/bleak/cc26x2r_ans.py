@@ -109,6 +109,9 @@ def is_cmd_done(tag, ans):
     if t == DEPLOYMENT_NAME_GET_CMD:
         return a and len(a) == 9
 
+    if t == 'XOD':
+        return _ck(t, a, 10)
+
     if t == 'GWC':
         return a and len(a) in (9, 10, 12, 16)
 

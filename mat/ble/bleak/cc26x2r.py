@@ -103,6 +103,14 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait()
         return 0 if rv == b'STM 00' else 1
 
+    async def cmd_xod(self):
+        # detect logger works with liX or liD files
+        await self._cmd('XOD \r')
+        rv = await self._ans_wait()
+        # rv: b'XOD 04.LIX'
+        ok = rv and rv.endswith(b'.LIX')
+        return 0 if ok else 1
+
     async def cmd_fds(self):
         """
         stands for firs Deployment Set
