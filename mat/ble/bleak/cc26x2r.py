@@ -301,6 +301,24 @@ class BleCC26X2:    # pragma: no cover
             if dos.isnumeric():
                 return dos, dop, dot
 
+    async def cmd_gdx(self):
+        c, _ = build_cmd('GDX')
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # rv: b'GDX -0.03, -0.41, 17.30'
+        ok = rv and len(rv) == 23 and rv.startswith(b'GDX')
+        if not ok:
+            return
+        a = rv
+        if a and len(a.split()) == 4:
+            # a: b'GDO 0c112233445566'
+            _ = a.split()
+            dos = _[1].decode()
+            dop = _[2].decode()
+            dot = _[3].decode()
+            return dos, dop, dot
+
+
     async def cmd_gsp(self):
         c, _ = build_cmd(PRESSURE_SENSOR_CMD)
         await self._cmd(c)
