@@ -3,23 +3,21 @@ import traceback
 from abc import abstractmethod, ABC
 from collections import namedtuple
 from math import ceil
-from mat.ascii85 import ascii85_to_num
-from mat.pressure import Pressure
-from mat.temperature import Temperature
-from functools import lru_cache
+from mat.lix_dox import ParserLixDoxFile
+from mat.lix_tdo import ParserLixTdoFile
 from dateutil.tz import tzlocal, tzutc
 import datetime
+from datetime import timezone
 
 
 # debug
 g_verbose = True
-
-# chunk size
-CS = 256
-# micro-header size
-UHS = 8
-# flag debug
 debug = 0
+
+# chunk and micro-header sizes
+CS = 256
+UHS = 8
+
 # lengths
 LEN_CC_AREA = 29 * 5
 LEN_CF_AREA = 13 * 5
@@ -39,13 +37,28 @@ def _show_bytes(bb: bytes, length: int):
     _p('')
 
 
-def _custom_time(b: bytes) -> str:
+def _mah_time_to_str(b: bytes) -> str:
+    # b: b'\x24\x01\x31\x12\x34\x56'
     s = ''
     for v in b:
         high = (v & 0xf0) >> 4
         low = (v & 0x0f) >> 0
         s += f'{high}{low}'
+    # s: '240131123456'
     return s
+
+
+def _mah_time_utc_epoch(b: bytes) -> str:
+    # b: b'\x24\x01\x31\x12\x34\x56'
+    # s: '240131123456'
+    s = _mah_time_to_str(b)
+    print(s)
+    fmt = '%y%m%d%H%M%S'
+    t = datetime.datetime.strptime(s, fmt)
+    u = t.replace(tzinfo=timezone.utc).timestamp()
+    print(u)
+    c = datetime.datetime.utcfromtimestamp(u).strftime('%Y-%m-%d %H:%M:%S')
+    print(c)
 
 
 def _decode_sensor_measurement(s, x):
@@ -120,10 +133,11 @@ class ParserLixFile(ABC):
         # all file bytes
         self.bb = bytes()
         # meta-data calculated at beginning
-        self.file_size = 0
-        self.measurements_length = 0
-        self.micro_headers_length = 0
-        self.measurement_number = 0
+        self.len_file = 0
+        self.len_mm = 0
+        self.len_uh = 0
+        # measurement number
+        self.mm_i = 0
         # sm: sensor mask
         self.sm = None
         # named tuple macro-header
@@ -143,36 +157,36 @@ class ParserLixFile(ABC):
         # dictionary micro-headers
         self.d_mih = dict()
 
-    def _parse_file_info(self):
-        # calculate number of file chunks
+    def _get_file_length(self):
+        # n: number of file chunks
         n = ceil(len(self.bb) / CS)
 
-        # file_size: remove last chunk contribution
-        file_size = (n - 1) * CS
         # file_size: calculate last chunk contribution
+        file_size = (n - 1) * CS
         last_ecl = CS - self.bb[-CS:][3]
-        self.file_size = file_size + last_ecl
+        self.len_file = file_size + last_ecl
 
         # measurements length: remove first and last chunk contribution
-        self.measurements_length = (n - 2) * (CS - UHS)
-        self.measurements_length += (last_ecl - UHS)
+        self.len_mm = (n - 2) * (CS - UHS)
+        self.len_mm += (last_ecl - UHS)
 
         # micro_headers length calculation
-        self.micro_headers_length = (n - 1) * UHS
+        self.len_uh = (n - 1) * UHS
 
         # display file info
         pad = '\t'
+        bn = os.path.basename(self.file_path)
         _p('\n')
-        _p("-----------------------------------------------------------------")
+        _p("----------------------------------------------------")
         _p(f'converting LIX file...')
-        _p(f'{pad}file_name:            {os.path.basename(self.file_path)}')
-        _p(f'{pad}file_size:            {self.file_size}')
+        _p(f'{pad}file_name:            {bn}')
+        _p(f'{pad}file_size:            {self.len_file}')
         _p(f'{pad}macro_header_length:  {CS}')
-        _p(f'{pad}measurements_length:  {self.measurements_length}')
-        _p(f'{pad}micro_headers_length: {self.micro_headers_length}')
-        _p("-----------------------------------------------------------------")
-        calc_fs = CS + self.measurements_length + self.micro_headers_length
-        assert self.file_size == calc_fs
+        _p(f'{pad}measurements_length:  {self.len_mm}')
+        _p(f'{pad}micro_headers_length: {self.len_uh}')
+        _p("----------------------------------------------------")
+        calc_fs = CS + self.len_mm + self.len_uh
+        assert self.len_file == calc_fs
 
     @abstractmethod
     def _parse_macro_header(self):
@@ -189,34 +203,33 @@ class ParserLixFile(ABC):
 
         # skip macro-header
         data = self.bb[CS:]
-        measurements = bytes()
-        micro_headers = bytes()
+        mm = bytes()
+        uh = bytes()
 
         # n: number of chunks, iterate them to build byte arrays
         n = ceil(len(data) / CS)
         for i in range(0, CS * n, CS):
-            measurements += data[i+UHS:i+CS]
-            micro_headers += data[i:i+UHS]
+            mm += data[i+UHS:i+CS]
+            uh += data[i:i+UHS]
 
-        # build dictionary micro_headers
-        for i in range(0, UHS, len(micro_headers)):
-            self._parse_data_mih(micro_headers, i)
+        # dictionary micro_headers
+        for i in range(0, UHS, len(uh)):
+            self._parse_data_uh(uh, i)
 
-        # build dictionary of variable-length measurements
+        # dictionary of measurements
         i = 0
-        while i < self.measurements_length:
-            i = self._parse_data_measurement(measurements, i)
+        while i < self.len_mm:
+            i = self._parse_data_mm(mm, i)
 
         # debug
         # print(self.d_measurements)
 
-    def _parse_data_mih(self, mi, i):
-        # 2B battery, 1B header index % 255,
-        # 1B ECL, 4B epoch
-        bat = int.from_bytes(mi[:i+2], "big")
-        idx = mi[i+2]
-        ecl = mi[i+3]
-        rt = int.from_bytes(mi[i+4:i+8], "big")
+    def _parse_data_uh(self, uh, i):
+        # 2B battery, 1B header index, 1B ECL, 4B epoch
+        bat = int.from_bytes(uh[:i + 2], "big")
+        idx = uh[i + 2]
+        ecl = uh[i + 3]
+        rt = int.from_bytes(uh[i + 4:i + 8], "big")
         _p(f"\n\tMICRO header \t|  detected")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
         _p("\theader index  \t|  0x{:02x} = {}".format(idx, idx))
@@ -225,23 +238,39 @@ class ParserLixFile(ABC):
         self.d_mih[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     @abstractmethod
-    def _parse_data_measurement(self, mm, i):
+    def _parse_data_mm(self, mm, i):
         pass
 
     @abstractmethod
     def _create_csv_file(self):
         pass
 
-    def convert_lix_file(self):
-        try:
-            assert self.file_path
-            with open(self.file_path, 'rb') as f:
-                self.bb = f.read()
-            self._parse_file_info()
-            self._parse_macro_header()
-            self._parse_data()
-            self._create_csv_file()
-        except (Exception, ) as ex:
-            traceback.print_exc()
-            print(f'error: parse_lix_file ex -> {ex}')
-            return 1
+    def convert(self):
+        self._get_file_length()
+        self._parse_macro_header()
+        self._parse_data()
+        self._create_csv_file()
+
+
+# ----------------------------------------
+# global function to be called externally
+# ----------------------------------------
+def convert_lix_file(fp):
+    # fp: file_path
+    try:
+        with open(fp, 'rb') as f:
+            # ft: file type
+            bb = f.read()
+            ft = bb[:3]
+
+            # pr: parser
+            if ft in (b'DO1', b'DO2'):
+                pr = ParserLixDoxFile(fp)
+            else:
+                pr = ParserLixTdoFile(fp)
+            pr.convert()
+
+    except (Exception, ) as ex:
+        traceback.print_exc()
+        print(f'error: parse_lix_file ex -> {ex}')
+        return 1

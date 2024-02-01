@@ -1,8 +1,8 @@
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
-from mat.lix import ParserLixFile, CS, LEN_CC_AREA, LEN_CONTEXT, _p, _custom_time, \
-    _parse_macro_header_start_time_to_seconds, _decode_sensor_measurement
+from mat.lix import ParserLixFile, CS, LEN_CC_AREA, LEN_CONTEXT, _p, _mah_time_to_str, \
+    _parse_macro_header_start_time_to_seconds, _decode_sensor_measurement, _mah_time_utc_epoch
 import datetime
 
 from mat.pressure import Pressure
@@ -87,7 +87,10 @@ class ParserLixTdoFile(ParserLixFile):
         # display all this info
         _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
         _p(f"\tfile version \t|  {self.mah.file_version}")
-        self.mah.timestamp_str = _custom_time(self.mah.timestamp)
+        self.mah.timestamp_str = _mah_time_to_str(self.mah.timestamp)
+
+        utc_epoch = _mah_time_utc_epoch(self.mah.timestamp)
+
         _p("\tdatetime is   \t|  {}".format(self.mah.timestamp_str))
         bat = int.from_bytes(self.mah.battery, "big")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
@@ -120,8 +123,8 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}dhu = {dhu}')
         _p(f'{pad}psm = {psm}')
 
-    def _parse_data_measurement(self, mm, i):
-        _p(f"\n\tmeasurement #   |  {self.measurement_number}")
+    def _parse_data_mm(self, mm, i):
+        _p(f"\n\tmeasurement #   |  {self.mm_i}")
         mk = (mm[i] & 0xc0) >> 6
         self.sm = None
         if mk == 0:
@@ -160,13 +163,13 @@ class ParserLixTdoFile(ParserLixFile):
         if self.mah.file_type.decode() in ("PRF", "TDO"):
             # todo -> get measurement length from sensor mask
             n = 10
-            # build dictionary
+            # build dictionary measurements
             self.d_measurements[t] = mm[i:i+n]
         else:
             assert False
 
         # keep track of how many we decoded
-        self.measurement_number += 1
+        self.mm_i += 1
 
         # return current index of measurements' array
         return i + n
