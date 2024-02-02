@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
-from mat.lix import ParserLixFile, CS, LEN_CC_AREA, LEN_CONTEXT, _p, _mah_time_to_str, \
+from mat.lix_abs import ParserLixFile, CS, LEN_CC_AREA, LEN_CONTEXT, _p, _mah_time_to_str, \
     _parse_macro_header_start_time_to_seconds, _decode_sensor_measurement, _mah_time_utc_epoch
 import datetime
 
@@ -164,7 +164,7 @@ class ParserLixTdoFile(ParserLixFile):
             # todo -> get measurement length from sensor mask
             n = 10
             # build dictionary measurements
-            self.d_measurements[t] = mm[i:i+n]
+            self.d_mm[t] = mm[i:i + n]
         else:
             assert False
 
@@ -201,7 +201,7 @@ class ParserLixTdoFile(ParserLixFile):
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
         calc_epoch = epoch
         ct = 0
-        for k, v in self.d_measurements.items():
+        for k, v in self.d_mm.items():
             # {t}: {sensor_data}
             vt = _decode_sensor_measurement('T', v[0:2])
             vp = _decode_sensor_measurement('P', v[2:4])
@@ -228,10 +228,3 @@ class ParserLixTdoFile(ParserLixFile):
 
         # close the file
         f_csv.close()
-
-
-if __name__ == '__main__':
-    # p = '/home/kaz/Downloads/dl_bil/9999999_BIL_20240122_195627.lix'
-    p = '/home/kaz/Downloads/dl_bil/60-77-71-22-CA-6D/1111111_tst_20240131_193727.lix'
-    plf = ParserLixTdoFile(p)
-    plf.convert_lix_file()

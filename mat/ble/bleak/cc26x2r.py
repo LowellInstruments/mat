@@ -89,10 +89,12 @@ class BleCC26X2:    # pragma: no cover
         # detect extra errors :)
         n = int(len(self.ans) / 2)
         if self.ans[:n] == self.ans[n:]:
+            print('-----------------------------------')
             e = 'error duplicate answer: {} \n' \
                 'seems you used PWA recently \n' \
                 'and Linux BLE stack got crazy, \n' \
                 'just run $ systemctl restart bluetooth'
+            print('-----------------------------------')
             print(e.format(self.ans))
 
     async def cmd_stm(self):
@@ -307,17 +309,14 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait()
         # rv: b'GDX -0.03, -0.41, 17.30'
         ok = rv and len(rv) == 23 and rv.startswith(b'GDX')
+        print('ok, rv', ok, rv)
         if not ok:
             return
-        a = rv
-        if a and len(a.split()) == 4:
-            # a: b'GDO 0c112233445566'
-            _ = a.split()
-            dos = _[1].decode()
-            dop = _[2].decode()
-            dot = _[3].decode()
+        a = rv[4:].decode().replace(' ', '').split(',')
+        print('a', a)
+        if a and len(a) == 3:
+            dos, dop, dot = a
             return dos, dop, dot
-
 
     async def cmd_gsp(self):
         c, _ = build_cmd(PRESSURE_SENSOR_CMD)
