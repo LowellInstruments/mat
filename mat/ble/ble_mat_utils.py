@@ -132,6 +132,7 @@ def ble_mat_hci_exists(h):
 def ble_mat_bluetoothctl_power_cycle():
     if not linux_is_rpi():
         print('do not power cycle Bluetooth on non-rpi')
+        ble_mat_disconnect_all_devices_ll()
         return
     c = 'bluetoothctl power off'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -149,7 +150,7 @@ def ble_mat_disconnect_all_devices_ll():
     # the "Connected" flag only works for bluetoothctl > v5.65
     v = ble_mat_get_bluez_version()
     if v < '5.65':
-        print('ble_mat_disconnect_all_devices_ll() may be unsupported')
+        print('ble_mat_disconnect_all_devices_ll() unsupported')
         return
 
     # ll: means low-level

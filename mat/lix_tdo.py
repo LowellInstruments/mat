@@ -1,7 +1,8 @@
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
-from mat.lix_abs import ParserLixFile, CS, LEN_CC_AREA, LEN_CONTEXT, _p, _mah_time_to_str, \
+from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT
+from mat.lix_abs import ParserLixFile, _p, _mah_time_to_str, \
     _parse_macro_header_start_time_to_seconds, _decode_sensor_measurement, _mah_time_utc_epoch
 import datetime
 
@@ -56,9 +57,9 @@ class ParserLixTdoFile(ParserLixFile):
         self.mah.hdr_idx = bb[12]
         # HSA macro-header must match firmware hsa.h
         i_mah = 13
-        self.mah.cc_area = bb[i_mah: i_mah + LEN_CC_AREA]
+        self.mah.cc_area = bb[i_mah: i_mah + LEN_LIX_FILE_CC_AREA]
         # context
-        i = CS - LEN_CONTEXT
+        i = CS - LEN_LIX_FILE_CONTEXT
         self.mah.context = bb[i:]
         gfv = bb[i:i+4]
         i += 4
@@ -95,7 +96,7 @@ class ParserLixTdoFile(ParserLixFile):
         bat = int.from_bytes(self.mah.battery, "big")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
         _p(f"\theader index \t|  {self.mah.hdr_idx}")
-        n = LEN_CC_AREA
+        n = LEN_LIX_FILE_CC_AREA
         if b"00003" != self.mah.cc_area[:5]:
             return {}
         _p("\tcc_area \t\t|  detected")
@@ -176,7 +177,7 @@ class ParserLixTdoFile(ParserLixFile):
 
     def _create_csv_file(self):
         # use the calibration coefficients to create objects
-        n = LEN_CC_AREA
+        n = LEN_LIX_FILE_CC_AREA
         tmr = ascii85_to_num(self.mah.cc_area[10:15].decode())
         tma = ascii85_to_num(self.mah.cc_area[15:20].decode())
         tmb = ascii85_to_num(self.mah.cc_area[20:25].decode())

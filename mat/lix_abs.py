@@ -7,18 +7,29 @@ import datetime
 from datetime import timezone
 
 
+# size of a LIX file chunk and alternative shorter name
+LEN_LIX_FILE_CHUNK = 256
+CS = LEN_LIX_FILE_CHUNK
+
+# size of a LIX file micro-header inside a chunk and alternative shorter name
+LEN_LIX_FILE_MICRO_HEADER = 8
+UHS = LEN_LIX_FILE_MICRO_HEADER
+
+
+# memory area in firmware storing calibration constants
+LEN_LIX_FILE_CC_AREA = 5 * 29
+
+# memory area in firmware storing profiling constants
+LEN_LIX_FILE_CF_AREA = 5 * 13
+
+# length in lix file that we reserve to store compressed CF_AREA
+# instead of 5 * 13 = 65, we store around 40 bytes
+LEN_LIX_FILE_CONTEXT = 64
+
+
 # debug
 g_verbose = True
 debug = 0
-
-# chunk and micro-header sizes
-CS = 256
-UHS = 8
-
-# lengths
-LEN_CC_AREA = 29 * 5
-LEN_CF_AREA = 13 * 5
-LEN_CONTEXT = 64
 
 
 def _p(s, **kwargs):
@@ -52,7 +63,7 @@ def _mah_time_utc_epoch(b: bytes) -> int:
     fmt = '%y%m%d%H%M%S'
     t = datetime.datetime.strptime(s, fmt)
     u = t.replace(tzinfo=timezone.utc).timestamp()
-    return u
+    return int(u)
 
 
 def _decode_sensor_measurement(s, x):

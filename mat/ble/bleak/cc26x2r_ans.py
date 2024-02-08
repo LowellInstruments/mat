@@ -1,3 +1,4 @@
+from mat.lix_abs import LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CF_AREA
 from mat.logger_controller import STATUS_CMD, RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD_W, \
     DEL_FILE_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, TIME_CMD, DIR_CMD, SENSOR_READINGS_CMD
 from mat.logger_controller_ble import LED_CMD, FORMAT_CMD, CONFIG_CMD, MY_TOOL_SET_CMD, DWG_FILE_CMD, FILE_EXISTS_CMD, \
@@ -90,7 +91,7 @@ def is_cmd_done(tag, ans):
     if t == 'RFN':
         return a and a.startswith('RFN'.encode())
 
-    if t in(TIME_CMD, 'FDG'):
+    if t in (TIME_CMD, 'FDG'):
         return _ck(t, a, 25)
 
     if t == DIR_CMD:
@@ -101,10 +102,10 @@ def is_cmd_done(tag, ans):
         return a and len(a) in (38, 46)
 
     if t == GET_CALIBRATION_CMD:
-        return a and len(a) == (29 * 5) + 6
+        return a and len(a) == LEN_LIX_FILE_CC_AREA + 6
 
     if t == GET_PRF_CONFIGURATION_CMD:
-        return a and len(a) == (12 * 5) + 6
+        return a and len(a) == LEN_LIX_FILE_CF_AREA + 6
 
     if t == DEPLOYMENT_NAME_GET_CMD:
         return a and len(a) == 9

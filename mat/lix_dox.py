@@ -1,8 +1,7 @@
 from datetime import datetime
 
+from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT
 from mat.lix_abs import (ParserLixFile,
-                         CS, LEN_CC_AREA,
-                         LEN_CONTEXT,
                          _p, _mah_time_to_str,
                          _mah_time_utc_epoch)
 
@@ -34,9 +33,9 @@ class ParserLixDoxFile(ParserLixFile):
         self.mah.hdr_idx = bb[12]
         # DOX loggers do not use HSA much
         i_mah = 13
-        self.mah.cc_area = bb[i_mah: i_mah + LEN_CC_AREA]
+        self.mah.cc_area = bb[i_mah: i_mah + LEN_LIX_FILE_CC_AREA]
         # DOX loggers do not use context much
-        i = CS - LEN_CONTEXT
+        i = CS - LEN_LIX_FILE_CONTEXT
         self.mah_context.bytes = bb[i:]
         self.mah_context.spt = self.mah_context.bytes[8:13].decode()
 
