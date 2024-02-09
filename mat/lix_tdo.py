@@ -1,9 +1,11 @@
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
-from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT
-from mat.lix_abs import ParserLixFile, _p, _mah_time_to_str, \
-    _parse_macro_header_start_time_to_seconds, _decode_sensor_measurement, _mah_time_utc_epoch
+from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT, UHS
+from mat.lix_abs import (ParserLixFile, _p, _mah_time_to_str,
+                         _parse_macro_header_start_time_to_seconds,
+                         _decode_sensor_measurement,
+                         _mah_time_utc_epoch)
 import datetime
 
 from mat.pressure import Pressure
@@ -125,36 +127,38 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}psm = {psm}')
 
     def _parse_data_mm(self, mm, i):
-        _p(f"\n\tmeasurement #   |  {self.mm_i}")
-        mk = (mm[i] & 0xc0) >> 6
-        self.sm = None
+        # mm: all measurement bytes
+        _p(f"\n\tmeasurement \t|  #{self.mm_i}")
+        j = i + UHS
+        k = i
+        has_sm = mm[i] & 0x80
+        has_te = mm[i] & 0x40
+        mk = (has_sm | has_te) >> 6
+
         if mk == 0:
-            # no sensor mask, time simple
+            s = '0 sm ts'
             t = mm[i] & 0x3F
             i += 1
-            s = 'ts 0x{:02x}'.format(t)
         elif mk == 1:
-            # no sensor mask, time extended
-            t = (mm[i] & 0x3F) << 8
-            t += mm[i+1]
+            s = '0 sm te'
+            t = ((mm[i] & 0x3F) << 8) + mm[i+1]
             i += 2
-            s = 'te 0x{:04x}'.format(t)
         elif mk == 2:
-            # yes sensor mask, time simple
+            s = '1 sm ts'
             self.sm = mm[i] & 0x3F
-            t = mm[i+1]
+            t = mm[i + 1] & 0x3F
             i += 2
-            s = 'sm 0x{:02x} ts 0x{:02x}'.format(self.sm, t)
         else:
-            # yes sensor mask, time extended
+            s = '1 sm te'
             self.sm = mm[i] & 0x3F
-            t = (mm[i] & 0x3F) << 8
-            t += mm[i+1]
+            t = (mm[i+1] & 0x3F) << 8
+            t += mm[i+2]
             i += 3
-            s = 'sm 0x{:02x} te 0x{:04x}'.format(self.sm, t)
 
-        # display mask
-        _p(f'\tmask sm_time\t|  {s}')
+        # show mask from beginning
+        _p(f'\tmask length \t|  {i-k} bytes -> {s}')
+        for x in range(i-k):
+            _p('\t\t\t\t\t|  0x{:02x}'.format(mm[k+x]))
 
         # in case of extended time
         # todo ---> test this extended time
@@ -169,8 +173,11 @@ class ParserLixTdoFile(ParserLixFile):
         else:
             assert False
 
-        # keep track of how many we decoded
+        # keep track of how many measurements we decoded
         self.mm_i += 1
+
+        # display bytes involved
+        _p(f'\tindex bytes \t|  {j}:{j+n+i-k}')
 
         # return current index of measurements' array
         return i + n
@@ -191,8 +198,7 @@ class ParserLixTdoFile(ParserLixFile):
         # ---------------
         # csv file header
         # ---------------
-        csv_path = (self.file_path[:-4] +
-                    '_' + self.mah.file_type.decode() + '.csv')
+        csv_path = (self.file_path[:-4] + '.csv')
         f_csv = open(csv_path, 'w')
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
@@ -201,8 +207,12 @@ class ParserLixTdoFile(ParserLixFile):
         # get first time
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
         calc_epoch = epoch
+
+        # ct: cumulative time
         ct = 0
-        for k, v in self.d_mm.items():
+
+        # et: elapsed time
+        for et, v in self.d_mm.items():
             # {t}: {sensor_data}
             vt = _decode_sensor_measurement('T', v[0:2])
             vp = _decode_sensor_measurement('P', v[2:4])
@@ -212,20 +222,14 @@ class ParserLixTdoFile(ParserLixFile):
             vt = '{:.02f}'.format(lct.convert(vt))
             vp = '{:.02f}'.format(lcp.convert(vp)[0])
 
-            # CSV file and DESC file with LOCAL time...
-            calc_epoch += k
-            # UTC time, o/wise use fromtimestamp()
+            # CSV file has UTC time
+            calc_epoch += et
             t = datetime.datetime.utcfromtimestamp(calc_epoch).isoformat() + ".000"
-
-            # elapsed and cumulative time
-            # todo ---> check this works with more than 3 samples
-            et = calc_epoch - epoch
             ct += et
 
             # log to file
             s = f'{t},{et},{ct},{vt},{vp},{vax},{vay},{vaz}\n'
             f_csv.write(s)
-            print(s)
 
         # close the file
         f_csv.close()
