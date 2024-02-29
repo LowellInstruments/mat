@@ -132,7 +132,6 @@ def ble_mat_hci_exists(h):
 def ble_mat_bluetoothctl_power_cycle():
     if not linux_is_rpi():
         print('do not power cycle Bluetooth on non-rpi')
-        ble_mat_disconnect_all_devices_ll()
         return
     c = 'bluetoothctl power off'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
@@ -168,10 +167,19 @@ def ble_mat_disconnect_all_devices_ll():
         if lg_type not in (b'DO-1', b'DO-2', b'TAP1', b'TDO'):
             continue
         mac = _.split(b' ')[1]
-        print('auto-disconnecting mac {}'.format(mac))
+        print(f'ble_mat -> auto-disconnecting mac {mac}')
         c = 'bluetoothctl disconnect {}'.format(mac.decode())
         sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
+
+def ble_mat_systemctl_restart_bluetooth():
+    if not linux_is_rpi():
+        return
+    c = 'sudo systemctl restart bluetooth'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode:
+        print(f'error: ble_mat_systemctl_restart_bluetooth {rv.stderr}')
+    time.sleep(5)
 
 def ble_mat_get_bluez_version() -> str:
     c = 'bluetoothctl -v'
