@@ -14,7 +14,7 @@ from mat.lix_abs import LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CF_AREA
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
-    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, SET_CALIBRATION_CMD, \
+    FILE_EXISTS_CMD, WAT_CMD, LOG_EN_CMD, SET_CALIBRATION_CMD, \
     DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, FIRST_DEPLOYMENT_SET_CMD, PRESSURE_SENSOR_CMD, \
     TEMPERATURE_SENSOR_CMD, SET_PRF_CONFIGURATION_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict, linux_is_rpi
@@ -66,7 +66,7 @@ class BleCC26X2:    # pragma: no cover
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
-                print(self.ans)
+                print('debug self.ans -> ', self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -107,16 +107,36 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'STM 00' else 1
 
     async def cmd_xod(self):
-        # detect logger works with liX or liD files
+        # detect logger works with liX files, an old one will return b'ERR'
         await self._cmd('XOD \r')
         rv = await self._ans_wait()
         # rv: b'XOD 04.LIX'
         ok = rv and rv.endswith(b'.LIX')
         return 0 if ok else 1
 
+    async def cmd_ara(self):
+        # adjust rate advertisement logger
+        await self._cmd('ARA \r')
+        rv = await self._ans_wait()
+        # rv: b'ARA 0200'
+        ok = rv and len(rv) == 8 and rv.startswith(b'ARA')
+        if ok:
+            return 0, int(rv.decode()[-1])
+        return 1, 0
+
+    async def cmd_arp(self):
+        # adjust rate tx power logger
+        await self._cmd('ARP \r')
+        rv = await self._ans_wait()
+        # rv: b'ARP 0201'
+        ok = rv and len(rv) == 8 and rv.startswith(b'ARP')
+        if ok:
+            return 0, int(rv.decode()[-1])
+        return 1, 0
+
     async def cmd_fds(self):
         """
-        stands for firs Deployment Set
+        stands for first Deployment Set
         :return: 0 if went OK
         """
         # time() -> seconds since epoch, in UTC
@@ -148,6 +168,7 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'DEL 00' else 1
 
     async def cmd_scc(self, tag, v):
+        # Set Calibration Constants, for PRA, PRB...
         assert len(tag) == 3
         assert len(v) == 5
         s = '{}{}'.format(tag, v)
@@ -157,6 +178,7 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'SCC 00' else 1
 
     async def cmd_scf(self, tag, v):
+        # Set Calibration proFiling, for profiling
         assert len(tag) == 3
         assert len(v) == 5
         s = '{}{}'.format(tag, v)
@@ -166,6 +188,7 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'SCF 00' else 1
 
     async def cmd_ssp(self, v):
+        # Set Sensor Pressure, for debugging and developing
         v = str(v).zfill(5)
         c, _ = build_cmd('SSP', v)
         await self._cmd(c)
@@ -173,6 +196,7 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'SSP 00' else 1
 
     async def cmd_fex(self, s):
+        # does File EXists in logger
         c, _ = build_cmd(FILE_EXISTS_CMD, s)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -196,6 +220,7 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_fdg(self):
+        # First Deployment Get, returns a date
         await self._cmd('FDG \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 25 and rv.startswith(b'FDG')
@@ -204,31 +229,11 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_spn(self, v):
+        # Set Pressure Number, for profiling
         assert 0 < v < 9
         await self._cmd('SPN 01{}\r'.format(v))
         rv = await self._ans_wait()
         ok = rv and len(rv) == 7 and rv.startswith(b'SPN')
-        if not ok:
-            return 1, ''
-        return 0, rv[6:].decode()
-
-    async def cmd_srs(self, v):
-        if v < 5 or v > 86400:
-            return 1, ''
-        c, _ = build_cmd('SRS', str(v).zfill(5))
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        ok = rv and rv.startswith(b'SRS')
-        if not ok:
-            return 1, ''
-        return 0, rv[6:].decode()
-
-    async def cmd_srf(self, v):
-        assert 1 <= v < 5
-        c, _ = build_cmd('SRF', str(v).zfill(2))
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        ok = rv and rv.startswith(b'SRF')
         if not ok:
             return 1, ''
         return 0, rv[6:].decode()
@@ -287,6 +292,7 @@ class BleCC26X2:    # pragma: no cover
         return 0, rv[6:].decode()
 
     async def cmd_gdo(self):
+        # old GDO command, see GDX
         c, _ = build_cmd(OXYGEN_SENSOR_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -305,6 +311,7 @@ class BleCC26X2:    # pragma: no cover
                 return dos, dop, dot
 
     async def cmd_gdx(self):
+        # new command for Get Dissolved Oxygen
         c, _ = build_cmd('GDX')
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -320,6 +327,7 @@ class BleCC26X2:    # pragma: no cover
             return dos, dop, dot
 
     async def cmd_gsp(self):
+        # Get Sensor Pressure
         c, _ = build_cmd(PRESSURE_SENSOR_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -375,6 +383,7 @@ class BleCC26X2:    # pragma: no cover
         return 1, 0
 
     async def cmd_wat(self):
+        # measure the Water sensor
         c, _ = build_cmd(WAT_CMD)
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -390,6 +399,7 @@ class BleCC26X2:    # pragma: no cover
         return 1, 0
 
     async def cmd_wak(self, s):
+        # (de-)activate Wake mode
         assert s in ('on', 'off')
         c, _ = build_cmd(WAKE_CMD)
         await self._cmd(c)
@@ -409,6 +419,7 @@ class BleCC26X2:    # pragma: no cover
         return 1
 
     async def cmd_gwf(self):
+        # Get Wake flag
         c, _ = build_cmd('GWF')
         await self._cmd(c)
         rv = await self._ans_wait()
@@ -426,54 +437,6 @@ class BleCC26X2:    # pragma: no cover
             return 0, 1
         if rv == b'LOG 0200':
             return 0, 0
-        return 1, 0
-
-    async def cmd_bla(self):
-        c, _ = build_cmd('BLA')
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        if rv == b'BLA 0201':
-            return 0, 1
-        if rv == b'BLA 0200':
-            return 0, 0
-        return 1, 0
-
-    async def cmd_pfe(self):
-        c, _ = build_cmd(PRF_TIME_EN)
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        if rv == b'PFE 0201':
-            return 0, 1
-        if rv == b'PFE 0200':
-            return 0, 0
-        return 1, 0
-
-    async def cmd_pft(self):
-        c, _ = build_cmd(PRF_TIME_CMD)
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        if rv == b'PFT 0200':
-            return 0, 0
-        if rv == b'PFT 0201':
-            return 0, 1
-        if rv == b'PFT 0202':
-            return 0, 2
-        if rv == b'PFT 0203':
-            return 0, 3
-        return 1, 0
-
-    async def cmd_pfg(self):
-        c, _ = build_cmd(PRF_TIME_CMD_GET)
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        if rv == b'PFG 0200':
-            return 0, 0
-        if rv == b'PFG 0201':
-            return 0, 1
-        if rv == b'PFG 0202':
-            return 0, 2
-        if rv == b'PFG 0203':
-            return 0, 3
         return 1, 0
 
     async def cmd_rli(self):
@@ -506,11 +469,11 @@ class BleCC26X2:    # pragma: no cover
                 b'0202': 'delayed',
             }
             state = _[rv.split(b' ')[1]]
-        if ok:
             return 0, state
         return 1, 'error'
 
     async def cmd_gcc(self):
+        # Get Calibration Constants
         await self._cmd('GCC \r')
         rv = await self._ans_wait()
         n = LEN_LIX_FILE_CC_AREA
@@ -522,6 +485,7 @@ class BleCC26X2:    # pragma: no cover
         return 1, ""
 
     async def cmd_gcf(self):
+        # Get constants proFiling
         await self._cmd('GCF \r')
         rv = await self._ans_wait()
         n = LEN_LIX_FILE_CF_AREA
@@ -531,6 +495,7 @@ class BleCC26X2:    # pragma: no cover
         return 1, ""
 
     async def cmd_gwc(self):
+        # Get Water Column (up, down...)
         await self._cmd('GWC \r')
         rv = await self._ans_wait()
         ok = rv and rv.startswith(b'GWC')
@@ -550,6 +515,7 @@ class BleCC26X2:    # pragma: no cover
         return 0 if rv == b'MTS 00' else 1
 
     async def cmd_per(self):
+        # Get Profiling Error, for debugging
         await self._cmd('PER \r')
         rv = await self._ans_wait(timeout=10)
         if rv and len(rv) == 8:
@@ -606,7 +572,6 @@ class BleCC26X2:    # pragma: no cover
         return 0, ls
 
     async def cmd_dwl(self, z, ip=None, port=None) -> tuple:
-
         # z: file size
         self.ans = bytes()
         n = math.ceil(z / 2048)
@@ -628,6 +593,7 @@ class BleCC26X2:    # pragma: no cover
         return rv, self.ans
 
     async def cmd_utm(self):
+        # command Uptime
         await self._cmd('UTM \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
@@ -673,8 +639,7 @@ class BleCC26X2:    # pragma: no cover
 
             except (asyncio.TimeoutError, BleakError, OSError) as ex:
                 _ = int(till - time.perf_counter())
-                print('_connect_rpi failed, {} seconds left'.format(_))
-                print(ex)
+                print(f'_connect_rpi failed, {_} seconds left -> {ex}')
                 await asyncio.sleep(.5)
 
         return rv
