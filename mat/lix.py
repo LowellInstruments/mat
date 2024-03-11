@@ -4,6 +4,39 @@ from mat.lix_dox import ParserLixDoxFile
 from mat.lix_tdo import ParserLixTdoFile
 
 
+LID_FILE_UNK = 0
+LID_FILE_V1 = 1
+LID_FILE_V2 = 2
+
+
+def id_lid_file_flavor(fp):
+    """
+    we don't use the word version here, just if it is an old
+    LID file or a new LID file (LIX)
+    :param fp: absolute file_path
+    :return:
+    """
+    if not fp.endswith('.lid'):
+        return 0
+
+    try:
+        with open(fp, 'rb') as f:
+            # ft: file type
+            bb = f.read()
+            ft = bb[:3]
+
+            # pr: parser
+            if ft in (b'DO1', b'DO2', b'TDO'):
+                return LID_FILE_V2
+            else:
+                return LID_FILE_V1
+
+    except (Exception,) as ex:
+        traceback.print_exc()
+        print(f'error: parse_lix_file ex -> {ex}')
+        return LID_FILE_UNK
+
+
 def convert_lix_file(fp):
     # fp: absolute file_path
     try:

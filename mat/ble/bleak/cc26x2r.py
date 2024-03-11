@@ -83,9 +83,9 @@ class BleCC26X2:    # pragma: no cover
 
         # useful in case we have errors
         print('[ BLE ] timeout {} for cmd {}'.format(elapsed, self.tag))
+        print('\t dbg_ans:', self.ans)
         if not self.ans:
             return
-        print('\t dbg_ans:', self.ans)
 
         # detect extra errors :)
         n = int(len(self.ans) / 2)
@@ -317,11 +317,9 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait()
         # rv: b'GDX -0.03, -0.41, 17.30'
         ok = rv and len(rv) == 23 and rv.startswith(b'GDX')
-        print('ok, rv', ok, rv)
         if not ok:
             return
         a = rv[4:].decode().replace(' ', '').split(',')
-        print('a', a)
         if a and len(a) == 3:
             dos, dop, dot = a
             return dos, dop, dot

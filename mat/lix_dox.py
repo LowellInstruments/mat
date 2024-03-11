@@ -41,7 +41,7 @@ class ParserLixDoxFile(ParserLixFile):
 
         # display macro_header DOX info
         _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
-        _p(f"\tfile version \t|  {self.mah.file_version}")
+        _p(f"\tfile flavor    \t|  {self.mah.file_version}")
         self.mah.timestamp_str = _mah_time_to_str(self.mah.timestamp)
         self.mah.timestamp_epoch = int(_mah_time_utc_epoch(self.mah.timestamp))
         _p("\tdatetime is   \t|  {}".format(self.mah.timestamp_str))
@@ -57,13 +57,8 @@ class ParserLixDoxFile(ParserLixFile):
         _p(f"\n\tmeasurement #   |  {self.mm_i}")
         t_spt = int(self.mah_context.spt)
         t = self.mah.timestamp_epoch + (self.mm_i * t_spt)
-        if self.mah.file_type.decode() == 'DO1':
-            n = 6
-        elif self.mah.file_type.decode() == 'DO2':
-            # these do water too
-            n = 8
-        else:
-            assert False
+        is_do2 = self.mah.file_type.decode() == 'DO2'
+        n = 8 if is_do2 else 6
 
         # build dictionary measurements
         self.d_mm[t] = mm[i:i + n]

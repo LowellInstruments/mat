@@ -1,3 +1,5 @@
+from re import findall
+
 from mat.lix_abs import LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CF_AREA
 from mat.logger_controller import STATUS_CMD, RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD_W, \
     DEL_FILE_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, TIME_CMD, DIR_CMD, SENSOR_READINGS_CMD
@@ -118,6 +120,6 @@ def is_cmd_done(tag, ans):
         return a and len(a) in (9, 10, 12, 16)
 
     if t == 'GDX':
-        return a and len(a) == 23
+        return a and len(findall(r"[-+]?(?:\d*\.*\d+)", a.decode())) == 3
 
     print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)
