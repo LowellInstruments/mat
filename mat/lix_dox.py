@@ -104,7 +104,13 @@ class ParserLixDoxFile(ParserLixFile):
             et = int(self.mah_context.spt)
             ct += et
             str_t = datetime.utcfromtimestamp(t).isoformat() + ".000"
+
+            # only two decimals
+            dos = '{:.2f}'.format(dos)
+            dop = '{:.2f}'.format(dop)
+            dot = '{:.2f}'.format(dot)
             if is_do2:
+                wat = '{:.2f}'.format(wat)
                 s = f'{str_t},{et},{ct},{dos},{dop},{dot},{wat}\n'
             else:
                 s = f'{str_t},{et},{ct},{dos},{dop},{dot}\n'
