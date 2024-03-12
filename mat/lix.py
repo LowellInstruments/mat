@@ -33,7 +33,26 @@ def id_lid_file_flavor(fp):
 
     except (Exception,) as ex:
         traceback.print_exc()
-        print(f'error: parse_lix_file ex -> {ex}')
+        print(f'error: id_lid_file_flavor ex -> {ex}')
+        return LID_FILE_UNK
+
+
+def lid_file_v2_has_sensor_data_type(fp, suf):
+    if not fp.endswith('.lid'):
+        return 0
+
+    try:
+        with open(fp, 'rb') as f:
+            # ft: file type
+            bb = f.read()
+            ft = bb[:3]
+
+            if suf == "_DissolvedOxygen" and ft in (b'DO1', b'DO2'):
+                return 1
+
+    except (Exception,) as ex:
+        traceback.print_exc()
+        print(f'error: lid_file_v2_has_sensor_data_type ex -> {ex}')
         return LID_FILE_UNK
 
 

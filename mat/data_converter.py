@@ -34,9 +34,6 @@ class DataConverter:
         self.observers = []
         self._is_running = None
 
-    def _is_lix_file(self):
-        return self.path[-4:] == '.lix'
-
     def _load_source_file(self):
         if not self.source_file:
             self.source_file = load_data_file(self.path,
@@ -47,9 +44,6 @@ class DataConverter:
         self._is_running = False  # pragma: no cover
 
     def convert(self):
-        if self._is_lix_file():
-            print('detected lix file')
-            return
         self._is_running = True
         self._load_source_file()
         outputs = data_product_factory(self.path,
