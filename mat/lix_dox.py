@@ -75,7 +75,7 @@ class ParserLixDoxFile(ParserLixFile):
         is_do2 = self.mah.file_type.decode() == 'DO2'
 
         # CSV file header
-        csv_path = (self.file_path[:-4] + '.csv')
+        csv_path = (self.file_path[:-4] + '_DissolvedOxygen.csv')
         f_csv = open(csv_path, 'w')
         if is_do2:
             cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),'\
