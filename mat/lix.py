@@ -28,6 +28,11 @@ def id_lid_file_flavor(fp):
             # pr: parser
             if ft in (b'DO1', b'DO2', b'TDO'):
                 return LID_FILE_V2
+            elif ft in (b'PRF', b'TAP'):
+                print('**************************************')
+                print('ft LOGGER HEADER IS OLD, REFLASH IT ->', ft)
+                print('**************************************')
+                return LID_FILE_V2
             else:
                 return LID_FILE_V1
 
@@ -48,6 +53,8 @@ def lid_file_v2_has_sensor_data_type(fp, suf):
             ft = bb[:3]
 
             if suf == "_DissolvedOxygen" and ft in (b'DO1', b'DO2'):
+                return 1
+            if suf == "_TDO" and ft in (b'TDO', ):
                 return 1
 
     except (Exception,) as ex:

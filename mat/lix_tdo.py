@@ -198,7 +198,7 @@ class ParserLixTdoFile(ParserLixFile):
         # ---------------
         # csv file header
         # ---------------
-        csv_path = (self.file_path[:-4] + '.csv')
+        csv_path = (self.file_path[:-4] + '_TDO.csv')
         f_csv = open(csv_path, 'w')
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
