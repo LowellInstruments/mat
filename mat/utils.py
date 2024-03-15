@@ -125,7 +125,7 @@ def linux_is_rpi():
     if platform.system() == 'Windows':
         return False
     # better than checking architecture
-    return os.uname().nodename in ('raspberrypi', 'rpi')
+    return os.uname().nodename in ('raspberrypi', 'rpi', 'raspberry')
 
 
 def linux_is_rpi3():
