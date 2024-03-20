@@ -58,15 +58,12 @@ class BleCC26X2:    # pragma: no cover
             await asyncio.sleep(0.1)
             timeout -= 0.1
 
-            # debug: uncomment
-            # print(self.ans)
-
             # ---------------------------------
             # considers the command answered
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
-                print('debug self.ans -> ', self.ans)
+                # print('debug self.ans -> ', self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -82,7 +79,7 @@ class BleCC26X2:    # pragma: no cover
         elapsed = int(time.time() - start)
 
         # useful in case we have errors
-        print('[ BLE ] timeout {} for cmd {}'.format(elapsed, self.tag))
+        print(f'[ BLE ] timeout {elapsed} for cmd {self.tag}')
         print('\t dbg_ans:', self.ans)
         if not self.ans:
             return

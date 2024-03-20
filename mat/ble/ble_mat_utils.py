@@ -181,6 +181,7 @@ def ble_mat_systemctl_restart_bluetooth():
         print(f'error: ble_mat_systemctl_restart_bluetooth {rv.stderr}')
     time.sleep(5)
 
+
 def ble_mat_get_bluez_version() -> str:
     c = 'bluetoothctl -v'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
