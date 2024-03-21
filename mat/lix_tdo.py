@@ -126,29 +126,38 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}dhu = {dhu}')
         _p(f'{pad}psm = {psm}')
 
-    def _parse_data_mm(self, mm, i):
-        # mm: all measurement bytes
+    def _parse_data_mm(self, mm, i, tc):
+        # mm: all measurement bytes, including masks
+        # i: byte index in big array of measurements
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
+
+        # to calculate index bytes
         j = i + UHS
         k = i
+
+        # to calculate mask and type of time
         has_sm = mm[i] & 0x80
         has_te = mm[i] & 0x40
         mk = (has_sm | has_te) >> 6
 
         if mk == 0:
+            # 0 sensor mask, time simple = 1 byte
             s = '0 sm ts'
             t = mm[i] & 0x3F
             i += 1
         elif mk == 1:
+            # 0 sensor mask, time extended = 2 bytes
             s = '0 sm te'
             t = ((mm[i] & 0x3F) << 8) + mm[i+1]
             i += 2
         elif mk == 2:
+            # 1 sensor mask, time simple = 2 bytes
             s = '1 sm ts'
             self.sm = mm[i] & 0x3F
             t = mm[i + 1] & 0x3F
             i += 2
         else:
+            # 1 sensor mask, 2 time extended = 3 bytes
             s = '1 sm te'
             self.sm = mm[i] & 0x3F
             t = (mm[i+1] & 0x3F) << 8
@@ -169,7 +178,7 @@ class ParserLixTdoFile(ParserLixFile):
             # todo -> get measurement length from sensor mask
             n = 10
             # build dictionary measurements
-            self.d_mm[t] = mm[i:i + n]
+            self.d_mm[tc + t] = mm[i:i + n]
         else:
             assert False
 
@@ -180,7 +189,7 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'\tindex bytes \t|  {j}:{j+n+i-k}')
 
         # return current index of measurements' array
-        return i + n
+        return i + n, t
 
     def _create_csv_file(self):
         # use the calibration coefficients to create objects
@@ -209,12 +218,12 @@ class ParserLixTdoFile(ParserLixFile):
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
         calc_epoch = epoch
 
-        # ct: cumulative time
-        ct = 0
+        print(self.d_mm)
+        last_ct = 0
 
-        # et: elapsed time
-        for et, v in self.d_mm.items():
-            # {t}: {sensor_data}
+        # et: cumulative time
+        for ct, v in self.d_mm.items():
+            # self.d_mm is a dictionary {t: sensor_data}
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
             vp = _decode_sensor_measurement('P', v[2:4])
@@ -226,9 +235,10 @@ class ParserLixTdoFile(ParserLixFile):
             vp = '{:.02f}'.format(lcp.convert(vp)[0])
 
             # CSV file has UTC time
-            calc_epoch += et
+            calc_epoch += ct
             t = datetime.datetime.utcfromtimestamp(calc_epoch).isoformat() + ".000"
-            ct += et
+            et = ct - last_ct
+            last_ct = ct
 
             # log to file
             s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'

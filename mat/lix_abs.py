@@ -214,6 +214,14 @@ class ParserLixFile(ABC):
     def _parse_macro_header(self):
         pass
 
+    @abstractmethod
+    def _parse_data_mm(self, mm, i, t):
+        pass
+
+    @abstractmethod
+    def _create_csv_file(self):
+        pass
+
     def _parse_data(self):
         if self.debug:
             db = b'0' * CS
@@ -228,7 +236,8 @@ class ParserLixFile(ABC):
         mm = bytes()
         uh = bytes()
 
-        # n: number of chunks, iterate them to build byte arrays
+        # n: number of chunks
+        # iterate to build micro_headers and measurements byte arrays
         n = ceil(len(data) / CS)
         for i in range(0, CS * n, CS):
             mm += data[i+UHS:i+CS]
@@ -240,8 +249,15 @@ class ParserLixFile(ABC):
 
         # dictionary of measurements
         i = 0
+        ta = 0
         while i < self.len_mm:
-            i = self._parse_data_mm(mm, i)
+            # ------------------------
+            # parse data measurements
+            # ------------------------
+            i, t = self._parse_data_mm(mm, i, ta)
+            ta += t
+            print('t', t)
+            print('ta', ta)
 
     def _parse_data_uh(self, uh, i):
         # 2B battery, 1B header index, 1B ECL, 4B epoch
@@ -255,14 +271,6 @@ class ParserLixFile(ABC):
         _p("\tpadding count \t|  0x{:02x} = {}".format(ecl, ecl))
         _p("\trelative time \t|  0x{:08x} = {}".format(rt, rt))
         self.d_uh[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
-
-    @abstractmethod
-    def _parse_data_mm(self, mm, i):
-        pass
-
-    @abstractmethod
-    def _create_csv_file(self):
-        pass
 
     def convert(self):
         self._load_file_bytes()

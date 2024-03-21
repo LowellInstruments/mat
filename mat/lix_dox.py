@@ -52,7 +52,7 @@ class ParserLixDoxFile(ParserLixFile):
             return {}
         _p(f"\tSPT period   \t|  {self.mah_context.spt}")
 
-    def _parse_data_mm(self, mm, i):
+    def _parse_data_mm(self, mm, i, _):
         # DOX loggers they don't use mask
         _p(f"\n\tmeasurement #   |  {self.mm_i}")
         t_spt = int(self.mah_context.spt)
@@ -67,7 +67,7 @@ class ParserLixDoxFile(ParserLixFile):
         self.mm_i += 1
 
         # return current index of measurements' array
-        return i + n
+        return i + n, t
 
     def _create_csv_file(self):
 
