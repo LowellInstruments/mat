@@ -84,6 +84,13 @@ def _decode_sensor_measurement(s, x):
     return v
 
 
+def _raw_sensor_measurement(x):
+    # x: b'\xff\xeb'
+    # s: 'T', 'P', 'Ax'...
+    # big endian to int
+    return int.from_bytes(x, "big")
+
+
 def _parse_macro_header_start_time_to_seconds(s: str) -> int:
     # s: '231103190012' embedded in macro_header
     dt = datetime.datetime.strptime(s, "%y%m%d%H%M%S")

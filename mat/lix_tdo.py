@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
-from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT, UHS
+from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT, UHS, _raw_sensor_measurement
 from mat.lix_abs import (ParserLixFile, _p, _mah_time_to_str,
                          _parse_macro_header_start_time_to_seconds,
                          _decode_sensor_measurement,
@@ -201,6 +201,7 @@ class ParserLixTdoFile(ParserLixFile):
         csv_path = (self.file_path[:-4] + '_TDO.csv')
         f_csv = open(csv_path, 'w')
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
+               'raw ADC Temp,raw ADC Pressure,' \
                'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
         f_csv.write(cols)
 
@@ -215,7 +216,9 @@ class ParserLixTdoFile(ParserLixFile):
         for et, v in self.d_mm.items():
             # {t}: {sensor_data}
             vt = _decode_sensor_measurement('T', v[0:2])
+            rt = _raw_sensor_measurement(v[0:2])
             vp = _decode_sensor_measurement('P', v[2:4])
+            rp = _raw_sensor_measurement(v[2:4])
             vax = _decode_sensor_measurement('Ax', v[4:6])
             vay = _decode_sensor_measurement('Ay', v[6:8])
             vaz = _decode_sensor_measurement('Az', v[8:10])
@@ -228,7 +231,7 @@ class ParserLixTdoFile(ParserLixFile):
             ct += et
 
             # log to file
-            s = f'{t},{et},{ct},{vt},{vp},{vax},{vay},{vaz}\n'
+            s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
             f_csv.write(s)
 
         # close the file
