@@ -235,7 +235,7 @@ class ParserLixTdoFile(ParserLixFile):
             vp = '{:.02f}'.format(lcp.convert(vp)[0])
 
             # CSV file has UTC time
-            calc_epoch += ct
+            calc_epoch = epoch + ct
             t = datetime.datetime.utcfromtimestamp(calc_epoch).isoformat() + ".000"
             et = ct - last_ct
             last_ct = ct
