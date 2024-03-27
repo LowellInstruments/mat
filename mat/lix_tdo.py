@@ -231,8 +231,8 @@ class ParserLixTdoFile(ParserLixFile):
             vax = _decode_sensor_measurement('Ax', v[4:6])
             vay = _decode_sensor_measurement('Ay', v[6:8])
             vaz = _decode_sensor_measurement('Az', v[8:10])
-            vt = '{:.02f}'.format(lct.convert(vt))
-            vp = '{:.02f}'.format(lcp.convert(vp)[0])
+            vt = '{:06.3f}'.format(lct.convert(vt))
+            vp = '{:06.3f}'.format(lcp.convert(vp)[0])
 
             # CSV file has UTC time
             calc_epoch = epoch + ct
