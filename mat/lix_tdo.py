@@ -126,7 +126,7 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}dhu = {dhu}')
         _p(f'{pad}psm = {psm}')
 
-    def _parse_data_mm(self, mm, i, tc):
+    def _parse_data_mm(self, mm, i, ta):
         # mm: all measurement bytes, including masks
         # i: byte index in big array of measurements
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
@@ -148,7 +148,7 @@ class ParserLixTdoFile(ParserLixFile):
         elif mk == 1:
             # 0 sensor mask, time extended = 2 bytes
             s = '0 sm te'
-            t = ((mm[i] & 0x3F) << 8) + mm[i+1]
+            t = (mm[i+1] << 8) + (mm[i] & 0x3F)
             i += 2
         elif mk == 2:
             # 1 sensor mask, time simple = 2 bytes
@@ -160,8 +160,7 @@ class ParserLixTdoFile(ParserLixFile):
             # 1 sensor mask, 2 time extended = 3 bytes
             s = '1 sm te'
             self.sm = mm[i] & 0x3F
-            t = (mm[i+1] & 0x3F) << 8
-            t += mm[i+2]
+            t = (mm[i + 2] << 8) + (mm[i + 1] & 0x3F)
             i += 3
 
         # show mask from beginning
@@ -173,12 +172,14 @@ class ParserLixTdoFile(ParserLixFile):
         # todo ---> test this extended time
         if type(t) is bytes:
             t = int.from_bytes(t, "big")
+            print('******** t bytes')
 
-        if self.mah.file_type.decode() in ("PRF", "TDO"):
+        if self.mah.file_type.decode() == "TDO":
             # todo -> get measurement length from sensor mask
             n = 10
+
             # build dictionary measurements
-            self.d_mm[tc + t] = mm[i:i + n]
+            self.d_mm[ta + t] = mm[i:i + n]
         else:
             assert False
 

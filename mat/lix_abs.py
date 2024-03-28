@@ -256,8 +256,6 @@ class ParserLixFile(ABC):
             # ------------------------
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
-            print('t', t)
-            print('ta', ta)
 
     def _parse_data_uh(self, uh, i):
         # 2B battery, 1B header index, 1B ECL, 4B epoch
