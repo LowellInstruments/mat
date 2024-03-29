@@ -201,7 +201,6 @@ def _parse_data_mask(mask: bytes, ma_h: dict):
         3: {'desc': 'sub', 'value': int(ma_h['dru'])},
     }
     kk = mask[1]
-    # todo --> parse sensors mask
     s_desc = 'sm = 0x{:02x}, '.format(sm)
     s_desc += f"{d_cc[cc]['desc'].upper()} = 0x{cc}, "
     s_desc += f"v -> {d_cc[cc]['value']}  * "
@@ -380,7 +379,6 @@ def _parse_chunk_type(b: bytes, ic) -> dict:
     # detect TAP logger DO2 file macro-header
     # ----------------------------------------
     elif ic == 0 and b[:3] == b"DO2":
-        # todo: do this for DO2 loggers
         da = {}
         return da
 
@@ -475,8 +473,6 @@ def _create_file_csv(d, lix_path):
     data = d['all_sensor_data']
     start_time = ma_h['start_time']
     epoch = _parse_macro_header_start_time_to_seconds(start_time)
-
-    # todo ---> mask data length, calculate depending on sensor length
     len_mask = 2
     len_data_sensor = 10
     len_sample = len_mask + len_data_sensor

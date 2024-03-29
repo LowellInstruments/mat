@@ -51,7 +51,6 @@ class ParserLixTdoFile(ParserLixFile):
     def _parse_macro_header(self):
         self.mah.bytes = self.bb[:CS]
         bb = self.mah.bytes
-        # todo ---> unhardcode this
         self.mah.file_type = bb[:3]
         self.mah.file_version = bb[3]
         self.mah.timestamp = bb[4:10]
@@ -169,13 +168,17 @@ class ParserLixTdoFile(ParserLixFile):
             _p('\t\t\t\t\t|  0x{:02x}'.format(mm[k+x]))
 
         # in case of extended time
+        # ----------------------------------
         # todo ---> test this extended time
+        # ----------------------------------
         if type(t) is bytes:
             t = int.from_bytes(t, "big")
             print('******** t bytes')
 
         if self.mah.file_type.decode() == "TDO":
+            # -----------------------------------------------
             # todo -> get measurement length from sensor mask
+            # -----------------------------------------------
             n = 10
 
             # build dictionary measurements
