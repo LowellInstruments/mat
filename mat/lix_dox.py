@@ -19,6 +19,13 @@ def do16_to_float(d):
     return f
 
 
+def is_a_do2_file(p):
+    with open(p, 'rb') as f:
+        b = f.read()
+        print(b[:3])
+        return b[:3] == b'DO2'
+
+
 class ParserLixDoxFile(ParserLixFile):
     def __init__(self, file_path):
         super().__init__(file_path)
@@ -118,3 +125,6 @@ class ParserLixDoxFile(ParserLixFile):
 
         # close the file
         f_csv.close()
+
+        # return the name of the file
+        return csv_path

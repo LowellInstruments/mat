@@ -250,3 +250,6 @@ class ParserLixTdoFile(ParserLixFile):
 
         # close the file
         f_csv.close()
+
+        # return name of CSV file
+        return csv_path
