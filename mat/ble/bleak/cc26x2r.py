@@ -313,7 +313,7 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd(c)
         rv = await self._ans_wait()
         # rv: b'GDX -0.03, -0.41, 17.30'
-        ok = rv and len(rv) == 23 and rv.startswith(b'GDX')
+        ok = rv and rv.startswith(b'GDX') and len(rv.split(b',')) == 3
         if not ok:
             return
         a = rv[4:].decode().replace(' ', '').split(',')

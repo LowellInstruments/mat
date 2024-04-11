@@ -84,18 +84,14 @@ class ParserLixDoxFile(ParserLixFile):
         # CSV file header
         csv_path = (self.file_path[:-4] + '_DissolvedOxygen.csv')
         f_csv = open(csv_path, 'w')
+        cols = 'ISO 8601 Time,' \
+               'Dissolved Oxygen (mg/l),Dissolved Oxygen (%),' \
+               'DO Temperature (C)\n'
         if is_do2:
-            cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),'\
-                   'Dissolved Oxygen (mg/l),Dissolved Oxygen (%),'\
-                   'DO Temperature (C),Water Detect (%)\n'
-        else:
-            cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
-                   'Dissolved Oxygen (mg/l),Dissolved Oxygen (%),' \
-                   'DO Temperature (C)\n'
+            cols = cols.replace('\n', ',Water Detect (%)\n')
         f_csv.write(cols)
 
         # ct: cumulative time
-        ct = 0
         for t, m in self.d_mm.items():
             # m : b'\x80\x03\x80(\x07\x04\x00\x11'
             # m = dos -0.04 dop -0.40 dot 17.97
@@ -108,19 +104,18 @@ class ParserLixDoxFile(ParserLixFile):
                 wat = int((wat / 3000) * 100)
 
             # calculate times
-            et = int(self.mah_context.spt)
-            ct += et
             str_t = datetime.utcfromtimestamp(t).isoformat() + ".000"
 
             # only two decimals
             dos = '{:.2f}'.format(dos)
             dop = '{:.2f}'.format(dop)
             dot = '{:.2f}'.format(dot)
+            wat = '{:.2f}'.format(wat) if is_do2 else ''
             if is_do2:
-                wat = '{:.2f}'.format(wat)
-                s = f'{str_t},{et},{ct},{dos},{dop},{dot},{wat}\n'
+                s = f'{str_t},{dos},{dop},{dot},{wat}\n'
             else:
-                s = f'{str_t},{et},{ct},{dos},{dop},{dot}\n'
+                s = f'{str_t},{dos},{dop},{dot}\n'
+
             f_csv.write(s)
 
         # close the file
