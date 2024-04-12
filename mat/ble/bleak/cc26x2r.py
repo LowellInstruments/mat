@@ -121,6 +121,16 @@ class BleCC26X2:    # pragma: no cover
             return 0, int(rv.decode()[-1])
         return 1, 0
 
+    async def cmd_arf(self):
+        # adjust rate advertisement fast for 1 minute
+        await self._cmd('ARF \r')
+        rv = await self._ans_wait()
+        # rv: b'ARF 0200'
+        ok = rv and len(rv) == 8 and rv.startswith(b'ARF')
+        if ok:
+            return 0, int(rv.decode()[-1])
+        return 1, 0
+
     async def cmd_arp(self):
         # adjust rate tx power logger
         await self._cmd('ARP \r')

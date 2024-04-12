@@ -63,7 +63,8 @@ def is_cmd_done(tag, ans):
         PRF_TIME_EN,
         'PER',
         'ARA',
-        'ARP'
+        'ARP',
+        'ARF'
     ):
         return _ck(t, a, 8)
 
