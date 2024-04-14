@@ -215,12 +215,25 @@ class ParserLixFile(ABC):
         pass
 
     @abstractmethod
-    def _parse_data_mm(self, mm, i, t):
+    def _create_csv_file(self):
         pass
 
     @abstractmethod
-    def _create_csv_file(self):
+    def _parse_data_mm(self, mm, i, t):
         pass
+
+    def _parse_data_micro_headers(self, uh, i):
+        # 2B battery, 1B header index, 1B ECL, 4B epoch
+        bat = int.from_bytes(uh[:i + 2], "big")
+        idx = uh[i + 2]
+        ecl = uh[i + 3]
+        rt = int.from_bytes(uh[i + 4:i + 8], "big")
+        _p(f"\n\tMICRO header \t|  detected")
+        _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
+        _p("\theader index  \t|  0x{:02x} = {}".format(idx, idx))
+        _p("\tpadding count \t|  0x{:02x} = {}".format(ecl, ecl))
+        _p("\trelative time \t|  0x{:08x} = {}".format(rt, rt))
+        self.d_uh[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     def _parse_data(self):
         if self.debug:
@@ -243,32 +256,20 @@ class ParserLixFile(ABC):
             mm += data[i+UHS:i+CS]
             uh += data[i:i+UHS]
 
-        # dictionary micro_headers
+        # -------------------------------
+        # parse dictionary micro_headers
+        # -------------------------------
         for i in range(0, UHS, len(uh)):
-            self._parse_data_uh(uh, i)
+            self._parse_data_micro_headers(uh, i)
 
-        # dictionary of measurements
+        # -----------------------------------
+        # parse dictionary data measurements
+        # -----------------------------------
         i = 0
         ta = 0
         while i < self.len_mm:
-            # ------------------------
-            # parse data measurements
-            # ------------------------
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
-
-    def _parse_data_uh(self, uh, i):
-        # 2B battery, 1B header index, 1B ECL, 4B epoch
-        bat = int.from_bytes(uh[:i + 2], "big")
-        idx = uh[i + 2]
-        ecl = uh[i + 3]
-        rt = int.from_bytes(uh[i + 4:i + 8], "big")
-        _p(f"\n\tMICRO header \t|  detected")
-        _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
-        _p("\theader index  \t|  0x{:02x} = {}".format(idx, idx))
-        _p("\tpadding count \t|  0x{:02x} = {}".format(ecl, ecl))
-        _p("\trelative time \t|  0x{:08x} = {}".format(rt, rt))
-        self.d_uh[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     def convert(self):
         self._load_file_bytes()

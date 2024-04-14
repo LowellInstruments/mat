@@ -220,14 +220,12 @@ class ParserLixTdoFile(ParserLixFile):
 
         # get first time
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
-        calc_epoch = epoch
 
         print(self.d_mm)
         last_ct = 0
 
-        # et: cumulative time
+        # self.d_mm is {cumulative_time: sensor_data}
         for ct, v in self.d_mm.items():
-            # self.d_mm is a dictionary {t: sensor_data}
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
             vp = _decode_sensor_measurement('P', v[2:4])
