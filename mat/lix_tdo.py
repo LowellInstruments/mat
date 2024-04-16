@@ -14,6 +14,9 @@ from mat.temperature import Temperature
 # flag debug
 debug = 0
 
+LEN_BYTES_T = 2
+LEN_BYTES_A = 6
+
 
 class LixFileConverterT:
     def __init__(self, a, b, c, d, r):
@@ -131,80 +134,90 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
         # to calculate index bytes
-        j = i + UHS
+        j = i
         k = i
 
         # to calculate mask and type of time
-        has_sm = mm[i] & 0x80
-        has_te = mm[i] & 0x40
-        mk = (has_sm | has_te) >> 6
+        sam_mask = mm[i]
+        flag_sensor_mask = sam_mask & 0x80
+        flag_time_ext = sam_mask & 0x40
+        flags_sam_mask = (flag_sensor_mask | flag_time_ext) >> 6
 
-        if mk == 0:
+        if flags_sam_mask == 0:
             # 0 sensor mask, time simple = 1 byte
-            s = '0 sm ts'
+            s = 'ts'
             t = mm[i] & 0x3F
             i += 1
-        elif mk == 1:
+        elif flags_sam_mask == 1:
             # 0 sensor mask, time extended = 2 bytes
-            s = '0 sm te'
+            s = 'te'
             t = (mm[i+1] << 8) + (mm[i] & 0x3F)
             i += 2
-        elif mk == 2:
+        elif flags_sam_mask == 2:
             # 1 sensor mask, time simple = 2 bytes
-            s = '1 sm ts'
+            s = 'sm ts'
             self.sm = mm[i] & 0x3F
             t = mm[i + 1] & 0x3F
             i += 2
         else:
             # 1 sensor mask, 2 time extended = 3 bytes
-            s = '1 sm te'
+            s = 'sm te'
             self.sm = mm[i] & 0x3F
             t = (mm[i + 2] << 8) + (mm[i + 1] & 0x3F)
             i += 3
 
         # show mask from beginning
-        _p(f'\tmask length \t|  {i-k} bytes -> {s}')
+        _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
         for x in range(i-k):
-            _p('\t\t\t\t\t|  0x{:02x}'.format(mm[k+x]))
+            if x == 0 and flag_sensor_mask:
+                _p('\t\t\t\t\t|  sm = 0x{:02x} (0x{:02x} | 0x{:02x})'.
+                   format(sam_mask, flags_sam_mask << 6, self.sm))
+            else:
+                _p('\t\t\t\t\t|  t  = 0x{:02x}'.format(mm[k+x]))
 
-        # in case of extended time
         # ----------------------------------
         # todo ---> test this extended time
         # ----------------------------------
+        # sample mask, get time
         if type(t) is bytes:
             t = int.from_bytes(t, "big")
             print('******** t bytes')
 
-        if self.mah.file_type.decode() == "TDO":
-            # -----------------------------------------------
-            # todo -> get measurement length from sensor mask
-            # -----------------------------------------------
-            n = 10
+        # sample mask, get sample length
+        _d_sm = {
+            0x11: 0,
+            0x13: 1,
+            0x15: 2,
+            0x17: 4,
+            0x19: 8
+        }
+        np = 2 * (_d_sm[self.sm])
+        n = np + LEN_BYTES_T + LEN_BYTES_A
+        _p(f"\tlen. sensors\t|  {n}")
 
-            # build dictionary measurements
-            self.d_mm[ta + t] = mm[i:i + n]
-        else:
-            assert False
+        # build dictionary measurements, with sensor mask
+        self.d_mm[ta + t] = (mm[i:i + n], self.sm)
 
         # keep track of how many measurements we decoded
         self.mm_i += 1
 
         # display bytes involved
-        _p(f'\tindex bytes \t|  {j}:{j+n+i-k}')
+        _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
+        _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
 
         # return current index of measurements' array
         return i + n, t
 
     def _create_csv_file(self):
         # use the calibration coefficients to create objects
-        n = LEN_LIX_FILE_CC_AREA
+        np = LEN_LIX_FILE_CC_AREA
         tmr = ascii85_to_num(self.mah.cc_area[10:15].decode())
         tma = ascii85_to_num(self.mah.cc_area[15:20].decode())
         tmb = ascii85_to_num(self.mah.cc_area[20:25].decode())
         tmc = ascii85_to_num(self.mah.cc_area[25:30].decode())
         tmd = ascii85_to_num(self.mah.cc_area[30:35].decode())
-        pra = ascii85_to_num(self.mah.cc_area[n-20:n-15].decode())
-        prb = ascii85_to_num(self.mah.cc_area[n-15:n-10].decode())
+        pra = ascii85_to_num(self.mah.cc_area[np-20:np-15].decode())
+        prb = ascii85_to_num(self.mah.cc_area[np-15:np-10].decode())
         lct = LixFileConverterT(tma, tmb, tmc, tmd, tmr)
         lcp = LixFileConverterP(pra, prb)
 
@@ -220,36 +233,48 @@ class ParserLixTdoFile(ParserLixFile):
 
         # get first time
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
-        calc_epoch = epoch
-
-        print(self.d_mm)
         last_ct = 0
 
-        # et: cumulative time
-        for ct, v in self.d_mm.items():
-            # self.d_mm is a dictionary {t: sensor_data}
+        # debug
+        print('\ndictionary measurements')
+        print(self.d_mm)
+
+        # ct: cumulative time
+        for ct, v_sm in self.d_mm.items():
+            # self.d_mm is a dictionary {t: (sensor_data, sensor_mask)}
+            v, sm = v_sm
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
-            vp = _decode_sensor_measurement('P', v[2:4])
-            rp = _raw_sensor_measurement(v[2:4])
-            vax = _decode_sensor_measurement('Ax', v[4:6])
-            vay = _decode_sensor_measurement('Ay', v[6:8])
-            vaz = _decode_sensor_measurement('Az', v[8:10])
-            vt = '{:06.3f}'.format(lct.convert(vt))
-            vp = '{:06.3f}'.format(lcp.convert(vp)[0])
+            # get length of Pressure data
+            np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
+            vpe, rpe = [], []
+            for i in range(np):
+                vp = _decode_sensor_measurement('P', v[2+(i*2):(2+(i*2))+2])
+                rp = _raw_sensor_measurement(v[2+(i*2):(2+(i*2))+2])
+                vpe.append(vp)
+                rpe.append(rp)
+            vax = _decode_sensor_measurement('Ax', v[-6:-4])
+            vay = _decode_sensor_measurement('Ay', v[-4:-2])
+            vaz = _decode_sensor_measurement('Az', v[-2:])
 
             # CSV file has UTC time
-            calc_epoch = epoch + ct
-            t = datetime.datetime.utcfromtimestamp(calc_epoch).isoformat() + ".000"
-            et = ct - last_ct
-            last_ct = ct
-
-            # log to file
-            s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
-            f_csv.write(s)
+            vt = '{:06.3f}'.format(float(lct.convert(vt)))
+            for i in range(np):
+                sub_t = '{:.3f}'.format(i / np)
+                t = (datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() +
+                     "." + sub_t + 'Z')
+                vp = '{:06.3f}'.format(lcp.convert(vpe[i])[0])
+                rp = rpe[i]
+                et = ct - last_ct
+                last_ct = ct
+                # log to file
+                s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
+                f_csv.write(s)
 
         # close the file
         f_csv.close()
 
         # return name of CSV file
         return csv_path
+
+

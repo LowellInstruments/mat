@@ -123,3 +123,4 @@ class ParserLixDoxFile(ParserLixFile):
 
         # return the name of the file
         return csv_path
+
