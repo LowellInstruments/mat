@@ -164,6 +164,7 @@ class ParserLixFile(ABC):
             "battery "
             "hdr_idx "
             "cc_area "
+            "cf_psm"
         )
         self.mah_context = namedtuple(
             "MacroHeader_Context",

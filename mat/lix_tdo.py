@@ -87,14 +87,12 @@ class ParserLixTdoFile(ParserLixFile):
         i += 5
         dhu = bb[i:i + 3].decode()
         i += 3
-        psm = bb[i:i + 5].decode()
+        self.mah.cf_psm = bb[i:i + 5].decode()
 
         # display all this info
         _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
         _p(f"\tfile version \t|  {self.mah.file_version}")
         self.mah.timestamp_str = _mah_time_to_str(self.mah.timestamp)
-
-        utc_epoch = _mah_time_utc_epoch(self.mah.timestamp)
 
         _p("\tdatetime is   \t|  {}".format(self.mah.timestamp_str))
         bat = int.from_bytes(self.mah.battery, "big")
@@ -126,7 +124,7 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}drf = {drf}')
         _p(f'{pad}dco = {dco}')
         _p(f'{pad}dhu = {dhu}')
-        _p(f'{pad}psm = {psm}')
+        _p(f'{pad}psm = {self.mah.cf_psm}')
 
     def _parse_data_mm(self, mm, i, ta):
         # mm: all measurement bytes, including masks
@@ -146,42 +144,40 @@ class ParserLixTdoFile(ParserLixFile):
         if flags_sam_mask == 0:
             # 0 sensor mask, time simple = 1 byte
             s = 'ts'
-            t = mm[i] & 0x3F
+            self.sm = self.mah.cf_psm
+            if self.sm == '00000':
+                self.sm = 0x13
+            t = 0x3F & mm[i]
             i += 1
         elif flags_sam_mask == 1:
             # 0 sensor mask, time extended = 2 bytes
             s = 'te'
-            t = (mm[i+1] << 8) + (mm[i] & 0x3F)
+            self.sm = self.mah.cf_psm
+            if self.sm == '00000':
+                self.sm = 0x13
+            print('mm[i]', mm[i])
+            print('mm[i+1]', mm[i+1])
+            t = ((0x3F & mm[i]) << 8) + mm[i+1]
             i += 2
         elif flags_sam_mask == 2:
             # 1 sensor mask, time simple = 2 bytes
             s = 'sm ts'
             self.sm = mm[i] & 0x3F
-            t = mm[i + 1] & 0x3F
+            t = 0x3F & mm[i+1]
             i += 2
         else:
             # 1 sensor mask, 2 time extended = 3 bytes
             s = 'sm te'
             self.sm = mm[i] & 0x3F
-            t = (mm[i + 2] << 8) + (mm[i + 1] & 0x3F)
+            t = ((0x3F & mm[i+1]) << 8) + mm[i+2]
             i += 3
 
         # show mask from beginning
         _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
-        for x in range(i-k):
-            if x == 0 and flag_sensor_mask:
-                _p('\t\t\t\t\t|  sm = 0x{:02x} (0x{:02x} | 0x{:02x})'.
-                   format(sam_mask, flags_sam_mask << 6, self.sm))
-            else:
-                _p('\t\t\t\t\t|  t  = 0x{:02x}'.format(mm[k+x]))
-
-        # ----------------------------------
-        # todo ---> test this extended time
-        # ----------------------------------
-        # sample mask, get time
-        if type(t) is bytes:
-            t = int.from_bytes(t, "big")
-            print('******** t bytes')
+        if flag_sensor_mask:
+            _p('\t\t\t\t\t|  sm = 0x{:02x} (0x{:02x} | 0x{:02x})'.
+                format(sam_mask, flags_sam_mask << 6, self.sm))
+        _p('\t\t\t\t\t|  t  = 0x{:04x}'.format(t))
 
         # sample mask, get sample length
         _d_sm = {
@@ -204,6 +200,10 @@ class ParserLixTdoFile(ParserLixFile):
         # display bytes involved
         _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
         _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
+
+        c = mm[j:j+n+i-k]
+        for a, b in enumerate(c):
+            print(a, '0x{:02x}'.format(b))
 
         # return current index of measurements' array
         return i + n, t
