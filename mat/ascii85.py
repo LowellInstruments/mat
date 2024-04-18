@@ -23,3 +23,12 @@ def ascii85_to_num(in_str):
         num = num + (ord(c) - 33) * 85 ** (4-i)
     num.dtype = '<f4'
     return num.item()
+
+
+if __name__ == '__main__':
+    n = -8.02
+    a = num_to_ascii85(n)
+    print(f'n {n} a {a}')
+    n = ascii85_to_num(a)
+    print(f'n {n} a {a}')
+

@@ -71,7 +71,7 @@ class ParserLixTdoFile(ParserLixFile):
         i += 1
         pfm = bb[i]
         i += 1
-        spn = bb[i]
+        self.mah_context.spn = bb[i]
         i += 1
         pma = bb[i]
         i += 1
@@ -87,7 +87,7 @@ class ParserLixTdoFile(ParserLixFile):
         i += 5
         dhu = bb[i:i + 3].decode()
         i += 3
-        self.mah.cf_psm = bb[i:i + 5].decode()
+        self.mah_context.psm = bb[i:i + 5].decode()
 
         # display all this info
         _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
@@ -116,7 +116,7 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}gfv = {gfv}')
         _p(f'{pad}rvn = {rvn}')
         _p(f'{pad}pfm = {pfm}')
-        _p(f'{pad}spn = {spn}')
+        _p(f'{pad}spn = {self.mah_context.spn}')
         _p(f'{pad}pma = {pma}')
         _p(f'{pad}spt = {spt}')
         _p(f'{pad}dro = {dro}')
@@ -124,83 +124,122 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}drf = {drf}')
         _p(f'{pad}dco = {dco}')
         _p(f'{pad}dhu = {dhu}')
-        _p(f'{pad}psm = {self.mah.cf_psm}')
+        _p(f'{pad}psm = {self.mah_context.psm}')
+
+    # def _parse_data_mm_with_sensor_mask(self, mm, i, ta):
+    #     # mm: all measurement bytes, no micro_headers but yes masks
+    #     # i: byte index in big array of measurements
+    #     _p(f"\n\tmeasurement \t|  #{self.mm_i}")
+    #
+    #     # to calculate index bytes
+    #     j = i
+    #     k = i
+    #
+    #     # extract sample mask flags of first byte
+    #     f_sm = mm[i] & 0x80
+    #     f_te = mm[i] & 0x40
+    #
+    #     # calculate sensor mask and time
+    #     if f_sm == 0 and f_te == 0:
+    #         s = 'ts'
+    #         self.sm = self.mah_context.psm
+    #         if self.sm == '00000':
+    #             self.sm = 0x13
+    #         t = 0x3F & mm[i]
+    #         i += 1
+    #     elif f_sm == 0 and f_te == 1:
+    #         s = 'te'
+    #         self.sm = self.mah_context.psm
+    #         if self.sm == '00000':
+    #             self.sm = 0x13
+    #         t = ((0x3F & mm[i]) << 8) + mm[i+1]
+    #         i += 2
+    #     elif f_sm == 1 and f_te == 0:
+    #         s = 'sm ts'
+    #         self.sm = mm[i] & 0x3F
+    #         t = 0x3F & mm[i+1]
+    #         i += 2
+    #     else:
+    #         s = 'sm te'
+    #         self.sm = mm[i] & 0x3F
+    #         t = ((0x3F & mm[i+1]) << 8) + mm[i+2]
+    #         i += 3
+    #
+    #     # show mask from beginning
+    #     _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
+    #     _p(f'\\flags mask \t|  f_sm = {f_sm}, f_te = {f_te}')
+    #     if f_sm:
+    #         _p('\t\t\t\t\t|  sm = {0x{:02x}'.format(self.sm))
+    #     if f_te == 0:
+    #         _p('\t\t\t\t\t|  ts = 0x{:02x}'.format(t))
+    #     else:
+    #         _p('\t\t\t\t\t|  te = 0x{:04x}'.format(t))
+    #
+    #     # sample mask, get sample length
+    #     _d_sm = {
+    #         0x11: 0,
+    #         0x13: 1,
+    #         0x15: 2,
+    #         0x17: 4,
+    #         0x19: 8
+    #     }
+    #     np = 2 * (_d_sm[self.sm])
+    #     n = np + LEN_BYTES_T + LEN_BYTES_A
+    #     _p(f"\tlen. sensors\t|  {n}")
+    #
+    #     # build dictionary measurements, with sensor mask
+    #     self.d_mm[ta + t] = (mm[i:i + n], self.sm)
+    #
+    #     # keep track of how many measurements we decoded
+    #     self.mm_i += 1
+    #
+    #     # display bytes involved
+    #     # todo ---> K can probably be simplified here
+    #     _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
+    #     _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
+    #
+    #     c = mm[j:j+n+i-k]
+    #     for a, b in enumerate(c):
+    #         print(a, '0x{:02x}'.format(b))
+    #
+    #     # return current index of measurements' array
+    #     return i + n, t
 
     def _parse_data_mm(self, mm, i, ta):
+
         # mm: all measurement bytes, no micro_headers but yes masks
-        # i: byte index in big array of measurements
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
-        # to calculate index bytes
+        # get current byte in big array of measurements and time mask
         j = i
-        k = i
-
-        # extract sample mask flags of first byte
-        f_sm = mm[i] & 0x80
         f_te = mm[i] & 0x40
-
-        # calculate sensor mask and time
-        if f_sm == 0 and f_te == 0:
-            s = 'ts'
-            self.sm = self.mah.cf_psm
-            if self.sm == '00000':
-                self.sm = 0x13
+        if f_te == 0:
             t = 0x3F & mm[i]
             i += 1
-        elif f_sm == 0 and f_te == 1:
-            s = 'te'
-            self.sm = self.mah.cf_psm
-            if self.sm == '00000':
-                self.sm = 0x13
+            _p('\tlen. mask\t\t|  1 -> ts = 0x{:02x} = {}'.format(t, t))
+        else:
             t = ((0x3F & mm[i]) << 8) + mm[i+1]
             i += 2
-        elif f_sm == 1 and f_te == 0:
-            s = 'sm ts'
-            self.sm = mm[i] & 0x3F
-            t = 0x3F & mm[i+1]
-            i += 2
-        else:
-            s = 'sm te'
-            self.sm = mm[i] & 0x3F
-            t = ((0x3F & mm[i+1]) << 8) + mm[i+2]
-            i += 3
+            _p('\tlen. mask\t\t|  2 -> te = 0x{:04x} = {}'.format(t, t))
 
-        # show mask from beginning
-        _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
-        _p(f'\\flags mask \t|  f_sm = {f_sm}, f_te = {f_te}')
-        if f_sm:
-            _p('\t\t\t\t\t|  sm = {0x{:02x}'.format(self.sm))
-        if f_te == 0:
-            _p('\t\t\t\t\t|  ts = 0x{:02x}'.format(t))
-        else:
-            _p('\t\t\t\t\t|  te = 0x{:04x}'.format(t))
-
-        # sample mask, get sample length
-        _d_sm = {
-            0x11: 0,
-            0x13: 1,
-            0x15: 2,
-            0x17: 4,
-            0x19: 8
-        }
-        np = 2 * (_d_sm[self.sm])
+        # calculate measurement number of bytes
+        np = 2 * self.mah_context.spn
         n = np + LEN_BYTES_T + LEN_BYTES_A
         _p(f"\tlen. sensors\t|  {n}")
 
-        # build dictionary measurements, with sensor mask
+        # build dictionary measurements, self.sm is for future features
         self.d_mm[ta + t] = (mm[i:i + n], self.sm)
 
         # keep track of how many measurements we decoded
         self.mm_i += 1
 
-        # display bytes involved
-        # todo ---> K can probably be simplified here
-        _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
-        _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
+        # display postions of bytes involved
+        _p(f'\tindex bytes \t|  {j}:{n+i} ({n+i-j})')
 
-        c = mm[j:j+n+i-k]
-        for a, b in enumerate(c):
-            print(a, '0x{:02x}'.format(b))
+        # debug this measurement
+        # c = mm[j:n+i]
+        # for a, b in enumerate(c):
+        #     print(a, '0x{:02x}'.format(b))
 
         # return current index of measurements' array
         return i + n, t
@@ -232,17 +271,15 @@ class ParserLixTdoFile(ParserLixFile):
         epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
         last_ct = 0
 
-        # debug
-        print('\ndictionary measurements')
-        print(self.d_mm)
+        # debug all measurements
+        # print('\ndictionary measurements')
+        # print(self.d_mm)
 
-        # ct: cumulative time
+        # self.d_mm is a dictionary {cumulative_time: (sensor_data, sensor_mask)}
         for ct, v_sm in self.d_mm.items():
-            # self.d_mm is a dictionary {t: (sensor_data, sensor_mask)}
             v, sm = v_sm
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
-            # get length of Pressure data
             np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
             vpe, rpe = [], []
             for i in range(np):
@@ -258,13 +295,11 @@ class ParserLixTdoFile(ParserLixFile):
             vt = '{:06.3f}'.format(float(lct.convert(vt)))
             for i in range(np):
                 sub_t = '{:.3f}'.format(i / np)
-                t = (datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() +
-                     "." + sub_t + 'Z')
+                t = datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() + f'.{sub_t}Z'
                 vp = '{:06.3f}'.format(lcp.convert(vpe[i])[0])
                 rp = rpe[i]
                 et = ct - last_ct
                 last_ct = ct
-                # log to file
                 s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
                 f_csv.write(s)
 
