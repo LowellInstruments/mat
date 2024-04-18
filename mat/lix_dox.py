@@ -104,7 +104,7 @@ class ParserLixDoxFile(ParserLixFile):
                 wat = int((wat / 3000) * 100)
 
             # calculate times
-            str_t = datetime.utcfromtimestamp(t).isoformat() + ".000"
+            str_t = datetime.utcfromtimestamp(t).isoformat() + ".000Z"
 
             # only two decimals
             dos = '{:.2f}'.format(dos)

@@ -127,7 +127,7 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}psm = {self.mah.cf_psm}')
 
     def _parse_data_mm(self, mm, i, ta):
-        # mm: all measurement bytes, including masks
+        # mm: all measurement bytes, no micro_headers but yes masks
         # i: byte index in big array of measurements
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
@@ -135,38 +135,31 @@ class ParserLixTdoFile(ParserLixFile):
         j = i
         k = i
 
-        # to calculate mask and type of time
-        sam_mask = mm[i]
-        flag_sensor_mask = sam_mask & 0x80
-        flag_time_ext = sam_mask & 0x40
-        flags_sam_mask = (flag_sensor_mask | flag_time_ext) >> 6
+        # extract sample mask flags of first byte
+        f_sm = mm[i] & 0x80
+        f_te = mm[i] & 0x40
 
-        if flags_sam_mask == 0:
-            # 0 sensor mask, time simple = 1 byte
+        # calculate sensor mask and time
+        if f_sm == 0 and f_te == 0:
             s = 'ts'
             self.sm = self.mah.cf_psm
             if self.sm == '00000':
                 self.sm = 0x13
             t = 0x3F & mm[i]
             i += 1
-        elif flags_sam_mask == 1:
-            # 0 sensor mask, time extended = 2 bytes
+        elif f_sm == 0 and f_te == 1:
             s = 'te'
             self.sm = self.mah.cf_psm
             if self.sm == '00000':
                 self.sm = 0x13
-            print('mm[i]', mm[i])
-            print('mm[i+1]', mm[i+1])
             t = ((0x3F & mm[i]) << 8) + mm[i+1]
             i += 2
-        elif flags_sam_mask == 2:
-            # 1 sensor mask, time simple = 2 bytes
+        elif f_sm == 1 and f_te == 0:
             s = 'sm ts'
             self.sm = mm[i] & 0x3F
             t = 0x3F & mm[i+1]
             i += 2
         else:
-            # 1 sensor mask, 2 time extended = 3 bytes
             s = 'sm te'
             self.sm = mm[i] & 0x3F
             t = ((0x3F & mm[i+1]) << 8) + mm[i+2]
@@ -174,10 +167,13 @@ class ParserLixTdoFile(ParserLixFile):
 
         # show mask from beginning
         _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
-        if flag_sensor_mask:
-            _p('\t\t\t\t\t|  sm = 0x{:02x} (0x{:02x} | 0x{:02x})'.
-                format(sam_mask, flags_sam_mask << 6, self.sm))
-        _p('\t\t\t\t\t|  t  = 0x{:04x}'.format(t))
+        _p(f'\\flags mask \t|  f_sm = {f_sm}, f_te = {f_te}')
+        if f_sm:
+            _p('\t\t\t\t\t|  sm = {0x{:02x}'.format(self.sm))
+        if f_te == 0:
+            _p('\t\t\t\t\t|  ts = 0x{:02x}'.format(t))
+        else:
+            _p('\t\t\t\t\t|  te = 0x{:04x}'.format(t))
 
         # sample mask, get sample length
         _d_sm = {
@@ -198,6 +194,7 @@ class ParserLixTdoFile(ParserLixFile):
         self.mm_i += 1
 
         # display bytes involved
+        # todo ---> K can probably be simplified here
         _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
         _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
 
