@@ -194,7 +194,7 @@ class ParserLixTdoFile(ParserLixFile):
     #     self.mm_i += 1
     #
     #     # display bytes involved
-    #     # todo ---> K can probably be simplified here
+    #     # K can probably be simplified here
     #     _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
     #     _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
     #
