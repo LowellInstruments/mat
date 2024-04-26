@@ -95,6 +95,9 @@ def is_cmd_done(tag, ans):
     if t == 'RFN':
         return a and a.startswith('RFN'.encode())
 
+    if t == 'GLT':
+        return a and a.startswith('GLT'.encode()) and len(a) == 7
+
     if t in (TIME_CMD, 'FDG'):
         return _ck(t, a, 25)
 
