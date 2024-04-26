@@ -1,3 +1,4 @@
+import bisect
 from functools import lru_cache
 
 from mat.ascii85 import ascii85_to_num
@@ -16,6 +17,43 @@ debug = 0
 
 LEN_BYTES_T = 2
 LEN_BYTES_A = 6
+
+
+def prf_compensate_pressure(vp, vt, prc, prd):
+    # vp: raw Pressure ADC counts
+    # vt: raw Temperature ADC counts
+    # PRC = temperature coefficient of pressure sensor = counts / °C
+    # PRD = reference temperature for pressure sensor = °C
+
+    # define lookup table, from -20°C to 50°C
+    lut = [
+       56765, 56316, 55850, 55369, 54872, 54359,
+       53830, 53285, 52724, 52148, 51557, 50951,
+       50331, 49697, 49048, 48387, 47714, 47028,
+       46331, 45623, 44906, 44179, 43445, 42703,
+       41954, 41199, 40440, 39676, 38909, 38140,
+       37370, 36599, 35828, 35059, 34292, 33528,
+       32768, 32012, 31261, 30517, 29780, 29049,
+       28327, 27614, 26909, 26214, 25530, 24856,
+       24192, 23541, 22900, 22272, 21655, 21051,
+       20459, 19880, 19313, 18759, 18218, 17689,
+       17174, 16670, 16180, 15702, 15236, 14782,
+       14341, 13912, 13494, 13088, 12693
+    ]
+
+    # use vt to look up the closest temperature in degrees C, indexed T, i_t
+    i_t = bisect.bisect(lut, vt)
+
+    # use index of closest value (i_m) to get the T in °C, aka tc
+    ct = i_t - 20
+    print("ct =", ct)
+
+    # corrected pressure ADC counts
+    cp = vp - (prc * (ct - prd))
+    print(f"PRC = {prc} / PRD = {prd}")
+    print(f"UCP = {vp} / COP = {cp}")
+
+    return cp
 
 
 class LixFileConverterT:
@@ -50,6 +88,8 @@ class LixFileConverterP:
 class ParserLixTdoFile(ParserLixFile):
     def __init__(self, file_path):
         super().__init__(file_path)
+        self.prc = 0
+        self.prd = 0
 
     def _parse_macro_header(self):
         self.mah.bytes = self.bb[:CS]
@@ -110,8 +150,11 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}tmd = {ascii85_to_num(self.mah.cc_area[30:35].decode())}')
         _p(f'{pad}pra = {ascii85_to_num(self.mah.cc_area[n-20:n-15].decode())}')
         _p(f'{pad}prb = {ascii85_to_num(self.mah.cc_area[n-15:n-10].decode())}')
-        _p(f'{pad}prc = {ascii85_to_num(self.mah.cc_area[n-10:n-5].decode())}')
-        _p(f'{pad}prd = {ascii85_to_num(self.mah.cc_area[n-5:].decode())}')
+        # PRC / PRD are not ascii85, also, we need them
+        self.prc = float(self.mah.cc_area[n-10:n-5].decode()) / 100
+        self.prd = float(self.mah.cc_area[n-5:].decode()) / 100
+        _p(f'{pad}prc = {self.prc}')
+        _p(f'{pad}prd = {self.prd}')
         _p("\tcontext \t\t|  detected")
         _p(f'{pad}gfv = {gfv}')
         _p(f'{pad}rvn = {rvn}')
@@ -262,9 +305,12 @@ class ParserLixTdoFile(ParserLixFile):
         # ---------------
         csv_path = (self.file_path[:-4] + '_TDO.csv')
         f_csv = open(csv_path, 'w')
+        # cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
+        #        'raw ADC Temp,raw ADC Pressure,' \
+        #        'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                'raw ADC Temp,raw ADC Pressure,' \
-               'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
+               'Temperature (C),Pressure (dbar),Pressure (dbar_comp), Ax,Ay,Az\n'
         f_csv.write(cols)
 
         # get first time
@@ -281,12 +327,14 @@ class ParserLixTdoFile(ParserLixFile):
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
             np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
-            vpe, rpe = [], []
+            vpe, rpe, cpe = [], [], []
             for i in range(np):
                 vp = _decode_sensor_measurement('P', v[2+(i*2):(2+(i*2))+2])
                 rp = _raw_sensor_measurement(v[2+(i*2):(2+(i*2))+2])
+                cp = prf_compensate_pressure(vp, vt, self.prc, self.prd)
                 vpe.append(vp)
                 rpe.append(rp)
+                cpe.append(cp)
             vax = _decode_sensor_measurement('Ax', v[-6:-4])
             vay = _decode_sensor_measurement('Ay', v[-4:-2])
             vaz = _decode_sensor_measurement('Az', v[-2:])
@@ -300,7 +348,9 @@ class ParserLixTdoFile(ParserLixFile):
                 rp = rpe[i]
                 et = ct - last_ct
                 last_ct = ct
-                s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
+                cp = cpe[i]
+                # s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
+                s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{cp},{vax},{vay},{vaz}\n'
                 f_csv.write(s)
 
         # close the file

@@ -86,6 +86,5 @@ def convert_lix_file(fp):
 
 
 if __name__ == '__main__':
-    # p = '/home/kaz/Downloads/dl_bil/9999999_BIL_20240122_195627.lix'
-    p = '/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/1111111_BIL_20240418_142139.lid'
+    p = '/home/kaz/Downloads/dl_bil/D0-2E-AB-D9-29-48/1111111_BIL_20240426_165223.lid'
     convert_lix_file(p)

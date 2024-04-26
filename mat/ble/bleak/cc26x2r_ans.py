@@ -93,10 +93,10 @@ def is_cmd_done(tag, ans):
         return a and a.startswith(t.encode()) and n in (10, 13)
 
     if t == 'RFN':
-        return a and a.startswith('RFN'.encode())
+        return a and a.startswith(b'RFN')
 
     if t == 'GLT':
-        return a and a.startswith('GLT'.encode()) and len(a) == 7
+        return a and a.startswith(b'GLT') and len(a) == 7
 
     if t in (TIME_CMD, 'FDG'):
         return _ck(t, a, 25)
@@ -125,5 +125,8 @@ def is_cmd_done(tag, ans):
 
     if t == 'GDX':
         return a and len(findall(r"[-+]?(?:\d*\.*\d+)", a.decode())) == 3
+
+    if t == 'CLK':
+        return a and a.startswith(b'CLK') and len(a) == 7
 
     print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)
