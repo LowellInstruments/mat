@@ -19,11 +19,13 @@ LEN_BYTES_T = 2
 LEN_BYTES_A = 6
 
 
-def prf_compensate_pressure(vp, vt, prc, prd):
-    # vp: raw Pressure ADC counts
-    # vt: raw Temperature ADC counts
-    # PRC = temperature coefficient of pressure sensor = counts / °C
-    # PRD = reference temperature for pressure sensor = °C
+def prf_compensate_pressure(rp, rt, prc, prd):
+    # rp: raw Pressure ADC counts
+    # rt: raw Temperature ADC counts
+    # prc: temperature coefficient of pressure sensor = counts / °C
+    # prd: reference temperature for pressure sensor = °C
+    # cp: corrected Pressure ADC counts
+    # ct: closest Temperature = °C
 
     # define lookup table, from -20°C to 50°C
     lut = [
@@ -41,17 +43,23 @@ def prf_compensate_pressure(vp, vt, prc, prd):
        14341, 13912, 13494, 13088, 12693
     ]
 
-    # use vt to look up the closest temperature in degrees C, indexed T, i_t
-    i_t = bisect.bisect(lut, vt)
+    # bisect needs a sorted list
+    lut.reverse()
 
-    # use index of closest value (i_m) to get the T in °C, aka tc
+    # use vt to look up the closest temperature in degrees C, indexed T, i_t
+    i_t = len(lut) - bisect.bisect(lut, rt)
+    print(f'searching {rt} in lut -> i_t {i_t}')
+
+    # use index of closest value (i_m) to get the T in °C, aka ct
     ct = i_t - 20
     print("ct =", ct)
 
     # corrected pressure ADC counts
-    cp = vp - (prc * (ct - prd))
+    cp = rp - (prc * (ct - prd))
+    print('\n')
     print(f"PRC = {prc} / PRD = {prd}")
-    print(f"UCP = {vp} / COP = {cp}")
+    print(f"PRP = {rp}  / PCP = {cp}")
+    print(f'PRP - PCP = {rp-cp}')
 
     return cp
 
@@ -324,10 +332,14 @@ class ParserLixTdoFile(ParserLixFile):
         # self.d_mm is a dictionary {cumulative_time: (sensor_data, sensor_mask)}
         for ct, v_sm in self.d_mm.items():
             v, sm = v_sm
+
+            # temperature
             vt = _decode_sensor_measurement('T', v[0:2])
             rt = _raw_sensor_measurement(v[0:2])
             np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
             vpe, rpe, cpe = [], [], []
+
+            # pressure
             for i in range(np):
                 vp = _decode_sensor_measurement('P', v[2+(i*2):(2+(i*2))+2])
                 rp = _raw_sensor_measurement(v[2+(i*2):(2+(i*2))+2])
@@ -335,12 +347,16 @@ class ParserLixTdoFile(ParserLixFile):
                 vpe.append(vp)
                 rpe.append(rp)
                 cpe.append(cp)
+
+            # accelerometer
             vax = _decode_sensor_measurement('Ax', v[-6:-4])
             vay = _decode_sensor_measurement('Ay', v[-4:-2])
             vaz = _decode_sensor_measurement('Az', v[-2:])
 
             # CSV file has UTC time
             vt = '{:06.3f}'.format(float(lct.convert(vt)))
+
+            # CSV file writing
             for i in range(np):
                 sub_t = '{:.3f}'.format(i / np)
                 t = datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() + f'.{sub_t}Z'
