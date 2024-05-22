@@ -26,7 +26,7 @@ def ascii85_to_num(in_str):
 
 
 if __name__ == '__main__':
-    n = -8.02
+    n = 0
     a = num_to_ascii85(n)
     print(f'n {n} a {a}')
     n = ascii85_to_num(a)

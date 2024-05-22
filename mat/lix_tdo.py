@@ -318,7 +318,7 @@ class ParserLixTdoFile(ParserLixFile):
         #        'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                'raw ADC Temp,raw ADC Pressure,' \
-               'Temperature (C),Pressure (dbar),Pressure (dbar_comp), Ax,Ay,Az\n'
+               'Temperature (C),Pressure (dbar),Compensated ADC Pressure,Ax,Ay,Az\n'
         f_csv.write(cols)
 
         # get first time
@@ -359,6 +359,9 @@ class ParserLixTdoFile(ParserLixFile):
             # CSV file writing
             for i in range(np):
                 sub_t = '{:.3f}'.format(i / np)
+                # sub_t: 'X.250'
+                sub_t = sub_t[-3:]
+                # sub_t: '250'
                 t = datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() + f'.{sub_t}Z'
                 vp = '{:06.3f}'.format(lcp.convert(vpe[i])[0])
                 rp = rpe[i]
