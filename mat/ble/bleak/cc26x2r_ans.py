@@ -24,6 +24,9 @@ def is_cmd_done(tag, ans):
     if tag == 'DWL':
         return False
 
+    if tag == 'GAB':
+        return _ck(t, a, 198)
+
     if ans == b'ERR':
         return True
 

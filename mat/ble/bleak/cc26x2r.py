@@ -63,7 +63,7 @@ class BleCC26X2:    # pragma: no cover
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
-                # print('debug self.ans -> ', self.ans)
+                print('debug self.ans -> ', self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -361,8 +361,8 @@ class BleCC26X2:    # pragma: no cover
         if not ok:
             return
         a = rv
+        # a: b'GST 043412'
         if a and len(a.split()) == 2:
-            # a: b'GST 043412'
             _ = a.split()[1].decode()
             t = _[2:6]
             # t: '3412' --> '1234'
@@ -370,6 +370,17 @@ class BleCC26X2:    # pragma: no cover
             t = int(t, 16)
             return 0, t
         return 1, 0
+
+    async def cmd_gab(self):
+        # gab: Get Accelerometer Burst
+        c, _ = build_cmd("GAB")
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        # rv: GAB C0XXYYZZXXYYZZ
+        ok = rv and len(rv) == 198 and rv.startswith(b'GAB')
+        if not ok:
+            return 1, 0
+        return 0, rv[6:]
 
     async def cmd_bat(self):
         c, _ = build_cmd(BAT_CMD)
