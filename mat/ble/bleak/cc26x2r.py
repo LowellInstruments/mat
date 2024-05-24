@@ -555,6 +555,7 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd(c)
         rv = await self._ans_wait(timeout=2)
         ok = rv in (b'GLT DO1', b'GLT DO2', b'GLT TDO', b'GLT ???')
+        # rv: b'ERR' in loggers not supporting this command
         return (0, rv.decode()[-3:]) if ok else (1, None)
 
     async def cmd_clk(self):
