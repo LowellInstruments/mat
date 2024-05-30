@@ -144,20 +144,6 @@ def ble_mat_hci_exists(h):
     assert _hci_is_up(int(h[3]))
 
 
-def ble_mat_bluetoothctl_power_cycle():
-    if not linux_is_rpi():
-        return
-    cc = [
-        'sudo bluetoothctl power off',
-        'sudo bluetoothctl power on',
-    ]
-    for c in cc:
-        rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-        if rv.returncode:
-            print(f'error: {c}')
-        time.sleep(1)
-
-
 def ble_mat_disconnect_all_devices_ll():
 
     # the "Connected" flag only works for bluetoothctl > v5.65
@@ -187,6 +173,7 @@ def ble_mat_disconnect_all_devices_ll():
 
 
 def ble_mat_systemctl_restart_bluetooth():
+    # see stackexchange 758436, this also powers off adapter
     if not linux_is_rpi():
         return
     c = 'sudo systemctl restart bluetooth'
