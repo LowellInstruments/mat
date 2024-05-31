@@ -318,7 +318,7 @@ class ParserLixTdoFile(ParserLixFile):
         #        'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
         cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                'raw ADC Temp,raw ADC Pressure,' \
-               'Temperature (C),Pressure (dbar),Compensated ADC Pressure,Ax,Ay,Az\n'
+               'Temperature (C),Pressure (dbar),Compensated ADC Pressure, Compensated Pressure (dbar),Ax,Ay,Az\n'
         f_csv.write(cols)
 
         # get first time
@@ -333,32 +333,24 @@ class ParserLixTdoFile(ParserLixFile):
         for ct, v_sm in self.d_mm.items():
             v, sm = v_sm
 
-            # needed arrays
-            vpe, rpe, cpe = [], [], []
+            # needed arrays for pressure
+            rpe, cpe = [], []
 
-            # temperature
-            vt = _decode_sensor_measurement('T', v[0:2])
+            # temperature in ADC counts
             rt = _raw_sensor_measurement(v[0:2])
 
-            # -------------------------------------------
-            # todo: Noah, I think vt == rt and vp == rp
-            # todo: so we dont need vt and vp
-            # todo: and I think you want
-            # todo: lcp.convert(rp)
-            # todo: and lcp.convert(cp)
-            # -------------------------------------------
+            # temperature floating point format
+            vt = '{:06.3f}'.format(float(lct.convert(rt)))
 
-            # pressure, up to 'np' samples
+            # pressure: up to 'np' samples
             np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
             for i in range(np):
-                # vp: Pressure (dBar)
-                vp = _decode_sensor_measurement('P', v[2+(i*2):(2+(i*2))+2])
                 # rp: raw ADC pressure
                 rp = _raw_sensor_measurement(v[2+(i*2):(2+(i*2))+2])
-                # cp: compensated ADC pressure, uses PRC / PRD
-                cp = prf_compensate_pressure(vp, vt, self.prc, self.prd)
-                vpe.append(vp)
                 rpe.append(rp)
+
+                # cp: compensated ADC pressure, uses PRC / PRD
+                cp = prf_compensate_pressure(rp, rt, self.prc, self.prd)
                 cpe.append(cp)
 
             # accelerometer
@@ -366,24 +358,25 @@ class ParserLixTdoFile(ParserLixFile):
             vay = _decode_sensor_measurement('Ay', v[-4:-2])
             vaz = _decode_sensor_measurement('Az', v[-2:])
 
-            # temperature floating point format
-            vt = '{:06.3f}'.format(float(lct.convert(vt)))
-
             # CSV file writing
             for i in range(np):
+                # convert raw pressure to decibar using PRA / PRB
+                vp = '{:06.3f}'.format(lcp.convert(rpe[i])[0])
+                # convert compensated pressure to decibar using PRA / PRB
+                kp = '{:06.3f}'.format(lcp.convert(cpe[i])[0])
+
+                # timestamp
                 sub_t = '{:.3f}'.format(i / np)
-                # sub_t: 'X.250'
+                # sub_t: 'X.250' -> '250'
                 sub_t = sub_t[-3:]
-                # sub_t: '250'
                 t = datetime.datetime.utcfromtimestamp(epoch + ct).isoformat() + f'.{sub_t}Z'
-                # convert uses PRA / PRB
-                vp = '{:06.3f}'.format(lcp.convert(vpe[i])[0])
-                rp = rpe[i]
+
+                # elapsed and cumulative time
                 et = ct - last_ct
                 last_ct = ct
-                cp = cpe[i]
                 # s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
-                s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{cp},{vax},{vay},{vaz}\n'
+                s = f'{t},{et},{ct},{rt},{rpe[i]},{vt},{vp},{cpe[i]},'\
+                    f'{kp},{vax},{vay},{vaz}\n'
                 f_csv.write(s)
 
         # close the file
@@ -391,5 +384,3 @@ class ParserLixTdoFile(ParserLixFile):
 
         # return name of CSV file
         return csv_path
-
-

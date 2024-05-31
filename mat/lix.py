@@ -1,3 +1,4 @@
+import glob
 import traceback
 
 from mat.lix_dox import ParserLixDoxFile
@@ -86,5 +87,5 @@ def convert_lix_file(fp):
 
 
 if __name__ == '__main__':
-    p = '/home/kaz/Downloads/dl_bil_v2/D0-2E-AB-D9-29-48/1111111_BIL_20240514_140422.lid'
-    convert_lix_file(p)
+    for i in glob.glob('/home/kaz/Downloads/a/504/*.lid'):
+        convert_lix_file(i)
