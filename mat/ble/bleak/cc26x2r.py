@@ -462,7 +462,8 @@ class BleCC26X2:    # pragma: no cover
             print('RLI doing', each)
             c, _ = build_cmd(LOGGER_INFO_CMD, each)
             await self._cmd(c)
-            rv = await self._ans_wait()
+            # Nick wanted this timeout
+            rv = await self._ans_wait(timeout=5.0)
             if not rv or rv == b'ERR':
                 all_ok = False
             else:
