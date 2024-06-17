@@ -191,3 +191,8 @@ def ble_mat_get_bluez_version() -> str:
     v = v.replace('\n', '').split(': ')[1]
     print('bluez version is', v)
     return str(v)
+
+
+def ble_mat_bluetoothctl_power_cycle():
+    # we don't do this anymore
+    pass
