@@ -152,6 +152,10 @@ def ble_mat_disconnect_all_devices_ll():
         print('ble_mat_disconnect_all_devices_ll() unsupported')
         return
 
+    # some linux versions
+    c = 'bluetoothctl disconnect'
+    sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
     # ll: means low-level
     c = 'bluetoothctl devices Connected'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)

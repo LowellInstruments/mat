@@ -76,6 +76,8 @@ class LixFileConverterT:
 
     @lru_cache
     def convert(self, raw_temperature):
+        print('*', self.coefficients)
+        print('*', raw_temperature, self.cnv.convert(raw_temperature))
         return self.cnv.convert(raw_temperature)
 
 
@@ -384,3 +386,12 @@ class ParserLixTdoFile(ParserLixFile):
 
         # return name of CSV file
         return csv_path
+
+
+if __name__ == '__main__':
+    rp = 11056
+    rt = 29706
+    prc = 1
+    prd = 1
+    v = prf_compensate_pressure(rp, rt, prc, prd)
+    print(v)

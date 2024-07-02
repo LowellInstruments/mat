@@ -87,5 +87,5 @@ def convert_lix_file(fp):
 
 
 if __name__ == '__main__':
-    for i in glob.glob('/home/kaz/Downloads/a/504/*.lid'):
-        convert_lix_file(i)
+    filename = '/home/kaz/PycharmProjects/ddh/dl_files/f0-5e-cd-25-a2-30/2402774_BIL_20240625_153702.lid'
+    convert_lix_file(filename)

@@ -22,7 +22,6 @@ def do16_to_float(d):
 def is_a_do2_file(p):
     with open(p, 'rb') as f:
         b = f.read()
-        print(b[:3])
         return b[:3] == b'DO2'
 
 
