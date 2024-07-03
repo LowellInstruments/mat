@@ -73,37 +73,6 @@ def _hci_rpi_is_external(i: int) -> bool:
     return True
 
 
-def ble_mat_get_antenna_type():
-    n = len(glob.glob('/sys/class/bluetooth/hci*'))
-
-    # not raspberry, different rules apply, just best guess
-    if not linux_is_rpi():
-        if n == 1:
-            return 0, 'internal'
-        if _hci_is_up(1):
-            return 1, 'external'
-        return 0, 'internal'
-
-    # raspberry, when only 1, return whatever we have
-    if n == 1:
-        rv = 'external' if _hci_rpi_is_external(0) else 'internal'
-        return 0, rv
-
-    # more than one, prefer external
-    if _hci_rpi_is_external(0):
-        if _hci_is_up(0):
-            return 0, 'external'
-        return 1, 'internal'
-
-    if _hci_rpi_is_external(1):
-        if _hci_is_up(1):
-            return 1, 'external'
-        return 0, 'internal'
-
-    # fallback
-    return 0, 'internal'
-
-
 def ble_mat_get_antenna_type_v2():
     d = {}
     for i in range(2):
@@ -116,7 +85,10 @@ def ble_mat_get_antenna_type_v2():
                 d['external'] = i
     # prefer external
     s = 'external' if 'external' in d.keys() else 'internal'
-    return d[s], s
+    try:
+        return d[s], s
+    except (Exception, ) as ex:
+        print(f'error: ble_mat_get_antenna_type_v2() -> {ex}')
 
 
 def ble_mat_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
