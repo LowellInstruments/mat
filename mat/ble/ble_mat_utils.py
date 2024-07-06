@@ -91,6 +91,10 @@ def ble_mat_get_antenna_type_v2():
         print(f'error: ble_mat_get_antenna_type_v2() -> {ex}')
 
 
+def ble_mat_get_antenna_type():
+    # only kept for old yellow boat DDH version
+    return ble_mat_get_antenna_type_v2()
+
 def ble_mat_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     _ = int(data_len) / int(size) * 100 if size else 0
     _ = _ if _ < 100 else 100
