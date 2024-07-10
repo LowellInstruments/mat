@@ -316,8 +316,7 @@ class ParserLixTdoFile(ParserLixFile):
         # ---------------
         csv_path = (self.file_path[:-4] + '_TDO.csv')
         f_csv = open(csv_path, 'w')
-        cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
-               'raw ADC Temp,raw ADC Pressure,' \
+        cols = 'ISO 8601 Time,' \
                'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
         if self.verbose:
             cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
@@ -379,7 +378,7 @@ class ParserLixTdoFile(ParserLixFile):
                 # elapsed and cumulative time
                 et = ct - last_ct
                 last_ct = ct
-                s = f'{t},{et},{ct},{rt},{rp},{vt},{vp},{vax},{vay},{vaz}\n'
+                s = f'{t},{vt},{vp},{vax},{vay},{vaz}\n'
                 if self.verbose:
                     s = f'{t},{et},{ct},{rt},{rpe[i]},{vt},{vp},{cpe[i]},'\
                         f'{kp},{vax},{vay},{vaz}\n'
