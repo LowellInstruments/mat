@@ -21,6 +21,10 @@ _ck = _check
 def is_cmd_done(tag, ans):
     t, a = tag, ans
 
+    # this condition must be up here
+    if ans == b'ERR':
+        return True
+
     if tag == 'DWL':
         return False
 
@@ -30,9 +34,6 @@ def is_cmd_done(tag, ans):
 
     if tag == 'GAB':
         return _ck(t, a, 198)
-
-    if ans == b'ERR':
-        return True
 
     if t == STATUS_CMD:
         return _ck(t, a, 8)
