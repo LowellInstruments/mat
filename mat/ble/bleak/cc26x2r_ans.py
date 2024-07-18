@@ -24,6 +24,10 @@ def is_cmd_done(tag, ans):
     if tag == 'DWL':
         return False
 
+    if tag == 'DCA':
+        # b'DCA 06123456'
+        return _ck(t, a, 12)
+
     if tag == 'GAB':
         return _ck(t, a, 198)
 
