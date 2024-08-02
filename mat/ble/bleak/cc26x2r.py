@@ -477,7 +477,7 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_rli(self):
         info = {}
         all_ok = True
-        for each in ['SN', 'BA', 'CA', 'MA']:
+        for each in ['SN', 'BA', 'CA']:
             print('RLI doing', each)
             c, _ = build_cmd(LOGGER_INFO_CMD, each)
             await self._cmd(c)

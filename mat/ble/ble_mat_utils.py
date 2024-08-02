@@ -129,7 +129,7 @@ def ble_mat_disconnect_all_devices_ll():
         return
 
     # some linux versions
-    c = 'bluetoothctl disconnect'
+    c = 'timeout 5 bluetoothctl disconnect'
     sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
     # ll: means low-level

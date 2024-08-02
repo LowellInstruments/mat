@@ -87,5 +87,5 @@ def convert_lix_file(fp, verbose=0):
 
 
 if __name__ == '__main__':
-    filename = '/home/kaz/Downloads/0000002_TST_20240717_162555.lid'
+    filename = '/home/kaz/Downloads/dl_bil_v2/D0-2E-AB-D9-29-48/1111111_TST_20240730_184637.lid'
     convert_lix_file(filename, verbose=1)
