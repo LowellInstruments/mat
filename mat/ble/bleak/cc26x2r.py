@@ -623,6 +623,34 @@ class BleCC26X2:    # pragma: no cover
         ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
         return 0, ls
 
+    async def cmd_ddh_a(self, g) -> tuple:
+        lat, lon, _, __ = g
+        lat = GPS_FRM_STR.format(float(lat))
+        lon = GPS_FRM_STR.format(float(lon))
+        s = '{} {}'.format(lat, lon)
+        c, _ = build_cmd('__A', s)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=30)
+        if not rv:
+            return 1, 'not'
+        if rv == b'ERR':
+            return 2, 'error'
+        if rv and not rv.endswith(b'\x04\n\r'):
+            return 3, 'partial'
+        ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
+        return 0, ls
+
+    async def cmd_ddh_b(self):
+        # time() -> seconds since epoch, in UTC
+        dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
+        c, _ = build_cmd('__B', dt.strftime('%Y/%m/%d %H:%M:%S'))
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and rv.startswith(b'__B')
+        if ok:
+            return 0, rv
+        return 1, bytes()
+
     async def cmd_dwl(self, z, ip=None, port=None) -> tuple:
         # z: file size
         self.ans = bytes()

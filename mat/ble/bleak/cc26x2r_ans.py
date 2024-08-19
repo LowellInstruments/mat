@@ -110,7 +110,7 @@ def is_cmd_done(tag, ans):
     if t in (TIME_CMD, 'FDG'):
         return _ck(t, a, 25)
 
-    if t == DIR_CMD:
+    if t in (DIR_CMD, '__A'):
         b1, b2 = b'\x04', b'\x04\n\r'
         return a and a.endswith(b1) or a.endswith(b2)
 
@@ -137,5 +137,14 @@ def is_cmd_done(tag, ans):
 
     if t == 'CLK':
         return a and a.startswith(b'CLK') and len(a) == 7
+
+    if t == '__B':
+        # a: b'__B 200020000000F072022/08/25 12:13:55'
+        # [4:6] = 20 length
+        # [6]   = 0  was it running
+        # [7:15] = 02000000 uptime
+        # [15:19] = 0F07 bat_str
+        # [19:] = 2022/08/25 12:13:55 what was gtm
+        return a and a.startswith(b'__B') and len(a) == 38
 
     print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)

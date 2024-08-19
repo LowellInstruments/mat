@@ -95,6 +95,7 @@ def ble_mat_get_antenna_type():
     # only kept for old yellow boat DDH version
     return ble_mat_get_antenna_type_v2()
 
+
 def ble_mat_progress_dl(data_len, size, ip='127.0.0.1', port=DDH_GUI_UDP_PORT):
     _ = int(data_len) / int(size) * 100 if size else 0
     _ = _ if _ < 100 else 100
@@ -169,7 +170,7 @@ def ble_mat_get_bluez_version() -> str:
     v = rv.stdout.decode()
     # v: b'bluetoothctl: 5.55\n'
     v = v.replace('\n', '').split(': ')[1]
-    print('bluez version is', v)
+    print('[ BLE ] bluez version is', v)
     return str(v)
 
 
