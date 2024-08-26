@@ -10,7 +10,6 @@ from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd, \
     ble_mat_progress_dl, \
     ble_mat_hci_exists
 from mat.ble.bleak.cc26x2r_ans import is_cmd_done
-from mat.lix_abs import LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CF_AREA
 from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD, SWS_CMD, RWS_CMD, LOGGER_INFO_CMD_W, \
     LOGGER_INFO_CMD
 from mat.logger_controller_ble import DWG_FILE_CMD, CRC_CMD, CONFIG_CMD, WAKE_CMD, OXYGEN_SENSOR_CMD, BAT_CMD, \
@@ -512,20 +511,21 @@ class BleCC26X2:    # pragma: no cover
         # Get Calibration Constants
         await self._cmd('GCC \r')
         rv = await self._ans_wait()
-        n = LEN_LIX_FILE_CC_AREA
-        ok = rv and len(rv) == n + 6 and rv.startswith(b'GCC')
+        # n: number of fields of cc_area
+        n = 33
+        ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCC')
         if ok:
             return 0, rv.decode()
-        e = 'error: bad GCC length {} - 6 != {} - 6'.format(len(rv), n)
-        print(e)
+        print(f'error: bad GCC length {len(rv)} - 6 != {n} - 6')
         return 1, ""
 
     async def cmd_gcf(self):
         # Get constants proFiling
         await self._cmd('GCF \r')
         rv = await self._ans_wait()
-        n = LEN_LIX_FILE_CF_AREA
-        ok = rv and len(rv) == n + 6 and rv.startswith(b'GCF')
+        # n: number of fields of cf_area
+        n = 9
+        ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCF')
         if ok:
             return 0, rv.decode()
         return 1, ""

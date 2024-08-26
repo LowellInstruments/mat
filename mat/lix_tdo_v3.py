@@ -1,19 +1,20 @@
 import bisect
-from functools import lru_cache
-
 from mat.ascii85 import ascii85_to_num
-from mat.lix_abs import CS, LEN_LIX_FILE_CC_AREA, LEN_LIX_FILE_CONTEXT, UHS, _raw_sensor_measurement
-from mat.lix_abs import (ParserLixFile, _p, _mah_time_to_str,
-                         _parse_macro_header_start_time_to_seconds,
-                         _decode_sensor_measurement,
-                         _mah_time_utc_epoch)
 import datetime
 
-from mat.pressure import Pressure
-from mat.temperature import Temperature
+from mat.lix import (ParserLixFile, CS, LEN_LIX_FILE_CONTEXT, _p,
+                     lix_mah_time_to_str,
+                     LixFileConverterT, LixFileConverterP,
+                     lix_macro_header_start_time_to_seconds,
+                     lix_decode_sensor_measurement,
+                     lix_raw_sensor_measurement_to_int)
 
 # flag debug
 debug = 0
+
+
+LEN_LIX_FILE_CC_AREA = 5 * 29
+LEN_LIX_FILE_CF_AREA = 5 * 13
 
 LEN_BYTES_T = 2
 LEN_BYTES_A = 6
@@ -64,38 +65,7 @@ def prf_compensate_pressure(rp, rt, prc, prd):
     return cp
 
 
-class LixFileConverterT:
-    def __init__(self, a, b, c, d, r):
-        self.coefficients = dict()
-        self.coefficients['TMA'] = a
-        self.coefficients['TMB'] = b
-        self.coefficients['TMC'] = c
-        self.coefficients['TMD'] = d
-        self.coefficients['TMR'] = r
-        self.cnv = Temperature(self)
-
-    @lru_cache
-    def convert(self, raw_temperature):
-        print('*', self.coefficients)
-        print('*', raw_temperature, self.cnv.convert(raw_temperature))
-        return self.cnv.convert(raw_temperature)
-
-
-class LixFileConverterP:
-    def __init__(self, a, b):
-        # the converter outputs decibars
-        # 1 dbar = 1.45 psi
-        self.coefficients = dict()
-        self.coefficients['PRA'] = a
-        self.coefficients['PRB'] = b
-        self.cnv = Pressure(self)
-
-    @lru_cache
-    def convert(self, raw_pressure):
-        return self.cnv.convert(raw_pressure)
-
-
-class ParserLixTdoFile(ParserLixFile):
+class ParserLixTdoFileV3(ParserLixFile):
     def __init__(self, file_path, verbose=0):
         super().__init__(file_path)
         self.prc = 0
@@ -143,7 +113,7 @@ class ParserLixTdoFile(ParserLixFile):
         # display all this info
         _p(f"\n\tMACRO header \t|  logger type {self.mah.file_type.decode()}")
         _p(f"\tfile version \t|  {self.mah.file_version}")
-        self.mah.timestamp_str = _mah_time_to_str(self.mah.timestamp)
+        self.mah.timestamp_str = lix_mah_time_to_str(self.mah.timestamp)
 
         _p("\tdatetime is   \t|  {}".format(self.mah.timestamp_str))
         bat = int.from_bytes(self.mah.battery, "big")
@@ -179,85 +149,6 @@ class ParserLixTdoFile(ParserLixFile):
         _p(f'{pad}dco = {dco}')
         _p(f'{pad}dhu = {dhu}')
         _p(f'{pad}psm = {self.mah_context.psm}')
-
-    # def _parse_data_mm_with_sensor_mask(self, mm, i, ta):
-    #     # mm: all measurement bytes, no micro_headers but yes masks
-    #     # i: byte index in big array of measurements
-    #     _p(f"\n\tmeasurement \t|  #{self.mm_i}")
-    #
-    #     # to calculate index bytes
-    #     j = i
-    #     k = i
-    #
-    #     # extract sample mask flags of first byte
-    #     f_sm = mm[i] & 0x80
-    #     f_te = mm[i] & 0x40
-    #
-    #     # calculate sensor mask and time
-    #     if f_sm == 0 and f_te == 0:
-    #         s = 'ts'
-    #         self.sm = self.mah_context.psm
-    #         if self.sm == '00000':
-    #             self.sm = 0x13
-    #         t = 0x3F & mm[i]
-    #         i += 1
-    #     elif f_sm == 0 and f_te == 1:
-    #         s = 'te'
-    #         self.sm = self.mah_context.psm
-    #         if self.sm == '00000':
-    #             self.sm = 0x13
-    #         t = ((0x3F & mm[i]) << 8) + mm[i+1]
-    #         i += 2
-    #     elif f_sm == 1 and f_te == 0:
-    #         s = 'sm ts'
-    #         self.sm = mm[i] & 0x3F
-    #         t = 0x3F & mm[i+1]
-    #         i += 2
-    #     else:
-    #         s = 'sm te'
-    #         self.sm = mm[i] & 0x3F
-    #         t = ((0x3F & mm[i+1]) << 8) + mm[i+2]
-    #         i += 3
-    #
-    #     # show mask from beginning
-    #     _p(f'\tlen. mask\t\t|  {i-k} -> {s}')
-    #     _p(f'\\flags mask \t|  f_sm = {f_sm}, f_te = {f_te}')
-    #     if f_sm:
-    #         _p('\t\t\t\t\t|  sm = {0x{:02x}'.format(self.sm))
-    #     if f_te == 0:
-    #         _p('\t\t\t\t\t|  ts = 0x{:02x}'.format(t))
-    #     else:
-    #         _p('\t\t\t\t\t|  te = 0x{:04x}'.format(t))
-    #
-    #     # sample mask, get sample length
-    #     _d_sm = {
-    #         0x11: 0,
-    #         0x13: 1,
-    #         0x15: 2,
-    #         0x17: 4,
-    #         0x19: 8
-    #     }
-    #     np = 2 * (_d_sm[self.sm])
-    #     n = np + LEN_BYTES_T + LEN_BYTES_A
-    #     _p(f"\tlen. sensors\t|  {n}")
-    #
-    #     # build dictionary measurements, with sensor mask
-    #     self.d_mm[ta + t] = (mm[i:i + n], self.sm)
-    #
-    #     # keep track of how many measurements we decoded
-    #     self.mm_i += 1
-    #
-    #     # display bytes involved
-    #     # K can probably be simplified here
-    #     _p('\t #P samples\t\t|  {}'.format(_d_sm[self.sm]))
-    #     _p(f'\tindex bytes \t|  {j}:{j+n+i-k} ({n+i-k})')
-    #
-    #     c = mm[j:j+n+i-k]
-    #     for a, b in enumerate(c):
-    #         print(a, '0x{:02x}'.format(b))
-    #
-    #     # return current index of measurements' array
-    #     return i + n, t
 
     def _parse_data_mm(self, mm, i, ta):
 
@@ -326,7 +217,7 @@ class ParserLixTdoFile(ParserLixFile):
         f_csv.write(cols)
 
         # get first time
-        epoch = _parse_macro_header_start_time_to_seconds(self.mah.timestamp_str)
+        epoch = lix_macro_header_start_time_to_seconds(self.mah.timestamp_str)
         last_ct = 0
 
         # debug all measurements
@@ -341,7 +232,7 @@ class ParserLixTdoFile(ParserLixFile):
             rpe, cpe = [], []
 
             # temperature in ADC counts
-            rt = _raw_sensor_measurement(v[0:2])
+            rt = lix_raw_sensor_measurement_to_int(v[0:2])
 
             # temperature floating point format
             vt = '{:06.3f}'.format(float(lct.convert(rt)))
@@ -350,7 +241,7 @@ class ParserLixTdoFile(ParserLixFile):
             np = int((len(v) - (LEN_BYTES_T + LEN_BYTES_A)) / 2)
             for i in range(np):
                 # rp: raw ADC pressure
-                rp = _raw_sensor_measurement(v[2+(i*2):(2+(i*2))+2])
+                rp = lix_raw_sensor_measurement_to_int(v[2 + (i * 2):(2 + (i * 2)) + 2])
                 rpe.append(rp)
 
                 # cp: compensated ADC pressure, uses PRC / PRD
@@ -358,9 +249,9 @@ class ParserLixTdoFile(ParserLixFile):
                 cpe.append(cp)
 
             # accelerometer
-            vax = _decode_sensor_measurement('Ax', v[-6:-4])
-            vay = _decode_sensor_measurement('Ay', v[-4:-2])
-            vaz = _decode_sensor_measurement('Az', v[-2:])
+            vax = lix_decode_sensor_measurement('Ax', v[-6:-4])
+            vay = lix_decode_sensor_measurement('Ay', v[-4:-2])
+            vaz = lix_decode_sensor_measurement('Az', v[-2:])
 
             # CSV file writing
             for i in range(np):
