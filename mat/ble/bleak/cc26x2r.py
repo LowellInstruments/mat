@@ -627,8 +627,7 @@ class BleCC26X2:    # pragma: no cover
         lat, lon, _, __ = g
         lat = GPS_FRM_STR.format(float(lat))
         lon = GPS_FRM_STR.format(float(lon))
-        s = '{} {}'.format(lat, lon)
-        c, _ = build_cmd('__A', s)
+        c, _ = build_cmd('__A', f'{lat} {lon}')
         await self._cmd(c)
         rv = await self._ans_wait(timeout=30)
         if not rv:
@@ -695,34 +694,34 @@ class BleCC26X2:    # pragma: no cover
     # connection routine
     # --------------------
 
-    async def _connect_rpi(self, mac):
-        def c_rx(_: int, b: bytearray):
-            self.ans += b
-
-        till = time.perf_counter() + 30
-        h = self.h
-        self.cli = BleakClient(mac, adapter=h)
-        rv: int
-
-        while True:
-            now = time.perf_counter()
-            if now > till:
-                print('_connect_rpi totally failed')
-                rv = 1
-                break
-
-            try:
-                if await self.cli.connect():
-                    await self.cli.start_notify(UUID_T, c_rx)
-                    rv = 0
-                    break
-
-            except (asyncio.TimeoutError, BleakError, OSError) as ex:
-                _ = int(till - time.perf_counter())
-                print(f'_connect_rpi failed, {_} seconds left -> {ex}')
-                await asyncio.sleep(.5)
-
-        return rv
+    # async def _connect_rpi(self, mac):
+    #     def c_rx(_: int, b: bytearray):
+    #         self.ans += b
+    #
+    #     till = time.perf_counter() + 30
+    #     h = self.h
+    #     self.cli = BleakClient(mac, adapter=h)
+    #     rv: int
+    #
+    #     while True:
+    #         now = time.perf_counter()
+    #         if now > till:
+    #             print('_connect_rpi totally failed')
+    #             rv = 1
+    #             break
+    #
+    #         try:
+    #             if await self.cli.connect():
+    #                 await self.cli.start_notify(UUID_T, c_rx)
+    #                 rv = 0
+    #                 break
+    #
+    #         except (asyncio.TimeoutError, BleakError, OSError) as ex:
+    #             _ = int(till - time.perf_counter())
+    #             print(f'_connect_rpi failed, {_} seconds left -> {ex}')
+    #             await asyncio.sleep(.5)
+    #
+    #     return rv
 
     async def _connect(self, mac):
         def c_rx(_: int, b: bytearray):
@@ -745,6 +744,37 @@ class BleCC26X2:    # pragma: no cover
                 await asyncio.sleep(1)
                 # time.sleep(.1)
         return 1
+
+    # -------------------------------------------
+    # slightly changed this fxn on 2024, Aug. 26
+    # -------------------------------------------
+    async def _connect_rpi(self, mac):
+        def c_rx(_: int, b: bytearray):
+            self.ans += b
+
+        till = time.perf_counter() + 30
+        h = self.h
+        rv: int
+
+        while True:
+            now = time.perf_counter()
+            if now > till:
+                print('_connect_rpi totally failed by timeout')
+                return 1
+
+            try:
+                self.cli = BleakClient(mac, adapter=h)
+                if await self.cli.connect():
+                    await self.cli.start_notify(UUID_T, c_rx)
+                    return 0
+
+            except (asyncio.TimeoutError, BleakError, OSError) as ex:
+                _ = int(till - time.perf_counter())
+                print(f'_connect_rpi failed, {_} seconds left -> {ex}')
+                await asyncio.sleep(1)
+
+        # probably unreachable
+        return 2
 
     async def connect(self, mac):
         if linux_is_rpi():

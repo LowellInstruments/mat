@@ -1,5 +1,5 @@
 from mat.ascii85 import ascii85_to_num as a2n
-from mat.lix import CS, LEN_LIX_FILE_CONTEXT, lix_mah_time_to_str, _p, lix_macro_header_start_time_to_seconds
+from mat.lix import CS, LEN_LIX_FILE_CONTEXT, lix_mah_time_to_str, _p
 from mat.lix_tdo_v3 import ParserLixTdoFileV3
 
 
@@ -77,7 +77,7 @@ class ParserLixTdoFileV4(ParserLixTdoFileV3):
         _p(f'{pad}nco = {a2n(self.mah.cc_area[150:155].decode())}')
         _p(f'{pad}dhu = {a2n(self.mah.cc_area[155:160].decode())}')
         _p(f'{pad}dcd = {a2n(self.mah.cc_area[160:165].decode())}')
-        _p("\tcontext \t\t|  detected")
+        _p("\n\tcontext \t\t|  detected")
         _p(f'{pad}gfv = {gfv}')
         _p(f'{pad}rvn = {rvn}')
         _p(f'{pad}pfm = {pfm}')
@@ -86,3 +86,5 @@ class ParserLixTdoFileV4(ParserLixTdoFileV3):
         _p(f'{pad}dro = {dro}')
         _p(f'{pad}dru = {dru}')
         _p(f'{pad}drf = {drf}')
+        _p(f'{pad}dso = {dso}')
+        _p(f'{pad}dsu = {dsu}')
