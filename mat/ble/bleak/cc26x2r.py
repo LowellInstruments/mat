@@ -639,10 +639,11 @@ class BleCC26X2:    # pragma: no cover
         ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
         return 0, ls
 
-    async def cmd_ddh_b(self):
+    async def cmd_ddh_b(self, rerun):
         # time() -> seconds since epoch, in UTC
+        rerun = int(rerun)
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
-        c, _ = build_cmd('__B', dt.strftime('%Y/%m/%d %H:%M:%S'))
+        c, _ = build_cmd('__B', f"{rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
         await self._cmd(c)
         rv = await self._ans_wait()
         ok = rv and rv.startswith(b'__B')
