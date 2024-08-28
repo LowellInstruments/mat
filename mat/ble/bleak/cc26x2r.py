@@ -685,6 +685,16 @@ class BleCC26X2:    # pragma: no cover
             return 0, s
         return 1, ''
 
+    async def cmd_mac(self):
+        # command get mac
+        await self._cmd('MAC \r')
+        rv = await self._ans_wait()
+        # rv: b'MAC 11D0:2E:AB:D9:29:48'
+        ok = rv and len(rv) == 23 and rv.startswith(b'MAC')
+        if ok:
+            return 0, rv[6:].decode()
+        return 1, ''
+
     async def disconnect(self):
         try:
             await self.cli.disconnect()

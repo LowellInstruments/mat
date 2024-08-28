@@ -136,6 +136,10 @@ def is_cmd_done(tag, ans):
     if t == 'CLK':
         return a and a.startswith(b'CLK') and len(a) == 7
 
+    if t == 'MAC':
+        print('len_mac', len(a))
+        return a and a.startswith(b'MAC') and len(a) == 6 + 17
+
     if t == '__B':
         # a: b'__B 200020000000F072022/08/25 12:13:55'
         # [4:6] = 20 length
