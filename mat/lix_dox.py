@@ -3,9 +3,6 @@ from mat.lix import (ParserLixFile, CS,
                      LEN_LIX_FILE_CONTEXT, _p,
                      lix_mah_time_to_str, lix_mah_time_utc_epoch)
 
-# flag debug
-debug = 0
-
 
 def do16_to_float(d):
     # d: 0x8003

@@ -49,28 +49,28 @@ def prf_compensate_pressure(rp, rt, prc, prd):
 
     # use vt to look up the closest temperature in degrees C, indexed T, i_t
     i_t = len(lut) - bisect.bisect(lut, rt)
-    print(f'searching {rt} in lut -> i_t {i_t}')
+    _p(f'prf_compensate_pressure: searching {rt} in lut -> i_t {i_t}')
 
     # use index of closest value (i_m) to get the T in °C, aka ct
     ct = i_t - 20
-    print("ct =", ct)
+    _p(f"ct = {ct}")
 
     # corrected pressure ADC counts
     cp = rp - (prc * (ct - prd))
-    print('\n')
-    print(f"PRC = {prc} / PRD = {prd}")
-    print(f"PRP = {rp}  / PCP = {cp}")
-    print(f'PRP - PCP = {rp-cp}')
+    _p('\n')
+    _p(f"prf_compensate_pressure PRC = {prc} / PRD = {prd}")
+    _p(f"prf_compensate_pressure PRP = {rp}  / PCP = {cp}")
+    _p(f'prf_compensate_pressure PRP - PCP = {rp-cp}')
 
     return cp
 
 
 class ParserLixTdoFileV3(ParserLixFile):
-    def __init__(self, file_path, verbose=0):
+    def __init__(self, file_path, more_columns=0):
         super().__init__(file_path)
         self.prc = 0
         self.prd = 0
-        self.verbose = verbose
+        self.more_columns = more_columns
 
     def _parse_macro_header(self):
         self.mah.bytes = self.bb[:CS]
@@ -209,7 +209,7 @@ class ParserLixTdoFileV3(ParserLixFile):
         f_csv = open(csv_path, 'w')
         cols = 'ISO 8601 Time,' \
                'Temperature (C),Pressure (dbar),Ax,Ay,Az\n'
-        if self.verbose:
+        if self.more_columns:
             cols = 'ISO 8601 Time,elapsed time (s),agg. time(s),' \
                    'raw ADC Temp,raw ADC Pressure,' \
                    'Temperature (C),Pressure (dbar),Compensated ADC Pressure,' \
@@ -270,7 +270,7 @@ class ParserLixTdoFileV3(ParserLixFile):
                 et = ct - last_ct
                 last_ct = ct
                 s = f'{t},{vt},{vp},{vax},{vay},{vaz}\n'
-                if self.verbose:
+                if self.more_columns:
                     s = f'{t},{et},{ct},{rt},{rpe[i]},{vt},{vp},{cpe[i]},'\
                         f'{kp},{vax},{vay},{vaz}\n'
                 f_csv.write(s)

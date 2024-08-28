@@ -7,10 +7,6 @@ LEN_LIX_FILE_CC_AREA = 5 * 33
 LEN_LIX_FILE_CF_AREA = 5 * 9
 
 
-# flag debug
-debug = 0
-
-
 class ParserLixTdoFileV4(ParserLixTdoFileV3):
 
     def _parse_macro_header(self):

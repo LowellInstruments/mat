@@ -30,8 +30,6 @@ LEN_LIX_FILE_CONTEXT = 64
 
 
 g_verbose = True
-# flag debug
-debug = 0
 
 
 class LixFileConverterT:
@@ -46,8 +44,8 @@ class LixFileConverterT:
 
     @lru_cache
     def convert(self, raw_temperature):
-        print('*', self.coefficients)
-        print('*', raw_temperature, self.cnv.convert(raw_temperature))
+        _p(f'LixFileConverterT coefficients {self.coefficients}')
+        _p(f'raw T {raw_temperature} converted T {self.cnv.convert(raw_temperature)}')
         return self.cnv.convert(raw_temperature)
 
 
@@ -227,7 +225,6 @@ def _seconds_between_two_time_str(a, b, fmt='%Y-%m-%dT%H:%M:%S.000'):
 
 class ParserLixFile(ABC):
     def __init__(self, file_path):
-        self.debug = debug
         self.file_path = file_path
         # all file bytes
         self.bb = bytes()
@@ -325,14 +322,6 @@ class ParserLixFile(ABC):
         self.d_uh[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     def _parse_data(self):
-        if self.debug:
-            db = b'0' * CS
-            db += b'1' * UHS
-            db += b'2' * (CS - UHS)
-            db += b'3' * UHS
-            db += b'4' * (CS - UHS)
-            self.bb = db
-
         # skip macro-header
         data = self.bb[CS:]
         mm = bytes()
@@ -360,7 +349,9 @@ class ParserLixFile(ABC):
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
 
-    def convert(self):
+    def convert(self, verbose=False):
+        global g_verbose
+        g_verbose = verbose
         self._load_file_bytes()
         self._get_file_length()
         self._parse_macro_header()
