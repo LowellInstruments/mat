@@ -679,10 +679,13 @@ class BleCC26X2:    # pragma: no cover
 
         c = 'DWF \r'
         await self._cmd(c, empty=False)
+        # list stuck answer
+        ls_sa = []
 
         while 1:
             # needed or you cannot check if connected
-            await asyncio.sleep(.1)
+            # this does not affect download time
+            await asyncio.sleep(.11)
             if not await self.is_connected():
                 print('error: DWF disconnected while receiving file')
                 return 1, bytes()
@@ -691,6 +694,14 @@ class BleCC26X2:    # pragma: no cover
                 print('all file received')
                 # receive the last shit
                 break
+            # check we are stuck
+            ls_sa.append(len(self.ans))
+            if len(ls_sa) < 10:
+                continue
+            ls_sa = ls_sa[-10:]
+            if all(map(lambda x: x == ls_sa[-1], ls_sa)):
+                print('we stuck')
+                return 1, bytes()
 
         rv = 0 if z == len(self.ans) else 1
         return rv, self.ans
