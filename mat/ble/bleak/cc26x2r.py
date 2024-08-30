@@ -36,7 +36,7 @@ class BleCC26X2:    # pragma: no cover
         self.h = h
 
     async def is_connected(self):
-        return self.cli and self.cli.is_connected
+        return self.cli and await self.cli.is_connected()
 
     async def _cmd(self, c: str, empty=True):
         self.tag = c[:3]
@@ -668,6 +668,29 @@ class BleCC26X2:    # pragma: no cover
                     break
             ble_mat_progress_dl(len(self.ans), z, ip, port)
             # print('chunk #{} len {}'.format(i, len(self.ans)))
+
+        rv = 0 if z == len(self.ans) else 1
+        return rv, self.ans
+
+    async def cmd_dwf(self, z, ip=None, port=None) -> tuple:
+        # z: file size
+        self.ans = bytes()
+        ble_mat_progress_dl(0, z, ip, port)
+
+        c = 'DWF \r'
+        await self._cmd(c, empty=False)
+
+        while 1:
+            # needed or you cannot check if connected
+            await asyncio.sleep(.1)
+            if not await self.is_connected():
+                print('error: DWF disconnected while receiving file')
+                return 1, bytes()
+            ble_mat_progress_dl(len(self.ans), z, ip, port)
+            if len(self.ans) == z:
+                print('all file received')
+                # receive the last shit
+                break
 
         rv = 0 if z == len(self.ans) else 1
         return rv, self.ans
