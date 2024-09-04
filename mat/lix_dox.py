@@ -4,6 +4,9 @@ from mat.lix import (ParserLixFile, CS,
                      lix_mah_time_to_str, lix_mah_time_utc_epoch)
 
 
+LEN_LIX_FILE_CC_AREA = 5
+
+
 def do16_to_float(d):
     # d: 0x8003
     sign = bool(d & 0x8000)
@@ -46,8 +49,6 @@ class ParserLixDoxFile(ParserLixFile):
         bat = int.from_bytes(self.mah.battery, "big")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
         _p(f"\theader index \t|  {self.mah.hdr_idx}")
-        if self.mah.cc_area[13:18] not in (b"00003", b"00004"):
-            return {}
         _p(f"\tSPT period   \t|  {self.mah_context.spt}")
 
     def _parse_data_mm(self, mm, i, _):

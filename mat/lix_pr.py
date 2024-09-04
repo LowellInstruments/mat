@@ -14,7 +14,7 @@ def get_tdo_parser(rvn):
         return ParserLixTdoFileV4
 
 
-def convert_lix_file(fp, more_columns=0):
+def convert_lix_file(fp, more_columns=0, verbose=0):
     # fp: absolute file_path
     try:
         with open(fp, 'rb') as f:
@@ -30,7 +30,7 @@ def convert_lix_file(fp, more_columns=0):
                 rvn_scc = bb[17]
                 pr = get_tdo_parser(rvn_scc)
                 pr = pr(fp, more_columns)
-            pr.convert()
+            pr.convert(verbose=verbose)
             return 0
 
     except (Exception, ) as ex:
@@ -40,5 +40,6 @@ def convert_lix_file(fp, more_columns=0):
 
 
 if __name__ == '__main__':
-    filename = '/home/kaz/Downloads/1111111_TST_20240819_173536.lid'
-    convert_lix_file(filename, more_columns=1)
+    filename = '/home/kaz/Downloads/3333333_low_20240827_110323.lid'
+    rv = convert_lix_file(filename, more_columns=1, verbose=1)
+    print('rv', rv)

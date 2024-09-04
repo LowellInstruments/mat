@@ -485,7 +485,11 @@ class BleCC26X2:    # pragma: no cover
             if not rv or rv == b'ERR':
                 all_ok = False
             else:
-                info[each] = rv.decode()[6:]
+                try:
+                    info[each] = rv.decode()[6:]
+                except (Exception, ) as ex:
+                    print(f'error_rli: {ex}')
+                    return 1, info
             await asyncio.sleep(.1)
         if all_ok:
             return 0, info
