@@ -357,6 +357,7 @@ class ParserLixFile(ABC):
             ta += t
 
     def convert(self, verbose=False):
+        # normally called by convert_lix_file() in lix_pr.py
         global g_verbose
         g_verbose = verbose
         self._load_file_bytes()
