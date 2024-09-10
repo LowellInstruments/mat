@@ -40,6 +40,6 @@ def convert_lix_file(fp, more_columns=0, verbose=0):
 
 
 if __name__ == '__main__':
-    filename = '/home/kaz/Downloads/2405500_TST_20240904_154902.lid'
+    filename = '/home/kaz/Downloads/2406710_TST_20240905_203632.lid'
     rv = convert_lix_file(filename, more_columns=1, verbose=1)
     print('rv', rv)

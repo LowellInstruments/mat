@@ -1,12 +1,15 @@
 from re import findall
-from mat.logger_controller import STATUS_CMD, RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD, SET_TIME_CMD, LOGGER_INFO_CMD_W, \
-    DEL_FILE_CMD, FIRMWARE_VERSION_CMD, LOGGER_INFO_CMD, TIME_CMD, DIR_CMD, SENSOR_READINGS_CMD
-from mat.logger_controller_ble import LED_CMD, FORMAT_CMD, CONFIG_CMD, MY_TOOL_SET_CMD, DWG_FILE_CMD, FILE_EXISTS_CMD, \
-    WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD, PRF_TIME_CMD, PRF_TIME_CMD_GET, PRF_TIME_EN, BAT_CMD, WAT_CMD, \
-    UP_TIME_CMD, CRC_CMD, SET_CALIBRATION_CMD, GET_CALIBRATION_CMD, DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, \
-    PRESSURE_SENSOR_CMD, \
-    OXYGEN_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, GET_PRF_CONFIGURATION_CMD, \
-    SET_PRF_CONFIGURATION_CMD
+from mat.logger_controller import (
+    STATUS_CMD, RUN_CMD, STOP_CMD, RWS_CMD, SWS_CMD, SET_TIME_CMD,
+    LOGGER_INFO_CMD_W, DEL_FILE_CMD, FIRMWARE_VERSION_CMD,
+    LOGGER_INFO_CMD, TIME_CMD, DIR_CMD, SENSOR_READINGS_CMD)
+from mat.logger_controller_ble import (
+    LED_CMD, FORMAT_CMD, CONFIG_CMD, MY_TOOL_SET_CMD, DWG_FILE_CMD, FILE_EXISTS_CMD,
+    WAKE_CMD, ERROR_WHEN_BOOT_OR_RUN_CMD, LOG_EN_CMD,
+    BAT_CMD, WAT_CMD, UP_TIME_CMD, CRC_CMD, SET_CALIBRATION_CMD, GET_CALIBRATION_CMD,
+    DEPLOYMENT_NAME_SET_CMD, DEPLOYMENT_NAME_GET_CMD, PRESSURE_SENSOR_CMD,
+    OXYGEN_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, GET_PRF_CONFIGURATION_CMD,
+    SET_PRF_CONFIGURATION_CMD)
 
 
 def _check(tag, ans, n):
@@ -25,10 +28,6 @@ def is_cmd_done(tag, ans):
 
     if tag == 'DWL':
         return False
-
-    if tag == 'DCA':
-        # b'DCA 06123456'
-        return _ck(t, a, 12)
 
     if tag == 'GAB':
         return _ck(t, a, 198)
@@ -64,9 +63,6 @@ def is_cmd_done(tag, ans):
         ERROR_WHEN_BOOT_OR_RUN_CMD,
         LOG_EN_CMD,
         'GWF',
-        PRF_TIME_CMD,
-        PRF_TIME_CMD_GET,
-        PRF_TIME_EN,
         'PER',
         'ARA',
         'ARP',
@@ -132,9 +128,6 @@ def is_cmd_done(tag, ans):
 
     if t == 'GDX':
         return a and len(findall(r"[-+]?(?:\d*\.*\d+)", a.decode())) == 3
-
-    if t == 'CLK':
-        return a and a.startswith(b'CLK') and len(a) == 7
 
     if t == 'MAC':
         print('len_mac', len(a))

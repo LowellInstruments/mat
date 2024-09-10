@@ -44,7 +44,7 @@ class LixFileConverterT:
 
     @lru_cache
     def convert(self, raw_temperature):
-        _p(f'LixFileConverterT coefficients {self.coefficients}')
+        _p(f'\nLixFileConverterT coefficients {self.coefficients}')
         _p(f'raw T {raw_temperature} converted T {self.cnv.convert(raw_temperature)}')
         return self.cnv.convert(raw_temperature)
 
@@ -312,10 +312,10 @@ class ParserLixFile(ABC):
         # 2B battery, 1B header index, 1B ECL, 4B epoch
         bat = int.from_bytes(uh[:i + 2], "big")
         idx = uh[i + 2]
-        ecl = uh[i + 3]
         # warning to help us detect the file is saved OK
-        # if ecl != (i % 256):
-        #     _p(f"warning: ECL {ecl} does not match expected {i % 256}")
+        if idx != (i % 256):
+            _p(f"*** warning: micro_header index {idx} vs. expected {i % 256} ***")
+        ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
         _p(f"\n\tMICRO header \t|  detected")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))

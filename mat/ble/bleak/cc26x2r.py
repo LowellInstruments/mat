@@ -193,17 +193,6 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait(timeout=30)
         return 0 if rv == b'SCF 00' else 1
 
-    async def cmd_dca(self, v):
-        # DCO set averages
-        assert len(v) == 6
-        c, _ = build_cmd('DCA', v)
-        await self._cmd(c)
-        rv = await self._ans_wait()
-        b = f'DCA 06{v}'.encode()
-        if rv == b:
-            return 0, b
-        return 1, b
-
     async def cmd_ssp(self, v):
         # Set Sensor Pressure, for debugging and developing
         v = str(v).zfill(5)
@@ -580,14 +569,6 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait(timeout=2)
         ok = rv in (b'GLT DO1', b'GLT DO2', b'GLT TDO', b'GLT ???')
         # rv: b'ERR' in loggers not supporting this command
-        return (0, rv.decode()[-3:]) if ok else (1, None)
-
-    async def cmd_clk(self):
-        c, _ = build_cmd('CLK')
-        await self._cmd(c)
-        rv = await self._ans_wait(timeout=2)
-        ok = rv == 0
-        print(rv)
         return (0, rv.decode()[-3:]) if ok else (1, None)
 
     async def cmd_rws(self, g):
