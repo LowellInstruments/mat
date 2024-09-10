@@ -279,6 +279,7 @@ class ParserLixTdoFileV3(ParserLixFile):
         f_csv.close()
 
         # return name of CSV file
+        _p(f'file converted {csv_path}')
         return csv_path
 
 

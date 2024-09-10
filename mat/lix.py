@@ -311,12 +311,15 @@ class ParserLixFile(ABC):
 
     def _parse_data_micro_headers(self, uh, i):
         # 2B battery, 1B header index, 1B ECL, 4B epoch
-        bat = int.from_bytes(uh[:i + 2], "big")
+        bat = int.from_bytes(uh[i:i + 2], "big")
         idx = uh[i + 2]
         # warning to detect file is saved OK, idx start at 1
-        # if (idx -1) != (i % 256):
-        #     _p(f"*** warning: micro_header index {idx} vs. expected {i % 256} ***")
-        #     sys.exit(1)
+        bn_uh = (idx - 1) % 256
+        bn_ex = (i / 8) % 256
+        if bn_uh != bn_ex:
+            _p(f"*** warning: micro_header index {bn_uh} vs. expected {bn_ex} ***")
+            sys.exit(1)
+
         ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
         _p(f"\n\tMICRO header \t|  detected")
@@ -342,7 +345,7 @@ class ParserLixFile(ABC):
         # -------------------------------
         # parse dictionary micro_headers
         # -------------------------------
-        for i in range(0, UHS, len(uh)):
+        for i in range(0, len(uh), UHS):
             self._parse_data_micro_headers(uh, i)
 
         # -----------------------------------

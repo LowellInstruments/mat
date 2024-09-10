@@ -115,4 +115,5 @@ class ParserLixDoxFile(ParserLixFile):
         f_csv.close()
 
         # return the name of the file
+        _p(f'file converted {csv_path}')
         return csv_path
