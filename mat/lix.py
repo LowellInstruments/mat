@@ -286,7 +286,7 @@ class ParserLixFile(ABC):
         bn = os.path.basename(self.file_path)
         _p('\n')
         _p("----------------------------------------------------")
-        _p(f'converting LIX file:')
+        _p(f'converting LID v2 file:')
         _p(f'{pad}name           {bn}')
         _p(f'{pad}size           {self.len_file}')
         _p(f'{pad}len_macro_h    {CS}')
@@ -313,6 +313,9 @@ class ParserLixFile(ABC):
         bat = int.from_bytes(uh[:i + 2], "big")
         idx = uh[i + 2]
         ecl = uh[i + 3]
+        # warning to help us detect the file is saved OK
+        # if ecl != (i % 256):
+        #     _p(f"warning: ECL {ecl} does not match expected {i % 256}")
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
         _p(f"\n\tMICRO header \t|  detected")
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
