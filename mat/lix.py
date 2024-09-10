@@ -318,7 +318,6 @@ class ParserLixFile(ABC):
         bn_ex = (i / 8) % 256
         if bn_uh != bn_ex:
             _p(f"*** warning: micro_header index {bn_uh} vs. expected {bn_ex} ***")
-            sys.exit(1)
 
         ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
