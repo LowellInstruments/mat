@@ -1,4 +1,5 @@
 import os
+import sys
 from abc import abstractmethod, ABC
 from collections import namedtuple
 from math import ceil
@@ -312,9 +313,10 @@ class ParserLixFile(ABC):
         # 2B battery, 1B header index, 1B ECL, 4B epoch
         bat = int.from_bytes(uh[:i + 2], "big")
         idx = uh[i + 2]
-        # warning to help us detect the file is saved OK
-        if idx != (i % 256):
-            _p(f"*** warning: micro_header index {idx} vs. expected {i % 256} ***")
+        # warning to detect file is saved OK, idx start at 1
+        # if (idx -1) != (i % 256):
+        #     _p(f"*** warning: micro_header index {idx} vs. expected {i % 256} ***")
+        #     sys.exit(1)
         ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
         _p(f"\n\tMICRO header \t|  detected")
