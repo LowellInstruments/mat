@@ -24,17 +24,18 @@ def detect_quectel_usb_ports():
         ser = None
         try:
             ser = serial.Serial(p, SERIAL_RATE, timeout=.1, rtscts=True, dsrdtr=True)
-            ser.write(b'AT+CVERSION \rAT+CVERSION \r')
+            ser.write(b'AT+QGPS=1 \rAT+QGPS=1 \r')
             while time.perf_counter() < till:
                 b += ser.read()
-                if (b'$GPGSV' in b or b'$GPGSA' in b
+                if (b'GPGSV' in b or b'GPGSA' in b
                         or b'GPRMC' in b or b',,,,' in b):
                     found_gps = p
                     break
-                if b'VERSION' in b:
+                if b'OK' in b or b'CME' in b:
                     found_ctl = p
                     break
             ser.close()
+            print('b', b)
             if found_gps and found_ctl:
                 break
         except (Exception,) as ex:
@@ -51,5 +52,3 @@ def detect_quectel_usb_ports():
 if __name__ == '__main__':
     rv = detect_quectel_usb_ports()
     print('rv', rv)
-
-

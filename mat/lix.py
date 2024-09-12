@@ -347,6 +347,9 @@ class ParserLixFile(ABC):
         for i in range(0, len(uh), UHS):
             self._parse_data_micro_headers(uh, i)
 
+        # debug, only up to here
+        # sys.exit(0)
+
         # -----------------------------------
         # parse dictionary data measurements
         # -----------------------------------
