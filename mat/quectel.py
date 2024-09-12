@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 
 
-# ------------------------------------
-# main Quectel USB: detects which USB
-# ports are being used by cell shield
-# ------------------------------------
-
-
+import os
 import serial
 import time
 
@@ -17,7 +12,7 @@ FILE_QUECTEL_USB_CTL = '/tmp/usb_quectel_ctl'
 
 
 def detect_quectel_usb_ports():
-    for i in (FILE_QUECTEL,USB_GPS, FILE_QUECTEL_USB_CTL):
+    for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
         if os.path.exists(i):
             os.unlink(i)
     found_gps = ''
