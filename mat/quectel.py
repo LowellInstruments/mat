@@ -27,7 +27,8 @@ def detect_quectel_usb_ports():
             ser.write(b'AT+CVERSION \rAT+CVERSION \r')
             while time.perf_counter() < till:
                 b += ser.read()
-                if b'$GPGSV' in b or b'$GPGSA' in b or b'GPRMC' in b:
+                if (b'$GPGSV' in b or b'$GPGSA' in b
+                        or b'GPRMC' in b or b',,,,' in b):
                     found_gps = p
                     break
                 if b'VERSION' in b:
