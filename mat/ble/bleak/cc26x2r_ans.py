@@ -142,4 +142,7 @@ def is_cmd_done(tag, ans):
         # [19:] = 2022/08/25 12:13:55 what was gtm
         return a and a.startswith(b'__B') and len(a) == 38
 
-    print('[ BLE ] CC26X2R is_cmd_done() cannot manage', t)
+    if t == 'BEH':
+        return a and a.startswith(b'BEH')
+
+    print(f'[ BLE ] CC26X2R is_cmd_done() cannot manage {t}')

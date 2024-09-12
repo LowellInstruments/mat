@@ -183,6 +183,16 @@ class BleCC26X2:    # pragma: no cover
         rv = await self._ans_wait(timeout=30)
         return 0 if rv == b'SCC 00' else 1
 
+    async def cmd_beh(self, tag, v):
+        assert len(tag) == 3
+        s = f'{tag}{v}'
+        c, _ = build_cmd("BEH", s)
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=5)
+        if rv and rv.startswith(b'BEH'):
+            return 0
+        return 1
+
     async def cmd_scf(self, tag, v):
         # Set Calibration proFiling, for profiling
         assert len(tag) == 3
