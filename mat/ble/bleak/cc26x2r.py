@@ -655,7 +655,8 @@ class BleCC26X2:    # pragma: no cover
         for i in range(n):
             c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             await self._cmd(c, empty=False)
-            for _ in range(20):
+            for _ in range(40):
+                # 40 == 8 seconds
                 await self._ans_wait(timeout=.2)
                 if len(self.ans) == (i + 1) * 2048:
                     break
