@@ -24,7 +24,7 @@ def is_this_telit_ctl():
 def detect_quectel_usb_ports():
     if is_this_telit_ctl():
         print('detect_quectel_usb_ports -> skipping because cell is Telit')
-        return
+        return None, None
 
     for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
         if os.path.exists(i):
