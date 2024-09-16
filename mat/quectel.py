@@ -7,6 +7,7 @@ import time
 
 
 SERIAL_RATE = 115200
+# we will leave the results in these 2 files :)
 FILE_QUECTEL_USB_GPS = '/tmp/usb_quectel_gps'
 FILE_QUECTEL_USB_CTL = '/tmp/usb_quectel_ctl'
 
@@ -28,7 +29,8 @@ def detect_quectel_usb_ports():
             while time.perf_counter() < till:
                 b += ser.read()
                 if (b'GPGSV' in b or b'GPGSA' in b
-                        or b'GPRMC' in b or b',,,,' in b):
+                        or b'GPRMC' in b or b',,,,' in b
+                        or b'\x00\x00\x00'):
                     found_gps = p
                     break
                 if b'OK' in b or b'CME' in b:
