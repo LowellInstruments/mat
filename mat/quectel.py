@@ -22,7 +22,10 @@ def is_this_telit_ctl():
 
 
 def detect_quectel_usb_ports():
-    is_telit_ctl = is_this_telit_ctl()
+    if is_this_telit_ctl():
+        print('detect_quectel_usb_ports -> skipping because cell is Telit')
+        return
+
     for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
         if os.path.exists(i):
             os.unlink(i)
@@ -49,17 +52,14 @@ def detect_quectel_usb_ports():
             ser.close()
             if found_gps and found_ctl:
                 break
-            if found_gps and is_telit_ctl:
-                break
         except (Exception,) as ex:
             if ser and ser.isOpen():
                 ser.close()
             # print(f'error {p} -> {ex}')
     with open(FILE_QUECTEL_USB_GPS, 'w') as f:
         f.write(found_gps)
-    if not is_telit_ctl:
-        with open(FILE_QUECTEL_USB_CTL, 'w') as f:
-            f.write(found_ctl)
+    with open(FILE_QUECTEL_USB_CTL, 'w') as f:
+        f.write(found_ctl)
     return found_gps, found_ctl
 
 
