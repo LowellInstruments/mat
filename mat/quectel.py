@@ -4,15 +4,25 @@
 import os
 import serial
 import time
+import subprocess as sp
 
 
+VP_QUECTEL = '2c7c:0125'
+VP_TELIT = '1bc7:1201'
 SERIAL_RATE = 115200
 # we will leave the results in these 2 files :)
 FILE_QUECTEL_USB_GPS = '/tmp/usb_quectel_gps'
 FILE_QUECTEL_USB_CTL = '/tmp/usb_quectel_ctl'
 
 
+def is_this_telit_ctl():
+    c = f'lsusb | grep {VP_TELIT}'
+    _rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return _rv.returncode == 0
+
+
 def detect_quectel_usb_ports():
+    is_telit_ctl = is_this_telit_ctl()
     for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
         if os.path.exists(i):
             os.unlink(i)
@@ -30,15 +40,16 @@ def detect_quectel_usb_ports():
                 b += ser.read()
                 if (b'GPGSV' in b or b'GPGSA' in b
                         or b'GPRMC' in b or b',,,,' in b
-                        or b'\x00\x00\x00'):
+                        or b'\x00\x00\x00' in b):
                     found_gps = p
                     break
                 if b'OK' in b or b'CME' in b:
                     found_ctl = p
                     break
             ser.close()
-            print('b', b)
             if found_gps and found_ctl:
+                break
+            if found_gps and is_telit_ctl:
                 break
         except (Exception,) as ex:
             if ser and ser.isOpen():
@@ -46,8 +57,9 @@ def detect_quectel_usb_ports():
             # print(f'error {p} -> {ex}')
     with open(FILE_QUECTEL_USB_GPS, 'w') as f:
         f.write(found_gps)
-    with open(FILE_QUECTEL_USB_CTL, 'w') as f:
-        f.write(found_ctl)
+    if not is_telit_ctl:
+        with open(FILE_QUECTEL_USB_CTL, 'w') as f:
+            f.write(found_ctl)
     return found_gps, found_ctl
 
 
