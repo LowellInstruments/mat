@@ -33,7 +33,7 @@ def detect_quectel_usb_ports():
     found_ctl = ''
     for i in range(5):
         p = f'/dev/ttyUSB{i}'
-        till = time.perf_counter() + 1
+        till = time.perf_counter() + 2
         b = bytes()
         ser = None
         try:
