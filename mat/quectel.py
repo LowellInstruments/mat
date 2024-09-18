@@ -29,6 +29,7 @@ def detect_quectel_usb_ports():
     for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
         if os.path.exists(i):
             os.unlink(i)
+
     found_gps = ''
     found_ctl = ''
     for i in range(5):
@@ -39,6 +40,7 @@ def detect_quectel_usb_ports():
         try:
             ser = serial.Serial(p, SERIAL_RATE, timeout=.1, rtscts=True, dsrdtr=True)
             ser.write(b'AT+QGPS=1 \rAT+QGPS=1 \r')
+            time.sleep(.5)
             while time.perf_counter() < till:
                 b += ser.read()
                 if (b'GPGSV' in b or b'GPGSA' in b
@@ -58,9 +60,11 @@ def detect_quectel_usb_ports():
             # print(f'error Quectel USB ports -> {ex}')
 
     with open(FILE_QUECTEL_USB_GPS, 'w') as f:
-        f.write(found_gps)
+        if found_gps:
+            f.write(found_gps)
     with open(FILE_QUECTEL_USB_CTL, 'w') as f:
-        f.write(found_ctl)
+        if found_ctl:
+            f.write(found_ctl)
     return found_gps, found_ctl
 
 
