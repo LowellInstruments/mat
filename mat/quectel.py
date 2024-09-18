@@ -13,6 +13,7 @@ SERIAL_RATE = 115200
 # we will leave the results in these 2 files :)
 FILE_QUECTEL_USB_GPS = '/tmp/usb_quectel_gps'
 FILE_QUECTEL_USB_CTL = '/tmp/usb_quectel_ctl'
+MAX_NUM_USB_PORTS = 5
 
 
 def is_this_telit_cell():
@@ -32,7 +33,7 @@ def detect_quectel_usb_ports():
 
     found_gps = ''
     found_ctl = ''
-    for i in range(5):
+    for i in range(MAX_NUM_USB_PORTS):
         p = f'/dev/ttyUSB{i}'
         till = time.perf_counter() + 2
         b = bytes()
