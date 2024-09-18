@@ -54,7 +54,8 @@ def detect_quectel_usb_ports():
         except (Exception,) as ex:
             if ser and ser.is_open:
                 ser.close()
-            print(f'error Quectel USB ports -> {ex}')
+            # commented or shows 'no device in port' error
+            # print(f'error Quectel USB ports -> {ex}')
 
     with open(FILE_QUECTEL_USB_GPS, 'w') as f:
         f.write(found_gps)
