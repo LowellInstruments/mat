@@ -47,6 +47,8 @@ def detect_quectel_usb_ports():
             # commented or shows 'no device in port' error
             # print(f'error Quectel USB ports -> {ex}')
 
+    time.sleep(1)
+
     for i in range(MAX_NUM_USB_PORTS):
         p = f'/dev/ttyUSB{i}'
         till = time.perf_counter() + 2
