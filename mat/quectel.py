@@ -23,7 +23,7 @@ def is_this_telit_cell():
 
 def detect_quectel_usb_ports():
     if is_this_telit_cell():
-        # print('detect_quectel_usb_ports -> skipping because cell is Telit')
+        print('no Quectel USB ports, maybe cell module Telit')
         return None, None
 
     for i in (FILE_QUECTEL_USB_GPS, FILE_QUECTEL_USB_CTL):
@@ -42,8 +42,7 @@ def detect_quectel_usb_ports():
             while time.perf_counter() < till:
                 b += ser.read()
                 if (b'GPGSV' in b or b'GPGSA' in b
-                        or b'GPRMC' in b or b',,,,' in b
-                        or b'\x00\x00\x00' in b):
+                        or b'GPRMC' in b or b',,,,' in b):
                     found_gps = p
                     break
                 if b'OK' in b or b'CME' in b:
@@ -53,9 +52,10 @@ def detect_quectel_usb_ports():
             if found_gps and found_ctl:
                 break
         except (Exception,) as ex:
-            if ser and ser.isOpen():
+            if ser and ser.is_open:
                 ser.close()
-            # print(f'error {p} -> {ex}')
+            print(f'error Quectel USB ports -> {ex}')
+
     with open(FILE_QUECTEL_USB_GPS, 'w') as f:
         f.write(found_gps)
     with open(FILE_QUECTEL_USB_CTL, 'w') as f:
@@ -65,4 +65,4 @@ def detect_quectel_usb_ports():
 
 if __name__ == '__main__':
     rv = detect_quectel_usb_ports()
-    print('rv', rv)
+    print('Quectel USB ports:', rv)
