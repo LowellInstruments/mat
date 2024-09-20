@@ -33,7 +33,9 @@ def detect_quectel_usb_ports():
 
     found_gps = ''
     found_ctl = ''
-    for i in range(MAX_NUM_USB_PORTS):
+
+    # iterate backwards and down to 0
+    for i in range(MAX_NUM_USB_PORTS, -1, -1):
         p = f'/dev/ttyUSB{i}'
         till = time.perf_counter() + 2
         b = bytes()
