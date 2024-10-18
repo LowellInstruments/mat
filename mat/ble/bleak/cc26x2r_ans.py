@@ -67,7 +67,9 @@ def is_cmd_done(tag, ans):
         'ARA',
         'ARP',
         'ARF',
-        'TST'
+        'TST',
+        'OAE',
+        'OAF'
     ):
         return _ck(t, a, 8)
 
