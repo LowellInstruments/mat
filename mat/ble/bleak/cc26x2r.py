@@ -548,6 +548,8 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('GCF \r')
         rv = await self._ans_wait()
         # n: number of fields of cf_area
+        # in last version, n = 9
+        # in version v3987, n = 13
         n = 9
         ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCF')
         if ok:
