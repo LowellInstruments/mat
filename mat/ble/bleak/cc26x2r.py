@@ -531,11 +531,16 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('GCC \r')
         rv = await self._ans_wait()
         # n: number of fields of cc_area
+        # in last version, n = 33
+        # in version v3987, n = 29
         n = 33
         ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCC')
         if ok:
             return 0, rv.decode()
-        print(f'error: bad GCC length {len(rv)} - 6 != {n} - 6')
+        if rv:
+            print(f'error: bad GCC length {len(rv)} - 6 != {n} - 6')
+        else:
+            print(f'error: bad GCC length = None')
         return 1, ""
 
     async def cmd_gcf(self):
