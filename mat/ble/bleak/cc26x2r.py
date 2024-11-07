@@ -340,6 +340,15 @@ class BleCC26X2:    # pragma: no cover
             dos, dop, dot = a
             return dos, dop, dot
 
+    async def cmd_bna(self):
+        c, _ = build_cmd('BNA')
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 6 and rv.startswith(b'BNA 00')
+        if ok:
+            return 0
+        return 1
+
     async def cmd_gsp(self):
         # Get Sensor Pressure
         c, _ = build_cmd(PRESSURE_SENSOR_CMD)
