@@ -476,8 +476,16 @@ class BleCC26X2:    # pragma: no cover
     async def cmd_tst(self):
         c, _ = build_cmd('TST')
         await self._cmd(c)
-        rv = await self._ans_wait(timeout=45)
+        rv = await self._ans_wait(timeout=60)
         if rv == b'TST 0200':
+            return 0
+        return 1
+
+    async def cmd_tsl(self):
+        c, _ = build_cmd('TSL')
+        await self._cmd(c)
+        rv = await self._ans_wait(timeout=600)
+        if rv == b'TSL 0200':
             return 0
         return 1
 
@@ -739,6 +747,19 @@ class BleCC26X2:    # pragma: no cover
         await self._cmd('UTM \r')
         rv = await self._ans_wait()
         ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
+        if ok:
+            _ = self.ans.split()[1].decode()
+            b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
+            t = int(b, 16)
+            s = humanize.naturaldelta(timedelta(seconds=t))
+            return 0, s
+        return 1, ''
+
+    async def cmd_rtm(self):
+        # command Runtime
+        await self._cmd('RTM \r')
+        rv = await self._ans_wait()
+        ok = rv and len(rv) == 14 and rv.startswith(b'RTM')
         if ok:
             _ = self.ans.split()[1].decode()
             b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]

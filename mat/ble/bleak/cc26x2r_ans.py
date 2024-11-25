@@ -68,6 +68,7 @@ def is_cmd_done(tag, ans):
         'ARA',
         'ARP',
         'ARF',
+        'TSL',
         'TST',
         'OAE',
         'OAF'
@@ -84,6 +85,7 @@ def is_cmd_done(tag, ans):
 
     if t in (
         UP_TIME_CMD,
+        'RTM',
         CRC_CMD
     ):
         return _ck(t, a, 14)
