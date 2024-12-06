@@ -1,0 +1,3 @@
+DDH_GUI_UDP_PORT = 12349
+STATE_DDS_BLE_DOWNLOAD_PROGRESS = 'state_dds_ble_download_progress'
+STATE_DDS_LID_CONVERT_PROGRESS = 'state_dds_lid_convert_progress'

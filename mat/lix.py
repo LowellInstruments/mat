@@ -1,4 +1,6 @@
 import os
+import socket
+
 import sys
 from abc import abstractmethod, ABC
 from collections import namedtuple
@@ -8,8 +10,15 @@ import datetime
 from datetime import timezone
 import traceback
 from functools import lru_cache
+
+from mat.ddh import STATE_DDS_LID_CONVERT_PROGRESS, DDH_GUI_UDP_PORT
 from mat.pressure import Pressure
 from mat.temperature import Temperature
+
+
+# --------------------------------------------
+# Abstract class and tools to parse LIX files
+# --------------------------------------------
 
 
 LID_FILE_UNK = 0
@@ -358,6 +367,9 @@ class ParserLixFile(ABC):
         while i < self.len_mm:
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
+            # communicate to GUI
+            # _emit_conversion_progress(i, self.len_mm, self.file_path)
+
 
     def convert(self, verbose=False):
         # normally called by convert_lix_file() in lix_pr.py
@@ -368,3 +380,24 @@ class ParserLixFile(ABC):
         self._parse_macro_header()
         self._parse_data()
         self._create_csv_file()
+
+
+def _emit_conversion_progress(i, size, name):
+
+    # xc: calculate progress percentage
+    xc = int(i) / int(size) * 100 if size else 0
+    xc = xc if xc < 100 else 100
+    xc = int(xc)
+
+    # show on console
+    bn = os.path.basename(name)
+    if i == 0:
+        print(f'conversion progress of {bn}')
+    print(f'\t{xc} %')
+
+    # show on GUI
+    s = f'{STATE_DDS_LID_CONVERT_PROGRESS}/{xc}'
+    _sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    ip = '127.0.0.1'
+    port = DDH_GUI_UDP_PORT
+    _sk.sendto(str(s).encode(), (ip, port))
