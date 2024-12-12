@@ -368,8 +368,7 @@ class ParserLixFile(ABC):
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
             # communicate to GUI
-            # _emit_conversion_progress(i, self.len_mm, self.file_path)
-
+            _emit_conversion_progress(i, self.len_mm, self.file_path)
 
     def convert(self, verbose=False):
         # normally called by convert_lix_file() in lix_pr.py
@@ -385,15 +384,12 @@ class ParserLixFile(ABC):
 def _emit_conversion_progress(i, size, name):
 
     # xc: calculate progress percentage
-    xc = int(i) / int(size) * 100 if size else 0
+    xc = (int(i) / int(size)) * 100 if size else 0
     xc = xc if xc < 100 else 100
     xc = int(xc)
 
     # show on console
-    bn = os.path.basename(name)
-    if i == 0:
-        print(f'conversion progress of {bn}')
-    print(f'\t{xc} %')
+    print(f'\t{xc} % converted')
 
     # show on GUI
     s = f'{STATE_DDS_LID_CONVERT_PROGRESS}/{xc}'
