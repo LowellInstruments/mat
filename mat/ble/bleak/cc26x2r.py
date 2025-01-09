@@ -62,7 +62,7 @@ class BleCC26X2:    # pragma: no cover
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
-                print('debug self.ans -> ', self.ans)
+                # print('debug self.ans -> ', self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -678,6 +678,7 @@ class BleCC26X2:    # pragma: no cover
         # time() -> seconds since epoch, in UTC
         rerun = int(rerun)
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
+        print(f"debug: DDB sent {rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
         c, _ = build_cmd('__B', f"{rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
         await self._cmd(c)
         rv = await self._ans_wait()
