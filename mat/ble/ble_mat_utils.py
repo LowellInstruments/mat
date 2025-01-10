@@ -129,18 +129,23 @@ def ble_mat_disconnect_all_devices_ll():
         print('ble_mat_disconnect_all_devices_ll() unsupported')
         return
 
-    # some linux versions
+    # some linux versions allow for this
     c = 'timeout 5 bluetoothctl disconnect'
     sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    # ll: means low-level
+    # on bad bluetooth state, this takes a long time
     c = 'bluetoothctl devices Connected'
+    el = time.perf_counter()
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    el = time.perf_counter() - el
+    if el > 5:
+        print('** warning: ble_mat_disconnect_all_devices_ll took a long time')
+        print('** BLE or DBUS service might be in bad shape because of power loss')
     if not rv.stdout:
         return
 
     # b'Device D0:2E:AB:D8:BD:DE DO-2\nDevice 60:77:71:22:C8:6F DO-1\n'
-    print(rv.stdout)
+    print('ble_mat_disconnect_all_devices_ll ->', rv.stdout)
     for _ in rv.stdout.split(b'\n'):
         if _ == b'':
             continue

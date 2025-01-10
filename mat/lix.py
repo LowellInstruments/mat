@@ -389,7 +389,7 @@ def _emit_conversion_progress(i, size, name):
     xc = int(xc)
 
     # show on console
-    print(f'\t{xc} % converted')
+    # print(f'\t{xc} % converted')
 
     # show on GUI
     s = f'{STATE_DDS_LID_CONVERT_PROGRESS}/{xc}'
