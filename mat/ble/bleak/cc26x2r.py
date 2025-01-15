@@ -272,6 +272,12 @@ class BleCC26X2:    # pragma: no cover
         ok = rv == b'FRM 00'
         return 0 if ok else 1
 
+    async def cmd_dha(self):
+        await self._cmd('DHA \r')
+        rv = await self._ans_wait()
+        ok = rv == b'DHA 00'
+        return 0 if ok else 1
+
     async def cmd_cfg(self, cfg_d):
         assert type(cfg_d) is dict
         s = json.dumps(cfg_d)

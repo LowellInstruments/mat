@@ -45,6 +45,7 @@ def is_cmd_done(tag, ans):
             LOGGER_INFO_CMD_W,
             LED_CMD,
             FORMAT_CMD,
+            'DHA',
             CONFIG_CMD,
             MY_TOOL_SET_CMD,
             DEL_FILE_CMD,
