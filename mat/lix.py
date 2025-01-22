@@ -367,8 +367,10 @@ class ParserLixFile(ABC):
         while i < self.len_mm:
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
+
             # communicate to GUI
-            _emit_conversion_progress(i, self.len_mm, self.file_path)
+            # removed, this seemed to stressful
+            # _emit_conversion_progress(i, self.len_mm, self.file_path)
 
     def convert(self, verbose=False):
         # normally called by convert_lix_file() in lix_pr.py
