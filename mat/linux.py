@@ -15,6 +15,12 @@ def linux_app_write_pid_to_tmp(name):
 
 
 def linux_is_process_running(name) -> bool:
-    cmd = 'ps -aux | grep {} | grep -v grep'.format(name)
+    cmd = f'ps -aux | grep {name} | grep -v grep'
+    rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    return rv.returncode == 0
+
+
+def linux_is_process_running_strict(name) -> bool:
+    cmd = f'ps -aux | grep -w {name} | grep -v grep'
     rv = sp.run(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     return rv.returncode == 0
