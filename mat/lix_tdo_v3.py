@@ -49,18 +49,19 @@ def prf_compensate_pressure(rp, rt, prc, prd):
 
     # use vt to look up the closest temperature in degrees C, indexed T, i_t
     i_t = len(lut) - bisect.bisect(lut, rt)
-    _p(f'prf_compensate_pressure: searching {rt} in lut -> i_t {i_t}')
 
     # use index of closest value (i_m) to get the T in °C, aka ct
     ct = i_t - 20
-    _p(f"ct = {ct}")
 
     # corrected pressure ADC counts
     cp = rp - (prc * (ct - prd))
-    _p('\n')
-    _p(f"prf_compensate_pressure PRC = {prc} / PRD = {prd}")
-    _p(f"prf_compensate_pressure PRP = {rp}  / PCP = {cp}")
-    _p(f'prf_compensate_pressure PRP - PCP = {rp-cp}')
+
+    # _p('\n')
+    # _p(f"ct = {ct}")
+    # _p(f'prf_compensate_pressure: searching {rt} in lut -> i_t {i_t}')
+    # _p(f"prf_compensate_pressure PRC = {prc} / PRD = {prd}")
+    # _p(f"prf_compensate_pressure PRP = {rp}  / PCP = {cp}")
+    # _p(f'prf_compensate_pressure PRP - PCP = {rp-cp}')
 
     return cp
 
@@ -155,6 +156,10 @@ class ParserLixTdoFileV3(ParserLixFile):
         # mm: all measurement bytes, no micro_headers but yes masks
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
+        # calculated chunk number
+        j = int(i / 248) + 1
+        _p(f"\tchunk idx \t\t|  #{j}")
+
         # get current byte in big array of measurements and time mask
         j = i
         f_te = mm[i] & 0x40
@@ -182,9 +187,19 @@ class ParserLixTdoFileV3(ParserLixFile):
         _p(f'\tindex bytes \t|  {j}:{n+i} ({n+i-j})')
 
         # debug this measurement
-        # c = mm[j:n+i]
+        c = mm[j:n+i]
         # for a, b in enumerate(c):
-        #     print(a, '0x{:02x}'.format(b))
+        #      print(a, '0x{:02x}'.format(b))
+        _p('\t\tmask 0x{:02x}'.format(c[0]))
+        s = '\t\tT 0x{:02x}{:02x}'.format(c[1], c[2])
+        hs = int(s[-4:], 16)
+        _p(f'{s} = {hs}')
+        s = '\t\tP 0x{:02x}{:02x}'.format(c[3], c[4])
+        hs = int(s[-4:], 16)
+        _p(f'{s} = {hs}')
+        s = '\t\tX 0x{:02x}{:02x}'.format(c[5], c[6])
+        hs = int(s[-4:], 16)
+        _p(f'{s} = {hs}')
 
         # return current index of measurements' array
         return i + n, t

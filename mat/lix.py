@@ -54,8 +54,8 @@ class LixFileConverterT:
 
     @lru_cache
     def convert(self, raw_temperature):
-        _p(f'\nLixFileConverterT coefficients {self.coefficients}')
-        _p(f'raw T {raw_temperature} converted T {self.cnv.convert(raw_temperature)}')
+        # _p(f'\nLixFileConverterT coefficients {self.coefficients}')
+        # _p(f'raw T {raw_temperature} converted T {self.cnv.convert(raw_temperature)}')
         return self.cnv.convert(raw_temperature)
 
 
@@ -327,6 +327,7 @@ class ParserLixFile(ABC):
         bn_ex = (i / 8) % 256
         if bn_uh != bn_ex:
             _p(f"*** warning: micro_header index {bn_uh} vs. expected {bn_ex} ***")
+            sys.exit(1)
 
         ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
@@ -338,6 +339,7 @@ class ParserLixFile(ABC):
         self.d_uh[rt] = {"bat": bat, "idx": idx, "ecl": ecl}
 
     def _parse_data(self):
+
         # skip macro-header
         data = self.bb[CS:]
         mm = bytes()
@@ -347,8 +349,9 @@ class ParserLixFile(ABC):
         # iterate to build micro_headers and measurements byte arrays
         n = ceil(len(data) / CS)
         for i in range(0, CS * n, CS):
-            mm += data[i+UHS:i+CS]
             uh += data[i:i+UHS]
+            mm += data[i+UHS:i+CS]
+
 
         # -------------------------------
         # parse dictionary micro_headers
@@ -356,7 +359,7 @@ class ParserLixFile(ABC):
         for i in range(0, len(uh), UHS):
             self._parse_data_micro_headers(uh, i)
 
-        # debug, only up to here
+        # debug, only up to micro-headers
         # sys.exit(0)
 
         # -----------------------------------

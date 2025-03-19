@@ -737,11 +737,12 @@ class BleCC26X2:    # pragma: no cover
                 print('all file received')
                 # receive the last shit
                 break
+
             # check we are stuck
             ls_sa.append(len(self.ans))
-            if len(ls_sa) < 10:
+            if len(ls_sa) < 20:
                 continue
-            ls_sa = ls_sa[-10:]
+            ls_sa = ls_sa[-20:]
             if all(map(lambda x: x == ls_sa[-1], ls_sa)):
                 print('we stuck')
                 return 1, bytes()
