@@ -720,9 +720,11 @@ class BleCC26X2:    # pragma: no cover
         self.ans = bytes()
         ble_mat_progress_dl(0, z, ip, port)
 
+        # send DWF command
         c = 'DWF \r'
         await self._cmd(c, empty=False)
-        # list stuck answer
+
+        # ls_sa: list stuck answer
         ls_sa = []
 
         while 1:
@@ -738,14 +740,16 @@ class BleCC26X2:    # pragma: no cover
                 # receive the last shit
                 break
 
-            # check we are stuck
+            # update list with growing size of file
             ls_sa.append(len(self.ans))
-            if len(ls_sa) < 20:
+            if len(ls_sa) < 30:
                 continue
-            ls_sa = ls_sa[-20:]
-            if all(map(lambda x: x == ls_sa[-1], ls_sa)):
-                print('we stuck')
-                return 1, bytes()
+
+            # when more than 30, we only consider last 30 ones
+            ls_sa = ls_sa[-30:]
+            if len(set(list)) == 1:
+                print('DWF error: seems we stuck')
+                break
 
         rv = 0 if z == len(self.ans) else 1
         return rv, self.ans
