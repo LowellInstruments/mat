@@ -128,6 +128,7 @@ def lid_file_v2_has_sensor_data_type(fp, suf):
 
 
 def _p(s, **kwargs):
+    print('my_gverbose', g_verbose)
     if g_verbose:
         print(s, **kwargs)
 
@@ -326,8 +327,11 @@ class ParserLixFile(ABC):
         bn_uh = (idx - 1) % 256
         bn_ex = (i / 8) % 256
         if bn_uh != bn_ex:
-            _p(f"*** warning: micro_header index {bn_uh} vs. expected {bn_ex} ***")
-            sys.exit(1)
+            _p(f"*********************")
+            _p(f"warning: micro_header index {bn_uh} vs. expected {bn_ex}")
+            _p(f"*********************")
+            # we no longer exit here
+            # sys.exit(1)
 
         ecl = uh[i + 3]
         rt = int.from_bytes(uh[i + 4:i + 8], "big")
@@ -376,9 +380,10 @@ class ParserLixFile(ABC):
             # _emit_conversion_progress(i, self.len_mm, self.file_path)
 
     def convert(self, verbose=False):
-        # normally called by convert_lix_file() in lix_pr.py
+        # normally called by convert_lix_file() from lix_pr.py
         global g_verbose
         g_verbose = verbose
+        print(f'debug: convert verbose = {g_verbose}')
         self._load_file_bytes()
         self._get_file_length()
         self._parse_macro_header()
