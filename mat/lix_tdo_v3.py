@@ -241,6 +241,7 @@ class ParserLixTdoFileV3(ParserLixFile):
 
         # self.d_mm: dictionary {cumulative_time: (sensor_data, sensor_mask)}
         for ct, v_sm in self.d_mm.items():
+
             v, sm = v_sm
 
             # needed arrays for pressure

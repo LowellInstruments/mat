@@ -128,7 +128,7 @@ def lid_file_v2_has_sensor_data_type(fp, suf):
 
 
 def _p(s, **kwargs):
-    print('my_gverbose', g_verbose)
+    # print('my_gverbose', g_verbose)
     if g_verbose:
         print(s, **kwargs)
 
@@ -280,6 +280,7 @@ class ParserLixFile(ABC):
         # n: number of file chunks
         n = ceil(len(self.bb) / CS)
 
+
         # file_size: calculate last chunk contribution
         file_size = (n - 1) * CS
         last_ecl = CS - self.bb[-CS:][3]
@@ -305,6 +306,7 @@ class ParserLixFile(ABC):
         _p(f'{pad}len_micro_h    {self.len_uh}')
         _p("----------------------------------------------------")
         calc_fs = CS + self.len_mm + self.len_uh
+
         assert self.len_file == calc_fs
 
     @abstractmethod
@@ -345,7 +347,10 @@ class ParserLixFile(ABC):
     def _parse_data(self):
 
         # skip macro-header
-        data = self.bb[CS:]
+        data = self.bb[:self.len_file]
+        data = data[CS:]
+
+        # prepare buffers measurement and microheaders
         mm = bytes()
         uh = bytes()
 
@@ -355,7 +360,6 @@ class ParserLixFile(ABC):
         for i in range(0, CS * n, CS):
             uh += data[i:i+UHS]
             mm += data[i+UHS:i+CS]
-
 
         # -------------------------------
         # parse dictionary micro_headers
@@ -372,6 +376,9 @@ class ParserLixFile(ABC):
         i = 0
         ta = 0
         while i < self.len_mm:
+            # firmware patch, mm[i] should be pointing to sensor mask
+            if mm[i] == 0:
+                break
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
 
