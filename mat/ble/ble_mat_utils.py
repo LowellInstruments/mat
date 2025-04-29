@@ -150,12 +150,14 @@ def ble_mat_disconnect_all_devices_ll():
         if _ == b'':
             continue
         lg_type = _.split(b' ')[2]
-        if lg_type not in (b'DO-1', b'DO-2', b'TAP1', b'TDO'):
-            continue
-        mac = _.split(b' ')[1]
-        print(f'ble_mat -> auto-disconnecting mac {mac}')
-        c = 'bluetoothctl disconnect {}'.format(mac.decode())
-        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        if lg_type in (b'DO-1', b'DO-2', b'TAP1', b'TDO')   \
+            or lg_type.startswith(b'DO1_') \
+            or lg_type.startswith(b'DO2_') \
+            or lg_type.startswith(b'TDO_'):
+            mac = _.split(b' ')[1]
+            print(f'ble_mat -> auto-disconnecting mac {mac}')
+            c = 'bluetoothctl disconnect {}'.format(mac.decode())
+            sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
 
 def ble_mat_systemctl_restart_bluetooth():
