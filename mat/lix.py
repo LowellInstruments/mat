@@ -378,9 +378,8 @@ class ParserLixFile(ABC):
         while i < self.len_mm:
 
             # firmware patch, mm[i] should be pointing to sensor mask
-            # todo ---> THIS HAS TO BE DONE SOMEWHERE ELSE
-            # if mm[i] == 0:
-            #     break
+            if i > 0 and mm[i] == 0:
+                break
 
             i, t = self._parse_data_mm(mm, i, ta)
             ta += t
