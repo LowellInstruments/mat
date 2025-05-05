@@ -716,43 +716,43 @@ class BleCC26X2:    # pragma: no cover
         return rv, self.ans
 
     async def cmd_dwf(self, z, ip=None, port=None) -> tuple:
+
         # z: file size
         self.ans = bytes()
         ble_mat_progress_dl(0, z, ip, port)
+        timeout_z = 0
 
         # send DWF command
         c = 'DWF \r'
-        await self._cmd(c, empty=False)
+        await self._cmd(c)
 
-        # ls_sa: list stuck answer
-        ls_sa = []
-
+        # receive the WHOLE file
         while 1:
-            # needed or you cannot check if connected
-            # this does not affect download time
-            await asyncio.sleep(.11)
+            await asyncio.sleep(.5)
+
+            # doesn't affect download speed
             if not await self.is_connected():
                 print('error: DWF disconnected while receiving file')
                 return 1, bytes()
+
+            # the FAST download is going well
             ble_mat_progress_dl(len(self.ans), z, ip, port)
             if len(self.ans) == z:
                 print('all file received')
                 # receive the last shit
                 break
 
-            # update list with growing size of file
-            ls_sa.append(len(self.ans))
-            if len(ls_sa) < 30:
-                continue
-
-            # when more than 30, we only consider last 30 ones
-            ls_sa = ls_sa[-30:]
-            if len(set(list)) == 1:
-                print('DWF error: seems we stuck')
+            # check for stall
+            if len(self.ans) == timeout_z:
+                print('error DWF timeout')
                 break
+            timeout_z = len(self.ans)
 
+        print('z', z)
+        print('len(self.ans)', len(self.ans))
         rv = 0 if z == len(self.ans) else 1
         return rv, self.ans
+
 
     async def cmd_utm(self):
         # command Uptime
