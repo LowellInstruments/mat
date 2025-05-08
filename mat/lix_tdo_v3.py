@@ -19,6 +19,9 @@ LEN_LIX_FILE_CF_AREA = 5 * 13
 LEN_BYTES_T = 2
 LEN_BYTES_A = 6
 
+# marks if 1 or 2 bytes of time
+MASK_TIME_EXTENDED = 0x40
+
 
 def prf_compensate_pressure(rp, rt, prc, prd):
     # rp: raw Pressure ADC counts
@@ -156,13 +159,20 @@ class ParserLixTdoFileV3(ParserLixFile):
         # mm: all measurement bytes, no micro_headers but yes masks
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
+        # debug: find old files ended poorly
+        # happened in some in cases in firmware version v4.1.23
+        if mm[i:i+5] == b'\x00\x00\x00\x00\x00':
+            xc = (i / len(mm)) * 100
+            print(f'warning: stopped LID file parsing at {xc} % because string of zeros')
+            return -1, None
+
         # calculated chunk number
         j = int(i / 248) + 1
         _p(f"\tchunk idx \t\t|  #{j}")
 
         # get current byte in big array of measurements and time mask
         j = i
-        f_te = mm[i] & 0x40
+        f_te = mm[i] & MASK_TIME_EXTENDED
         if f_te == 0:
             t = 0x3F & mm[i]
             i += 1
@@ -289,6 +299,11 @@ class ParserLixTdoFileV3(ParserLixFile):
                 if self.more_columns:
                     s = f'{t},{et},{ct},{rt},{rpe[i]},{vt},{vp},{cpe[i]},'\
                         f'{kp},{vax},{vay},{vaz}\n'
+
+                # detect conversion errors
+                if 'nan' in s:
+                    print('*** detected nan in row')
+
                 f_csv.write(s)
 
         # close the file

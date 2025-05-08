@@ -38,6 +38,7 @@ class ParserLixTdoFileV4(ParserLixTdoFileV3):
         i += 5
         dru = bb[i:i + 5].decode()
         i += 5
+        # DRF does not take 5 characters but 2
         drf = bb[i:i + 2].decode()
         i += 2
         dso = bb[i:i + 5].decode()

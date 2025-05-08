@@ -1,7 +1,5 @@
 import os
 import socket
-
-import sys
 from abc import abstractmethod, ABC
 from collections import namedtuple
 from math import ceil
@@ -376,13 +374,9 @@ class ParserLixFile(ABC):
         i = 0
         ta = 0
         while i < self.len_mm:
-
-            # firmware patch, mm[i] should be pointing to sensor mask
-            # never enable this again until I have all edge cases
-            # if i > 0 and mm[i] == 0:
-            #     break
-
             i, t = self._parse_data_mm(mm, i, ta)
+            if i == -1:
+                break
             ta += t
 
             # communicate to GUI
