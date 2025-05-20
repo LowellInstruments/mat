@@ -167,7 +167,7 @@ def ble_mat_disconnect_all_devices_ll():
             print(f'ble_mat -> this mac needs to disconnect {mac}')
             n_detected += 1
 
-    if n_detected:
+    if n_detected and linux_is_rpi():
         print(f'ble_mat -> starting hci0 / hci1 reset, n_detected = {n_detected}')
         c = 'sudo hciconfig hci0 reset'
         sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
