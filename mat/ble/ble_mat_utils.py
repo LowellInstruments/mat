@@ -126,12 +126,13 @@ def ble_mat_disconnect_all_devices_ll():
     # the "Connected" flag only works for bluetoothctl > v5.65
     v = ble_mat_get_bluez_version()
     if v < '5.65':
-        print('ble_mat_disconnect_all_devices_ll() unsupported')
+        print('function ble_mat_disconnect_all_devices_ll is unsupported')
         return
 
     # some linux versions allow for this
-    c = 'timeout 5 bluetoothctl disconnect'
+    c = 'timeout 3 bluetoothctl disconnect'
     sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
 
     # on bad bluetooth state, this takes a long time
     c = 'bluetoothctl devices Connected'
@@ -146,6 +147,7 @@ def ble_mat_disconnect_all_devices_ll():
 
     # b'Device D0:2E:AB:D8:BD:DE DO-2\nDevice 60:77:71:22:C8:6F DO-1\n'
     print('ble_mat_disconnect_all_devices_ll ->', rv.stdout)
+    n_detected = 0
     for _ in rv.stdout.split(b'\n'):
         if _ == b'':
             continue
@@ -155,9 +157,26 @@ def ble_mat_disconnect_all_devices_ll():
             or lg_type.startswith(b'DO2_') \
             or lg_type.startswith(b'TDO_'):
             mac = _.split(b' ')[1]
-            print(f'ble_mat -> auto-disconnecting mac {mac}')
-            c = 'bluetoothctl disconnect {}'.format(mac.decode())
-            sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+            # old version
+            # print(f'ble_mat -> auto-disconnecting mac {mac}')
+            # c = f'timeout 5 bluetoothctl disconnect {mac.decode()}'
+            # sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+
+            # new version
+            print(f'ble_mat -> this mac needs to disconnect {mac}')
+            n_detected += 1
+
+    if n_detected:
+        print(f'ble_mat -> starting hci0 / hci1 reset, n_detected = {n_detected}')
+        c = 'sudo hciconfig hci0 reset'
+        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        c = 'sudo hciconfig hci1 reset'
+        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        time.sleep(3)
+        print('ble_mat -> finished hci0 / hci1 reset')
+
+
 
 
 def ble_mat_systemctl_restart_bluetooth():
