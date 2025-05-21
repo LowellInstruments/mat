@@ -121,41 +121,27 @@ def ble_mat_hci_exists(h):
     assert _hci_is_up(int(h[3]))
 
 
-def ble_mat_disconnect_all_devices_ll():
-
-    # the "Connected" flag only works for bluetoothctl > v5.65
-    v = ble_mat_get_bluez_version()
-    if v < '5.65':
-        print('function ble_mat_disconnect_all_devices_ll is unsupported')
-        return
-
-    # some linux versions allow for this
-    c = 'timeout 3 bluetoothctl disconnect'
-    sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-
+def ble_mat_detect_devices_left_connected_ll():
 
     # on bad bluetooth state, this takes a long time
-    c = 'bluetoothctl devices Connected'
+    c = 'timeout 2 bluetoothctl devices Connected'
     el = time.perf_counter()
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     el = time.perf_counter() - el
-    if el > 5:
-        print('** warning: ble_mat_disconnect_all_devices_ll took a long time')
+    if el > 1:
+        print('** warning: ble_mat_detect_devices_left_connected_ll took a long time')
         print('** BLE or DBUS service might be in bad shape because of power loss')
-    if not rv.stdout:
-        return
 
     # b'Device D0:2E:AB:D8:BD:DE DO-2\nDevice 60:77:71:22:C8:6F DO-1\n'
-    print('ble_mat_disconnect_all_devices_ll ->', rv.stdout)
     n_detected = 0
     for _ in rv.stdout.split(b'\n'):
         if _ == b'':
             continue
         lg_type = _.split(b' ')[2]
         if lg_type in (b'DO-1', b'DO-2', b'TAP1', b'TDO')   \
-            or lg_type.startswith(b'DO1_') \
-            or lg_type.startswith(b'DO2_') \
-            or lg_type.startswith(b'TDO_'):
+            or lg_type.startswith(b'DO1') \
+            or lg_type.startswith(b'DO2') \
+            or lg_type.startswith(b'TDO'):
             mac = _.split(b' ')[1]
 
             # old version
@@ -164,19 +150,10 @@ def ble_mat_disconnect_all_devices_ll():
             # sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
             # new version
-            print(f'ble_mat -> this mac needs to disconnect {mac}')
+            print(f'ble_mat_detect_devices_left_connected_ll -> this mac needs to disconnect {mac}')
             n_detected += 1
 
-    if n_detected and linux_is_rpi():
-        print(f'ble_mat -> starting hci0 / hci1 reset, n_detected = {n_detected}')
-        c = 'sudo hciconfig hci0 reset'
-        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-        c = 'sudo hciconfig hci1 reset'
-        sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-        time.sleep(3)
-        print('ble_mat -> finished hci0 / hci1 reset')
-
-
+    return n_detected
 
 
 def ble_mat_systemctl_restart_bluetooth():
@@ -187,7 +164,6 @@ def ble_mat_systemctl_restart_bluetooth():
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
     if rv.returncode:
         print(f'error: ble_mat_systemctl_restart_bluetooth {rv.stderr}')
-    time.sleep(2)
 
 
 def ble_mat_get_bluez_version() -> str:
