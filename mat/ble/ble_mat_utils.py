@@ -124,36 +124,26 @@ def ble_mat_hci_exists(h):
 def ble_mat_detect_devices_left_connected_ll():
 
     # on bad bluetooth state, this takes a long time
-    c = 'timeout 2 bluetoothctl devices Connected'
-    el = time.perf_counter()
+    c = 'timeout 2 bluetoothctl info | grep "Connected: yes"'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    el = time.perf_counter() - el
-    if el > 1:
-        print('** warning: ble_mat_detect_devices_left_connected_ll took a long time')
-        print('** BLE or DBUS service might be in bad shape because of power loss')
 
-    # b'Device D0:2E:AB:D8:BD:DE DO-2\nDevice 60:77:71:22:C8:6F DO-1\n'
-    n_detected = 0
-    for _ in rv.stdout.split(b'\n'):
-        if _ == b'':
-            continue
-        lg_type = _.split(b' ')[2]
-        if lg_type in (b'DO-1', b'DO-2', b'TAP1', b'TDO')   \
-            or lg_type.startswith(b'DO1') \
-            or lg_type.startswith(b'DO2') \
-            or lg_type.startswith(b'TDO'):
-            mac = _.split(b' ')[1]
+    if rv.returncode == 124:
+        print(f'error: ble_mat_detect_devices_left_connected_ll timeouted')
 
-            # old version
-            # print(f'ble_mat -> auto-disconnecting mac {mac}')
-            # c = f'timeout 5 bluetoothctl disconnect {mac.decode()}'
-            # sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    if rv.returncode == 1:
+        # no devices found connected
+        return 0
 
-            # new version
-            print(f'ble_mat_detect_devices_left_connected_ll -> this mac needs to disconnect {mac}')
-            n_detected += 1
+    c = 'bluetoothctl info'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
-    return n_detected
+    for lg_type in ('DO-1', 'DO-2', 'TAP1', 'TDO', 'DO1', 'DO2'):
+        b = '\tName: {}'.format(lg_type).encode()
+        if b in rv.stdout:
+            print('ble_mat_detect_devices_left_connected_ll: some connected')
+            return 1
+
+    return 0
 
 
 def ble_mat_systemctl_restart_bluetooth():

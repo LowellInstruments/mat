@@ -373,6 +373,7 @@ class ParserLixFile(ABC):
         # -----------------------------------
         i = 0
         ta = 0
+        print('i vs len_mm', i, self.len_mm)
         while i < self.len_mm:
             i, t = self._parse_data_mm(mm, i, ta)
             if i == -1:
