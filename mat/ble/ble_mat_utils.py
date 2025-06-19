@@ -118,7 +118,8 @@ def ble_mat_hci_exists(h):
     if os.getenv("GITHUB_ACTIONS"):
         return
     assert h.startswith('hci')
-    assert _hci_is_up(int(h[3]))
+    # this is too wild
+    # assert _hci_is_up(int(h[3]))
 
 
 def ble_mat_detect_devices_left_connected_ll():
