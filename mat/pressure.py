@@ -23,4 +23,9 @@ class Pressure:
         # v: [74.94014981]
         v = ((self.pressure_slope * raw_pressure + self.pressure_offset)
              * 0.689475728)
+
+        # print('prb ', self.pressure_slope)
+        # print('rawp', raw_pressure)
+        # print('pra ', self.pressure_offset)
+
         return v
