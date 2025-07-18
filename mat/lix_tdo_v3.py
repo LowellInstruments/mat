@@ -59,12 +59,15 @@ def prf_compensate_pressure(rp, rt, prc, prd):
     # corrected pressure ADC counts
     cp = rp - (prc * (ct - prd))
 
-    # _p('\n')
-    # _p(f"ct = {ct}")
-    # _p(f'prf_compensate_pressure: searching {rt} in lut -> i_t {i_t}')
-    # _p(f"prf_compensate_pressure PRC = {prc} / PRD = {prd}")
-    # _p(f"prf_compensate_pressure PRP = {rp}  / PCP = {cp}")
-    # _p(f'prf_compensate_pressure PRP - PCP = {rp-cp}')
+    # _p('\n\nprfCompnsatePressure')
+    # _p(f'rp {rp}')
+    # _p(f'rt {rt}')
+    # _p(f'prc {prc}')
+    # _p(f'prd {prd}')
+    # _p(f'i_t {i_t}')
+    # _p(f'ct {ct}')
+    # _p(f'cp {cp}')
+
 
     return cp
 
@@ -173,12 +176,16 @@ class ParserLixTdoFileV3(ParserLixFile):
         # get current byte in big array of measurements and time mask
         j = i
         f_te = mm[i] & MASK_TIME_EXTENDED
+        # lm: len_mask
+        lm = 0
         if f_te == 0:
             t = 0x3F & mm[i]
+            lm = 1
             i += 1
             _p('\tlen. mask\t\t|  1 -> ts = 0x{:02x} = {}'.format(t, t))
         else:
             t = ((0x3F & mm[i]) << 8) + mm[i+1]
+            lm = 2
             i += 2
             _p('\tlen. mask\t\t|  2 -> te = 0x{:04x} = {}'.format(t, t))
 
@@ -200,14 +207,18 @@ class ParserLixTdoFileV3(ParserLixFile):
         c = mm[j:n+i]
         # for a, b in enumerate(c):
         #      print(a, '0x{:02x}'.format(b))
-        _p('\t\tmask 0x{:02x}'.format(c[0]))
-        s = '\t\tT 0x{:02x}{:02x}'.format(c[1], c[2])
+        if lm == 1:
+            _p('\t\tmask 0x{:02x} = {}'.format(c[0], c[0]))
+        elif lm == 2:
+            _p('\t\tmask 0x{:02x}{:02x}'.format(c[0], c[1]))
+
+        s = '\t\tT 0x{:02x}{:02x}'.format(c[lm + 0], c[lm + 1])
         hs = int(s[-4:], 16)
         _p(f'{s} = {hs}')
-        s = '\t\tP 0x{:02x}{:02x}'.format(c[3], c[4])
+        s = '\t\tP 0x{:02x}{:02x}'.format(c[lm + 2], c[lm + 3])
         hs = int(s[-4:], 16)
         _p(f'{s} = {hs}')
-        s = '\t\tX 0x{:02x}{:02x}'.format(c[5], c[6])
+        s = '\t\tX 0x{:02x}{:02x}'.format(c[lm + 4], c[lm + 5])
         hs = int(s[-4:], 16)
         _p(f'{s} = {hs}')
 
