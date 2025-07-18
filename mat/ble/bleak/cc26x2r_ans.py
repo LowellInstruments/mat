@@ -64,6 +64,7 @@ def is_cmd_done(tag, ans):
         WAKE_CMD,
         ERROR_WHEN_BOOT_OR_RUN_CMD,
         LOG_EN_CMD,
+        'HBW',
         'GWF',
         'PER',
         'ARA',

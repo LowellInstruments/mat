@@ -479,6 +479,16 @@ class BleCC26X2:    # pragma: no cover
             return 0, 0
         return 1, 0
 
+    async def cmd_hbw(self):
+        c, _ = build_cmd("HBW")
+        await self._cmd(c)
+        rv = await self._ans_wait()
+        if rv == b'HBW 0201':
+            return 0, 1
+        if rv == b'HBW 0200':
+            return 0, 0
+        return 1, 0
+
     async def cmd_tst(self):
         c, _ = build_cmd('TST')
         await self._cmd(c)
