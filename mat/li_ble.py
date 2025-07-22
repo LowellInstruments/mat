@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import time
 from datetime import timezone
+from typing import Optional
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -17,8 +18,10 @@ from mat.utils import lowell_cmd_dir_ans_to_dict
 # =========================================
 
 
+
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
+UUID_S = 'f0001130-0451-4000-b000-000000000000'
 SCAN_TIMEOUT = 10
 DEF_TIMEOUT_CMD = 10
 DEBUG = True
@@ -71,7 +74,7 @@ async def fast_scan(mtf, timeout=SCAN_TIMEOUT):
 
 
 
-async def connect(mac):
+async def connect(mac) -> Optional[bool]:
     global g_cli
     # retries are embedded in bleak library
     g_cli = BleakClient(mac, timeout=10)
@@ -82,8 +85,9 @@ async def connect(mac):
         await g_cli.start_notify(UUID_T, notification_handler)
         el = int(time.perf_counter() - el)
         print(f"Connected in {el} seconds")
+        return True
     except (Exception, ) as ex:
-        print(f'error: li_ble connect {ex}')
+        print(f'error: connect {ex}')
 
 
 
@@ -102,7 +106,11 @@ async def _cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD):
         g_rx = bytes()
     if DEBUG:
         print('<-', c)
-    await g_cli.write_gatt_char(UUID_R, c.encode())
+    try:
+        await g_cli.write_gatt_char(UUID_R, c.encode())
+    except (Exception, ) as ex:
+        print(f'error: _cmd {ex}')
+        return
     return await _wait_ans(timeout)
 
 
@@ -110,6 +118,10 @@ async def _cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD):
 def _is_cmd_done():
     c = g_tag
     if c in (
+        'BEH',
+        'GLT',
+        'GSC',
+        'LED',
         'GFV',
         'MTS',
         PRESSURE_SENSOR_CMD,
@@ -127,8 +139,8 @@ def _is_cmd_done():
 
 
 async def _wait_ans(cmd_timeout):
+
     # accumulate command answer in notification handler
-    el = time.perf_counter()
     timeout = time.perf_counter() + cmd_timeout
     while logger_connected() and time.perf_counter() < timeout:
         await asyncio.sleep(0.2)
@@ -141,7 +153,7 @@ async def _wait_ans(cmd_timeout):
         return g_rx
 
     # debug when errors
-    e = f'[ BLE ] cmd timeout {int(time.perf_counter() - el)} for cmd {g_tag}'
+    e = f'error: _wait_ans cmd {g_tag} timeout {cmd_timeout}'
     print("\033[91m {}\033[00m".format(e))
     print("\t\033[91m g_rx: {}\033[00m".format(g_rx))
     if not g_rx:
@@ -151,7 +163,7 @@ async def _wait_ans(cmd_timeout):
     n = int(len(g_rx) / 2)
     if g_rx[:n] == g_rx[n:]:
         print('-----------------------------------')
-        e = 'error duplicate answer: {} \n' \
+        e = 'error: duplicate answer {} \n' \
             'seems you used PWA recently \n' \
             'and Linux BLE stack got crazy, \n' \
             'just run $ systemctl restart bluetooth'
@@ -163,6 +175,18 @@ async def _wait_ans(cmd_timeout):
 # ===================================================
 # list of commands for lowell instruments loggers
 # ===================================================
+
+
+
+async def cmd_beh(tag, v):
+    # ex: BEH 04BCU1\r to activate connection update
+    assert len(tag) == 3
+    s = f'{tag}{v}'
+    c, _ = build_cmd("BEH", s)
+    rv = await _cmd(c, timeout=5)
+    if rv and rv.startswith(b'BEH'):
+        return 0
+    return 1
 
 
 
@@ -192,6 +216,24 @@ async def cmd_gfv():
     if not ok:
         return 1, ''
     return 0, rv[6:].decode()
+
+
+
+async def cmd_glt():
+    rv = await _cmd('GLT \r')
+    ok = rv and rv in (b'GLT DO1', b'GLT DO2', b'GLT TDO', b'GLT CTD')
+    # rv: b'ERR' in loggers not supporting this command
+    return (0, rv.decode()[-3:]) if ok else (1, None)
+
+
+
+async def cmd_gsc():
+    # Get Sensor Conductivity
+    rv = await _cmd('GSC \r')
+    ok = rv and rv.startswith(b'GSC')
+    if not ok:
+        return 1, 0
+    return 0, 1234
 
 
 
@@ -237,6 +279,13 @@ async def cmd_gst():
 
 
 
+async def cmd_led():
+    rv = await _cmd('LED \r')
+    ok = rv == b'LED 00'
+    return 0 if ok else 1
+
+
+
 async def cmd_mts():
     rv = await _cmd('MTS \r', timeout=60)
     return 0 if rv == b'MTS 00' else 1
@@ -266,6 +315,7 @@ async def cmd_sts():
         state = _[rv.split(b' ')[1]]
         return 0, state
     return 1, 'error'
+
 
 
 # async def cmd_ara():
@@ -349,17 +399,8 @@ async def cmd_sts():
 #     return 0 if rv == b'SCC 00' else 1
 #
 #
-# async def cmd_beh(tag, v):
-#     assert len(tag) == 3
-#     s = f'{tag}{v}'
-#     c, _ = build_cmd("BEH", s)
-#     await _cmd(c)
-#     rv = await self._ans_wait(timeout=5)
-#     if rv and rv.startswith(b'BEH'):
-#         return 0
-#     return 1
-#
-#
+
+
 # async def cmd_scf(tag, v):
 #     # Set Calibration proFiling, for profiling
 #     assert len(tag) == 3
@@ -434,12 +475,7 @@ async def cmd_sts():
 #     ok = rv in (b'STP 00', b'STP 0200')
 #     return 0 if ok else 1
 #
-#
-# async def cmd_led():
-#     await _cmd('LED \r')
-#     rv = await self._ans_wait()
-#     ok = rv == b'LED 00'
-#     return 0 if ok else 1
+
 #
 #
 
@@ -773,17 +809,7 @@ async def cmd_sts():
 #     rv = await self._ans_wait(timeout=30)
 #     ok = rv in (b'SWS 00', b'SWS 0200')
 #     return 0 if ok else 1
-#
-#
-# async def cmd_glt():
-#     c, _ = build_cmd('GLT')
-#     await _cmd(c)
-#     rv = await self._ans_wait(timeout=2)
-#     ok = rv in (b'GLT DO1', b'GLT DO2', b'GLT TDO', b'GLT ???')
-#     # rv: b'ERR' in loggers not supporting this command
-#     return (0, rv.decode()[-3:]) if ok else (1, None)
-#
-#
+
 # async def cmd_rws(g):
 #     # RUN with STRING
 #     lat, lon, _, __ = g
@@ -952,7 +978,9 @@ async def main():
     mac_test = "F0:5E:CD:25:95:E0" # CTD
     print("starting scan...")
     await fast_scan(mac_test)
-    await connect(mac_test)
+    rv = await connect(mac_test)
+    if not rv:
+        return
     # rv = await cmd_stm()
     # print(rv)
     # rv = await cmd_sts()
@@ -969,6 +997,12 @@ async def main():
     # print(rv)
     # rv = await cmd_gfv()
     # print(rv)
+    # rv = await cmd_glt()
+    # print(rv)
+    rv = await cmd_gsc()
+    print(rv)
+    rv = await cmd_beh('BCU',  1)
+    print(rv)
     await disconnect()
 
 
