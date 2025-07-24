@@ -7,8 +7,9 @@ from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from mat.logger_controller import SET_TIME_CMD
-from mat.logger_controller_ble import FORMAT_CMD, PRESSURE_SENSOR_CMD, TEMPERATURE_SENSOR_CMD
+from mat.logger_controller_ble import FORMAT_CMD, PRESSURE_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, DWG_FILE_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
+import humanize
 
 
 
@@ -117,18 +118,25 @@ async def _cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD):
 
 def _is_cmd_done():
     c = g_tag
+
+    if g_rx == b'ERR':
+        return 1
+
     if c in (
         'BEH',
+        'DWG',
+        'GFV',
         'GLT',
         'GSC',
         'LED',
-        'GFV',
+        'MAC',
         'MTS',
         PRESSURE_SENSOR_CMD,
         TEMPERATURE_SENSOR_CMD,
         FORMAT_CMD,
         SET_TIME_CMD,
-        'STS'
+        'STS',
+        'UTM'
     ):
         return c.encode() in g_rx
     if c in (
@@ -200,6 +208,13 @@ async def cmd_dir():
         return 3, 'partial'
     ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
     return 0, ls
+
+
+
+async def cmd_dwg(s):
+    c, _ = build_cmd(DWG_FILE_CMD, s)
+    rv = await _cmd(c)
+    return 0 if rv == b'DWG 00' else 1
 
 
 
@@ -279,6 +294,17 @@ async def cmd_gst():
 
 
 
+async def cmd_mac():
+    # command get mac
+    rv = await _cmd('MAC \r')
+    # rv: b'MAC 11D0:2E:AB:D9:29:48'
+    ok = rv and len(rv) == 23 and rv.startswith(b'MAC')
+    if ok:
+        return 0, rv[6:].decode()
+    return 1, ''
+
+
+
 async def cmd_led():
     rv = await _cmd('LED \r')
     ok = rv == b'LED 00'
@@ -315,6 +341,20 @@ async def cmd_sts():
         state = _[rv.split(b' ')[1]]
         return 0, state
     return 1, 'error'
+
+
+
+async def cmd_utm():
+    # command Uptime
+    rv = await _cmd('UTM \r')
+    ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
+    if ok:
+        _ = rv.split()[1].decode()
+        b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
+        t = int(b, 16)
+        s = humanize.naturaldelta(datetime.timedelta(seconds=t))
+        return 0, s
+    return 1, ''
 
 
 
@@ -362,15 +402,7 @@ async def cmd_sts():
 #     await _cmd(c)
 #     rv = await self._ans_wait()
 #     return 0 if rv == b'FDS 00' else 1
-#
-#
-# async def cmd_dwg(s):
-#     c, _ = build_cmd(DWG_FILE_CMD, s)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     return 0 if rv == b'DWG 00' else 1
-#
-#
+
 # async def cmd_crc(s):
 #     c, _ = build_cmd(CRC_CMD, s)
 #     await _cmd(c)
@@ -921,22 +953,7 @@ async def cmd_sts():
 #     print('len(self.ans)', len(self.ans))
 #     rv = 0 if z == len(self.ans) else 1
 #     return rv, self.ans
-#
-#
-# async def cmd_utm():
-#     # command Uptime
-#     await _cmd('UTM \r')
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 14 and rv.startswith(b'UTM')
-#     if ok:
-#         _ = self.ans.split()[1].decode()
-#         b = _[-2:] + _[-4:-2] + _[-6:-4] + _[2:4]
-#         t = int(b, 16)
-#         s = humanize.naturaldelta(timedelta(seconds=t))
-#         return 0, s
-#     return 1, ''
-#
-#
+
 # async def cmd_rtm():
 #     # command Runtime
 #     await _cmd('RTM \r')
@@ -949,17 +966,7 @@ async def cmd_sts():
 #         s = humanize.naturaldelta(timedelta(seconds=t))
 #         return 0, s
 #     return 1, ''
-#
-#
-# async def cmd_mac():
-#     # command get mac
-#     await _cmd('MAC \r')
-#     rv = await self._ans_wait()
-#     # rv: b'MAC 11D0:2E:AB:D9:29:48'
-#     ok = rv and len(rv) == 23 and rv.startswith(b'MAC')
-#     if ok:
-#         return 0, rv[6:].decode()
-#     return 1, ''
+
 
 
 
@@ -974,13 +981,16 @@ async def cmd_sts():
 
 
 async def main():
-    # mac_test = "D0:2E:AB:D9:29:48" # TDO
-    mac_test = "F0:5E:CD:25:95:E0" # CTD
+
+    mac_test = "D0:2E:AB:D9:29:48" # TDO
+    # mac_test = "F0:5E:CD:25:95:E0" # CTD
+
     print("starting scan...")
     await fast_scan(mac_test)
     rv = await connect(mac_test)
     if not rv:
         return
+
     # rv = await cmd_stm()
     # print(rv)
     # rv = await cmd_sts()
@@ -999,10 +1009,21 @@ async def main():
     # print(rv)
     # rv = await cmd_glt()
     # print(rv)
-    rv = await cmd_gsc()
+    # rv = await cmd_gsc()
+    # print(rv)
+    # rv = await cmd_beh('BCU',  1)
+    # print(rv)
+    # rv = await cmd_mac()
+    # print(rv)
+
+    # rv = await cmd_dwg('dummy_946706414.lid')
+    # print(rv)
+    # rv = await cmd_dwg('dummy_94670641422.lid')
+    # print(rv)
+
+    rv = await cmd_utm()
     print(rv)
-    rv = await cmd_beh('BCU',  1)
-    print(rv)
+
     await disconnect()
 
 
