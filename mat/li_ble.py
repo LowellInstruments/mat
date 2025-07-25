@@ -6,8 +6,9 @@ from typing import Optional
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from mat.logger_controller import SET_TIME_CMD
-from mat.logger_controller_ble import FORMAT_CMD, PRESSURE_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, DWG_FILE_CMD
+from mat.logger_controller import SET_TIME_CMD, DEL_FILE_CMD
+from mat.logger_controller_ble import FORMAT_CMD, PRESSURE_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, DWG_FILE_CMD, LOG_EN_CMD, \
+    WAKE_CMD, BAT_CMD, FILE_EXISTS_CMD
 from mat.utils import lowell_cmd_dir_ans_to_dict
 import humanize
 
@@ -123,12 +124,18 @@ def _is_cmd_done():
         return 1
 
     if c in (
+        'BAT',
         'BEH',
+        'DEL',
         'DWG',
+        'FEX',
         'GFV',
         'GLT',
         'GSC',
+        'GTM',
+        'HBW',
         'LED',
+        'LOG',
         'MAC',
         'MTS',
         PRESSURE_SENSOR_CMD,
@@ -136,9 +143,11 @@ def _is_cmd_done():
         FORMAT_CMD,
         SET_TIME_CMD,
         'STS',
-        'UTM'
+        'UTM',
+        'WAK'
     ):
         return c.encode() in g_rx
+
     if c in (
         'DIR'
     ):
@@ -160,7 +169,7 @@ async def _wait_ans(cmd_timeout):
     if g_tag == 'DWL':
         return g_rx
 
-    # debug when errors
+    # debug command answer when errors
     e = f'error: _wait_ans cmd {g_tag} timeout {cmd_timeout}'
     print("\033[91m {}\033[00m".format(e))
     print("\t\033[91m g_rx: {}\033[00m".format(g_rx))
@@ -186,18 +195,43 @@ async def _wait_ans(cmd_timeout):
 
 
 
+# gets logger battery in mV
+async def cmd_bat():
+    rv = await _cmd(f'{BAT_CMD} \r')
+    ok = rv and len(rv) == 10 and rv.startswith(b'BAT')
+    if not ok:
+        return
+    a = rv
+    if a and len(a.split()) == 2:
+        # a: b'BAT 04BD08'
+        _ = a.split()[1].decode()
+        b = _[-2:] + _[-4:-2]
+        b = int(b, 16)
+        return 0, b
+    return 1, 0
+
+
+
+# sets BEHavior flags
 async def cmd_beh(tag, v):
     # ex: BEH 04BCU1\r to activate connection update
     assert len(tag) == 3
     s = f'{tag}{v}'
-    c, _ = build_cmd("BEH", s)
-    rv = await _cmd(c, timeout=5)
+    rv = await _cmd(build_cmd("BEH", s), timeout=5)
     if rv and rv.startswith(b'BEH'):
         return 0
     return 1
 
 
 
+# deletes a file
+async def cmd_del(s):
+    rv = await _cmd(build_cmd(DEL_FILE_CMD, s))
+    return 0 if rv == b'DEL 00' else 1
+
+
+
+# gets list of files in the logger
 async def cmd_dir():
     rv = await _cmd('DIR \r')
     if not rv:
@@ -211,6 +245,7 @@ async def cmd_dir():
 
 
 
+# targets file to download
 async def cmd_dwg(s):
     c, _ = build_cmd(DWG_FILE_CMD, s)
     rv = await _cmd(c)
@@ -218,6 +253,15 @@ async def cmd_dwg(s):
 
 
 
+# does File Exists in logger
+async def cmd_fex(s):
+    rv = await _cmd(build_cmd(FILE_EXISTS_CMD, s))
+    # return 0 == OK if file exists
+    return 0 if rv == b'FEX 01' else 1
+
+
+
+# format file-system
 async def cmd_frm():
     rv = await _cmd('FRM \r')
     ok = rv == b'FRM 00'
@@ -225,6 +269,7 @@ async def cmd_frm():
 
 
 
+# get firmware version
 async def cmd_gfv():
     rv = await _cmd('GFV \r')
     ok = rv and len(rv) == 12 and rv.startswith(b'GFV')
@@ -234,6 +279,7 @@ async def cmd_gfv():
 
 
 
+# get logger type
 async def cmd_glt():
     rv = await _cmd('GLT \r')
     ok = rv and rv in (b'GLT DO1', b'GLT DO2', b'GLT TDO', b'GLT CTD')
@@ -242,8 +288,8 @@ async def cmd_glt():
 
 
 
+# Get Sensor Conductivity
 async def cmd_gsc():
-    # Get Sensor Conductivity
     rv = await _cmd('GSC \r')
     ok = rv and rv.startswith(b'GSC')
     if not ok:
@@ -252,8 +298,8 @@ async def cmd_gsc():
 
 
 
+# Get Sensor Pressure
 async def cmd_gsp():
-    # Get Sensor Pressure
     c, _ = build_cmd(PRESSURE_SENSOR_CMD)
     rv = await _cmd(c)
     # rv: GSP 04ABCD
@@ -273,8 +319,8 @@ async def cmd_gsp():
 
 
 
+# get Sensor Temperature
 async def cmd_gst():
-    # gst: Get Sensor Temperature
     c, _ = build_cmd(TEMPERATURE_SENSOR_CMD)
     rv = await _cmd(c)
     # rv: GST 04ABCD
@@ -294,8 +340,40 @@ async def cmd_gst():
 
 
 
+# gets logger time in UTC
+async def cmd_gtm():
+    rv = await _cmd('GTM \r')
+    ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
+    if not ok:
+        return 1, ''
+    return 0, rv[6:].decode()
+
+
+
+# has been in water
+async def cmd_hbw():
+    rv = await _cmd('HBW \r')
+    if rv == b'HBW 0201':
+        return 0, 1
+    if rv == b'HBW 0200':
+        return 0, 0
+    return 1, 0
+
+
+
+# toggle log output generation
+async def cmd_log():
+    rv = await _cmd(f'{LOG_EN_CMD} \r')
+    if rv == b'LOG 0201':
+        return 0, 1
+    if rv == b'LOG 0200':
+        return 0, 0
+    return 1, 0
+
+
+
+# gets logger Bluetooth mac address
 async def cmd_mac():
-    # command get mac
     rv = await _cmd('MAC \r')
     # rv: b'MAC 11D0:2E:AB:D9:29:48'
     ok = rv and len(rv) == 23 and rv.startswith(b'MAC')
@@ -305,6 +383,7 @@ async def cmd_mac():
 
 
 
+# makes logger blink its leds
 async def cmd_led():
     rv = await _cmd('LED \r')
     ok = rv == b'LED 00'
@@ -312,12 +391,21 @@ async def cmd_led():
 
 
 
+# creates a dummy file
 async def cmd_mts():
     rv = await _cmd('MTS \r', timeout=60)
     return 0 if rv == b'MTS 00' else 1
 
 
 
+# resets the logger, restarts it
+async def cmd_rst():
+    await _cmd('RST \r', timeout=3)
+    return 0
+
+
+
+# set logger time in UTC
 async def cmd_stm():
     # time() -> seconds since epoch, in UTC
     dt = datetime.datetime.fromtimestamp(time.time(), tz=timezone.utc)
@@ -327,6 +415,7 @@ async def cmd_stm():
 
 
 
+# get logger status
 async def cmd_sts():
     rv = await _cmd('STS \r')
     ok = rv and len(rv) == 8 and rv.startswith(b'STS')
@@ -344,6 +433,7 @@ async def cmd_sts():
 
 
 
+# get logger uptime in seconds
 async def cmd_utm():
     # command Uptime
     rv = await _cmd('UTM \r')
@@ -355,6 +445,25 @@ async def cmd_utm():
         s = humanize.naturaldelta(datetime.timedelta(seconds=t))
         return 0, s
     return 1, ''
+
+
+
+# sets logger WAKE flag as 1
+async def cmd_wak(s):
+    assert s in ('on', 'off')
+    rv = await _cmd(f'{WAKE_CMD} \r')
+    if s == 'off' and rv == b'WAK 0200':
+        return 0
+    if s == 'on' and rv == b'WAK 0201':
+        return 0
+    # just toggle again :)
+    await asyncio.sleep(.1)
+    rv = await _cmd(f'{WAKE_CMD} \r')
+    if s == 'off' and rv == b'WAK 0200':
+        return 0
+    if s == 'on' and rv == b'WAK 0201':
+        return 0
+    return 1
 
 
 
@@ -411,15 +520,7 @@ async def cmd_utm():
 #     if ok:
 #         return 0, rv[-8:].decode().lower()
 #     return 1, ''
-#
-#
-# async def cmd_del(s):
-#     c, _ = build_cmd(DEL_FILE_CMD, s)
-#     await _cmd(c)
-#     rv = await self._ans_wait(timeout=30)
-#     return 0 if rv == b'DEL 00' else 1
-#
-#
+
 # async def cmd_scc(tag, v):
 #     # Set Calibration Constants, for PRA, PRB...
 #     assert len(tag) == 3
@@ -431,8 +532,6 @@ async def cmd_utm():
 #     return 0 if rv == b'SCC 00' else 1
 #
 #
-
-
 # async def cmd_scf(tag, v):
 #     # Set Calibration proFiling, for profiling
 #     assert len(tag) == 3
@@ -451,25 +550,8 @@ async def cmd_utm():
 #     await _cmd(c)
 #     rv = await self._ans_wait(timeout=5)
 #     return 0 if rv == b'SSP 00' else 1
-#
-#
-# async def cmd_fex(s):
-#     # does File EXists in logger
-#     c, _ = build_cmd(FILE_EXISTS_CMD, s)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     # return 0 == OK if file exists
-#     return 0 if rv == b'FEX 01' else 1
-#
-#
-# async def cmd_gtm():
-#     await _cmd('GTM \r')
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 25 and rv.startswith(b'GTM')
-#     if not ok:
-#         return 1, ''
-#     return 0, rv[6:].decode()
-#
+
+
 #
 # async def cmd_rfn():
 #     await _cmd('RFN \r')
@@ -619,21 +701,7 @@ async def cmd_utm():
 #     return 0, rv[6:]
 #
 #
-# async def cmd_bat():
-#     c, _ = build_cmd(BAT_CMD)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 10 and rv.startswith(b'BAT')
-#     if not ok:
-#         return
-#     a = rv
-#     if a and len(a.split()) == 2:
-#         # a: b'BAT 04BD08'
-#         _ = a.split()[1].decode()
-#         b = _[-2:] + _[-4:-2]
-#         b = int(b, 16)
-#         return 0, b
-#     return 1, 0
+
 #
 #
 # async def cmd_wat():
@@ -653,27 +721,6 @@ async def cmd_utm():
 #     return 1, 0
 #
 #
-# async def cmd_wak(s):
-#     # (de-)activate Wake mode
-#     assert s in ('on', 'off')
-#     c, _ = build_cmd(WAKE_CMD)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     if s == 'off' and rv == b'WAK 0200':
-#         return 0
-#     if s == 'on' and rv == b'WAK 0201':
-#         return 0
-#     # just toggle again :)
-#     await asyncio.sleep(.1)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     if s == 'off' and rv == b'WAK 0200':
-#         return 0
-#     if s == 'on' and rv == b'WAK 0201':
-#         return 0
-#     return 1
-#
-#
 # async def cmd_gwf():
 #     # Get Wake flag
 #     c, _ = build_cmd('GWF')
@@ -685,28 +732,7 @@ async def cmd_utm():
 #         return 0, 0
 #     return 1, 0
 #
-#
-# async def cmd_log():
-#     c, _ = build_cmd(LOG_EN_CMD)
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     if rv == b'LOG 0201':
-#         return 0, 1
-#     if rv == b'LOG 0200':
-#         return 0, 0
-#     return 1, 0
-#
-#
-# async def cmd_hbw():
-#     c, _ = build_cmd("HBW")
-#     await _cmd(c)
-#     rv = await self._ans_wait()
-#     if rv == b'HBW 0201':
-#         return 0, 1
-#     if rv == b'HBW 0200':
-#         return 0, 0
-#     return 1, 0
-#
+
 #
 # async def cmd_tst():
 #     c, _ = build_cmd('TST')
@@ -853,15 +879,7 @@ async def cmd_utm():
 #     rv = await self._ans_wait(timeout=30)
 #     ok = rv in (b'RWS 00', b'RWS 0200')
 #     return 0 if ok else 1
-#
-#
-#
-#
-# async def cmd_rst():
-#     await _cmd('RST \r')
-#     await asyncio.sleep(3)
-#     return 0
-#
+
 #
 # async def cmd_ddh_a(g) -> tuple:
 #     lat, lon, _, __ = g
@@ -982,8 +1000,8 @@ async def cmd_utm():
 
 async def main():
 
-    mac_test = "D0:2E:AB:D9:29:48" # TDO
-    # mac_test = "F0:5E:CD:25:95:E0" # CTD
+    # mac_test = "D0:2E:AB:D9:29:48" # TDO
+    mac_test = "F0:5E:CD:25:95:E0" # CTD
 
     print("starting scan...")
     await fast_scan(mac_test)
@@ -1021,7 +1039,16 @@ async def main():
     # rv = await cmd_dwg('dummy_94670641422.lid')
     # print(rv)
 
-    rv = await cmd_utm()
+    # rv = await cmd_hbw()
+    # print(rv)
+    # rv = await cmd_log()
+    # print(rv)
+    # rv = await cmd_bat()
+    # print(rv)
+    # rv = await cmd_gsc()
+    # print(rv)
+
+    rv = await cmd_fex('pepilid')
     print(rv)
 
     await disconnect()
