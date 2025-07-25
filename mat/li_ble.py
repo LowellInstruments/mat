@@ -217,7 +217,8 @@ async def cmd_beh(tag, v):
     # ex: BEH 04BCU1\r to activate connection update
     assert len(tag) == 3
     s = f'{tag}{v}'
-    rv = await _cmd(build_cmd("BEH", s), timeout=5)
+    c, _ = build_cmd("BEH", s)
+    rv = await _cmd(c, timeout=5)
     if rv and rv.startswith(b'BEH'):
         return 0
     return 1
@@ -226,7 +227,8 @@ async def cmd_beh(tag, v):
 
 # deletes a file
 async def cmd_del(s):
-    rv = await _cmd(build_cmd(DEL_FILE_CMD, s))
+    c, _ = build_cmd("DEL", s)
+    rv = await _cmd(c)
     return 0 if rv == b'DEL 00' else 1
 
 
@@ -255,7 +257,8 @@ async def cmd_dwg(s):
 
 # does File Exists in logger
 async def cmd_fex(s):
-    rv = await _cmd(build_cmd(FILE_EXISTS_CMD, s))
+    c, _ = build_cmd(FILE_EXISTS_CMD, s)
+    rv = await _cmd(c)
     # return 0 == OK if file exists
     return 0 if rv == b'FEX 01' else 1
 
