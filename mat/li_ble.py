@@ -8,9 +8,17 @@ from typing import Optional
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd
 from bleak import BleakClient, BleakScanner
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from mat.logger_controller import SET_TIME_CMD, LOGGER_INFO_CMD, LOGGER_INFO_CMD_W
-from mat.logger_controller_ble import PRESSURE_SENSOR_CMD, TEMPERATURE_SENSOR_CMD, FORMAT_CMD, BAT_CMD, DWG_FILE_CMD, \
-    FILE_EXISTS_CMD, WAKE_CMD, LOG_EN_CMD, WAT_CMD, CONFIG_CMD, CRC_CMD, OXYGEN_SENSOR_CMD, FIRST_DEPLOYMENT_SET_CMD
+from mat.li_redis import r_set
+from mat.logger_controller import (
+    SET_TIME_CMD,
+    LOGGER_INFO_CMD,
+    LOGGER_INFO_CMD_W,
+    SWS_CMD,
+    RWS_CMD,
+    STOP_CMD,
+    RUN_CMD
+)
+from mat.logger_controller_ble import *
 from mat.utils import lowell_cmd_dir_ans_to_dict
 import humanize
 
@@ -30,6 +38,7 @@ class ExceptionCommand(Exception):
 
 
 
+GPS_FRM_STR = '{:+.6f}'
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
 UUID_S = 'f0001130-0451-4000-b000-000000000000'
@@ -69,6 +78,7 @@ async def fast_scan(mtf, timeout=SCAN_TIMEOUT):
     mtf = mtf.upper()
     bs = BleakScanner()
     el = time.perf_counter()
+
     for i in range(int(timeout)):
         await bs.start()
         await asyncio.sleep(1)
@@ -129,16 +139,12 @@ async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD):
             raise ExceptionCommand(_ex)
 
 
-    # exceptions return None
-    rv = None
     try:
-        rv = await _cmd()
+        return await _cmd()
     except ExceptionNotConnected:
         print(f'error: not connected to send cmd {c}')
     except ExceptionCommand as ex:
         print(f'error: sending cmd {c} -> {ex}')
-    finally:
-        return rv
 
 
 
@@ -178,8 +184,12 @@ def _is_cmd_done():
         FORMAT_CMD,
         'RFN',
         'RLI',
+        RUN_CMD,
+        RWS_CMD,
         SET_TIME_CMD,
         'STS',
+        STOP_CMD,
+        SWS_CMD,
         'UTM',
         'WAK',
         'WAT',
@@ -209,7 +219,7 @@ async def _wait_for_cmd_done(cmd_timeout):
     print("\033[91m {}\033[00m".format(e))
     print("\t\033[91m g_rx: {}\033[00m".format(g_rx))
     if not g_rx:
-        return
+        return []
 
     # detect extra errors when developing mobile app
     n = int(len(g_rx) / 2)
@@ -235,7 +245,7 @@ async def cmd_bat():
     rv = await cmd(f'{BAT_CMD} \r')
     ok = rv and len(rv) == 10 and rv.startswith(b'BAT')
     if not ok:
-        return
+        return 1, 0
     a = rv
     if a and len(a.split()) == 2:
         # a: b'BAT 04BD08'
@@ -304,44 +314,48 @@ async def cmd_dir():
 
 
 
-# download a file in slow mode
-async def cmd_dwl(file_size, ip=None, port=None) -> tuple:
+# download a file in slow mode, does not use function cmd()
+async def cmd_dwl(file_size) -> tuple:
 
+    # prepare variables pre-download
     global g_rx
     g_rx = bytes()
     n = math.ceil(file_size / 2048)
-    # ble_mat_progress_dl(0, z, ip, port)
+    r_set('ble_dl_progress', 0)
 
-    # ----------------
-    # DWL does not use cmd() function
-    # --------------------------------
 
+    # loop through receiving 2048 bytes chunks
     for i in range(n):
-
         if not logger_connected():
-            raise ExceptionNotConnected
+            print('error: DWL not connected')
+            return 1, g_rx
 
-        c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
         try:
+            c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             await g_cli.write_gatt_char(UUID_R, c.encode())
-        except (Exception,) as _ex:
-            pass
+            # debug
+            print(f'chunk #{i} len {len(g_rx)}')
+        except (Exception,) as ex:
+            print(f'error: DWL -> {ex}')
+            return 1, g_rx
 
-# ==========================
-        # fix this
-        # ==========================
 
+        # =========
+        # TEST this
+        # =========
+        ok = 0
         for _ in range(20):
-            # 10 == 2 seconds
             await asyncio.sleep(.1)
-            print(len(g_rx))
-            if len(g_rx) == (i + 1) * 2048:
-                break
-            if len(g_rx) == file_size:
+            n = len(g_rx)
+            ok = n == ((i + 1) * 2048) or file_size
+            if ok:
+                # fast quit towards next chunk
                 break
 
-        # ble_mat_progress_dl(len(self.ans), z, ip, port)
-        # print('chunk #{} len {}'.format(i, len(self.ans)))
+        r_set('ble_dl_progress', '{:5.2f}'.format(n / file_size))
+        if not ok:
+            break
+
 
     rv = 0 if file_size == len(g_rx) else 1
     return rv, g_rx
@@ -485,7 +499,7 @@ async def cmd_gsp():
     # rv: GSP 04ABCD
     ok = rv and len(rv) == 10 and rv.startswith(b'GSP')
     if not ok:
-        return
+        return 1, 0
     a = rv
     if a and len(a.split()) == 2:
         # a: b'GSP 043412'
@@ -614,8 +628,33 @@ async def cmd_rli():
 
 # resets the logger, restarts it
 async def cmd_rst():
-    await cmd('RST \r', timeout=3)
-    return 0
+    try:
+        await g_cli.write_gatt_char(UUID_R, b'RST \r')
+        time.sleep(3)
+    except (Exception,) as _ex:
+        print('exception during RST command')
+    finally:
+        return 0
+
+
+
+# start the logger
+async def cmd_run():
+    rv = await cmd('RUN \r')
+    ok = rv in (b'RUN 00', b'RUN 0200')
+    return 0 if ok else 1
+
+
+
+# RUN with STRING
+async def cmd_rws(g):
+    lat, lon, _, __ = g
+    lat = GPS_FRM_STR.format(float(lat))
+    lon = GPS_FRM_STR.format(float(lon))
+    c, _ = build_cmd(RWS_CMD, f'{lat} {lon}')
+    rv = await cmd(c, timeout=30)
+    ok = rv in (b'RWS 00', b'RWS 0200')
+    return 0 if ok else 1
 
 
 
@@ -626,6 +665,14 @@ async def cmd_stm():
     c, _ = build_cmd(SET_TIME_CMD, dt.strftime('%Y/%m/%d %H:%M:%S'))
     rv = await cmd(c)
     return 0 if rv == b'STM 00' else 1
+
+
+
+# stop without string
+async def cmd_stp():
+    rv = await cmd('STP \r', timeout=30)
+    ok = rv in (b'STP 00', b'STP 0200')
+    return 0 if ok else 1
 
 
 
@@ -644,6 +691,18 @@ async def cmd_sts():
         state = _[rv.split(b' ')[1]]
         return 0, state
     return 1, 'error'
+
+
+
+# stop with STRING
+async def cmd_sws(g):
+    lat, lon, _, __ = g
+    lat = GPS_FRM_STR.format(float(lat))
+    lon = GPS_FRM_STR.format(float(lon))
+    c, _ = build_cmd(SWS_CMD, f'{lat} {lon}')
+    rv = await cmd(c, timeout=30)
+    ok = rv in (b'SWS 00', b'SWS 0200')
+    return 0 if ok else 1
 
 
 
@@ -686,7 +745,7 @@ async def cmd_wat():
     rv = await cmd(c)
     ok = rv and len(rv) == 10 and rv.startswith(b'WAT')
     if not ok:
-        return
+        return 1, 0
     a = rv
     if a and len(a.split()) == 2:
         _ = a.split()[1].decode()
@@ -738,8 +797,6 @@ async def cmd_wli(s):
 #     return 1, 0
 
 
-
-
 # async def cmd_scc(tag, v):
 #     # Set Calibration Constants, for PRA, PRB...
 #     assert len(tag) == 3
@@ -769,12 +826,6 @@ async def cmd_wli(s):
 #     await cmd(c)
 #     rv = await self._ans_wait(timeout=5)
 #     return 0 if rv == b'SSP 00' else 1
-
-
-#
-#
-
-#
 #
 # async def cmd_spn(v):
 #     # Set Pressure Number, for profiling
@@ -786,12 +837,7 @@ async def cmd_wli(s):
 #         return 1, ''
 #     return 0, rv[6:].decode()
 #
-#
-# async def cmd_stp():
-#     await cmd('STP \r')
-#     rv = await self._ans_wait(timeout=30)
-#     ok = rv in (b'STP 00', b'STP 0200')
-#     return 0 if ok else 1
+
 #
 # async def cmd_dha():
 #     await cmd('DHA \r')
@@ -919,12 +965,7 @@ async def cmd_wli(s):
 #         return 0, rv.decode()
 #     return 1, ""
 #
-#
-# async def cmd_run():
-#     await cmd('RUN \r')
-#     rv = await self._ans_wait(timeout=30)
-#     ok = rv in (b'RUN 00', b'RUN 0200')
-#     return 0 if ok else 1
+
 #
 #
 
@@ -937,29 +978,7 @@ async def cmd_wli(s):
 #     return 1, None
 #
 #
-# async def cmd_sws(g):
-#     # STOP with STRING
-#     lat, lon, _, __ = g
-#     lat = GPS_FRM_STR.format(float(lat))
-#     lon = GPS_FRM_STR.format(float(lon))
-#     s = '{} {}'.format(lat, lon)
-#     c, _ = build_cmd(SWScmd, s)
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=30)
-#     ok = rv in (b'SWS 00', b'SWS 0200')
-#     return 0 if ok else 1
 
-# async def cmd_rws(g):
-#     # RUN with STRING
-#     lat, lon, _, __ = g
-#     lat = GPS_FRM_STR.format(float(lat))
-#     lon = GPS_FRM_STR.format(float(lon))
-#     s = '{} {}'.format(lat, lon)
-#     c, _ = build_cmd(RWScmd, s)
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=30)
-#     ok = rv in (b'RWS 00', b'RWS 0200')
-#     return 0 if ok else 1
 
 #
 # async def cmd_ddh_a(g) -> tuple:
@@ -1040,6 +1059,10 @@ async def cmd_wli(s):
 
 
 async def main():
+
+    rv = r_set('ble_dl_progress', 0)
+    print(rv)
+    return
 
     # mac_test = "D0:2E:AB:D9:29:48" # TDO
     mac_test = "F0:5E:CD:25:95:E0" # CTD
