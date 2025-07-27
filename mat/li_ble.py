@@ -42,27 +42,23 @@ GPS_FRM_STR = '{:+.6f}'
 UUID_T = 'f0001132-0451-4000-b000-000000000000'
 UUID_R = 'f0001131-0451-4000-b000-000000000000'
 UUID_S = 'f0001130-0451-4000-b000-000000000000'
-SCAN_TIMEOUT = 10
-DEF_TIMEOUT_CMD = 10
+SCAN_TIMEOUT_SECS = 10
+DEF_TIMEOUT_CMD_SECS = 10
 DEBUG = True
 g_rx = bytes()
-g_cli: BleakClient
 g_tag = ""
+g_cli: BleakClient
 
 
 
-def logger_connected():
-    return g_cli and g_cli.is_connected
 
-
-
-def notification_handler(_: BleakGATTCharacteristic, bb: bytearray):
+def _rx_cb(_: BleakGATTCharacteristic, bb: bytearray):
     global g_rx
     g_rx += bb
 
 
 
-async def scan(timeout=SCAN_TIMEOUT):
+async def scan(timeout=SCAN_TIMEOUT_SECS):
     bs = BleakScanner()
     await bs.start()
     await asyncio.sleep(timeout)
@@ -73,7 +69,7 @@ async def scan(timeout=SCAN_TIMEOUT):
 
 
 
-async def fast_scan(mtf, timeout=SCAN_TIMEOUT):
+async def scan_fast(mtf, timeout=SCAN_TIMEOUT_SECS):
     # mtf: mac to find, bleak scans uppercase
     mtf = mtf.upper()
     bs = BleakScanner()
@@ -93,17 +89,36 @@ async def fast_scan(mtf, timeout=SCAN_TIMEOUT):
             # not in list
             continue
 
+    return []
+
+
+
+def is_connected():
+    return g_cli and g_cli.is_connected
+
+
 
 
 async def connect(mac) -> Optional[bool]:
+
+    # retries embedded in bleak library
     global g_cli
-    # retries are embedded in bleak library
     g_cli = BleakClient(mac, timeout=10)
+
+    # already connected
+    if g_cli and g_cli.address.lower() == mac.lower():
+        print(f'already connected to {mac}')
+        try:
+            await g_cli.start_notify(UUID_T, _rx_cb)
+        except (Exception, ) as ex:
+            print(f'error when already connected to {mac} -> {ex}')
+        return True
+
     try:
         el = time.perf_counter()
         print("connecting to device...")
         await g_cli.connect()
-        await g_cli.start_notify(UUID_T, notification_handler)
+        await g_cli.start_notify(UUID_T, _rx_cb)
         el = int(time.perf_counter() - el)
         print(f"Connected in {el} seconds")
         return True
@@ -119,36 +134,6 @@ async def disconnect():
 
 
 
-async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD):
-
-    async def _cmd():
-        if not logger_connected():
-            raise ExceptionNotConnected
-
-        global g_tag
-        g_tag = c[:3]
-        if empty:
-            global g_rx
-            g_rx = bytes()
-        if DEBUG:
-            print('<-', c)
-        try:
-            await g_cli.write_gatt_char(UUID_R, c.encode())
-            return await _wait_for_cmd_done(timeout)
-        except (Exception,) as _ex:
-            raise ExceptionCommand(_ex)
-
-
-    try:
-        return await _cmd()
-    except ExceptionNotConnected:
-        print(f'error: not connected to send cmd {c}')
-    except ExceptionCommand as ex:
-        print(f'error: sending cmd {c} -> {ex}')
-
-
-
-
 def _is_cmd_done():
     c = g_tag
 
@@ -156,40 +141,55 @@ def _is_cmd_done():
         return 1
 
     if c in (
+        'ARA',
+        'ARF',
         'BAT',
         'BEH',
+        'BNA',
         CONFIG_CMD,
         CRC_CMD,
         'DEL',
+        'DHA',
+        'DNG',
+        'DNS',
         'DWG',
+        # no DWF
         # no DWL
-        'FDS',
         'FDG',
+        'FDS',
         'FEX',
+        FORMAT_CMD,
         'GAB',
+        'GCC',
+        'GCF',
         'GDO',
         'GDX',
         'GFV',
         'GLT',
         'GSC',
+        'GSP',
+        'GST',
         'GTM',
+        'GWC',
         'GWF',
         'HBW',
         'LED',
         'LOG',
         'MAC',
         'MTS',
-        PRESSURE_SENSOR_CMD,
-        TEMPERATURE_SENSOR_CMD,
-        FORMAT_CMD,
+        'OAD',
+        'OAF',
         'RFN',
         'RLI',
         RUN_CMD,
         RWS_CMD,
-        SET_TIME_CMD,
-        'STS',
+        'SPN',
+        'SSP',
+        'STM',
         STOP_CMD,
+        'STS',
         SWS_CMD,
+        'TST',
         'UTM',
         'WAK',
         'WAT',
@@ -198,17 +198,17 @@ def _is_cmd_done():
     ):
         return c.encode() in g_rx
 
-    if c in (
-        'DIR'
-    ):
+    if c == 'DIR':
         return g_rx.endswith(b'\x04\n\r')
+
+    return None
 
 
 
 async def _wait_for_cmd_done(cmd_timeout):
     # accumulate command answer in notification handler
     timeout = time.perf_counter() + cmd_timeout
-    while logger_connected() and time.perf_counter() < timeout:
+    while is_connected() and time.perf_counter() < timeout:
         await asyncio.sleep(0.2)
         if _is_cmd_done():
             print('->', g_rx)
@@ -232,11 +232,61 @@ async def _wait_for_cmd_done(cmd_timeout):
         print('-----------------------------------')
         print(e.format(g_rx))
 
+    # any other error
+    return []
+
+
+
+async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD_SECS):
+
+    async def _cmd():
+        if not is_connected():
+            raise ExceptionNotConnected
+
+        global g_tag
+        g_tag = c[:3]
+        if empty:
+            global g_rx
+            g_rx = bytes()
+        print('<-', c)
+        try:
+            await g_cli.write_gatt_char(UUID_R, c.encode())
+            return await _wait_for_cmd_done(timeout)
+        except (Exception,) as _ex:
+            raise ExceptionCommand(_ex)
+
+    try:
+        return await _cmd()
+    except ExceptionNotConnected:
+        print(f'error: not connected to send cmd {c}')
+    except ExceptionCommand as ex:
+        print(f'error: sending cmd {c} -> {ex}')
+
 
 
 # ===================================================
 # list of commands for lowell instruments loggers
 # ===================================================
+
+
+
+# for development, adjust rate advertisement logger
+async def cmd_ara():
+    rv = await cmd('ARA \r')
+    ok = rv and len(rv) == 8 and rv.startswith(b'ARA')
+    if ok:
+        return 0, int(rv.decode()[-1])
+    return 1, 0
+
+
+
+# for development, adjust rate advertisement fast for 1 minute
+async def cmd_arf():
+    rv = await cmd('ARF \r')
+    ok = rv and len(rv) == 8 and rv.startswith(b'ARF')
+    if ok:
+        return 0, int(rv.decode()[-1])
+    return 1, 0
 
 
 
@@ -254,6 +304,17 @@ async def cmd_bat():
         b = int(b, 16)
         return 0, b
     return 1, 0
+
+
+
+# when bye, do not advertise faster
+async def cmd_bna():
+    c, _ = build_cmd('BNA')
+    rv = await cmd(c)
+    ok = rv and len(rv) == 6 and rv.startswith(b'BNA 00')
+    if ok:
+        return 0
+    return 1
 
 
 
@@ -300,6 +361,14 @@ async def cmd_del(s):
 
 
 
+# delete HSA area
+async def cmd_dha():
+    rv = await cmd('DHA \r')
+    ok = rv == b'DHA 00'
+    return 0 if ok else 1
+
+
+
 # gets list of files in the logger
 async def cmd_dir():
     rv = await cmd('DIR \r')
@@ -311,6 +380,35 @@ async def cmd_dir():
         return 3, 'partial'
     ls = lowell_cmd_dir_ans_to_dict(rv, '*', match=True)
     return 0, ls
+
+
+
+# deployment name get
+async def cmd_dng():
+    c, _ = build_cmd(DEPLOYMENT_NAME_GET_CMD)
+    rv = await cmd(c)
+    ok = rv and len(rv) == 9 and rv.startswith(b'DNG')
+    if not ok:
+        return 1, ''
+    return 0, rv[6:].decode()
+
+
+
+# Deployment Name Set
+async def cmd_dns(s):
+    assert len(s) == 3
+    c, _ = build_cmd(DEPLOYMENT_NAME_SET_CMD, s)
+    rv = await cmd(c)
+    ok = rv == b'DNS 00'
+    return 0 if ok else 1
+
+
+
+# targets file to download
+async def cmd_dwg(s):
+    c, _ = build_cmd(DWG_FILE_CMD, s)
+    rv = await cmd(c)
+    return 0 if rv == b'DWG 00' else 1
 
 
 
@@ -326,7 +424,7 @@ async def cmd_dwl(file_size) -> tuple:
 
     # loop through receiving 2048 bytes chunks
     for i in range(n):
-        if not logger_connected():
+        if not is_connected():
             print('error: DWL not connected')
             return 1, g_rx
 
@@ -356,17 +454,47 @@ async def cmd_dwl(file_size) -> tuple:
         if not ok:
             break
 
-
     rv = 0 if file_size == len(g_rx) else 1
     return rv, g_rx
 
 
 
-# targets file to download
-async def cmd_dwg(s):
-    c, _ = build_cmd(DWG_FILE_CMD, s)
-    rv = await cmd(c)
-    return 0 if rv == b'DWG 00' else 1
+# async def cmd_dwf(z, ip=None, port=None) -> tuple:
+#     # z: file size
+#     self.ans = bytes()
+#     ble_mat_progress_dl(0, z, ip, port)
+#     timeout_z = 0
+#
+#     # send DWF command
+#     c = 'DWF \r'
+#     await cmd(c)
+#
+#     # receive the WHOLE file
+#     while 1:
+#         await asyncio.sleep(.5)
+#
+#         # doesn't affect download speed
+#         if not await self.is_connected():
+#             print('error: DWF disconnected while receiving file')
+#             return 1, bytes()
+#
+#         # the FAST download is going well
+#         ble_mat_progress_dl(len(self.ans), z, ip, port)
+#         if len(self.ans) == z:
+#             print('all file received')
+#             # receive the last shit
+#             break
+#
+#         # check for stall
+#         if len(self.ans) == timeout_z:
+#             print('error DWF timeout')
+#             break
+#         timeout_z = len(self.ans)
+#
+#     print('z', z)
+#     print('len(self.ans)', len(self.ans))
+#     rv = 0 if z == len(self.ans) else 1
+#     return rv, self.ans
 
 
 
@@ -405,7 +533,8 @@ async def cmd_frm():
     return 0 if ok else 1
 
 
-# gab: Get Accelerometer Burst
+
+# Get Accelerometer Burst
 async def cmd_gab():
     c, _ = build_cmd("GAB")
     rv = await cmd(c)
@@ -417,14 +546,32 @@ async def cmd_gab():
 
 
 
-# Get Wake flag
-async def cmd_gwf():
-    rv = await cmd('GWF \r')
-    if rv == b'GWF 0201':
-        return 0, 1
-    if rv == b'GWF 0200':
-        return 0, 0
-    return 1, 0
+# Get Calibration Constants
+async def cmd_gcc():
+    rv = await cmd('GCC \r')
+    # n: number of fields of cc_area v1 29 v2 33
+    n = 33
+    ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCC')
+    if ok:
+        return 0, rv.decode()
+    if rv:
+        print(f'error: bad GCC length {len(rv)} - 6 != {n} - 6')
+    else:
+        print(f'error: bad GCC length = None')
+    return 1, ""
+
+
+
+
+# Get constants proFiling
+async def cmd_gcf():
+    rv = await cmd('GCF \r')
+    # n: number of fields of cf_area v1 9 v2 13
+    n = 9
+    ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCF')
+    if ok:
+        return 0, rv.decode()
+    return 1, ""
 
 
 
@@ -434,7 +581,7 @@ async def cmd_gdo():
     rv = await cmd(c)
     ok = rv and len(rv) == 18 and rv.startswith(b'GDO')
     if not ok:
-        return
+        return -1, -1, -1
     a = rv
     if a and len(a.split()) == 2:
         # a: b'GDO 0c112233445566'
@@ -446,6 +593,8 @@ async def cmd_gdo():
         if dos.isnumeric():
             return dos, dop, dot
 
+    return -1, -1, -1
+
 
 
 # get dissolved oxygen, v2
@@ -455,11 +604,12 @@ async def cmd_gdx():
     # rv: b'GDX -0.03, -0.41, 17.30'
     ok = rv and rv.startswith(b'GDX') and len(rv.split(b',')) == 3
     if not ok:
-        return
+        return -1, -1, -1
     a = rv[4:].decode().replace(' ', '').split(',')
     if a and len(a) == 3:
         dos, dop, dot = a
         return dos, dop, dot
+    return -1, -1, -1
 
 
 
@@ -520,7 +670,7 @@ async def cmd_gst():
     # rv: GST 04ABCD
     ok = rv and len(rv) == 10 and rv.startswith(b'GST')
     if not ok:
-        return
+        return 1,0
     a = rv
     # a: b'GST 043412'
     if a and len(a.split()) == 2:
@@ -534,6 +684,17 @@ async def cmd_gst():
 
 
 
+
+# for developing, get water column (up, down...)
+async def cmd_gwc():
+    rv = await cmd('GWC \r')
+    ok = rv and rv.startswith(b'GWC')
+    if ok:
+        return 0, rv.decode()
+    return 1, ""
+
+
+
 # gets logger time in UTC
 async def cmd_gtm():
     rv = await cmd('GTM \r')
@@ -541,6 +702,18 @@ async def cmd_gtm():
     if not ok:
         return 1, ''
     return 0, rv[6:].decode()
+
+
+
+
+# Get Wake flag
+async def cmd_gwf():
+    rv = await cmd('GWF \r')
+    if rv == b'GWF 0201':
+        return 0, 1
+    if rv == b'GWF 0200':
+        return 0, 0
+    return 1, 0
 
 
 
@@ -552,6 +725,15 @@ async def cmd_hbw():
     if rv == b'HBW 0200':
         return 0, 0
     return 1, 0
+
+
+
+
+# makes logger blink its leds
+async def cmd_led():
+    rv = await cmd('LED \r')
+    ok = rv == b'LED 00'
+    return 0 if ok else 1
 
 
 
@@ -577,18 +759,30 @@ async def cmd_mac():
 
 
 
-# makes logger blink its leds
-async def cmd_led():
-    rv = await cmd('LED \r')
-    ok = rv == b'LED 00'
-    return 0 if ok else 1
-
-
-
 # creates a dummy file
 async def cmd_mts():
     rv = await cmd('MTS \r', timeout=60)
     return 0 if rv == b'MTS 00' else 1
+
+
+# oad area erase, for development
+async def cmd_oad_erase():
+    c, _ = build_cmd('OAE')
+    rv = await cmd(c)
+    if rv == b'OAE 0200':
+        return 0
+    return 1
+
+
+
+# oad area factory, for development
+async def cmd_oad_factory():
+    c, _ = build_cmd('OAF')
+    rv = await cmd(c, timeout=60)
+    if rv == b'OAF 0200':
+        return 0
+    return 1
+
 
 
 
@@ -633,8 +827,6 @@ async def cmd_rst():
         time.sleep(3)
     except (Exception,) as _ex:
         print('exception during RST command')
-    finally:
-        return 0
 
 
 
@@ -647,7 +839,7 @@ async def cmd_run():
 
 
 # RUN with STRING
-async def cmd_rws(g):
+async def cmd_rws(g: tuple):
     lat, lon, _, __ = g
     lat = GPS_FRM_STR.format(float(lat))
     lon = GPS_FRM_STR.format(float(lon))
@@ -655,6 +847,47 @@ async def cmd_rws(g):
     rv = await cmd(c, timeout=30)
     ok = rv in (b'RWS 00', b'RWS 0200')
     return 0 if ok else 1
+
+
+
+# Set Pressure Number, for profiling
+async def cmd_spn(v):
+    assert 0 < v < 9
+    rv = await cmd('SPN 01{}\r'.format(v))
+    ok = rv and len(rv) == 7 and rv.startswith(b'SPN')
+    if not ok:
+        return 1, ''
+    return 0, rv[6:].decode()
+
+
+
+# Set Calibration Constants, for PRA, PRB...
+async def cmd_scc(tag, v):
+    assert len(tag) == 3
+    assert len(v) == 5
+    c, _ = build_cmd('SCC', f'{tag}{v}')
+    rv = await cmd(c, timeout=30)
+    return 0 if rv == b'SCC 00' else 1
+
+
+
+# Set Calibration proFiling, for profiling
+async def cmd_scf(tag, v):
+    assert len(tag) == 3
+    assert len(v) == 5
+    c, _ = build_cmd('SCF', f'{tag}{v}')
+    rv = await cmd(c, timeout=30)
+    return 0 if rv == b'SCF 00' else 1
+
+
+
+
+# Set Sensor Pressure, for debugging and developing
+async def cmd_ssp(v):
+    v = str(v).zfill(5)
+    c, _ = build_cmd('SSP', v)
+    rv = await cmd(c, timeout=5)
+    return 0 if rv == b'SSP 00' else 1
 
 
 
@@ -703,6 +936,17 @@ async def cmd_sws(g):
     rv = await cmd(c, timeout=30)
     ok = rv in (b'SWS 00', b'SWS 0200')
     return 0 if ok else 1
+
+
+
+
+# command test, for development
+async def cmd_tst():
+    c, _ = build_cmd('TST')
+    rv = await cmd(c, 60)
+    if rv == b'TST 0200':
+        return 0
+    return 1
 
 
 
@@ -756,14 +1000,6 @@ async def cmd_wat():
 
 
 
-# detect logger works with liX files, an old one will return b'ERR'
-async def cmd_xod():
-    rv = await cmd('XOD \r')
-    ok = rv and rv.endswith(b'.LIX')
-    return 0 if ok else 1
-
-
-
 # write memory area
 async def cmd_wli(s):
     # s: SN1234567
@@ -775,212 +1011,15 @@ async def cmd_wli(s):
 
 
 
-# async def cmd_ara():
-#     # adjust rate advertisement logger
-#     await cmd('ARA \r')
-#     rv = await self._ans_wait()
-#     # rv: b'ARA 0200'
-#     ok = rv and len(rv) == 8 and rv.startswith(b'ARA')
-#     if ok:
-#         return 0, int(rv.decode()[-1])
-#     return 1, 0
-#
-#
-# async def cmd_arf():
-#     # adjust rate advertisement fast for 1 minute
-#     await cmd('ARF \r')
-#     rv = await self._ans_wait()
-#     # rv: b'ARF 0200'
-#     ok = rv and len(rv) == 8 and rv.startswith(b'ARF')
-#     if ok:
-#         return 0, int(rv.decode()[-1])
-#     return 1, 0
+# detect logger works with liX files, an old one will return b'ERR'
+async def cmd_xod():
+    rv = await cmd('XOD \r')
+    ok = rv and rv.endswith(b'.LIX')
+    return 0 if ok else 1
 
 
-# async def cmd_scc(tag, v):
-#     # Set Calibration Constants, for PRA, PRB...
-#     assert len(tag) == 3
-#     assert len(v) == 5
-#     s = '{}{}'.format(tag, v)
-#     c, _ = build_cmd(SET_CALIBRATIONcmd, s)
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=30)
-#     return 0 if rv == b'SCC 00' else 1
-#
-#
-# async def cmd_scf(tag, v):
-#     # Set Calibration proFiling, for profiling
-#     assert len(tag) == 3
-#     assert len(v) == 5
-#     s = '{}{}'.format(tag, v)
-#     c, _ = build_cmd(SET_PRF_CONFIGURATIONcmd, s)
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=30)
-#     return 0 if rv == b'SCF 00' else 1
-#
-#
-# async def cmd_ssp(v):
-#     # Set Sensor Pressure, for debugging and developing
-#     v = str(v).zfill(5)
-#     c, _ = build_cmd('SSP', v)
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=5)
-#     return 0 if rv == b'SSP 00' else 1
-#
-# async def cmd_spn(v):
-#     # Set Pressure Number, for profiling
-#     assert 0 < v < 9
-#     await cmd('SPN 01{}\r'.format(v))
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 7 and rv.startswith(b'SPN')
-#     if not ok:
-#         return 1, ''
-#     return 0, rv[6:].decode()
-#
-
-#
-# async def cmd_dha():
-#     await cmd('DHA \r')
-#     rv = await self._ans_wait()
-#     ok = rv == b'DHA 00'
-#     return 0 if ok else 1
-#
-#
-#
-# async def cmd_dns(s):
-#     # stands for Deployment Name Set
-#     assert len(s) == 3
-#     c, _ = build_cmd(DEPLOYMENT_NAME_SETcmd, s)
-#     await cmd(c)
-#     rv = await self._ans_wait()
-#     ok = rv == b'DNS 00'
-#     return 0 if ok else 1
-#
-#
-# async def cmd_dng():
-#     # stands for Deployment Name Get
-#     c, _ = build_cmd(DEPLOYMENT_NAME_GETcmd)
-#     await cmd(c)
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 9 and rv.startswith(b'DNG')
-#     if not ok:
-#         return 1, ''
-#     return 0, rv[6:].decode()
-#
-#
-
-#
-#
-# async def cmd_bna():
-#     c, _ = build_cmd('BNA')
-#     await cmd(c)
-#     rv = await self._ans_wait()
-#     ok = rv and len(rv) == 6 and rv.startswith(b'BNA 00')
-#     if ok:
-#         return 0
-#     return 1
-#
-#
-
-#
-#
-
-#
-
-#
-# async def cmd_tst():
-#     c, _ = build_cmd('TST')
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=60)
-#     if rv == b'TST 0200':
-#         return 0
-#     return 1
-#
-#
-# async def cmd_tsl():
-#     c, _ = build_cmd('TSL')
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=600)
-#     if rv == b'TSL 0200':
-#         return 0
-#     return 1
-#
-#
-# async def cmd_oad_erase():
-#     c, _ = build_cmd('OAE')
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=45)
-#     if rv == b'OAE 0200':
-#         return 0
-#     return 1
-#
-#
-# async def cmd_oad_factory():
-#     c, _ = build_cmd('OAF')
-#     await cmd(c)
-#     rv = await self._ans_wait(timeout=45)
-#     if rv == b'OAF 0200':
-#         return 0
-#     return 1
 
 
-# async def cmd_gcc():
-#     # Get Calibration Constants
-#     await cmd('GCC \r')
-#     rv = await self._ans_wait()
-#     # n: number of fields of cc_area
-#     # in last version, n = 33
-#     # in version v3987, n = 29
-#     n = 33
-#     ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCC')
-#     if ok:
-#         return 0, rv.decode()
-#     if rv:
-#         print(f'error: bad GCC length {len(rv)} - 6 != {n} - 6')
-#     else:
-#         print(f'error: bad GCC length = None')
-#     return 1, ""
-#
-#
-# async def cmd_gcf():
-#     # Get constants proFiling
-#     await cmd('GCF \r')
-#     rv = await self._ans_wait()
-#     # n: number of fields of cf_area
-#     # in last version, n = 9
-#     # in version v3987, n = 13
-#     n = 9
-#     ok = rv and len(rv) == ((n * 5) + 6) and rv.startswith(b'GCF')
-#     if ok:
-#         return 0, rv.decode()
-#     return 1, ""
-#
-#
-# async def cmd_gwc():
-#     # Get Water Column (up, down...)
-#     await cmd('GWC \r')
-#     rv = await self._ans_wait()
-#     ok = rv and rv.startswith(b'GWC')
-#     if ok:
-#         return 0, rv.decode()
-#     return 1, ""
-#
-
-#
-#
-
-# async def cmd_per():
-#     # Get Profiling Error, for debugging
-#     await cmd('PER \r')
-#     rv = await self._ans_wait(timeout=10)
-#     if rv and len(rv) == 8:
-#         return 0, rv.decode()[6:]
-#     return 1, None
-#
-#
-
-
-#
 # async def cmd_ddh_a(g) -> tuple:
 #     lat, lon, _, __ = g
 #     lat = GPS_FRM_STR.format(float(lat))
@@ -1013,44 +1052,6 @@ async def cmd_wli(s):
 #
 #
 
-#
-#
-# async def cmd_dwf(z, ip=None, port=None) -> tuple:
-#     # z: file size
-#     self.ans = bytes()
-#     ble_mat_progress_dl(0, z, ip, port)
-#     timeout_z = 0
-#
-#     # send DWF command
-#     c = 'DWF \r'
-#     await cmd(c)
-#
-#     # receive the WHOLE file
-#     while 1:
-#         await asyncio.sleep(.5)
-#
-#         # doesn't affect download speed
-#         if not await self.is_connected():
-#             print('error: DWF disconnected while receiving file')
-#             return 1, bytes()
-#
-#         # the FAST download is going well
-#         ble_mat_progress_dl(len(self.ans), z, ip, port)
-#         if len(self.ans) == z:
-#             print('all file received')
-#             # receive the last shit
-#             break
-#
-#         # check for stall
-#         if len(self.ans) == timeout_z:
-#             print('error DWF timeout')
-#             break
-#         timeout_z = len(self.ans)
-#
-#     print('z', z)
-#     print('len(self.ans)', len(self.ans))
-#     rv = 0 if z == len(self.ans) else 1
-#     return rv, self.ans
 
 
 
@@ -1060,15 +1061,11 @@ async def cmd_wli(s):
 
 async def main():
 
-    rv = r_set('ble_dl_progress', 0)
-    print(rv)
-    return
-
     # mac_test = "D0:2E:AB:D9:29:48" # TDO
     mac_test = "F0:5E:CD:25:95:E0" # CTD
 
     print("starting scan...")
-    await fast_scan(mac_test)
+    await scan_fast(mac_test)
     rv = await connect(mac_test)
     if not rv:
         return
