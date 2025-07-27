@@ -156,6 +156,8 @@ async def disconnect():
         await g_cli.disconnect()
         print('disconnected cleanly')
     except (Exception, ):
+        # blueman-applet, blueman-tray may delay
+        # disconnection a bit and seem it failed
         print('disconnected')
 
 
