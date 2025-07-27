@@ -6,7 +6,7 @@ import time
 from datetime import timezone
 from typing import Optional
 from mat.ble.ble_mat_utils import ble_mat_lowell_build_cmd as build_cmd
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient, BleakScanner, BLEDevice
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from mat.li_redis import r_set
 from mat.logger_controller import (
@@ -21,6 +21,7 @@ from mat.logger_controller import (
 from mat.logger_controller_ble import *
 from mat.utils import lowell_cmd_dir_ans_to_dict
 import humanize
+import subprocess as sp
 
 
 
@@ -51,6 +52,22 @@ g_cli: BleakClient
 
 
 
+def _linux_is_mac_already_connected(mac: str):
+    c = f'bluetoothctl devices Connected | grep {mac.upper()}'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).returncode
+    return rv == 0
+
+
+
+def _linux_disconnect_by_mac(mac: str):
+    if not _linux_is_mac_already_connected(mac):
+        return
+    c = f'bluetoothctl disconnect {mac}'
+    rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).returncode
+    if rv == 0:
+        print('mac was already connected, disconnecting')
+
+
 
 def _rx_cb(_: BleakGATTCharacteristic, bb: bytearray):
     global g_rx
@@ -59,6 +76,7 @@ def _rx_cb(_: BleakGATTCharacteristic, bb: bytearray):
 
 
 async def scan(timeout=SCAN_TIMEOUT_SECS):
+    print(f'starting scan_slow for {timeout} seconds')
     bs = BleakScanner()
     await bs.start()
     await asyncio.sleep(timeout)
@@ -70,11 +88,17 @@ async def scan(timeout=SCAN_TIMEOUT_SECS):
 
 
 async def scan_fast(mtf, timeout=SCAN_TIMEOUT_SECS):
+
+    # otherwise you will not find it
+    _linux_disconnect_by_mac(mtf)
+
     # mtf: mac to find, bleak scans uppercase
     mtf = mtf.upper()
     bs = BleakScanner()
     el = time.perf_counter()
 
+    # loop with early quit
+    print(f'starting scan_fast for mac {mtf} for {timeout} seconds')
     for i in range(int(timeout)):
         await bs.start()
         await asyncio.sleep(1)
@@ -89,7 +113,7 @@ async def scan_fast(mtf, timeout=SCAN_TIMEOUT_SECS):
             # not in list
             continue
 
-    return []
+    return None
 
 
 
@@ -98,29 +122,28 @@ def is_connected():
 
 
 
+async def connect(dev: BLEDevice, conn_update=False) -> Optional[bool]:
 
-async def connect(mac) -> Optional[bool]:
+    # dev might be null after a scan
+    if not dev:
+        print('error: calling connect() with no dev')
+        return False
 
     # retries embedded in bleak library
-    global g_cli
-    g_cli = BleakClient(mac, timeout=10)
-
-    # already connected
-    if g_cli and g_cli.address.lower() == mac.lower():
-        print(f'already connected to {mac}')
-        try:
-            await g_cli.start_notify(UUID_T, _rx_cb)
-        except (Exception, ) as ex:
-            print(f'error when already connected to {mac} -> {ex}')
-        return True
-
     try:
+        global g_cli
+        g_cli = BleakClient(dev, timeout=10)
         el = time.perf_counter()
-        print("connecting to device...")
+        print(f"connecting to mac {dev.address}")
         await g_cli.connect()
+
+        # delay to negotiate connection parameters, if so
+        if conn_update:
+            await asyncio.sleep(1)
+
         await g_cli.start_notify(UUID_T, _rx_cb)
         el = int(time.perf_counter() - el)
-        print(f"Connected in {el} seconds")
+        print(f"connected in {el} seconds")
         return True
     except (Exception, ) as ex:
         print(f'error: connect {ex}')
@@ -128,9 +151,12 @@ async def connect(mac) -> Optional[bool]:
 
 
 async def disconnect():
-    global g_cli
-    await g_cli.disconnect()
-    print('disconnected')
+    try:
+        global g_cli
+        await g_cli.disconnect()
+        print('disconnected cleanly')
+    except (Exception, ):
+        print('disconnected')
 
 
 
@@ -238,7 +264,6 @@ async def _wait_for_cmd_done(cmd_timeout):
 
 
 async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD_SECS):
-
     async def _cmd():
         if not is_connected():
             raise ExceptionNotConnected
@@ -943,7 +968,7 @@ async def cmd_sws(g):
 # command test, for development
 async def cmd_tst():
     c, _ = build_cmd('TST')
-    rv = await cmd(c, 60)
+    rv = await cmd(c, timeout=60)
     if rv == b'TST 0200':
         return 0
     return 1
@@ -1054,87 +1079,24 @@ async def cmd_xod():
 
 
 
-
-
-
-
-
 async def main():
 
     # mac_test = "D0:2E:AB:D9:29:48" # TDO
-    mac_test = "F0:5E:CD:25:95:E0" # CTD
+    mac_test = "F0:5E:CD:25:92:EA" # CTD
 
-    print("starting scan...")
-    await scan_fast(mac_test)
-    rv = await connect(mac_test)
+    # ls_dev = await scan()
+    # print(ls_dev)
+
+    dev = await scan_fast(mac_test)
+    rv = await connect(dev)
     if not rv:
         return
 
-    # rv = await cmd_stm()
-    # print(rv)
-    # rv = await cmd_sts()
-    # print(rv)
-    # rv = await cmd_frm()
-    # print(rv)
-    # rv = await cmd_dir()
-    # print(rv)
-    # rv = await cmd_gsp()
-    # print(rv)
-    # rv = await cmd_gst()
-    # print(rv)
-    # rv = await cmd_mts()
-    # print(rv)
-    # rv = await cmd_gfv()
-    # print(rv)
-    # rv = await cmd_glt()
-    # print(rv)
-    # rv = await cmd_gsc()
-    # print(rv)
-    # rv = await cmd_beh('BCU',  1)
-    # print(rv)
-    # rv = await cmd_mac()
-    # print(rv)
-
-    # rv = await cmd_dwg('dummy_946706414.lid')
-    # print(rv)
-    # rv = await cmd_dwg('dummy_94670641422.lid')
-    # print(rv)
-
-    # rv = await cmd_hbw()
-    # print(rv)
-    # rv = await cmd_log()
-    # print(rv)
-    # rv = await cmd_bat()
-    # print(rv)
-    # rv = await cmd_fex('pepilid')
-    # print(rv)
-    # rv = await cmd_wli("SN1234567")
-    # print(rv)
-
-    # rv = await cmd_rli()
-    # print(rv)
-
-    # rv = await cmd_dir()
-    # print(rv)
-
-
-    rv = await cmd_dwg('dummy_1753219635.lid')
+    rv = await cmd_dir()
     print(rv)
-
-    rv = await cmd_dwl(77950)
-    print(rv)
-
-
-    # for i in range(100):
-    #     rv = await cmd_gsc()
-    #     print(rv)
-    #     if not rv:
-    #         print('error during command')
-    #         break
-    #     time.sleep(3)
-
 
     await disconnect()
+
 
 
 
