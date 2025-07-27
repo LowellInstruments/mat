@@ -52,6 +52,15 @@ g_cli: BleakClient
 
 
 
+def _gui_notification(s):
+    try:
+        c = f'notify-send -u normal "Bluetooth" "{s}" -t 3000'
+        sp.run(c, shell=True)
+    except (Exception, ):
+        pass
+
+
+
 def _linux_is_mac_already_connected(mac: str):
     c = f'bluetoothctl devices Connected | grep {mac.upper()}'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).returncode
@@ -144,6 +153,7 @@ async def connect(dev: BLEDevice, conn_update=False) -> Optional[bool]:
         await g_cli.start_notify(UUID_T, _rx_cb)
         el = int(time.perf_counter() - el)
         print(f"connected in {el} seconds")
+        _gui_notification(f'connected to {dev.address}')
         return True
     except (Exception, ) as ex:
         print(f'error: connect {ex}')
