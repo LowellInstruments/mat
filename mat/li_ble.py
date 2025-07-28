@@ -451,7 +451,8 @@ async def cmd_dwg(s):
 
 
 
-# download a file in slow mode, does not use function cmd()
+# download a file in slow mode
+# does NOT use function cmd()
 async def cmd_dwl(file_size) -> tuple:
 
     # prepare variables pre-download
@@ -475,17 +476,17 @@ async def cmd_dwl(file_size) -> tuple:
             print(f'error: DWL -> {ex}')
             return 1, g_rx
 
+        # don't print progress too often or screws the download timing
+        print('DWL progress {:5.2f} %, chunk {}'.
+              format(100 * len(g_rx) / file_size, i))
 
         # download using DWL command (~7 KB/s when no connection update)
         ok = 0
         for _ in range(20):
             await asyncio.sleep(.1)
-            n = len(g_rx)
-            ok = n == ((i + 1) * 2048) or file_size
-            print('DWL progress', '{:5.2f} %'.format(100 * n / file_size))
-
+            ok = len(g_rx) == ((i + 1) * 2048) or file_size
             if ok:
-                # fast quit towards next chunk
+                # fast quit towards next DWL chunk
                 break
 
         r_set('ble_dl_progress', '{:5.2f}'.format(n / file_size))
@@ -499,42 +500,43 @@ async def cmd_dwl(file_size) -> tuple:
 
 
 
-# async def cmd_dwf(z, ip=None, port=None) -> tuple:
-#     # z: file size
-#     self.ans = bytes()
-#     ble_mat_progress_dl(0, z, ip, port)
-#     timeout_z = 0
-#
-#     # send DWF command
-#     c = 'DWF \r'
-#     await cmd(c)
-#
-#     # receive the WHOLE file
-#     while 1:
-#         await asyncio.sleep(.5)
-#
-#         # doesn't affect download speed
-#         if not await self.is_connected():
-#             print('error: DWF disconnected while receiving file')
-#             return 1, bytes()
-#
-#         # the FAST download is going well
-#         ble_mat_progress_dl(len(self.ans), z, ip, port)
-#         if len(self.ans) == z:
-#             print('all file received')
-#             # receive the last shit
-#             break
-#
-#         # check for stall
-#         if len(self.ans) == timeout_z:
-#             print('error DWF timeout')
-#             break
-#         timeout_z = len(self.ans)
-#
-#     print('z', z)
-#     print('len(self.ans)', len(self.ans))
-#     rv = 0 if z == len(self.ans) else 1
-#     return rv, self.ans
+# download a file in fast mode
+# does NOT use function cmd()
+async def cmd_dwf(file_size) -> tuple:
+
+    global g_rx
+    g_rx = bytes()
+    # r_set()
+    last_n = 0
+    el = time.perf_counter()
+    print(f'DWF: receiving file {file_size} bytes long')
+    await g_cli.write_gatt_char(UUID_R, b'DWF \r')
+
+
+    # receive whole file
+    while 1:
+        if not is_connected():
+            print('error: DWF disconnected while receiving file')
+            return 1, bytes()
+
+        # don't print progress too often or screws download timing
+        await asyncio.sleep(1)
+        n = len(g_rx)
+        # print('DWF progress', '{:5.2f} %'.format(100 * n / file_size))
+        # r_set()
+        if n == last_n or n == file_size:
+            break
+        last_n = n
+
+
+    # report download result
+    rv = 0 if n == file_size else 1
+    if rv:
+        print(f'error: DWF received {n} bytes vs file_size {file_size}')
+    else:
+        el = int(time.perf_counter()) - el
+        print(f'DWL speed {(file_size / el) / 1000} KB/s')
+    return rv, n
 
 
 
@@ -1114,7 +1116,8 @@ async def main():
     rv = await cmd_dwg('dummy_946717645.lid')
     print(rv)
 
-    await cmd_dwl(77950)
+    # await cmd_dwl(77950)
+    rv = await cmd_dwf(77950)
     print(rv)
 
 
