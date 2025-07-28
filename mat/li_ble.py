@@ -459,6 +459,7 @@ async def cmd_dwl(file_size) -> tuple:
     g_rx = bytes()
     n = math.ceil(file_size / 2048)
     r_set('ble_dl_progress', 0)
+    el = time.perf_counter()
 
 
     # loop through receiving 2048 bytes chunks
@@ -470,21 +471,19 @@ async def cmd_dwl(file_size) -> tuple:
         try:
             c = 'DWL {:02x}{}\r'.format(len(str(i)), i)
             await g_cli.write_gatt_char(UUID_R, c.encode())
-            # debug
-            print(f'chunk #{i} len {len(g_rx)}')
         except (Exception,) as ex:
             print(f'error: DWL -> {ex}')
             return 1, g_rx
 
 
-        # =========
-        # TEST this
-        # =========
+        # download using DWL command (~7 KB/s when no connection update)
         ok = 0
         for _ in range(20):
             await asyncio.sleep(.1)
             n = len(g_rx)
             ok = n == ((i + 1) * 2048) or file_size
+            print('DWL progress', '{:5.2f} %'.format(100 * n / file_size))
+
             if ok:
                 # fast quit towards next chunk
                 break
@@ -493,6 +492,8 @@ async def cmd_dwl(file_size) -> tuple:
         if not ok:
             break
 
+    el = int(time.perf_counter() - el)
+    print(f'DWL speed {(file_size / el) / 1000} KB/s')
     rv = 0 if file_size == len(g_rx) else 1
     return rv, g_rx
 
@@ -1104,9 +1105,17 @@ async def main():
     if not rv:
         return
 
-    for i in range(20):
-        rv = await cmd_sts()
-        print(rv)
+    # rv = await cmd_mts()
+    # print(rv)
+
+    # rv = await cmd_dir()
+    # print(rv)
+
+    rv = await cmd_dwg('dummy_946717645.lid')
+    print(rv)
+
+    await cmd_dwl(77950)
+    print(rv)
 
 
     await disconnect()
