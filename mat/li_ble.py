@@ -54,7 +54,7 @@ g_cli: BleakClient
 
 def _gui_notification(s):
     try:
-        c = f'notify-send -u normal "Bluetooth" "{s}" -t 3000'
+        c = f'notify-send "Bluetooth" "{s}" -t 3000'
         sp.run(c, shell=True)
     except (Exception, ):
         pass
@@ -98,8 +98,10 @@ async def scan(timeout=SCAN_TIMEOUT_SECS):
 
 async def scan_fast(mtf, timeout=SCAN_TIMEOUT_SECS):
 
-    # otherwise you will not find it
-    _linux_disconnect_by_mac(mtf)
+    # just tell us
+    if _linux_is_mac_already_connected(mtf):
+        print('attempting scan_fast a mac that is already connected')
+        return None
 
     # mtf: mac to find, bleak scans uppercase
     mtf = mtf.upper()
@@ -247,7 +249,7 @@ async def _wait_for_cmd_done(cmd_timeout):
     # accumulate command answer in notification handler
     timeout = time.perf_counter() + cmd_timeout
     while is_connected() and time.perf_counter() < timeout:
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.1)
         if _is_cmd_done():
             print('->', g_rx)
             return g_rx
@@ -1086,8 +1088,6 @@ async def cmd_xod():
 #     if ok:
 #         return 0, rv
 #     return 1, bytes()
-#
-#
 
 
 
@@ -1104,8 +1104,10 @@ async def main():
     if not rv:
         return
 
-    rv = await cmd_dir()
-    print(rv)
+    for i in range(20):
+        rv = await cmd_sts()
+        print(rv)
+
 
     await disconnect()
 
