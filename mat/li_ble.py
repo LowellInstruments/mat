@@ -53,6 +53,8 @@ g_cli: BleakClient
 
 
 def _gui_notification(s):
+
+    # does a pop-up at the upper right
     try:
         c = f'notify-send "Bluetooth" "{s}" -t 3000'
         sp.run(c, shell=True)
@@ -62,6 +64,8 @@ def _gui_notification(s):
 
 
 def _linux_is_mac_already_connected(mac: str):
+
+    # check at bluez level
     c = f'bluetoothctl devices Connected | grep {mac.upper()}'
     rv = sp.run(c, shell=True, stdout=sp.PIPE, stderr=sp.PIPE).returncode
     return rv == 0
@@ -69,6 +73,8 @@ def _linux_is_mac_already_connected(mac: str):
 
 
 def _linux_disconnect_by_mac(mac: str):
+
+    # disconnect at bluez level
     if not _linux_is_mac_already_connected(mac):
         return
     c = f'bluetoothctl disconnect {mac}'
@@ -79,12 +85,16 @@ def _linux_disconnect_by_mac(mac: str):
 
 
 def _rx_cb(_: BleakGATTCharacteristic, bb: bytearray):
+
+    # just accumulate
     global g_rx
     g_rx += bb
 
 
 
 async def scan(timeout=SCAN_TIMEOUT_SECS):
+
+    # slow scan with no fast-quit
     print(f'starting scan_slow for {timeout} seconds')
     bs = BleakScanner()
     await bs.start()
@@ -98,7 +108,7 @@ async def scan(timeout=SCAN_TIMEOUT_SECS):
 
 async def scan_fast(mtf, timeout=SCAN_TIMEOUT_SECS):
 
-    # just tell us
+    # just tell, do not act here
     if _linux_is_mac_already_connected(mtf):
         print('attempting scan_fast a mac that is already connected')
         return None
@@ -143,7 +153,7 @@ async def connect(dev: BLEDevice, conn_update=False) -> Optional[bool]:
     # retries embedded in bleak library
     try:
         global g_cli
-        g_cli = BleakClient(dev, timeout=10)
+        g_cli = BleakClient(dev, timeout=20)
         el = time.perf_counter()
         print(f"connecting to mac {dev.address}")
         await g_cli.connect()
@@ -163,12 +173,13 @@ async def connect(dev: BLEDevice, conn_update=False) -> Optional[bool]:
 
 
 async def disconnect():
+
+    # blueman-applet, blueman-tray may interfere
     try:
         global g_cli
         await g_cli.disconnect()
         print('disconnected cleanly')
     except (Exception, ):
-        # blueman-applet, blueman-tray may delay
         # disconnection a bit and seem it failed
         print('disconnected')
 
@@ -246,9 +257,10 @@ def _is_cmd_done():
 
 
 async def _wait_for_cmd_done(cmd_timeout):
+
     # accumulate command answer in notification handler
-    timeout = time.perf_counter() + cmd_timeout
-    while is_connected() and time.perf_counter() < timeout:
+    till = time.perf_counter() + cmd_timeout
+    while is_connected() and time.perf_counter() < till:
         await asyncio.sleep(0.1)
         if _is_cmd_done():
             print('->', g_rx)
@@ -278,6 +290,8 @@ async def _wait_for_cmd_done(cmd_timeout):
 
 
 async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD_SECS):
+
+    # send a command via BLE and wait for it to be considered finish
     async def _cmd():
         if not is_connected():
             raise ExceptionNotConnected
@@ -290,10 +304,13 @@ async def cmd(c: str, empty=True, timeout=DEF_TIMEOUT_CMD_SECS):
         print('<-', c)
         try:
             await g_cli.write_gatt_char(UUID_R, c.encode())
+
+            # check the answer to know it has finished
             return await _wait_for_cmd_done(timeout)
         except (Exception,) as _ex:
             raise ExceptionCommand(_ex)
 
+    # return command answer or None on command exceptions
     try:
         return await _cmd()
     except ExceptionNotConnected:
@@ -455,7 +472,7 @@ async def cmd_dwg(s):
 # does NOT use function cmd()
 async def cmd_dwl(file_size) -> tuple:
 
-    # prepare variables pre-download
+    # prepare variables pre-DWL
     global g_rx
     g_rx = bytes()
     n = math.ceil(file_size / 2048)
@@ -479,18 +496,23 @@ async def cmd_dwl(file_size) -> tuple:
         # don't print progress too often or screws the download timing
         print('DWL progress {:5.2f} %, chunk {}'.
               format(100 * len(g_rx) / file_size, i))
+        r_set('ble_dl_progress', '{:5.2f}'.format(n / file_size))
 
         # download using DWL command (~7 KB/s when no connection update)
         ok = 0
         for _ in range(20):
             await asyncio.sleep(.1)
-            ok = len(g_rx) == ((i + 1) * 2048) or file_size
-            if ok:
-                # fast quit towards next DWL chunk
+            if len(g_rx) == (i + 1) * 2048:
+                # next chunk
+                ok = 1
+                break
+            if len(g_rx) == file_size:
+                # all file done
+                ok = 1
                 break
 
-        r_set('ble_dl_progress', '{:5.2f}'.format(n / file_size))
         if not ok:
+            print('error: DWL timeout')
             break
 
     el = int(time.perf_counter() - el)
@@ -504,6 +526,7 @@ async def cmd_dwl(file_size) -> tuple:
 # does NOT use function cmd()
 async def cmd_dwf(file_size) -> tuple:
 
+    # prepare variables pre-DWF
     global g_rx
     g_rx = bytes()
     # r_set()
@@ -1094,10 +1117,13 @@ async def cmd_xod():
 
 
 
+
 async def main():
 
     # mac_test = "D0:2E:AB:D9:29:48" # TDO
-    mac_test = "F0:5E:CD:25:95:E0" # CTD
+    # mac_test = "F0:5E:CD:25:95:E0"  # CTD_home
+    mac_test = "F0:5E:CD:25:92:EA" # CTD_lowell
+
 
     # ls_dev = await scan()
     # print(ls_dev)
@@ -1113,13 +1139,8 @@ async def main():
     # rv = await cmd_dir()
     # print(rv)
 
-    # rv = await cmd_dwg('dummy_946717645.lid')
-    # print(rv)
-    #
-    # # await cmd_dwl(77950)
-    # rv = await cmd_dwf(77950)
-    # print(rv)
-
+    rv = await cmd_dwg('dummy_946717645.lid')
+    print(rv)
 
     for i in range(100):
         rv, v = await cmd_gsc()
