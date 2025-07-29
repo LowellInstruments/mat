@@ -1097,7 +1097,7 @@ async def cmd_xod():
 async def main():
 
     # mac_test = "D0:2E:AB:D9:29:48" # TDO
-    mac_test = "F0:5E:CD:25:92:EA" # CTD
+    mac_test = "F0:5E:CD:25:95:E0" # CTD
 
     # ls_dev = await scan()
     # print(ls_dev)
@@ -1113,12 +1113,23 @@ async def main():
     # rv = await cmd_dir()
     # print(rv)
 
-    rv = await cmd_dwg('dummy_946717645.lid')
-    print(rv)
+    # rv = await cmd_dwg('dummy_946717645.lid')
+    # print(rv)
+    #
+    # # await cmd_dwl(77950)
+    # rv = await cmd_dwf(77950)
+    # print(rv)
 
-    # await cmd_dwl(77950)
-    rv = await cmd_dwf(77950)
-    print(rv)
+
+    for i in range(100):
+        rv, v = await cmd_gsc()
+        if rv == 1:
+            break
+        time.sleep(3)
+
+    # for i in range(100):
+    #     rv = await cmd_gsp()
+    #     print('gsp', rv)
 
 
     await disconnect()
