@@ -163,7 +163,7 @@ def ble_mat_get_bluez_version() -> str:
     v = rv.stdout.decode()
     # v: b'bluetoothctl: 5.55\n'
     v = v.replace('\n', '').split(': ')[1]
-    print('[ BLE ] bluez version is', v)
+    print('MAT: bluez version is', v)
     return str(v)
 
 
