@@ -159,19 +159,23 @@ class ParserLixTdoFileV3(ParserLixFile):
 
     def _parse_data_mm(self, mm, i, ta):
 
-        # mm: all measurement bytes, no micro_headers but yes masks
+        # mm: all measurement bytes, NO micro_headers, YES masks
         _p(f"\n\tmeasurement \t|  #{self.mm_i}")
 
-        # debug: find old files ended poorly
+
+        # debug, find old files ended poorly
         # happened in some in cases in firmware version v4.1.23
         if mm[i:i+5] == b'\x00\x00\x00\x00\x00':
             xc = (i / len(mm)) * 100
             print(f'warning: stopped LID file parsing at {xc} % because string of zeros')
             return -1, None
 
-        # calculated chunk number
+
+        # calculated chunk number (blocks of 256)
         j = int(i / 248) + 1
         _p(f"\tchunk idx \t\t|  #{j}")
+        chunk_idx = j
+
 
         # get current byte in big array of measurements and time mask
         j = i
@@ -189,19 +193,24 @@ class ParserLixTdoFileV3(ParserLixFile):
             i += 2
             _p('\tlen. mask\t\t|  2 -> te = 0x{:04x} = {}'.format(t, t))
 
-        # calculate measurement number of bytes
+
+        # calculate pressure measurement number of bytes
         np = 2 * self.mah_context.spn
         n = np + LEN_BYTES_T + LEN_BYTES_A
         _p(f"\tlen. sensors\t|  {n}")
 
+
         # build dictionary measurements, self.sm is for future features
         self.d_mm[ta + t] = (mm[i:i + n], self.sm)
+
 
         # keep track of how many measurements we decoded
         self.mm_i += 1
 
+
         # display postions of bytes involved
-        _p(f'\tindex bytes \t|  {j}:{n+i} ({n+i-j})')
+        _p(f'\tindex bytes \t|  {(chunk_idx * 256) + 8 + j}:{(chunk_idx * 256) + 8 + n+i} ({n+i-j})')
+
 
         # debug this measurement
         c = mm[j:n+i]
@@ -222,8 +231,11 @@ class ParserLixTdoFileV3(ParserLixFile):
         hs = int(s[-4:], 16)
         _p(f'{s} = {hs}')
 
+
         # return current index of measurements' array
         return i + n, t
+
+
 
     def _create_csv_file(self):
         # use the calibration coefficients to create objects

@@ -388,7 +388,7 @@ class ParserLixFile(ABC):
         # normally called by convert_lix_file() from lix_pr.py
         global g_verbose
         g_verbose = verbose
-        print(f'debug: convert verbose = {g_verbose}')
+        print(f'debug, convert verbose = {g_verbose}')
         self._load_file_bytes()
         self._get_file_length()
         self._parse_macro_header()

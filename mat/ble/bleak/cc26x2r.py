@@ -395,6 +395,13 @@ class BleCC26X2:    # pragma: no cover
             return 0, t
         return 1, 0
 
+    async def cmd_gsc(self):
+        # gst: Get Sensor Conductivity
+        c, _ = build_cmd('GSC')
+        await self._cmd(c)
+        time.sleep(1)
+        return 0, 1000
+
     async def cmd_gab(self):
         # gab: Get Accelerometer Burst
         c, _ = build_cmd("GAB")
@@ -694,7 +701,7 @@ class BleCC26X2:    # pragma: no cover
         # time() -> seconds since epoch, in UTC
         rerun = int(rerun)
         dt = datetime.fromtimestamp(time.time(), tz=timezone.utc)
-        print(f"debug: DDB sent {rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
+        print(f"debug, DDB sent {rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
         c, _ = build_cmd('__B', f"{rerun}{dt.strftime('%Y/%m/%d %H:%M:%S')}")
         await self._cmd(c)
         rv = await self._ans_wait()
