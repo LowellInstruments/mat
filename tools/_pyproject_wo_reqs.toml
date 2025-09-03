@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "mat"
+version = "4.0"
+description = "MAT library for Lowell Instruments"
+dependencies = [
+    "pynmea2",
+    "pyserial"
+]
