@@ -88,7 +88,7 @@ def id_lid_file_flavor(fp):
             ft = bb[:3]
 
             # pr: parser
-            if ft in (b'DO1', b'DO2', b'TDO'):
+            if ft in (b'DO1', b'DO2', b'TDO', b'CTD'):
                 return LID_FILE_V2
             elif ft in (b'PRF', b'TAP'):
                 print('**************************************')
@@ -161,8 +161,8 @@ def lix_mah_time_utc_epoch(b: bytes) -> int:
 
 
 def lix_decode_sensor_measurement(s, x):
-    # x: b'\xff\xeb'
     # s: 'T', 'P', 'Ax'...
+    # x: b'\xff\xeb'
     def _c2_to_decimal(n):
         if not (n & 0x8000):
             # detect positive numbers
