@@ -77,6 +77,9 @@ def is_cmd_done(tag, ans):
     ):
         return _ck(t, a, 8)
 
+    if t in ('GSC', ):
+        return _ck(t, a, 22)
+
     if t in (BAT_CMD, WAT_CMD):
         return _ck(t, a, 10)
 

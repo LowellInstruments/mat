@@ -62,7 +62,7 @@ class BleCC26X2:    # pragma: no cover
             # ---------------------------------
 
             if is_cmd_done(self.tag, self.ans):
-                # print('debug self.ans -> ', self.ans)
+                print('debug self.ans -> ', self.ans)
                 if self.dbg_ans:
                     # debug good answers
                     elapsed = time.time() - start
@@ -399,8 +399,12 @@ class BleCC26X2:    # pragma: no cover
         # gst: Get Sensor Conductivity
         c, _ = build_cmd('GSC')
         await self._cmd(c)
-        time.sleep(1)
-        return 0, 1000
+        rv = await self._ans_wait()
+        # rv: GSC 101234567890ABCDEF
+        ok = rv and len(rv) == 22 and rv.startswith(b'GSC')
+        if not ok:
+            return 1, 0
+        return 0, rv[6:]
 
     async def cmd_gab(self):
         # gab: Get Accelerometer Burst
