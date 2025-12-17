@@ -7,7 +7,7 @@ from mat.lix import (ParserLixFile, CS, LEN_LIX_FILE_CONTEXT, _p,
                      LixFileConverterT, LixFileConverterP,
                      lix_macro_header_start_time_to_seconds,
                      lix_decode_sensor_measurement,
-                     lix_raw_sensor_measurement_to_int)
+                     lix_raw_sensor_measurement_to_int, LEN_LIX_FILE_CONTEXT_V3)
 
 # flag debug
 debug = 0
@@ -91,7 +91,10 @@ class ParserLixTdoFileV3(ParserLixFile):
         i_mah = 13
         self.mah.cc_area = bb[i_mah: i_mah + LEN_LIX_FILE_CC_AREA]
         # context
-        i = CS - LEN_LIX_FILE_CONTEXT
+        if self.mah.file_version <= 2:
+            i = CS - LEN_LIX_FILE_CONTEXT
+        else:
+            i = CS - LEN_LIX_FILE_CONTEXT_V3
         self.mah.context = bb[i:]
         gfv = bb[i:i+4]
         i += 4

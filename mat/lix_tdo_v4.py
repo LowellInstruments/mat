@@ -1,5 +1,5 @@
 from mat.ascii85 import ascii85_to_num as a2n
-from mat.lix import CS, LEN_LIX_FILE_CONTEXT, lix_mah_time_to_str, _p
+from mat.lix import CS, LEN_LIX_FILE_CONTEXT, lix_mah_time_to_str, _p, LEN_LIX_FILE_CONTEXT_V3
 from mat.lix_tdo_v3 import ParserLixTdoFileV3
 
 
@@ -21,7 +21,10 @@ class ParserLixTdoFileV4(ParserLixTdoFileV3):
         i_mah = 13
         self.mah.cc_area = bb[i_mah: i_mah + LEN_LIX_FILE_CC_AREA]
         # context
-        i = CS - LEN_LIX_FILE_CONTEXT
+        if self.mah.file_version <= 2:
+            i = CS - LEN_LIX_FILE_CONTEXT
+        else:
+            i = CS - LEN_LIX_FILE_CONTEXT_V3
         self.mah.context = bb[i:]
         gfv = bb[i:i+4]
         i += 4

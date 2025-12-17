@@ -35,6 +35,7 @@ UHS = LEN_LIX_FILE_MICRO_HEADER
 
 # length in lix file that we reserve to store compressed CF_AREA
 LEN_LIX_FILE_CONTEXT = 64
+LEN_LIX_FILE_CONTEXT_V3 = 48
 
 
 g_verbose = True

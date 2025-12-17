@@ -1,7 +1,8 @@
+import sys
 from datetime import datetime
 from mat.lix import (ParserLixFile, CS,
                      LEN_LIX_FILE_CONTEXT, _p,
-                     lix_mah_time_to_str, lix_mah_time_utc_epoch)
+                     lix_mah_time_to_str, lix_mah_time_utc_epoch, LEN_LIX_FILE_CONTEXT_V3)
 
 
 LEN_LIX_FILE_CC_AREA = 5
@@ -27,6 +28,8 @@ class ParserLixDoxFile(ParserLixFile):
     def __init__(self, file_path):
         super().__init__(file_path)
 
+
+
     def _parse_macro_header(self):
         self.mah.bytes = self.bb[:CS]
         bb = self.mah.bytes
@@ -35,8 +38,13 @@ class ParserLixDoxFile(ParserLixFile):
         self.mah.timestamp = bb[4:10]
         self.mah.battery = bb[10:12]
         self.mah.hdr_idx = bb[12]
+
         # DOX loggers do not use context much
-        i = CS - LEN_LIX_FILE_CONTEXT
+        if self.mah.file_version <= 2:
+            i = CS - LEN_LIX_FILE_CONTEXT
+        else:
+            i = CS - LEN_LIX_FILE_CONTEXT_V3
+
         self.mah_context.bytes = bb[i:]
         self.mah_context.spt = self.mah_context.bytes[8:13].decode()
 
@@ -50,6 +58,8 @@ class ParserLixDoxFile(ParserLixFile):
         _p("\tbattery level \t|  0x{:04x} = {} mV".format(bat, bat))
         _p(f"\theader index \t|  {self.mah.hdr_idx}")
         _p(f"\tSPT period   \t|  {self.mah_context.spt}")
+
+
 
     def _parse_data_mm(self, mm, i, _):
         # DOX loggers they don't use mask
@@ -67,6 +77,8 @@ class ParserLixDoxFile(ParserLixFile):
 
         # return current index of measurements' array
         return i + n, t
+
+
 
     def _create_csv_file(self):
 

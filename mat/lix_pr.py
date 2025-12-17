@@ -1,3 +1,4 @@
+import sys
 import traceback
 
 from mat.lix_dox import ParserLixDoxFile
@@ -19,12 +20,17 @@ def get_tdo_parser(rvn):
         return ParserLixTdoFileV4
 
 
+
+
 def convert_lix_file(fp, more_columns=0, verbose=0):
     # fp: absolute file_path
     try:
         with open(fp, 'rb') as f:
             # ft: file type
             bb = f.read()
+
+            print('bb', len(bb))
+
             ft = bb[:3]
 
             # pr: parser
@@ -45,7 +51,7 @@ def convert_lix_file(fp, more_columns=0, verbose=0):
 
 
 if __name__ == '__main__':
-    filename = '/home/kaz/Downloads/2508703_LAB_20250819_173740.lid'
+    filename = '/home/kaz/PycharmProjects/ddh/dl_files/f0-5e-cd-25-a1-20/2512653_BIL_20251217_015618.lid'
     rv = convert_lix_file(filename, more_columns=1, verbose=1)
     print('rv', rv)
 
